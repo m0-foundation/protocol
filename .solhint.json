@@ -1,0 +1,56 @@
+{
+    "extends": [
+        "solhint:recommended"
+    ],
+    "plugins": [],
+    "rules": {
+        "not-rely-on-time": "off",
+        "no-inline-assembly": "off",
+        "code-complexity": [
+            "warn",
+            10
+        ],
+        "function-max-lines": [
+            "warn",
+            100
+        ],
+        "max-line-length": [
+            "warn",
+            120
+        ],
+        "contract-name-camelcase": "warn",
+        "no-unused-vars": "warn",
+        "no-global-import": "warn",
+        "comprehensive-interface": "off",
+        "quotes": [
+            "error",
+            "double"
+        ],
+        "const-name-snakecase": "off",
+        "event-name-camelcase": "warn",
+        "func-name-mixedcase": "off",
+        "modifier-name-mixedcase": "warn",
+        "named-parameters-mapping": "warn",
+        "private-vars-leading-underscore": [
+            "warn",
+            {
+                "strict": true
+            }
+        ],
+        "var-name-mixedcase": "warn",
+        "imports-on-top": "error",
+        "ordering": "warn",
+        "visibility-modifier-order": "error",
+        "compiler-version": [
+            "warn",
+            "0.8.19"
+        ],
+        "func-visibility": [
+            "warn",
+            {
+                "ignoreConstructors": true
+            }
+        ],
+        "no-empty-blocks": "off"
+    }
+}

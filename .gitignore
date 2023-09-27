@@ -7,8 +7,18 @@ out/
 /broadcast/*/31337/
 /broadcast/**/dry-run/
 
-# Docs
-docs/
-
 # Dotenv file
 .env
+
+notes.md
+
+coverage/
+lcov.info
+
+.DS_Store
+
+docs/
+
+node_modules/
+
+results.sarif

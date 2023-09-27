@@ -1,0 +1,16 @@
+{
+  "editor.inlineSuggest.enabled": true,
+  "editor.formatOnSave": true,
+  "prettier.printWidth": 120,
+  "prettier.tabWidth": 4,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "eslint.run": "onSave",
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features",
+    "files.insertFinalNewline": true
+  },
+  "[solidity]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}
