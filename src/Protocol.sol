@@ -8,7 +8,7 @@ contract Protocol {
     \******************************************************************************************************************/
     //
     //
-    // updateCollateral, accruePenalties
+    // updateCollateral
     // proposeMint, mint, cancel, freeze
     // burn
     // proposeRedeem, redeem
@@ -30,6 +30,7 @@ contract Protocol {
     //
     //
     // updateIndices, updateBorrowIndex, updateStakingIndex
+    // accruePenalties
     // mintRewardsToZeroHolders
     //
     //
