@@ -18,7 +18,8 @@ contract MTokenTests is Test {
     MToken internal _mToken;
 
     function setUp() external {
-        _mToken = new MToken(_protocol);
+        _protocol = new Protocol(address(0));
+        _mToken = new MToken(address(_protocol));
     }
 
     function test_mint() external {
