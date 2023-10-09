@@ -11,6 +11,12 @@ import { IUpdateCollateralSigVerifier } from "./interfaces/IUpdateCollateralSigV
 contract Protocol is IProtocol {
     using Bytes32AddressLib for bytes32;
 
+    // TODO figure out proper bit-packing and size of fields
+    struct CollateralBasic {
+        uint256 amount;
+        uint64 lastUpdated;
+    }
+
     // Protocol variables
     address public immutable spog;
 
@@ -18,6 +24,8 @@ contract Protocol is IProtocol {
     bytes32 public constant MINTERS_LIST_NAME = "minters";
     bytes32 public constant VALIDATORS_LIST_NAME = "validators";
     bytes32 public constant COLLATERAL_SIG_VERIFIER = "collateral_sig_verifier";
+
+    mapping(address minter => CollateralBasic) public collateral;
 
     constructor(address spog_) {
         spog = spog_;
@@ -52,7 +60,14 @@ contract Protocol is IProtocol {
 
         if (!_isApprovedValidator(validator)) revert InvalidValidator();
 
-        // _updateCollateral(minter, amount);
+        // accruePenalties();
+
+        CollateralBasic storage minterCollateral = collateral[minter];
+
+        minterCollateral.amount = amount;
+        minterCollateral.lastUpdated = uint64(block.timestamp);
+
+        // accruePenalties();
     }
 
     //
