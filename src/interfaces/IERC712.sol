@@ -11,7 +11,7 @@ interface IERC712 {
 
     error SignatureExpired(uint256 deadline, uint256 timestamp);
 
-    error SignerMismatch(address account, address signer);
+    // error SignerMismatch(address account, address signer);
 
     function DOMAIN_SEPARATOR() external view returns (bytes32 domainSeparator);
 
