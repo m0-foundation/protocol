@@ -45,6 +45,7 @@ contract Protocol is IProtocol {
         bytes32 s
     ) external {
         if (!_isApprovedMinter(minter)) revert InvalidMinter();
+        // if (msg.sender != minter) revert NotMinter();
 
         address verifierContract = _getCollateralSigVerifier();
         address validator = IUpdateCollateralSigVerifier(verifierContract).recoverValidator(
