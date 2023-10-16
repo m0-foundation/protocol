@@ -1,6 +1,30 @@
 [profile.default]
 src = "src"
+test = "test"
+script = "script"
 out = "out"
 libs = ["lib"]
+cache = true
+cache_path = "cache"
+broadcast = "broadcast"
+gas_reports = ["*"]
+gas_reports_ignore = []
+solc-version = "0.8.19"
+optimizer = false
+verbosity = 3
+ignored_error_codes = []
+block_number = 17_740_856
+block_timestamp = 1_689_934_508
 
-# See more config options https://github.com/foundry-rs/foundry/tree/master/config
+[profile.default.fuzz]
+runs = 256
+
+[profile.default.invariant]
+runs = 256
+depth = 15
+
+[profile.production]
+optimizer = true
+optimizer_runs = 200
+build_info = true
+sizes = true

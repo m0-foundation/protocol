@@ -31,3 +31,7 @@ Test a specific test case
 ```bash
  forge test --mt <test-case-name>
 ```
+
+## SC Architecture
+
+<img width="1099" alt="protocol-architecture-sketch" src="https://github.com/MZero-Labs/protocol/assets/1220854/925bc638-2c1d-4fca-943a-104e4b265d67">
