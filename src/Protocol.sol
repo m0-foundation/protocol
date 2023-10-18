@@ -6,7 +6,7 @@ import { Bytes32AddressLib } from "solmate/utils/Bytes32AddressLib.sol";
 
 import { IProtocol } from "./interfaces/IProtocol.sol";
 import { ISPOG } from "./interfaces/ISPOG.sol";
-import { IUpdateCollateralSigVerifier } from "./interfaces/IUpdateCollateralSigVerifier.sol";
+import { ICollateralVerifier } from "./interfaces/ICollateralVerifier.sol";
 
 contract Protocol is IProtocol {
     using Bytes32AddressLib for bytes32;
@@ -23,9 +23,10 @@ contract Protocol is IProtocol {
     // SPOG lists and variables names
     bytes32 public constant MINTERS_LIST_NAME = "minters";
     bytes32 public constant VALIDATORS_LIST_NAME = "validators";
-    bytes32 public constant COLLATERAL_SIG_VERIFIER = "collateral_sig_verifier";
+    bytes32 public constant COLLATERAL_VERIFIER = "collateral_verifier";
+    bytes32 public constant UPDATE_COLLATERAL_SIG_NUMBER = "update_collateral";
 
-    mapping(address minter => CollateralBasic) public collateral;
+    mapping(address minter => CollateralBasic basic) public collateral;
 
     constructor(address spog_) {
         spog = spog_;
@@ -34,32 +35,20 @@ contract Protocol is IProtocol {
     /******************************************************************************************************************\
     |                                                Minter Functions                                                  |
     \******************************************************************************************************************/
+
     function updateCollateral(
-        address minter,
+        uint256 minter,
         uint256 amount,
+        uint256 timestamp,
         string memory metadata,
-        uint256 nonce,
-        uint256 expiry,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
+        address[] validators,
+        bytes[] calldata signatures
     ) external {
-        if (!_isApprovedMinter(minter)) revert InvalidMinter();
-        // if (msg.sender != minter) revert NotMinter();
+        address verifierContract = _getCollateralVerifier();
+        uint256 requiredSigNumber = ISPOG(spog).
+        (address minter, uint256 amount, uint256 timestamp) = ICollateralVerifier(verifierContract).decode(spog, data);
 
-        address verifierContract = _getCollateralSigVerifier();
-        address validator = IUpdateCollateralSigVerifier(verifierContract).recoverValidator(
-            minter,
-            amount,
-            metadata,
-            nonce,
-            expiry,
-            v,
-            r,
-            s
-        );
-
-        if (!_isApprovedValidator(validator)) revert InvalidValidator();
+        if (msg.sender != minter) revert NotMinter();
 
         // accruePenalties();
 
@@ -111,7 +100,7 @@ contract Protocol is IProtocol {
         return ISPOG(spog).listContains(VALIDATORS_LIST_NAME, validator);
     }
 
-    function _getCollateralSigVerifier() internal view returns (address) {
-        return ISPOG(spog).get(COLLATERAL_SIG_VERIFIER).fromLast20Bytes();
+    function _getCollateralVerifier() internal view returns (address) {
+        return ISPOG(spog).get(COLLATERAL_VERIFIER).fromLast20Bytes();
     }
 }
