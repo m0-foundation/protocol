@@ -101,7 +101,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         if (requiredQuorum > validators.length) revert NotEnoughSignatures();
 
-        // TODO consider reverting if any of inputs is duplicate or invalid
+        // TODO consider reverting if any of inputs are duplicate or invalid
         for (uint i = 0; i < signatures.length; i++) {
             // check that signature is unique and not accounted for
             bool duplicate = _contains(uniqueValidators, validators[i], validatorsNum);
