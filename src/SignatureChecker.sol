@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 
 import { IERC1271 } from "./interfaces/IERC1271.sol";
 
-library SignatureVerifier {
+library SignatureChecker {
     enum RecoverError {
         NoError,
         InvalidSignature,
