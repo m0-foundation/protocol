@@ -7,7 +7,27 @@ import "../../src/interfaces/ISPOG.sol";
 contract MockSPOG is ISPOG {
     mapping(bytes32 key => bytes32 value) internal _valueAt;
 
-    function get(bytes32 key) external view returns (bytes32 value) {}
+    function updateConfig(bytes32 key_, bytes32 value_) external {
+        _valueAt[key_] = value_;
+    }
 
-    function listContains(bytes32 list, address account) external view returns (bool contains) {}
+    function addToList(bytes32 list_, address account_) external {
+        _valueAt[_getKeyInSet(list_, account_)] = bytes32(uint256(1));
+    }
+
+    function removeFromList(bytes32 list_, address account_) external {
+        delete _valueAt[_getKeyInSet(list_, account_)];
+    }
+
+    function get(bytes32 key_) external view returns (bytes32) {
+        return _valueAt[key_];
+    }
+
+    function listContains(bytes32 list_, address account_) external view returns (bool) {
+        return _valueAt[_getKeyInSet(list_, account_)] == bytes32(uint256(1));
+    }
+
+    function _getKeyInSet(bytes32 list_, address account_) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(list_, account_));
+    }
 }
