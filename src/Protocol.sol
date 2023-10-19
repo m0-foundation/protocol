@@ -27,11 +27,12 @@ contract Protocol is IProtocol, StatelessERC712 {
     // SPOG lists and variables names
     bytes32 public constant MINTERS_LIST_NAME = "minters";
     bytes32 public constant VALIDATORS_LIST_NAME = "validators";
-    bytes32 public constant UPDATE_COLLATERAL_REQUIRED_SIGS_NUM = "update_collateral_required_sigs_number";
+    bytes32 public constant UPDATE_COLLATERAL_QUORUM = "updateCollateral_quorum";
+    bytes32 public constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
 
     address public immutable spog;
 
-    mapping(address minter => CollateralBasic basic) public collateral;
+    mapping(address minter => CollateralBasic) public collateral;
 
     constructor(address spog_) StatelessERC712("Protocol") {
         spog = spog_;
@@ -41,6 +42,13 @@ contract Protocol is IProtocol, StatelessERC712 {
     |                                                Minter Functions                                                  |
     \******************************************************************************************************************/
 
+    /// @notice Updates collateral for minters
+    /// @param minter The address of the minter
+    /// @param amount The amount of collateral
+    /// @param timestamp The timestamp of the update
+    /// @param metadata The metadata of the update, reserved for future informational use
+    /// @param validators The list of validators
+    /// @param signatures The list of signatures
     function updateCollateral(
         address minter,
         uint256 amount,
@@ -49,43 +57,49 @@ contract Protocol is IProtocol, StatelessERC712 {
         address[] calldata validators,
         bytes[] calldata signatures
     ) external {
+        // Basic sanity checks
         if (msg.sender != minter) revert NotMinter();
         if (!_isApprovedMinter(minter)) revert InvalidMinter();
-
         if (validators.length != signatures.length) revert InvalidSignaturesLength();
 
+        // Timestamp sanity checks
+        uint256 updateInterval = _getUpdateCollateralInterval();
+        if (block.timestamp > timestamp + updateInterval) revert InvalidTimestamp();
+
         CollateralBasic storage minterCollateral = collateral[minter];
+        if (minterCollateral.lastUpdated > timestamp) revert InvalidTimestamp();
 
-        if (minterCollateral.lastUpdated >= timestamp) revert InvalidTimestamp();
-
-        // TODO check that timestamp is not too old
-        // if (block.timestamp > timestamp + 1 days) revert InvalidTimestamp();
-
-        // verify that enough valid unique signatures were provided
+        // Core quorun validation, plus possible extension
         bytes32 updateCollateralDigest = _getUpdateCollateralDigest(minter, amount, metadata, timestamp);
-        uint256 requiredSigsNum = _getSigsNumRequiredToUpdateCollateral();
+        uint256 requiredSigsNum = _getUpdateCollateralQuorum();
         _hasEnoughValidSignatures(updateCollateralDigest, validators, signatures, requiredSigsNum);
 
-        // accruePenalties();
+        // accruePenalties(); // JIRA ticket https://mzerolabs.atlassian.net/jira/software/c/projects/WEB3/boards/10?selectedIssue=WEB3-396
 
+        // Update collateral
         minterCollateral.amount = amount;
-        // minterCollateral.lastUpdated = uint64(block.timestamp);
         minterCollateral.lastUpdated = timestamp;
 
-        // accruePenalties();
+        // accruePenalties(); // JIRA ticket
+
         emit CollateralUpdated(minter, amount, timestamp, metadata);
     }
 
+    /// @dev Checks that enough valid unique signatures were provided
+    /// @param digest The message hash for signing
+    /// @param validators The list of validators who signed digest
+    /// @param signatures The list of signatures
+    /// @param requiredQuorum The number of signatures required for validated action
     function _hasEnoughValidSignatures(
         bytes32 digest,
         address[] calldata validators,
         bytes[] calldata signatures,
-        uint256 requiredSigsNum
+        uint256 requiredQuorum
     ) internal view {
         address[] memory uniqueValidators = new address[](validators.length);
         uint256 validatorsNum = 0;
 
-        if (requiredSigsNum > validators.length) revert NotEnoughSignatures();
+        if (requiredQuorum > validators.length) revert NotEnoughSignatures();
 
         // TODO consider reverting if any of inputs is duplicate or invalid
         for (uint i = 0; i < signatures.length; i++) {
@@ -99,19 +113,17 @@ contract Protocol is IProtocol, StatelessERC712 {
 
             // check that ECDSA or ERC1271 signatures for given digest are valid
             bool valid = SignatureChecker.isValidSignature(validators[i], digest, signatures[i]);
-            // bool validExtension = IValidationExtension(_getValidationExtension()).isValidSignature(
-            //     validator[i],
-            //     digest,
-            //     signatures[i]
-            // );
+            // TODO add validation extension here
+
             if (!valid) continue;
 
             uniqueValidators[validatorsNum++] = validators[i];
         }
 
-        if (validatorsNum < requiredSigsNum) revert NotEnoughSignatures();
+        if (validatorsNum < requiredQuorum) revert NotEnoughSignatures();
     }
 
+    /// @dev Returns the EIP-712 digest for updateCollateral method
     function _getUpdateCollateralDigest(
         address minter,
         uint256 amount,
@@ -121,16 +133,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         return _getDigest(keccak256(abi.encode(UPDATE_COLLATERAL_TYPEHASH, minter, amount, metadata, timestamp)));
     }
 
-    // function _getProposeMintDigest(
-    //     address minter,
-    //     uint256 amount,
-    //     string memory metadata,
-    //     uint256 timestamp
-    // ) internal view returns (bytes32) {
-    //     return _getDigest(keccak256(abi.encode(PROPOSE_MINT_TYPEHASH, minter, amount, metadata, timestamp)));
-    // }
-
-    // Helper function to check if a given list contains an element
+    /// @dev Helper function to check if a given list contains an element
     function _contains(address[] memory arr, address elem, uint len) internal pure returns (bool) {
         for (uint i = 0; i < len; i++) {
             if (arr[i] == elem) {
@@ -180,11 +183,11 @@ contract Protocol is IProtocol, StatelessERC712 {
         return ISPOG(spog).listContains(VALIDATORS_LIST_NAME, validator);
     }
 
-    // function _getValidationExtension() internal view returns (address) {
-    //     return ISPOG(spog).get(COLLATERAL_VERIFIER).fromLast20Bytes();
-    // }
+    function _getUpdateCollateralInterval() internal view returns (uint256) {
+        return uint256(ISPOG(spog).get(UPDATE_COLLATERAL_INTERVAL));
+    }
 
-    function _getSigsNumRequiredToUpdateCollateral() internal view returns (uint256) {
-        return uint256(ISPOG(spog).get(UPDATE_COLLATERAL_REQUIRED_SIGS_NUM));
+    function _getUpdateCollateralQuorum() internal view returns (uint256) {
+        return uint256(ISPOG(spog).get(UPDATE_COLLATERAL_QUORUM));
     }
 }
