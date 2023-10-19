@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.19;
 
+import { IStatelessERC712 } from "./IStatelessERC712.sol";
+
 interface IProtocol {
     error NotEnoughSignatures();
     error NotMinter();
@@ -13,6 +15,8 @@ interface IProtocol {
     error InvalidTimestamp();
 
     event CollateralUpdated(address indexed minter, uint256 amount, uint256 timestamp, string metadata);
+
+    function UPDATE_COLLATERAL_TYPEHASH() external view returns (bytes32);
 
     function updateCollateral(
         address minter,
