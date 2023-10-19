@@ -3,7 +3,23 @@
 pragma solidity 0.8.19;
 
 interface IProtocol {
+    error NotEnoughSignatures();
     error NotMinter();
 
-    function updateCollateral(bytes calldata data) external;
+    error InvalidMinter();
+    error InvalidSignature();
+    error InvalidSignaturesLength();
+    error InvalidValidator();
+    error InvalidTimestamp();
+
+    event CollateralUpdated(address indexed minter, uint256 amount, uint256 timestamp, string metadata);
+
+    function updateCollateral(
+        address minter,
+        uint256 amount,
+        uint256 timestamp,
+        string memory metadata,
+        address[] calldata validators,
+        bytes[] calldata signatures
+    ) external;
 }
