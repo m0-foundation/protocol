@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.19;
+pragma solidity 0.8.21;
 
 import { Bytes32AddressLib } from "solmate/utils/Bytes32AddressLib.sol";
 
@@ -34,6 +34,12 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     mapping(address minter => CollateralBasic) public collateral;
 
+    modifier onlyApprovedMinter(address minter) {
+        if (msg.sender != minter || !_isApprovedMinter(minter)) revert NotApprovedMinter();
+
+        _;
+    }
+
     constructor(address spog_) StatelessERC712("Protocol") {
         spog = spog_;
     }
@@ -56,23 +62,20 @@ contract Protocol is IProtocol, StatelessERC712 {
         string memory metadata,
         address[] calldata validators,
         bytes[] calldata signatures
-    ) external {
-        // Basic sanity checks
-        if (msg.sender != minter) revert NotMinter();
-        if (!_isApprovedMinter(minter)) revert InvalidMinter();
+    ) external onlyApprovedMinter(minter) {
         if (validators.length != signatures.length) revert InvalidSignaturesLength();
 
         // Timestamp sanity checks
         uint256 updateInterval = _getUpdateCollateralInterval();
-        if (block.timestamp > timestamp + updateInterval) revert InvalidTimestamp();
+        if (block.timestamp > timestamp + updateInterval) revert ExpiredTimestamp();
 
         CollateralBasic storage minterCollateral = collateral[minter];
-        if (minterCollateral.lastUpdated > timestamp) revert InvalidTimestamp();
+        if (minterCollateral.lastUpdated > timestamp) revert StaleTimestamp();
 
-        // Core quorun validation, plus possible extension
+        // Core quorum validation, plus possible extension
         bytes32 updateCollateralDigest = _getUpdateCollateralDigest(minter, amount, metadata, timestamp);
-        uint256 requiredSigsNum = _getUpdateCollateralQuorum();
-        _hasEnoughValidSignatures(updateCollateralDigest, validators, signatures, requiredSigsNum);
+        uint256 requiredQuorum = _getUpdateCollateralQuorum();
+        _hasEnoughValidSignatures(updateCollateralDigest, validators, signatures, requiredQuorum);
 
         // accruePenalties(); // JIRA ticket https://mzerolabs.atlassian.net/jira/software/c/projects/WEB3/boards/10?selectedIssue=WEB3-396
 
@@ -99,7 +102,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         address[] memory uniqueValidators = new address[](validators.length);
         uint256 validatorsNum = 0;
 
-        if (requiredQuorum > validators.length) revert NotEnoughSignatures();
+        if (requiredQuorum > validators.length) revert NotEnoughValidSignatures();
 
         // TODO consider reverting if any of inputs are duplicate or invalid
         for (uint i = 0; i < signatures.length; i++) {
@@ -120,7 +123,7 @@ contract Protocol is IProtocol, StatelessERC712 {
             uniqueValidators[validatorsNum++] = validators[i];
         }
 
-        if (validatorsNum < requiredQuorum) revert NotEnoughSignatures();
+        if (validatorsNum < requiredQuorum) revert NotEnoughValidSignatures();
     }
 
     /// @dev Returns the EIP-712 digest for updateCollateral method
