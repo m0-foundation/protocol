@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.19;
+pragma solidity 0.8.21;
 
 abstract contract StatelessERC712 {
     // keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
