@@ -167,4 +167,125 @@ contract ProtocolTests is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
         return abi.encodePacked(r, s, v);
     }
+
+    function test_updateCollateral_notMinter() external {
+        uint256 collateral = 100;
+        uint256 timestamp = block.timestamp;
+        bytes memory signature = _getSignature(_minter1, collateral, timestamp, "", _validator1Pk);
+
+        address[] memory validators_ = new address[](1);
+        validators_[0] = _validator1;
+
+        bytes[] memory signatures_ = new bytes[](1);
+        signatures_[0] = signature;
+
+        vm.prank(_validator1);
+        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+        _protocol.updateCollateral(_minter1, collateral, block.timestamp, "", validators_, signatures_);
+    }
+
+    function test_updateCollateral_invalidMinter() external {
+        address[] memory validators_ = new address[](1);
+        bytes[] memory signatures_ = new bytes[](1);
+
+        vm.prank(_validator1);
+        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+        _protocol.updateCollateral(makeAddr("alice"), 100, block.timestamp, "", validators_, signatures_);
+    }
+
+    function test_updateCollateral_invalidSignaturesLength() external {
+        bytes memory signature = _getSignature(_minter1, 100, block.timestamp, "", _validator1Pk);
+
+        address[] memory validators_ = new address[](2);
+        validators_[0] = _validator1;
+        validators_[1] = _validator1;
+
+        bytes[] memory signatures_ = new bytes[](3);
+        signatures_[0] = signature;
+        signatures_[1] = signature;
+        signatures_[2] = signature;
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.InvalidSignaturesLength.selector);
+        _protocol.updateCollateral(_minter1, 100, block.timestamp, "", validators_, signatures_);
+    }
+
+    function test_updateCollateral_expiredTimestamp() external {
+        uint256 timestamp = block.timestamp - _updateCollateralInterval - 1;
+        bytes memory signature = _getSignature(_minter1, 100, timestamp, "", _validator1Pk);
+
+        address[] memory validators_ = new address[](1);
+        validators_[0] = _validator1;
+
+        bytes[] memory signatures_ = new bytes[](1);
+        signatures_[0] = signature;
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.ExpiredTimestamp.selector);
+        _protocol.updateCollateral(_minter1, 100, timestamp, "", validators_, signatures_);
+    }
+
+    function test_updateCollateral_staleTimestamp() external {
+        bytes memory signature = _getSignature(_minter1, 100, block.timestamp, "", _validator1Pk);
+
+        address[] memory validators_ = new address[](1);
+        validators_[0] = _validator1;
+
+        bytes[] memory signatures_ = new bytes[](1);
+        signatures_[0] = signature;
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(_minter1, 100, block.timestamp, "", validators_, signatures_);
+
+        (, uint256 lastUpdated_) = _protocol.collateral(_minter1);
+
+        uint256 timestamp = lastUpdated_ - 1;
+        signature = _getSignature(_minter1, 100, timestamp, "", _validator1Pk);
+        signatures_[0] = signature;
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.StaleTimestamp.selector);
+        _protocol.updateCollateral(_minter1, 100, timestamp, "", validators_, signatures_);
+    }
+
+    function test_updateCollateral_notEnoughValidSignatures() external {
+        _spog.updateConfig(_protocol.UPDATE_COLLATERAL_QUORUM(), bytes32(uint256(3)));
+        uint256 collateral = 100;
+        uint256 timestamp = block.timestamp;
+
+        bytes memory signature1 = _getSignature(_minter1, collateral, timestamp, "", _validator1Pk);
+        bytes memory signature2 = _getSignature(_minter1, collateral, timestamp, "", _validator2Pk);
+
+        address[] memory validators_ = new address[](3);
+        validators_[0] = _validator1;
+        validators_[1] = _validator1;
+        validators_[2] = _validator2;
+
+        bytes[] memory signatures_ = new bytes[](3);
+        signatures_[0] = signature1;
+        signatures_[1] = signature2;
+        signatures_[2] = signature2;
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.NotEnoughValidSignatures.selector);
+        _protocol.updateCollateral(_minter1, collateral, timestamp, "", validators_, signatures_);
+    }
+
+    function _getSignature(
+        address minter,
+        uint amount,
+        uint timestamp,
+        string memory metadata,
+        uint256 privateKey
+    ) internal view returns (bytes memory) {
+        bytes32 digest = DigestHelper.getUpdateCollateralDigest(
+            address(_protocol),
+            minter,
+            amount,
+            metadata,
+            timestamp
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+        return abi.encodePacked(r, s, v);
+    }
 }
