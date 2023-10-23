@@ -38,6 +38,10 @@ contract Protocol is IProtocol, StatelessERC712 {
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
         keccak256("UpdateCollateral(address minter,uint256 amount,uint256 timestamp,string metadata)");
 
+    /******************************************************************************************************************\
+    |                                                SPOG Variables and Lists Names                                    |
+    \******************************************************************************************************************/
+
     /// @notice The minters' list name as known by SPOG
     bytes32 public constant MINTERS_LIST_NAME = "minters";
     /// @notice The validators' list name as known by SPOG
@@ -63,7 +67,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     uint256 public constant MINT_RATIO = 9000; // 90%
 
-    /// @notice The scale for base token to collateral (must be less than 18 decimals)
+    /// @notice The scale for M token to collateral (must be less than 18 decimals)
     uint256 public immutable baseScale;
 
     /// @notice The address of SPOG
@@ -78,6 +82,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     /// @notice The mint requests of minters, only 1 request per minter
     mapping(address minter => MintRequest request) public mintRequests;
 
+    /// @notice The mint requests of minters, only 1 request per minter
     mapping(address minter => uint256 timestamp) public frozenUntil;
 
     uint256 public totalNormalizedPrincipal;
@@ -156,6 +161,9 @@ contract Protocol is IProtocol, StatelessERC712 {
     function proposeMint(uint256 amount_, address to_) external onlyApprovedMinter {
         address minter_ = msg.sender;
 
+        // Check is minter is frozen
+        if (block.timestamp < frozenUntil[msg.sender]) revert FrozenMinter();
+
         MintRequest storage mintRequest_ = mintRequests[minter_];
 
         // Check if there is a pending non-expired mint request
@@ -179,7 +187,10 @@ contract Protocol is IProtocol, StatelessERC712 {
     function mint() external onlyApprovedMinter {
         address minter_ = msg.sender;
 
-        MintRequest storage mintRequest_ = mintRequests[minter_];
+        // Check is minter is frozen
+        if (block.timestamp < frozenUntil[minter_]) revert FrozenMinter();
+
+        MintRequest memory mintRequest_ = mintRequests[minter_];
         uint256 amount_ = mintRequest_.amount;
 
         if (mintRequest_.amount == 0) revert NoMintRequest();
@@ -189,6 +200,8 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         uint256 expiresAt_ = mintRequest_.createdAt + _getMintRequestExpirationTime();
         if (block.timestamp > expiresAt_) revert ExpiredMintRequest();
+
+        updateIndices();
 
         // _accruePenalties(); // JIRA ticket
 
@@ -211,7 +224,11 @@ contract Protocol is IProtocol, StatelessERC712 {
         emit MintRequestExecuted(minter_, amount_, mintRequest_.to);
     }
 
-    function cancelMintRequest(address minter_) external {
+    /******************************************************************************************************************\
+    |                                                Validator Functions                                               |
+    \******************************************************************************************************************/
+
+    function cancel(address minter_) external {
         if (msg.sender != minter_ && !_isApprovedValidator(msg.sender)) revert Unauthorized();
 
         delete mintRequests[minter_];
@@ -356,6 +373,27 @@ contract Protocol is IProtocol, StatelessERC712 {
     // mintRewardsToZeroHolders
     //
     //
+
+    function updateIndices() public {
+        // update Minting borrow index
+        _updateBorrowIndex();
+
+        // update Primary staking rate index
+        _updateStakingIndex();
+
+        // mintRewardsToZeroHolders();
+    }
+
+    function _updateBorrowIndex() internal {
+        uint256 now_ = block.timestamp;
+        uint256 timeElapsed_ = now_ - _lastAccrualTime;
+        if (timeElapsed_ > 0) {
+            _mIndex = _getIndex(timeElapsed_);
+            _lastAccrualTime = now_;
+        }
+    }
+
+    function _updateStakingIndex() internal {}
 
     /******************************************************************************************************************\
     |                                                SPOG Configs                                                      |
