@@ -24,4 +24,12 @@ interface IProtocol {
         address[] calldata validators,
         bytes[] calldata signatures
     ) external;
+
+    function proposeMint(uint256 amount, address to) external returns (uint256 mintId);
+
+    function mint(uint256 proposeId) external;
+
+    function cancel(uint256 proposeId) external;
+
+    function freeze(address minter) external;
 }
