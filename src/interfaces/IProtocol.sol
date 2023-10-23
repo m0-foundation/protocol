@@ -13,7 +13,18 @@ interface IProtocol {
     error ExpiredTimestamp();
     error StaleTimestamp();
 
+    error OnlyOneMintRequest();
+    error UncollateralizedMint();
+    error NoMintRequest();
+    error PendingMintRequest();
+    error ExpiredMintRequest();
+    error Unauthorized();
+
     event CollateralUpdated(address indexed minter, uint256 amount, uint256 timestamp, string metadata);
+    event MintRequestedCreated(address indexed minter, uint256 amount, address indexed to);
+    event MintRequestExecuted(address indexed minter, uint256 amount, address indexed to);
+    event MintRequestCanceled(address indexed minter);
+    event MinterFrozen(address indexed minter, uint256 frozenUntil);
 
     function UPDATE_COLLATERAL_TYPEHASH() external view returns (bytes32 typehash);
 
