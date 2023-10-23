@@ -56,27 +56,11 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         vm.expectEmit();
         emit CollateralUpdated(_minter1, collateral, timestamp, "");
-        _protocol.updateCollateral(_minter1, collateral, block.timestamp, "", validators, signatures);
+        _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
 
         (uint256 amount, uint256 lastUpdated) = _protocol.collateral(_minter1);
         assertEq(amount, collateral);
         assertEq(lastUpdated, timestamp);
-    }
-
-    function test_updateCollateral_notMinter() external {
-        uint256 collateral = 100;
-        uint256 timestamp = block.timestamp;
-        bytes memory signature = _getSignature(_minter1, collateral, timestamp, "", _validator1Pk);
-
-        address[] memory validators = new address[](1);
-        validators[0] = _validator1;
-
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0] = signature;
-
-        vm.prank(_validator1);
-        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
-        _protocol.updateCollateral(_minter1, collateral, block.timestamp, "", validators, signatures);
     }
 
     function test_updateCollateral_invalidMinter() external {
@@ -85,7 +69,7 @@ contract ProtocolTests is Test {
 
         vm.prank(_validator1);
         vm.expectRevert(IProtocol.NotApprovedMinter.selector);
-        _protocol.updateCollateral(makeAddr("alice"), 100, block.timestamp, "", validators, signatures);
+        _protocol.updateCollateral(100, block.timestamp, "", validators, signatures);
     }
 
     function test_updateCollateral_invalidSignaturesLength() external {
@@ -102,7 +86,7 @@ contract ProtocolTests is Test {
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.InvalidSignaturesLength.selector);
-        _protocol.updateCollateral(_minter1, 100, block.timestamp, "", validators, signatures);
+        _protocol.updateCollateral(100, block.timestamp, "", validators, signatures);
     }
 
     function test_updateCollateral_expiredTimestamp() external {
@@ -117,7 +101,7 @@ contract ProtocolTests is Test {
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.ExpiredTimestamp.selector);
-        _protocol.updateCollateral(_minter1, 100, timestamp, "", validators, signatures);
+        _protocol.updateCollateral(100, timestamp, "", validators, signatures);
     }
 
     function test_updateCollateral_staleTimestamp() external {
@@ -130,7 +114,7 @@ contract ProtocolTests is Test {
         signatures[0] = signature;
 
         vm.prank(_minter1);
-        _protocol.updateCollateral(_minter1, 100, block.timestamp, "", validators, signatures);
+        _protocol.updateCollateral(100, block.timestamp, "", validators, signatures);
 
         (, uint256 lastUpdated_) = _protocol.collateral(_minter1);
 
@@ -140,7 +124,7 @@ contract ProtocolTests is Test {
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.StaleTimestamp.selector);
-        _protocol.updateCollateral(_minter1, 100, timestamp, "", validators, signatures);
+        _protocol.updateCollateral(100, timestamp, "", validators, signatures);
     }
 
     function test_updateCollateral_notEnoughValidSignatures() external {
@@ -163,7 +147,7 @@ contract ProtocolTests is Test {
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.NotEnoughValidSignatures.selector);
-        _protocol.updateCollateral(_minter1, collateral, timestamp, "", validators, signatures);
+        _protocol.updateCollateral(collateral, timestamp, "", validators, signatures);
     }
 
     function _getSignature(

@@ -18,7 +18,6 @@ interface IProtocol {
     function UPDATE_COLLATERAL_TYPEHASH() external view returns (bytes32 typehash);
 
     function updateCollateral(
-        address minter,
         uint256 amount,
         uint256 timestamp,
         string memory metadata,
