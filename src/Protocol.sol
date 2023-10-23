@@ -74,14 +74,6 @@ contract Protocol is IProtocol, StatelessERC712 {
     |                                                Minter Functions                                                  |
     \******************************************************************************************************************/
 
-<<<<<<< HEAD
-    /// @notice Updates collateral for minters
-    /// @param amount_ The amount of collateral
-    /// @param timestamp_ The timestamp of the update
-    /// @param metadata_ The metadata of the update, reserved for future informational use
-    /// @param validators_ The list of validators
-    /// @param signatures_ The list of signatures
-=======
     /**
      * @notice Updates collateral for minters
      * @param amount_ The amount of collateral
@@ -90,7 +82,6 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @param validators_ The list of validators
      * @param signatures_ The list of signatures
      */
->>>>>>> 76762e8 (Save progress)
     function updateCollateral(
         uint256 amount_,
         uint256 timestamp_,
@@ -99,8 +90,6 @@ contract Protocol is IProtocol, StatelessERC712 {
         bytes[] calldata signatures_
     ) external onlyApprovedMinter {
         if (validators_.length != signatures_.length) revert InvalidSignaturesLength();
-
-        address minter_ = msg.sender;
 
         // Timestamp sanity checks
         uint256 updateInterval_ = _getUpdateCollateralInterval();
