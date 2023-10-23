@@ -6,6 +6,7 @@ import { IStatelessERC712 } from "./IStatelessERC712.sol";
 
 interface IProtocol {
     error NotApprovedMinter();
+    error FrozenMinter();
 
     error InvalidSignaturesLength();
     error NotEnoughValidSignatures();
