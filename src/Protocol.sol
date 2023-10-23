@@ -34,8 +34,8 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     mapping(address minter => CollateralBasic) public collateral;
 
-    modifier onlyApprovedMinter(address minter) {
-        if (msg.sender != minter || !_isApprovedMinter(minter)) revert NotApprovedMinter();
+    modifier onlyApprovedMinter() {
+        if (!_isApprovedMinter(msg.sender)) revert NotApprovedMinter();
 
         _;
     }
@@ -49,21 +49,21 @@ contract Protocol is IProtocol, StatelessERC712 {
     \******************************************************************************************************************/
 
     /// @notice Updates collateral for minters
-    /// @param minter_ The address of the minter
     /// @param amount_ The amount of collateral
     /// @param timestamp_ The timestamp of the update
     /// @param metadata_ The metadata of the update, reserved for future informational use
     /// @param validators_ The list of validators
     /// @param signatures_ The list of signatures
     function updateCollateral(
-        address minter_,
         uint256 amount_,
         uint256 timestamp_,
         string memory metadata_,
         address[] calldata validators_,
         bytes[] calldata signatures_
-    ) external onlyApprovedMinter(minter_) {
+    ) external onlyApprovedMinter {
         if (validators_.length != signatures_.length) revert InvalidSignaturesLength();
+
+        address minter_ = msg.sender;
 
         // Timestamp sanity checks
         uint256 updateInterval_ = _getUpdateCollateralInterval();
