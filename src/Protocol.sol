@@ -11,6 +11,11 @@ import { ISPOG } from "./interfaces/ISPOG.sol";
 
 import { StatelessERC712 } from "./StatelessERC712.sol";
 
+/**
+ * @title Protocol
+ * @author M^ZERO LABS_
+ * @notice Core protocol of M^ZERO ecosystem. TODO Add description.
+ */
 contract Protocol is IProtocol, StatelessERC712 {
     using Bytes32AddressLib for bytes32;
 
@@ -20,19 +25,36 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 lastUpdated;
     }
 
-    /// @dev The EIP-712 typehash for updateCollateral method
+    struct MintRequest {
+        uint256 amount;
+        uint256 createdAt;
+    }
+
+    /// @notice The EIP-712 typehash for updateCollateral method
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
         keccak256("UpdateCollateral(address minter,uint256 amount,uint256 timestamp,string metadata)");
 
-    // SPOG lists and variables names
+    /// @notice The minters' list name as known by SPOG
     bytes32 public constant MINTERS_LIST_NAME = "minters";
+    /// @notice The validators' list name as known by SPOG
     bytes32 public constant VALIDATORS_LIST_NAME = "validators";
+    /// @notice The name of parameter that defines number of signatures required for successful collateral update
     bytes32 public constant UPDATE_COLLATERAL_QUORUM = "updateCollateral_quorum";
+    /// @notice The name of parameter that required interval to update collateral
     bytes32 public constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
+    /// @notice The name of parameter that defines the time to wait for mint request to be processed
+    bytes32 public constant MINT_REQUEST_QUEUE_TIME = "mint_queueTime";
+    /// @notice The name of parameter that defines the time while mint request can still be processed
+    bytes32 public constant MINT_REQUEST_EXPIRATION_TIME = "mint_expirationTime";
 
+    /// @notice The address of SPOG
     address public immutable spog;
 
-    mapping(address minter => CollateralBasic) public collateral;
+    /// @notice The collateral information of minters
+    mapping(address minter => CollateralBasic basic) public collateral;
+
+    /// @notice The mint requests of minters, only 1 request per minter
+    mapping(address minter => MintRequest request) public mintRequests;
 
     modifier onlyApprovedMinter() {
         if (!_isApprovedMinter(msg.sender)) revert NotApprovedMinter();
@@ -40,6 +62,10 @@ contract Protocol is IProtocol, StatelessERC712 {
         _;
     }
 
+    /**
+     * @notice Constructor.
+     * @param spog_ The address of SPOG
+     */
     constructor(address spog_) StatelessERC712("Protocol") {
         spog = spog_;
     }
@@ -48,12 +74,23 @@ contract Protocol is IProtocol, StatelessERC712 {
     |                                                Minter Functions                                                  |
     \******************************************************************************************************************/
 
+<<<<<<< HEAD
     /// @notice Updates collateral for minters
     /// @param amount_ The amount of collateral
     /// @param timestamp_ The timestamp of the update
     /// @param metadata_ The metadata of the update, reserved for future informational use
     /// @param validators_ The list of validators
     /// @param signatures_ The list of signatures
+=======
+    /**
+     * @notice Updates collateral for minters
+     * @param amount_ The amount of collateral
+     * @param timestamp_ The timestamp of the update
+     * @param metadata_ The metadata of the update, reserved for future informational use
+     * @param validators_ The list of validators
+     * @param signatures_ The list of signatures
+     */
+>>>>>>> 76762e8 (Save progress)
     function updateCollateral(
         uint256 amount_,
         uint256 timestamp_,
@@ -69,6 +106,8 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 updateInterval_ = _getUpdateCollateralInterval();
         if (block.timestamp > timestamp_ + updateInterval_) revert ExpiredTimestamp();
 
+        address minter_ = msg.sender;
+
         CollateralBasic storage minterCollateral_ = collateral[minter_];
         if (minterCollateral_.lastUpdated > timestamp_) revert StaleTimestamp();
 
@@ -77,22 +116,38 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 requiredQuorum_ = _getUpdateCollateralQuorum();
         _hasEnoughValidSignatures(updateCollateralDigest_, validators_, signatures_, requiredQuorum_);
 
-        // accruePenalties(); // JIRA ticket https://mzerolabs.atlassian.net/jira/software/c/projects/WEB3/boards/10?selectedIssue=WEB3-396
+        // _accruePenalties(); // JIRA ticket https://mzerolabs.atlassian.net/jira/software/c/projects/WEB3/boards/10?selectedIssue=WEB3-396
 
         // Update collateral
         minterCollateral_.amount = amount_;
         minterCollateral_.lastUpdated = timestamp_;
 
-        // accruePenalties(); // JIRA ticket
+        // _accruePenalties(); // JIRA ticket
 
         emit CollateralUpdated(minter_, amount_, timestamp_, metadata_);
     }
 
-    /// @dev Checks that enough valid unique signatures were provided
-    /// @param digest_ The message hash for signing
-    /// @param validators_ The list of validators who signed digest
-    /// @param signatures_ The list of signatures
-    /// @param requiredQuorum_ The number of signatures required for validated action
+    function proposeMint(uint256 amount, address to) external onlyApprovedMinter returns (uint256) {
+        // MintRequest storage mintRequest = mintRequests[msg.sender];
+        // uint256 queueTime = _getMintRequestQueueTime();
+        // if (mintRequest.amount > 0 && block.timestamp < mintRequest.createdAt + queueTime)
+        //     revert OnlyOneMintRequestAtTime();
+        // // _accruePenalties();
+    }
+
+    function mint(uint256 proposeId) external {}
+
+    function cancel(uint256 proposeId) external {}
+
+    function freeze(address minter) external {}
+
+    /**
+     * @notice Checks that enough valid unique signatures were provided
+     * @param digest_ The message hash for signing
+     * @param validators_ The list of validators who signed digest
+     * @param signatures_ The list of signatures
+     * @param requiredQuorum_ The number of signatures required for validated action
+     */
     function _hasEnoughValidSignatures(
         bytes32 digest_,
         address[] calldata validators_,
@@ -126,7 +181,13 @@ contract Protocol is IProtocol, StatelessERC712 {
         if (validatorsNum_ < requiredQuorum_) revert NotEnoughValidSignatures();
     }
 
-    /// @dev Returns the EIP-712 digest for updateCollateral method
+    /**
+     * @notice Returns the EIP-712 digest for updateCollateral method
+     * @param minter_ The address of the minter
+     * @param amount_ The amount of collateral
+     * @param metadata_ The metadata of the collateral update, reserved for future informational use
+     * @param timestamp_ The timestamp of the collateral update
+     */
     function _getUpdateCollateralDigest(
         address minter_,
         uint256 amount_,
@@ -136,7 +197,12 @@ contract Protocol is IProtocol, StatelessERC712 {
         return _getDigest(keccak256(abi.encode(UPDATE_COLLATERAL_TYPEHASH, minter_, amount_, metadata_, timestamp_)));
     }
 
-    /// @dev Helper function to check if a given list contains an element
+    /**
+     * @notice Helper function to check if a given list contains an element
+     * @param arr_ The list to check
+     * @param elem_ The element to check for
+     * @param len_ The length of the list
+     */
     function _contains(address[] memory arr_, address elem_, uint len_) internal pure returns (bool) {
         for (uint i = 0; i < len_; i++) {
             if (arr_[i] == elem_) {
@@ -192,5 +258,13 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     function _getUpdateCollateralQuorum() internal view returns (uint256) {
         return uint256(ISPOG(spog).get(UPDATE_COLLATERAL_QUORUM));
+    }
+
+    function _getMintRequestQueueTime() internal view returns (uint256) {
+        return uint256(ISPOG(spog).get(MINT_REQUEST_QUEUE_TIME));
+    }
+
+    function _getMintRequestExpirationTime() internal view returns (uint256) {
+        return uint256(ISPOG(spog).get(MINT_REQUEST_EXPIRATION_TIME));
     }
 }
