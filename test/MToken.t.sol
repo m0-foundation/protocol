@@ -13,12 +13,12 @@ contract MTokenTests is Test {
     address internal _alice = makeAddr("alice");
     address internal _bob = makeAddr("bob");
 
-    Protocol internal _protocol;
+    address internal _protocol = makeAddr("protocol");
+
     MToken internal _mToken;
 
     function setUp() external {
-        _protocol = new Protocol();
-        _mToken = new MToken(address(_protocol));
+        _mToken = new MToken(_protocol);
     }
 
     function test_mint() external {
