@@ -7,7 +7,7 @@ import { Bytes32AddressLib } from "solmate/utils/Bytes32AddressLib.sol";
 import { SignatureChecker } from "./SignatureChecker.sol";
 import { InterestMath } from "./InterestMath.sol";
 
-import { IMToken } from "./interfaces/IMToken.sol";
+import { IMToken, IERC20 } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
 import { ISPOG } from "./interfaces/ISPOG.sol";
 
@@ -34,31 +34,43 @@ contract Protocol is IProtocol, StatelessERC712 {
         address to;
     }
 
-    /// @notice The EIP-712 typehash for updateCollateral method
-    bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
-        keccak256("UpdateCollateral(address minter,uint256 amount,uint256 timestamp,string metadata)");
-
     /******************************************************************************************************************\
     |                                                SPOG Variables and Lists Names                                    |
     \******************************************************************************************************************/
 
     /// @notice The minters' list name as known by SPOG
     bytes32 public constant MINTERS_LIST_NAME = "minters";
+
     /// @notice The validators' list name as known by SPOG
     bytes32 public constant VALIDATORS_LIST_NAME = "validators";
+
     /// @notice The name of parameter that defines number of signatures required for successful collateral update
     bytes32 public constant UPDATE_COLLATERAL_QUORUM = "updateCollateral_quorum";
+
     /// @notice The name of parameter that required interval to update collateral
     bytes32 public constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
+
     /// @notice The name of parameter that defines the time to wait for mint request to be processed
-    bytes32 public constant MINT_REQUEST_QUEUE_TIME = "mint_queueTime";
+    bytes32 public constant MINT_REQUEST_QUEUE_TIME = "mintRequest_queue_time";
+
     /// @notice The name of parameter that defines the time while mint request can still be processed
-    bytes32 public constant MINT_REQUEST_EXPIRATION_TIME = "mint_expirationTime";
+    bytes32 public constant MINT_REQUEST_TTL = "mintRequest_ttl";
+
     /// @notice The name of parameter that defines the time to freeze minter
-    bytes32 public constant MINTER_FREEZE_TIME = "minter_freezeTime";
+    bytes32 public constant MINTER_FREEZE_TIME = "minter_freeze_time";
+
     /// @notice The name of parameter that defines the borrow rate
     bytes32 public constant BORROW_RATE = "borrow_rate";
 
+    /******************************************************************************************************************\
+    |                                                Protocol variables                                                |
+    \******************************************************************************************************************/
+
+    /// @notice The EIP-712 typehash for updateCollateral method
+    bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
+        keccak256("UpdateCollateral(address minter,uint256 amount,uint256 timestamp,string metadata)");
+
+    /// @notice
     uint256 public constant INDEX_BASE_SCALE = 1e18;
 
     uint256 public constant COLLATERAL_BASE_SCALE = 1e2;
@@ -86,7 +98,8 @@ contract Protocol is IProtocol, StatelessERC712 {
     mapping(address minter => uint256 timestamp) public frozenUntil;
 
     uint256 public totalNormalizedPrincipal;
-    mapping(address minter => uint amount) public normalizedPrincipal;
+
+    mapping(address minter => uint256 amount) public normalizedPrincipal;
 
     /// @dev Aggregate variables tracked for the entire market
     uint256 internal _mIndex;
@@ -94,6 +107,12 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     modifier onlyApprovedMinter() {
         if (!_isApprovedMinter(msg.sender)) revert NotApprovedMinter();
+
+        _;
+    }
+
+    modifier onlyApprovedValidator() {
+        if (!_isApprovedValidator(msg.sender)) revert NotApprovedValidator();
 
         _;
     }
@@ -109,7 +128,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         _mIndex = 1e18;
         _lastAccrualTime = block.timestamp;
 
-        baseScale = 10 ** IMToken(mToken_).decimals() / COLLATERAL_BASE_SCALE;
+        baseScale = 10 ** IERC20(mToken_).decimals() / COLLATERAL_BASE_SCALE;
     }
 
     /******************************************************************************************************************\
@@ -160,15 +179,16 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     function proposeMint(uint256 amount_, address to_) external onlyApprovedMinter {
         address minter_ = msg.sender;
+        uint256 now_ = block.timestamp;
 
         // Check is minter is frozen
-        if (block.timestamp < frozenUntil[msg.sender]) revert FrozenMinter();
+        if (now_ < frozenUntil[msg.sender]) revert FrozenMinter();
 
         MintRequest storage mintRequest_ = mintRequests[minter_];
 
         // Check if there is a pending non-expired mint request
-        uint256 expiresAt_ = mintRequest_.createdAt + _getMintRequestExpirationTime();
-        if (mintRequest_.amount > 0 && block.timestamp < expiresAt_) revert OnlyOneMintRequest();
+        uint256 expiresAt_ = mintRequest_.createdAt + _getMintRequestTimeToLive();
+        if (mintRequest_.amount > 0 && now_ < expiresAt_) revert OnlyOneMintRequestAllowed();
 
         // _accruePenalties(); // JIRA ticket
 
@@ -178,7 +198,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         if (currentDebt_ + amount_ > allowedDebt_) revert UncollateralizedMint();
 
         mintRequest_.amount = amount_;
-        mintRequest_.createdAt = block.timestamp;
+        mintRequest_.createdAt = now_;
         mintRequest_.to = to_;
 
         emit MintRequestedCreated(minter_, amount_, to_);
@@ -186,20 +206,26 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     function mint() external onlyApprovedMinter {
         address minter_ = msg.sender;
+        uint256 now_ = block.timestamp;
 
         // Check is minter is frozen
-        if (block.timestamp < frozenUntil[minter_]) revert FrozenMinter();
+        if (now_ < frozenUntil[minter_]) revert FrozenMinter();
 
-        MintRequest memory mintRequest_ = mintRequests[minter_];
-        uint256 amount_ = mintRequest_.amount;
+        // Check that request is executable
+        MintRequest storage mintRequest_ = mintRequests[minter_];
+        (uint256 amount_, uint256 createdAt_, address to_) = (
+            mintRequest_.amount,
+            mintRequest_.createdAt,
+            mintRequest_.to
+        );
 
-        if (mintRequest_.amount == 0) revert NoMintRequest();
+        if (amount_ == 0) revert NoMintRequest();
 
-        uint256 activeAt_ = mintRequest_.createdAt + _getMintRequestQueueTime();
-        if (block.timestamp < activeAt_) revert PendingMintRequest();
+        uint256 activeAt_ = createdAt_ + _getMintRequestQueueTime();
+        if (now_ < activeAt_) revert PendingMintRequest();
 
-        uint256 expiresAt_ = mintRequest_.createdAt + _getMintRequestExpirationTime();
-        if (block.timestamp > expiresAt_) revert ExpiredMintRequest();
+        uint256 expiresAt_ = createdAt_ + _getMintRequestTimeToLive();
+        if (now_ > expiresAt_) revert ExpiredMintRequest();
 
         updateIndices();
 
@@ -219,37 +245,91 @@ contract Protocol is IProtocol, StatelessERC712 {
         totalNormalizedPrincipal += normalizedPrincipal_;
 
         // Mint actual tokens
-        IMToken(mToken).mint(mintRequest_.to, amount_);
+        IMToken(mToken).mint(to_, amount_);
 
-        emit MintRequestExecuted(minter_, amount_, mintRequest_.to);
+        emit MintRequestExecuted(minter_, amount_, to_);
+    }
+
+    function cancel() external onlyApprovedMinter {
+        address minter_ = msg.sender;
+
+        delete mintRequests[minter_];
+
+        emit MintRequestCanceled(minter_, minter_);
     }
 
     /******************************************************************************************************************\
     |                                                Validator Functions                                               |
     \******************************************************************************************************************/
 
-    function cancel(address minter_) external {
-        if (msg.sender != minter_ && !_isApprovedValidator(msg.sender)) revert Unauthorized();
-
+    function cancel(address minter_) external onlyApprovedValidator {
         delete mintRequests[minter_];
 
-        emit MintRequestCanceled(minter_);
+        emit MintRequestCanceled(minter_, msg.sender);
     }
 
-    function freeze(address minter_) external {
-        if (!_isApprovedValidator(msg.sender)) revert Unauthorized();
+    function freeze(address minter_) external onlyApprovedValidator {
         if (!_isApprovedMinter(minter_)) revert NotApprovedMinter();
 
+        uint256 now_ = block.timestamp;
         uint256 freezeTime_ = _getMinterFreezeTime();
         uint256 lastFreeze_ = frozenUntil[minter_];
-        uint256 freezeStart_ = block.timestamp < lastFreeze_ ? lastFreeze_ : block.timestamp;
-        uint256 frozenUntil_ = freezeStart_ + freezeTime_;
+        uint256 freezeStart_ = now_ < lastFreeze_ ? lastFreeze_ : now_;
 
-        frozenUntil[minter_] = frozenUntil_;
-
-        // TODO move side effect here
-        emit MinterFrozen(minter_, frozenUntil_);
+        emit MinterFrozen(minter_, frozenUntil[minter_] = freezeStart_ + freezeTime_);
     }
+
+    //
+    //
+    // burn
+    // proposeRedeem, redeem
+    // removeMinter
+    //
+    //
+    /******************************************************************************************************************\
+    |                                                Primary Functions                                                 |
+    \******************************************************************************************************************/
+    //
+    //
+    // stake
+    // withdraw
+    //
+    //
+    /******************************************************************************************************************\
+    |                                                Brains Functions                                                  |
+    \******************************************************************************************************************/
+    //
+    //
+    // updateIndices, updateBorrowIndex, updateStakingIndex
+    // accruePenalties
+    // mintRewardsToZeroHolders
+    //
+    //
+
+    function updateIndices() public {
+        // update Minting borrow index
+        _updateBorrowIndex();
+
+        // update Primary staking rate index
+        _updateStakingIndex();
+
+        // mintRewardsToZeroHolders();
+    }
+
+    function _updateBorrowIndex() internal {
+        uint256 now_ = block.timestamp;
+        uint256 timeElapsed_ = now_ - _lastAccrualTime;
+        if (timeElapsed_ > 0) {
+            _mIndex = _getIndex(timeElapsed_);
+            _lastAccrualTime = now_;
+        }
+    }
+
+    function _updateStakingIndex() internal {}
+
+    /******************************************************************************************************************\
+    |                                           Internal View/Pure Functions                                           |
+    \******************************************************************************************************************/
 
     /**
      * @notice Checks that enough valid unique signatures were provided
@@ -347,56 +427,8 @@ contract Protocol is IProtocol, StatelessERC712 {
         return false;
     }
 
-    //
-    //
-    // burn
-    // proposeRedeem, redeem
-    // quit, leave / remove
-    //
-    //
     /******************************************************************************************************************\
-    |                                                Primary Functions                                                 |
-    \******************************************************************************************************************/
-    //
-    //
-    // stake
-    // withdraw
-    //
-    //
-    /******************************************************************************************************************\
-    |                                                Brains Functions                                                  |
-    \******************************************************************************************************************/
-    //
-    //
-    // updateIndices, updateBorrowIndex, updateStakingIndex
-    // accruePenalties
-    // mintRewardsToZeroHolders
-    //
-    //
-
-    function updateIndices() public {
-        // update Minting borrow index
-        _updateBorrowIndex();
-
-        // update Primary staking rate index
-        _updateStakingIndex();
-
-        // mintRewardsToZeroHolders();
-    }
-
-    function _updateBorrowIndex() internal {
-        uint256 now_ = block.timestamp;
-        uint256 timeElapsed_ = now_ - _lastAccrualTime;
-        if (timeElapsed_ > 0) {
-            _mIndex = _getIndex(timeElapsed_);
-            _lastAccrualTime = now_;
-        }
-    }
-
-    function _updateStakingIndex() internal {}
-
-    /******************************************************************************************************************\
-    |                                                SPOG Configs                                                      |
+    |                                                SPOG Accessors                                                    |
     \******************************************************************************************************************/
 
     function _isApprovedMinter(address minter_) internal view returns (bool) {
@@ -419,8 +451,8 @@ contract Protocol is IProtocol, StatelessERC712 {
         return uint256(ISPOG(spog).get(MINT_REQUEST_QUEUE_TIME));
     }
 
-    function _getMintRequestExpirationTime() internal view returns (uint256) {
-        return uint256(ISPOG(spog).get(MINT_REQUEST_EXPIRATION_TIME));
+    function _getMintRequestTimeToLive() internal view returns (uint256) {
+        return uint256(ISPOG(spog).get(MINT_REQUEST_TTL));
     }
 
     function _getMinterFreezeTime() internal view returns (uint256) {

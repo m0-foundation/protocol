@@ -2,11 +2,11 @@
 
 pragma solidity 0.8.21;
 
-import { IMToken } from "./interfaces/IMToken.sol";
+import { IMToken, IERC20 } from "./interfaces/IMToken.sol";
 
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 
-contract MToken is IMToken, ERC20 {
+contract MToken is IERC20, IMToken, ERC20 {
     /// @notice Protocol contract address
     address public immutable protocol;
 
