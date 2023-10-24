@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.19;
+pragma solidity 0.8.21;
 
 library ContractHelper {
     function getContractFrom(address account_, uint256 nonce_) internal pure returns (address contract_) {

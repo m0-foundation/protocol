@@ -43,7 +43,7 @@
         "visibility-modifier-order": "error",
         "compiler-version": [
             "warn",
-            "0.8.19"
+            "0.8.21"
         ],
         "func-visibility": [
             "warn",
