@@ -7,7 +7,11 @@ import { Script, console } from "../lib/forge-std/src/Script.sol";
 import { Protocol } from "../src/Protocol.sol";
 import { MToken } from "../src/MToken.sol";
 
+import { ContractHelper } from "../src/libs/ContractHelper.sol";
+
 contract Deploy is Script {
+    uint256 internal constant _DEPLOYER_STARTING_NONCE = 0;
+
     address internal _deployer;
     address internal _protocol;
     address internal _mToken;
@@ -23,8 +27,9 @@ contract Deploy is Script {
     function run() public {
         vm.startBroadcast(_deployer);
 
-        _protocol = address(new Protocol());
-        _mToken = address(new MToken(_protocol));
+        address expectedProtocol_ = ContractHelper.getContractFrom(_deployer, _DEPLOYER_STARTING_NONCE + 1);
+        _mToken = address(new MToken(expectedProtocol_));
+        _protocol = address(new Protocol(_mToken));
 
         console.log("Protocol address: ", _protocol);
         console.log("M Token address: ", _mToken);
