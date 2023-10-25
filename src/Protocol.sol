@@ -178,6 +178,11 @@ contract Protocol is IProtocol, StatelessERC712 {
         emit CollateralUpdated(minter_, amount_, timestamp_, metadata_);
     }
 
+    /**
+     * @notice Proposes minting of M tokens
+     * @param amount_ The amount of M tokens to mint
+     * @param to_ The address to mint to
+     */
     function proposeMint(uint256 amount_, address to_) external onlyApprovedMinter {
         address minter_ = msg.sender;
         uint256 now_ = block.timestamp;
@@ -205,6 +210,9 @@ contract Protocol is IProtocol, StatelessERC712 {
         emit MintRequestedCreated(minter_, amount_, to_);
     }
 
+    /**
+     * @notice Executes minting of M tokens
+     */
     function mint() external onlyApprovedMinter {
         address minter_ = msg.sender;
         uint256 now_ = block.timestamp;
@@ -251,6 +259,9 @@ contract Protocol is IProtocol, StatelessERC712 {
         emit MintRequestExecuted(minter_, amount_, to_);
     }
 
+    /**
+     * @notice Cancels minting request by minter
+     */
     function cancel() external onlyApprovedMinter {
         address minter_ = msg.sender;
 
@@ -263,12 +274,18 @@ contract Protocol is IProtocol, StatelessERC712 {
     |                                                Validator Functions                                               |
     \******************************************************************************************************************/
 
+    /**
+     * @notice Cancels minting request for selected minter by validator
+     */
     function cancel(address minter_) external onlyApprovedValidator {
         delete mintRequests[minter_];
 
         emit MintRequestCanceled(minter_, msg.sender);
     }
 
+    /**
+     * @notice Freezes minter
+     */
     function freeze(address minter_) external onlyApprovedValidator {
         if (!_isApprovedMinter(minter_)) revert NotApprovedMinter();
 
