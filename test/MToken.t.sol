@@ -22,7 +22,6 @@ contract MTokenTests is Test {
 
     function setUp() external {
         _spog = new MockSPOG();
-        _protocol = new Protocol(address(_spog));
         _mToken = new MToken(address(_protocol));
     }
 
