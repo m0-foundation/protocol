@@ -2,7 +2,9 @@
 
 pragma solidity 0.8.21;
 
-import "../../src/interfaces/ISPOG.sol";
+import { ERC20 } from "solmate/tokens/ERC20.sol";
+
+import { ISPOG } from "../../src/interfaces/ISPOG.sol";
 
 contract MockSPOG is ISPOG {
     mapping(bytes32 key => bytes32 value) internal _valueAt;
@@ -29,5 +31,15 @@ contract MockSPOG is ISPOG {
 
     function _getKeyInSet(bytes32 list_, address account_) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(list_, account_));
+    }
+}
+
+contract MockMToken is ERC20 {
+    address internal _protocol;
+
+    constructor() ERC20("MockedM", "M", 18) {}
+
+    function setProtocol(address protocol_) external {
+        _protocol = protocol_;
     }
 }

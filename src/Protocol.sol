@@ -4,14 +4,15 @@ pragma solidity 0.8.21;
 
 import { Bytes32AddressLib } from "solmate/utils/Bytes32AddressLib.sol";
 
-import { SignatureChecker } from "./SignatureChecker.sol";
-import { InterestMath } from "./InterestMath.sol";
+import { SignatureChecker } from "./libs/SignatureChecker.sol";
+import { InterestMath } from "./libs/InterestMath.sol";
 
-import { IMToken, IERC20 } from "./interfaces/IMToken.sol";
+import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
 import { ISPOG } from "./interfaces/ISPOG.sol";
 
 import { StatelessERC712 } from "./StatelessERC712.sol";
+import { MToken } from "./MToken.sol";
 
 /**
  * @title Protocol
@@ -128,7 +129,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         _mIndex = 1e18;
         _lastAccrualTime = block.timestamp;
 
-        baseScale = 10 ** IERC20(mToken_).decimals() / COLLATERAL_BASE_SCALE;
+        baseScale = (10 ** MToken(mToken_).decimals()) / COLLATERAL_BASE_SCALE;
     }
 
     /******************************************************************************************************************\
