@@ -153,12 +153,6 @@ contract ProtocolTests is Test {
         _protocol.updateCollateral(collateral, timestamp, "", validators, signatures);
     }
 
-    // function test_proposeMint() external {
-    //     vm.prank(_minter1);
-    //     vm.expectEmit();
-    //     _protocol.proposeMint(100, _minter1);
-    // }
-
     function _getSignature(
         address minter,
         uint amount,
