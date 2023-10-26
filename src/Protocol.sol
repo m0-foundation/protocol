@@ -190,11 +190,9 @@ contract Protocol is IProtocol, StatelessERC712 {
         // Check is minter is frozen
         if (now_ < frozenUntil[msg.sender]) revert FrozenMinter();
 
-        MintRequest storage mintRequest_ = mintRequests[minter_];
-
         // Check if there is a pending non-expired mint request
-        uint256 expiresAt_ = mintRequest_.createdAt + _getMintRequestTimeToLive();
-        if (mintRequest_.amount > 0 && now_ < expiresAt_) revert OnlyOneMintRequestAllowed();
+        // uint256 expiresAt_ = mintRequest_.createdAt + _getMintRequestTimeToLive();
+        // if (mintRequest_.amount > 0 && now_ < expiresAt_) revert OnlyOneMintRequestAllowed();
 
         // _accruePenalties(); // JIRA ticket
 
@@ -203,6 +201,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 currentDebt_ = _debtOf(minter_);
         if (currentDebt_ + amount_ > allowedDebt_) revert UncollateralizedMint();
 
+        MintRequest storage mintRequest_ = mintRequests[minter_];
         mintRequest_.amount = amount_;
         mintRequest_.createdAt = now_;
         mintRequest_.to = to_;
@@ -259,17 +258,6 @@ contract Protocol is IProtocol, StatelessERC712 {
         emit MintRequestExecuted(minter_, amount_, to_);
     }
 
-    /**
-     * @notice Cancels minting request by minter
-     */
-    function cancel() external onlyApprovedMinter {
-        address minter_ = msg.sender;
-
-        delete mintRequests[minter_];
-
-        emit MintRequestCanceled(minter_, minter_);
-    }
-
     /******************************************************************************************************************\
     |                                                Validator Functions                                               |
     \******************************************************************************************************************/
@@ -324,6 +312,9 @@ contract Protocol is IProtocol, StatelessERC712 {
     //
     //
 
+    /**
+     * @notice Updates indices
+     */
     function updateIndices() public {
         // update Minting borrow index
         _updateBorrowIndex();
@@ -379,8 +370,6 @@ contract Protocol is IProtocol, StatelessERC712 {
 
             // check that ECDSA or ERC1271 signatures for given digest are valid
             bool valid_ = SignatureChecker.isValidSignature(validators_[i], digest_, signatures_[i]);
-            // TODO add validation extension here
-
             if (!valid_) continue;
 
             uniqueValidators_[validatorsNum_++] = validators_[i];
@@ -477,6 +466,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         return uint256(ISPOG(spog).get(MINTER_FREEZE_TIME));
     }
 
+    // TODO this is model, set it correctly
     function _getBorrowRate() internal view returns (uint256) {
         return uint256(ISPOG(spog).get(BORROW_RATE));
     }

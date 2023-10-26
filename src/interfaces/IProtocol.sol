@@ -15,7 +15,6 @@ interface IProtocol {
     error ExpiredTimestamp();
     error StaleTimestamp();
 
-    error OnlyOneMintRequestAllowed();
     error UncollateralizedMint();
     error NoMintRequest();
     error PendingMintRequest();
@@ -40,8 +39,6 @@ interface IProtocol {
     function proposeMint(uint256 amount, address to) external;
 
     function mint() external;
-
-    function cancel() external;
 
     function cancel(address minter) external;
 

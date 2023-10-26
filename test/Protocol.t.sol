@@ -4,12 +4,14 @@ pragma solidity 0.8.21;
 
 import { console2, Test } from "../lib/forge-std/src/Test.sol";
 
+import { ContractHelper } from "../src/libs/ContractHelper.sol";
+
 import { IProtocol } from "../src/interfaces/IProtocol.sol";
 
-import { Protocol } from "../src/Protocol.sol";
-
-import { MockSPOG, MockMToken } from "./utils/Mocks.sol";
+import { MockSPOG } from "./utils/Mocks.sol";
 import { DigestHelper } from "./utils/DigestHelper.sol";
+import { MToken } from "../src/MToken.sol";
+import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
 
 contract ProtocolTests is Test {
     address internal _minter1;
@@ -24,20 +26,22 @@ contract ProtocolTests is Test {
     uint256 internal _updateCollateralInterval = 20;
 
     MockSPOG internal _spog;
-    MockMToken internal _mToken;
-    Protocol internal _protocol;
+    MToken internal _mToken;
+    ProtocolHarness internal _protocol;
 
     event CollateralUpdated(address indexed minter, uint256 amount, uint256 timestamp, string metadata);
+    event MintRequestedCreated(address indexed minter, uint256 amount, address indexed to);
 
     function setUp() external {
         (_minter1, _minter1Pk) = makeAddrAndKey("minter1");
         (_validator1, _validator1Pk) = makeAddrAndKey("validator1");
         (_validator2, _validator2Pk) = makeAddrAndKey("validator1");
 
+        // Initiate protocol and M token, use ContractHelper to solve circular dependeny.
         _spog = new MockSPOG();
-        _mToken = new MockMToken();
-
-        _protocol = new Protocol(address(_spog), address(_mToken));
+        address expectedProtocol_ = ContractHelper.getContractFrom(address(this), vm.getNonce(address(this)) + 1);
+        _mToken = new MToken(address(expectedProtocol_));
+        _protocol = new ProtocolHarness(address(_spog), address(_mToken));
 
         _spog.addToList(_protocol.MINTERS_LIST_NAME(), _minter1);
         _spog.addToList(_protocol.VALIDATORS_LIST_NAME(), _validator1);
@@ -151,6 +155,34 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.NotEnoughValidSignatures.selector);
         _protocol.updateCollateral(collateral, timestamp, "", validators, signatures);
+    }
+
+    function test_proposeMint() external {
+        uint256 collateral = 200e2;
+        uint256 timestamp = block.timestamp;
+        bytes memory signature = _getSignature(_minter1, collateral, timestamp, "", _validator1Pk);
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = signature;
+
+        uint256 amount = 100e18;
+        address to = makeAddr("to");
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
+
+        vm.prank(_minter1);
+        vm.expectEmit();
+        emit MintRequestedCreated(_minter1, amount, to);
+        _protocol.proposeMint(amount, to);
+
+        (uint256 amount_, uint256 timestamp_, address to_) = _protocol.mintRequests(_minter1);
+        assertEq(amount_, amount);
+        assertEq(to_, to);
+        assertEq(timestamp_, timestamp);
     }
 
     function _getSignature(
