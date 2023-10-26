@@ -268,6 +268,7 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @param minter_ The address of the minter to cancel active outstanding mint request
      */
     function cancel(address minter_) external onlyApprovedValidator {
+        // TODO check if request is present, do we need it?
         delete mintRequests[minter_];
 
         emit MintRequestCanceled(minter_, msg.sender);
@@ -280,10 +281,9 @@ contract Protocol is IProtocol, StatelessERC712 {
     function freeze(address minter_) external onlyApprovedValidator {
         if (!_isApprovedMinter(minter_)) revert NotApprovedMinter();
 
-        uint256 now_ = block.timestamp;
-        uint256 freezeTime_ = _getMinterFreezeTime();
+        uint256 frozenUntil_ = block.timestamp + _getMinterFreezeTime();
 
-        emit MinterFrozen(minter_, frozenUntil[minter_] = now_ + freezeTime_);
+        emit MinterFrozen(minter_, frozenUntil[minter_] = frozenUntil_);
     }
 
     //

@@ -81,7 +81,7 @@ contract ProtocolTests is Test {
         assertEq(lastUpdated, timestamp);
     }
 
-    function test_updateCollateral_invalidMinter() external {
+    function test_updateCollateral_notApprovedMinter() external {
         address[] memory validators = new address[](1);
         bytes[] memory signatures = new bytes[](1);
 
@@ -187,22 +187,25 @@ contract ProtocolTests is Test {
     }
 
     function test_cancel() external {
-        uint256 amount = 100;
-        uint256 timestamp = block.timestamp;
-        address to = makeAddr("to");
-        _protocol.setMintRequest(_minter1, amount, timestamp, to);
+        _protocol.setMintRequest(_minter1, 100, block.timestamp, makeAddr("to"));
 
         vm.prank(_validator1);
-
         vm.expectEmit();
         emit MintRequestCanceled(_minter1, _validator1);
-
         _protocol.cancel(_minter1);
 
         (uint256 amount_, uint256 timestamp_, address to_) = _protocol.mintRequests(_minter1);
         assertEq(amount_, 0);
         assertEq(timestamp_, 0);
         assertEq(to_, address(0));
+    }
+
+    function test_cancel_notApprovedValidator() external {
+        _protocol.setMintRequest(_minter1, 100, block.timestamp, makeAddr("to"));
+
+        vm.prank(makeAddr("alice"));
+        vm.expectRevert(IProtocol.NotApprovedValidator.selector);
+        _protocol.cancel(_minter1);
     }
 
     function test_freeze() external {
@@ -232,6 +235,38 @@ contract ProtocolTests is Test {
         vm.expectEmit();
         emit MintRequestedCreated(_minter1, amount, to);
         _protocol.proposeMint(amount, to);
+    }
+
+    function test_freeze_sequence() external {
+        uint256 timestamp = block.timestamp;
+
+        uint256 frozenUntil = timestamp + _minterFreezeTime;
+
+        // first freeze
+        vm.prank(_validator1);
+        vm.expectEmit();
+        emit MinterFrozen(_minter1, frozenUntil);
+        _protocol.freeze(_minter1);
+
+        uint256 newFreezeTimestamp = timestamp + _minterFreezeTime / 2;
+        vm.warp(newFreezeTimestamp);
+
+        vm.prank(_validator1);
+        vm.expectEmit();
+        emit MinterFrozen(_minter1, frozenUntil + _minterFreezeTime / 2);
+        _protocol.freeze(_minter1);
+    }
+
+    function test_freeze_notApprovedValidator() external {
+        vm.prank(makeAddr("alice"));
+        vm.expectRevert(IProtocol.NotApprovedValidator.selector);
+        _protocol.freeze(_minter1);
+    }
+
+    function test_freeze_notApprovedMinter() external {
+        vm.prank(_validator1);
+        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+        _protocol.freeze(makeAddr("alice"));
     }
 
     function _getSignature(
