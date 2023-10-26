@@ -395,28 +395,34 @@ contract Protocol is IProtocol, StatelessERC712 {
         return _getDigest(keccak256(abi.encode(UPDATE_COLLATERAL_TYPEHASH, minter_, amount_, metadata_, timestamp_)));
     }
 
-    function _getIndex(uint timeElapsed_) internal view returns (uint) {
+    function _getIndex(uint timeElapsed_) internal view returns (uint256) {
         uint256 rate_ = _getBorrowRate();
         return timeElapsed_ > 0 ? InterestMath.calculateIndex(_mIndex, rate_, timeElapsed_) : _mIndex;
     }
 
-    function _allowedDebtOf(address minter_) internal view returns (uint) {
-        return (collateral[minter_].amount * baseScale * MINT_RATIO) / ONE;
+    function _allowedDebtOf(address minter_) internal view returns (uint256) {
+        CollateralBasic storage minterCollateral_ = collateral[minter_];
+
+        // if collateral was not updated on time, assume that minter_ CV is zero
+        uint256 updateInterval_ = _getUpdateCollateralInterval();
+        if (minterCollateral_.lastUpdated + updateInterval_ < block.timestamp) return 0;
+
+        return (minterCollateral_.amount * baseScale * MINT_RATIO) / ONE;
     }
 
-    function _debtOf(address minter_) internal view returns (uint) {
+    function _debtOf(address minter_) internal view returns (uint256) {
         uint256 principalValue_ = normalizedPrincipal[minter_];
         // return _presentValue(principalValue_) + penalties[minter];
         return _presentValue(principalValue_);
     }
 
-    function _presentValue(uint principalValue_) internal view returns (uint) {
-        uint timeElapsed_ = block.timestamp - _lastAccrualTime;
+    function _presentValue(uint256 principalValue_) internal view returns (uint256) {
+        uint256 timeElapsed_ = block.timestamp - _lastAccrualTime;
         return (principalValue_ * _getIndex(timeElapsed_)) / INDEX_BASE_SCALE;
     }
 
-    function _principalValue(uint presentValue_) internal view returns (uint) {
-        uint timeElapsed_ = block.timestamp - _lastAccrualTime;
+    function _principalValue(uint256 presentValue_) internal view returns (uint256) {
+        uint256 timeElapsed_ = block.timestamp - _lastAccrualTime;
         return (presentValue_ * INDEX_BASE_SCALE) / _getIndex(timeElapsed_);
     }
 
@@ -426,8 +432,8 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @param elem_ The element to check for
      * @param len_ The length of the list
      */
-    function _contains(address[] memory arr_, address elem_, uint len_) internal pure returns (bool) {
-        for (uint i = 0; i < len_; i++) {
+    function _contains(address[] memory arr_, address elem_, uint256 len_) internal pure returns (bool) {
+        for (uint256 i = 0; i < len_; i++) {
             if (arr_[i] == elem_) {
                 return true;
             }

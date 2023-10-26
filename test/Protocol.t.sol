@@ -23,7 +23,7 @@ contract ProtocolTests is Test {
     uint256 internal _validator2Pk;
 
     uint256 internal _updateCollateralQuorum = 1;
-    uint256 internal _updateCollateralInterval = 20;
+    uint256 internal _updateCollateralInterval = 2000;
     uint256 internal _minterFreezeTime = 1000;
     uint256 internal _mintRequestQueueTime = 1000;
     uint256 internal _mintRequestTtl = 1500;
