@@ -24,6 +24,9 @@ contract ProtocolTests is Test {
 
     uint256 internal _updateCollateralQuorum = 1;
     uint256 internal _updateCollateralInterval = 20;
+    uint256 internal _minterFreezeTime = 1000;
+    uint256 internal _mintRequestQueueTime = 1000;
+    uint256 internal _mintRequestTtl = 1500;
 
     MockSPOG internal _spog;
     MToken internal _mToken;
@@ -31,6 +34,9 @@ contract ProtocolTests is Test {
 
     event CollateralUpdated(address indexed minter, uint256 amount, uint256 timestamp, string metadata);
     event MintRequestedCreated(address indexed minter, uint256 amount, address indexed to);
+    event MintRequestExecuted(address indexed minter, uint256 amount, address indexed to);
+    event MintRequestCanceled(address indexed minter, address indexed canceller);
+    event MinterFrozen(address indexed minter, uint256 frozenUntil);
 
     function setUp() external {
         (_minter1, _minter1Pk) = makeAddrAndKey("minter1");
@@ -45,8 +51,13 @@ contract ProtocolTests is Test {
 
         _spog.addToList(_protocol.MINTERS_LIST_NAME(), _minter1);
         _spog.addToList(_protocol.VALIDATORS_LIST_NAME(), _validator1);
+
         _spog.updateConfig(_protocol.UPDATE_COLLATERAL_QUORUM(), bytes32(_updateCollateralQuorum));
         _spog.updateConfig(_protocol.UPDATE_COLLATERAL_INTERVAL(), bytes32(_updateCollateralInterval));
+
+        _spog.updateConfig(_protocol.MINTER_FREEZE_TIME(), bytes32(_minterFreezeTime));
+        _spog.updateConfig(_protocol.MINT_REQUEST_QUEUE_TIME(), bytes32(_mintRequestQueueTime));
+        _spog.updateConfig(_protocol.MINT_REQUEST_TTL(), bytes32(uint256(_mintRequestTtl)));
     }
 
     function test_updateCollateral() external {
@@ -158,21 +169,11 @@ contract ProtocolTests is Test {
     }
 
     function test_proposeMint() external {
-        uint256 collateral = 200e2;
+        uint256 amount = 200e2;
         uint256 timestamp = block.timestamp;
-        bytes memory signature = _getSignature(_minter1, collateral, timestamp, "", _validator1Pk);
-
-        address[] memory validators = new address[](1);
-        validators[0] = _validator1;
-
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0] = signature;
-
-        uint256 amount = 100e18;
         address to = makeAddr("to");
 
-        vm.prank(_minter1);
-        _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
+        _protocol.setCollateral(_minter1, amount, timestamp);
 
         vm.prank(_minter1);
         vm.expectEmit();
@@ -183,6 +184,54 @@ contract ProtocolTests is Test {
         assertEq(amount_, amount);
         assertEq(to_, to);
         assertEq(timestamp_, timestamp);
+    }
+
+    function test_cancel() external {
+        uint256 amount = 100;
+        uint256 timestamp = block.timestamp;
+        address to = makeAddr("to");
+        _protocol.setMintRequest(_minter1, amount, timestamp, to);
+
+        vm.prank(_validator1);
+
+        vm.expectEmit();
+        emit MintRequestCanceled(_minter1, _validator1);
+
+        _protocol.cancel(_minter1);
+
+        (uint256 amount_, uint256 timestamp_, address to_) = _protocol.mintRequests(_minter1);
+        assertEq(amount_, 0);
+        assertEq(timestamp_, 0);
+        assertEq(to_, address(0));
+    }
+
+    function test_freeze() external {
+        uint256 amount = 100;
+        uint256 timestamp = block.timestamp;
+        address to = makeAddr("to");
+
+        _protocol.setCollateral(_minter1, amount, timestamp);
+
+        uint256 frozenUntil = timestamp + _minterFreezeTime;
+
+        vm.prank(_validator1);
+        vm.expectEmit();
+        emit MinterFrozen(_minter1, frozenUntil);
+        _protocol.freeze(_minter1);
+
+        assertEq(_protocol.frozenUntil(_minter1), frozenUntil);
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.FrozenMinter.selector);
+        _protocol.proposeMint(amount, to);
+
+        // fast-worward to the time when minter is unfrozen
+        vm.warp(frozenUntil);
+
+        vm.prank(_minter1);
+        vm.expectEmit();
+        emit MintRequestedCreated(_minter1, amount, to);
+        _protocol.proposeMint(amount, to);
     }
 
     function _getSignature(
