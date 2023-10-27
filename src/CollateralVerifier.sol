@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.19;
+pragma solidity 0.8.21;
 
 import { ICollateralVerifier } from "./interfaces/ICollateralVerifier.sol";
 import { ERC712 } from "./ERC712.sol";
