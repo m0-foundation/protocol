@@ -5,13 +5,14 @@ pragma solidity 0.8.21;
 import { console2, Test } from "../lib/forge-std/src/Test.sol";
 
 import { ContractHelper } from "../src/libs/ContractHelper.sol";
+import { InterestMath } from "../src/libs/InterestMath.sol";
 
 import { IProtocol } from "../src/interfaces/IProtocol.sol";
 
 import { MockSPOG } from "./utils/Mocks.sol";
 import { DigestHelper } from "./utils/DigestHelper.sol";
-import { MToken } from "../src/MToken.sol";
 import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
+import { MToken } from "../src/MToken.sol";
 
 contract ProtocolTests is Test {
     address internal _minter1;
@@ -27,6 +28,7 @@ contract ProtocolTests is Test {
     uint256 internal _minterFreezeTime = 1000;
     uint256 internal _mintRequestQueueTime = 1000;
     uint256 internal _mintRequestTtl = 1500;
+    uint256 internal _borrowRate = 400; // bps
 
     MockSPOG internal _spog;
     MToken internal _mToken;
@@ -57,7 +59,7 @@ contract ProtocolTests is Test {
 
         _spog.updateConfig(_protocol.MINTER_FREEZE_TIME(), bytes32(_minterFreezeTime));
         _spog.updateConfig(_protocol.MINT_REQUEST_QUEUE_TIME(), bytes32(_mintRequestQueueTime));
-        _spog.updateConfig(_protocol.MINT_REQUEST_TTL(), bytes32(uint256(_mintRequestTtl)));
+        _spog.updateConfig(_protocol.MINT_REQUEST_TTL(), bytes32(_mintRequestTtl));
 
         _spog.updateConfig(_protocol.BORROW_RATE(), bytes32(uint256(400)));
     }
@@ -188,9 +190,38 @@ contract ProtocolTests is Test {
         assertEq(timestamp_, timestamp);
     }
 
-    function test_debtOf() external {
+    function test_mint() external {
+        uint256 collateral = 100e2;
+        uint256 amount = 80e18;
+        uint256 timestamp = block.timestamp;
+        address to = makeAddr("to");
+
+        _protocol.setCollateral(_minter1, collateral, timestamp);
+        _protocol.setMintRequest(_minter1, amount, timestamp, to);
+
+        vm.warp(timestamp + _mintRequestQueueTime);
+
+        vm.prank(_minter1);
+        vm.expectEmit();
+        emit MintRequestExecuted(_minter1, amount, to);
+        _protocol.mint();
+
+        // check that mint request has been deleted
+        (uint256 amount_, uint256 timestamp_, address to_) = _protocol.mintRequests(_minter1);
+        assertEq(amount_, 0);
+        assertEq(timestamp_, 0);
+        assertEq(to_, address(0));
+
+        // check that normalizedPrincipal has been updated
+        assertTrue(_protocol.normalizedPrincipal(_minter1) > 0);
+
+        // check that balance `to` has been increased
+        assertEq(_mToken.balanceOf(to), amount);
+    }
+
+    function test_mint_debtOf() external {
         uint256 collateralAmount = 10000e2;
-        uint256 mintAmount = 1000e18;
+        uint256 mintAmount = 1000000e6;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
@@ -203,16 +234,98 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.mint();
 
-        // console2.log("normalized principal = ", _protocol.normalizedPrincipal(_minter1));
-        // console2.log("index = ", _protocol.mIndex());
+        uint256 initialDebt = _protocol.debtOf(_minter1);
+        uint256 initialIndex = _protocol.mIndex();
+        uint256 minterNormalizedPrincipal = _protocol.normalizedPrincipal(_minter1);
 
-        assertEq(_protocol.debtOf(_minter1) + 1 wei, mintAmount);
+        assertEq(initialDebt + 1 wei, mintAmount);
 
-        // console2.log("debt 1 = ", _protocol.debtOf(_minter1));
+        vm.warp(timestamp + _mintRequestQueueTime + 1);
 
-        // vm.warp(timestamp + _mintRequestQueueTime + 31_536_000);
+        uint256 indexAfter1Second = (InterestMath.exponent(_borrowRate, 1) * initialIndex) / 1e18;
+        uint256 expectedResult = (minterNormalizedPrincipal * indexAfter1Second) / 1e18;
+        assertEq(_protocol.debtOf(_minter1), expectedResult);
 
-        // console2.log("debt 2 = ", _protocol.debtOf(_minter1));
+        vm.warp(timestamp + _mintRequestQueueTime + 31_536_000);
+
+        uint256 indexAfter1Year = (InterestMath.exponent(_borrowRate, 31_536_000) * initialIndex) / 1e18;
+        expectedResult = (minterNormalizedPrincipal * indexAfter1Year) / 1e18;
+        assertEq(_protocol.debtOf(_minter1), expectedResult);
+    }
+
+    function test_mint_notApprovedMinter() external {
+        vm.prank(makeAddr("alice"));
+        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+        _protocol.mint();
+    }
+
+    function test_mint_frozenMinter() external {
+        vm.prank(_validator1);
+        _protocol.freeze(_minter1);
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.FrozenMinter.selector);
+        _protocol.mint();
+    }
+
+    function test_mint_noMintRequest() external {
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.NoMintRequest.selector);
+        _protocol.mint();
+    }
+
+    function test_mint_pendingMintRequest() external {
+        uint256 timestamp = block.timestamp;
+        _protocol.setMintRequest(_minter1, 100, timestamp, makeAddr("to"));
+
+        vm.warp(timestamp + _mintRequestQueueTime / 2);
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.PendingMintRequest.selector);
+        _protocol.mint();
+    }
+
+    function test_mint_expiredMintRequest() external {
+        uint256 timestamp = block.timestamp;
+        _protocol.setMintRequest(_minter1, 100, timestamp, makeAddr("to"));
+
+        vm.warp(timestamp + _mintRequestTtl + 1);
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.ExpiredMintRequest.selector);
+        _protocol.mint();
+    }
+
+    function test_mint_uncollateralizedMint() external {
+        uint256 collateral = 100e2;
+        uint256 amount = 95e18;
+        uint256 timestamp = block.timestamp;
+        address to = makeAddr("to");
+
+        _protocol.setCollateral(_minter1, collateral, timestamp);
+        _protocol.setMintRequest(_minter1, amount, timestamp, to);
+
+        vm.warp(timestamp + _mintRequestQueueTime + 1);
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.UncollateralizedMint.selector);
+        _protocol.mint();
+    }
+
+    function test_mint_uncollateralizedMint_outdatedCollateral() external {
+        uint256 collateral = 100e2;
+        uint256 amount = 95e18;
+        uint256 timestamp = block.timestamp;
+        address to = makeAddr("to");
+
+        _protocol.setCollateral(_minter1, collateral, timestamp - _updateCollateralInterval);
+        _protocol.setMintRequest(_minter1, amount, timestamp, to);
+
+        vm.warp(timestamp + _mintRequestQueueTime + 1);
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.UncollateralizedMint.selector);
+        _protocol.mint();
     }
 
     function test_cancel() external {

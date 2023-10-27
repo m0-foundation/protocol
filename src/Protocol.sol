@@ -79,6 +79,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     uint256 public constant ONE = 10_000; // 100% in basis points.
 
+    // TODO Is it spog parameter?
     uint256 public constant MINT_RATIO = 9000; // 90%
 
     /// @notice The scale for M token to collateral (must be less than 18 decimals)
