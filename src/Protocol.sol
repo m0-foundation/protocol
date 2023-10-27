@@ -42,7 +42,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     /// @notice The validators' list name in SPOG
     bytes32 public constant VALIDATORS_LIST_NAME = "validators";
 
-    /// @notice The name of parameter in SPOG that defines number of signatures required for successful collateral update
+    /// @notice The name of parameter that defines number of signatures required for successful collateral update
     bytes32 public constant UPDATE_COLLATERAL_QUORUM = "updateCollateral_quorum";
 
     /// @notice The name of parameter in SPOG that required interval to update collateral
