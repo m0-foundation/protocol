@@ -3,16 +3,17 @@
 pragma solidity 0.8.21;
 
 import { console2, Test } from "../lib/forge-std/src/Test.sol";
+import { Bytes32AddressLib } from "solmate/utils/Bytes32AddressLib.sol";
 
 import { ContractHelper } from "../src/libs/ContractHelper.sol";
 import { InterestMath } from "../src/libs/InterestMath.sol";
 
 import { IProtocol } from "../src/interfaces/IProtocol.sol";
 
-import { MockSPOG } from "./utils/Mocks.sol";
+import { MToken } from "../src/MToken.sol";
+import { MockSPOG, MockBorrowRateModel } from "./utils/Mocks.sol";
 import { DigestHelper } from "./utils/DigestHelper.sol";
 import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
-import { MToken } from "../src/MToken.sol";
 
 contract ProtocolTests is Test {
     address internal _minter1;
@@ -33,6 +34,7 @@ contract ProtocolTests is Test {
     MockSPOG internal _spog;
     MToken internal _mToken;
     ProtocolHarness internal _protocol;
+    MockBorrowRateModel internal _borrowRateModel;
 
     event CollateralUpdated(address indexed minter, uint256 amount, uint256 timestamp, string metadata);
     event MintRequestedCreated(address indexed minter, uint256 amount, address indexed to);
@@ -61,7 +63,9 @@ contract ProtocolTests is Test {
         _spog.updateConfig(_protocol.MINT_REQUEST_QUEUE_TIME(), bytes32(_mintRequestQueueTime));
         _spog.updateConfig(_protocol.MINT_REQUEST_TTL(), bytes32(_mintRequestTtl));
 
-        _spog.updateConfig(_protocol.BORROW_RATE(), bytes32(uint256(400)));
+        _borrowRateModel = new MockBorrowRateModel();
+
+        _spog.updateConfig(_protocol.BORROW_RATE_MODEL(), _toBytes32(address(_borrowRateModel)));
     }
 
     function test_updateCollateral() external {

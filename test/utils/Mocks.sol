@@ -31,3 +31,9 @@ contract MockSPOG is ISPOG {
         return keccak256(abi.encodePacked(list_, account_));
     }
 }
+
+contract MockBorrowRateModel {
+    function getRate() external pure returns (uint256) {
+        return 400; // 4% APY in bps
+    }
+}

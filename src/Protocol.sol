@@ -2,11 +2,10 @@
 
 pragma solidity 0.8.21;
 
-import { Bytes32AddressLib } from "solmate/utils/Bytes32AddressLib.sol";
-
 import { SignatureChecker } from "./libs/SignatureChecker.sol";
 import { InterestMath } from "./libs/InterestMath.sol";
 
+import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
 import { ISPOG } from "./interfaces/ISPOG.sol";
@@ -20,8 +19,6 @@ import { MToken } from "./MToken.sol";
  * @notice Core protocol of M^ZERO ecosystem. TODO Add description.
  */
 contract Protocol is IProtocol, StatelessERC712 {
-    using Bytes32AddressLib for bytes32;
-
     // TODO bit-packing
     struct CollateralBasic {
         uint256 amount;
@@ -61,8 +58,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     bytes32 public constant MINTER_FREEZE_TIME = "minter_freeze_time";
 
     /// @notice The name of parameter that defines the borrow rate
-    // TODO BORROW_RATE vs BORROW_RATE_PER_SECOND
-    bytes32 public constant BORROW_RATE = "borrow_rate";
+    bytes32 public constant BORROW_RATE_MODEL = "borrow_rate_model";
 
     /******************************************************************************************************************\
     |                                                Protocol variables                                                |
@@ -451,6 +447,10 @@ contract Protocol is IProtocol, StatelessERC712 {
         return false;
     }
 
+    function _fromBytes32(bytes32 value) internal pure returns (address) {
+        return address(uint160(uint256(value)));
+    }
+
     /******************************************************************************************************************\
     |                                                SPOG Accessors                                                    |
     \******************************************************************************************************************/
@@ -483,8 +483,8 @@ contract Protocol is IProtocol, StatelessERC712 {
         return uint256(ISPOG(spog).get(MINTER_FREEZE_TIME));
     }
 
-    // TODO this is model, set it correctly
     function _getBorrowRate() internal view returns (uint256) {
-        return uint256(ISPOG(spog).get(BORROW_RATE));
+        address rateContract = _fromBytes32(ISPOG(spog).get(BORROW_RATE_MODEL));
+        return IInterestRateModel(rateContract).getRate();
     }
 }
