@@ -2,8 +2,6 @@
 
 pragma solidity 0.8.21;
 
-import { IStatelessERC712 } from "./IStatelessERC712.sol";
-
 interface IProtocol {
     error NotApprovedMinter();
     error NotApprovedValidator();
