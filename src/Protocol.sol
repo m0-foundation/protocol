@@ -36,30 +36,31 @@ contract Protocol is IProtocol, StatelessERC712 {
     |                                                SPOG Variables and Lists Names                                    |
     \******************************************************************************************************************/
 
-    /// @notice The minters' list name as known by SPOG
+    /// @notice The minters' list name in SPOG
     bytes32 public constant MINTERS_LIST_NAME = "minters";
 
-    /// @notice The validators' list name as known by SPOG
+    /// @notice The validators' list name in SPOG
     bytes32 public constant VALIDATORS_LIST_NAME = "validators";
 
-    /// @notice The name of parameter that defines number of signatures required for successful collateral update
+    /// @notice The name of parameter in SPOG that defines number of signatures required for successful collateral update
     bytes32 public constant UPDATE_COLLATERAL_QUORUM = "updateCollateral_quorum";
 
-    /// @notice The name of parameter that required interval to update collateral
+    /// @notice The name of parameter in SPOG that required interval to update collateral
     bytes32 public constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
 
-    /// @notice The name of parameter that defines the time to wait for mint request to be processed
+    /// @notice The name of parameter in SPOG that defines the time to wait for mint request to be processed
     bytes32 public constant MINT_REQUEST_QUEUE_TIME = "mintRequest_queue_time";
 
-    /// @notice The name of parameter that defines the time while mint request can still be processed
+    /// @notice The name of parameter in SPOG that defines the time while mint request can still be processed
     bytes32 public constant MINT_REQUEST_TTL = "mintRequest_ttl";
 
-    /// @notice The name of parameter that defines the time to freeze minter
+    /// @notice The name of parameter in SPOG that defines the time to freeze minter
     bytes32 public constant MINTER_FREEZE_TIME = "minter_freeze_time";
 
-    /// @notice The name of parameter that defines the borrow rate
+    /// @notice The name of parameter in SPOG that defines the borrow rate
     bytes32 public constant BORROW_RATE_MODEL = "borrow_rate_model";
 
+    /// @notice The name of parameter in SPOG that defines the mint ratio
     bytes32 public constant MINT_RATIO = "mint_ratio"; // bps
 
     /******************************************************************************************************************\
@@ -70,11 +71,13 @@ contract Protocol is IProtocol, StatelessERC712 {
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
         keccak256("UpdateCollateral(address minter,uint256 amount,uint256 timestamp,string metadata)");
 
-    /// @notice
+    /// @notice The scale for M index
     uint256 public constant INDEX_BASE_SCALE = 1e18;
 
+    /// @notice TODO The scale for collateral, most likely will be passed in cents
     uint256 public constant COLLATERAL_BASE_SCALE = 1e2;
 
+    /// @notice Descaler for variables in basis points
     uint256 public constant ONE = 10_000; // 100% in basis points.
 
     /// @notice The scale for M token to collateral (must be less than 18 decimals)
