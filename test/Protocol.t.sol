@@ -29,7 +29,8 @@ contract ProtocolTests is Test {
     uint256 internal _minterFreezeTime = 1000;
     uint256 internal _mintRequestQueueTime = 1000;
     uint256 internal _mintRequestTtl = 1500;
-    uint256 internal _borrowRate = 400; // bps
+    uint256 internal _borrowRate = 400; // 4%, bps
+    uint256 internal _minRatio = 9000; // 90%, bps
 
     MockSPOG internal _spog;
     MToken internal _mToken;
@@ -62,9 +63,9 @@ contract ProtocolTests is Test {
         _spog.updateConfig(_protocol.MINTER_FREEZE_TIME(), bytes32(_minterFreezeTime));
         _spog.updateConfig(_protocol.MINT_REQUEST_QUEUE_TIME(), bytes32(_mintRequestQueueTime));
         _spog.updateConfig(_protocol.MINT_REQUEST_TTL(), bytes32(_mintRequestTtl));
+        _spog.updateConfig(_protocol.MINT_RATIO(), bytes32(_minRatio));
 
         _borrowRateModel = new MockBorrowRateModel();
-
         _spog.updateConfig(_protocol.BORROW_RATE_MODEL(), _toBytes32(address(_borrowRateModel)));
     }
 

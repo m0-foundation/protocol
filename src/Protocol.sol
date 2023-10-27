@@ -60,6 +60,8 @@ contract Protocol is IProtocol, StatelessERC712 {
     /// @notice The name of parameter that defines the borrow rate
     bytes32 public constant BORROW_RATE_MODEL = "borrow_rate_model";
 
+    bytes32 public constant MINT_RATIO = "mint_ratio"; // bps
+
     /******************************************************************************************************************\
     |                                                Protocol variables                                                |
     \******************************************************************************************************************/
@@ -74,9 +76,6 @@ contract Protocol is IProtocol, StatelessERC712 {
     uint256 public constant COLLATERAL_BASE_SCALE = 1e2;
 
     uint256 public constant ONE = 10_000; // 100% in basis points.
-
-    // TODO Is it spog parameter?
-    uint256 public constant MINT_RATIO = 9000; // 90%
 
     /// @notice The scale for M token to collateral (must be less than 18 decimals)
     uint256 public immutable baseScale;
@@ -288,6 +287,10 @@ contract Protocol is IProtocol, StatelessERC712 {
         emit MinterFrozen(minter_, frozenUntil[minter_] = frozenUntil_);
     }
 
+    function debtOf(address minter) external view returns (uint256) {
+        return _debtOf(minter);
+    }
+
     //
     //
     // burn
@@ -409,11 +412,8 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 updateInterval_ = _getUpdateCollateralInterval();
         if (minterCollateral_.lastUpdated + updateInterval_ < block.timestamp) return 0;
 
-        return (minterCollateral_.amount * baseScale * MINT_RATIO) / ONE;
-    }
-
-    function debtOf(address minter) external view returns (uint256) {
-        return _debtOf(minter);
+        uint256 mintRatio_ = _getMintRatio();
+        return (minterCollateral_.amount * baseScale * mintRatio_) / ONE;
     }
 
     function _debtOf(address minter_) internal view returns (uint256) {
@@ -486,5 +486,9 @@ contract Protocol is IProtocol, StatelessERC712 {
     function _getBorrowRate() internal view returns (uint256) {
         address rateContract = _fromBytes32(ISPOG(spog).get(BORROW_RATE_MODEL));
         return IInterestRateModel(rateContract).getRate();
+    }
+
+    function _getMintRatio() internal view returns (uint256) {
+        return uint256(ISPOG(spog).get(MINT_RATIO));
     }
 }
