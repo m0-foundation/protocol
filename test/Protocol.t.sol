@@ -58,6 +58,8 @@ contract ProtocolTests is Test {
         _spog.updateConfig(_protocol.MINTER_FREEZE_TIME(), bytes32(_minterFreezeTime));
         _spog.updateConfig(_protocol.MINT_REQUEST_QUEUE_TIME(), bytes32(_mintRequestQueueTime));
         _spog.updateConfig(_protocol.MINT_REQUEST_TTL(), bytes32(uint256(_mintRequestTtl)));
+
+        _spog.updateConfig(_protocol.BORROW_RATE(), bytes32(uint256(400)));
     }
 
     function test_updateCollateral() external {
@@ -184,6 +186,33 @@ contract ProtocolTests is Test {
         assertEq(amount_, amount);
         assertEq(to_, to);
         assertEq(timestamp_, timestamp);
+    }
+
+    function test_debtOf() external {
+        uint256 collateralAmount = 10000e2;
+        uint256 mintAmount = 1000e18;
+        uint256 timestamp = block.timestamp;
+        address to = makeAddr("to");
+
+        // initiate harness functions
+        _protocol.setCollateral(_minter1, collateralAmount, timestamp);
+        _protocol.setMintRequest(_minter1, mintAmount, timestamp, to);
+
+        vm.warp(timestamp + _mintRequestQueueTime);
+
+        vm.prank(_minter1);
+        _protocol.mint();
+
+        // console2.log("normalized principal = ", _protocol.normalizedPrincipal(_minter1));
+        // console2.log("index = ", _protocol.mIndex());
+
+        assertEq(_protocol.debtOf(_minter1) + 1 wei, mintAmount);
+
+        // console2.log("debt 1 = ", _protocol.debtOf(_minter1));
+
+        // vm.warp(timestamp + _mintRequestQueueTime + 31_536_000);
+
+        // console2.log("debt 2 = ", _protocol.debtOf(_minter1));
     }
 
     function test_cancel() external {

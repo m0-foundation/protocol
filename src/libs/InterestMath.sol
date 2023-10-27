@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.21;
 
+import "forge-std/console.sol";
+
 library InterestMath {
     uint public constant SECONDS_PER_YEAR = 31_536_000;
 
@@ -11,7 +13,8 @@ library InterestMath {
     uint public constant EXP_BASE_SCALE = 1e18;
 
     function calculateIndex(uint previousIndex, uint rate, uint time) public pure returns (uint) {
-        return previousIndex * exponent(rate, time);
+        // console.log("index calc = ", previousIndex * exponent(rate, time));
+        return (previousIndex * exponent(rate, time)) / EXP_BASE_SCALE;
     }
 
     // Helper function to calculate e^rt part from countinous compounding interest formula

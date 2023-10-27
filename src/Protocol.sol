@@ -61,6 +61,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     bytes32 public constant MINTER_FREEZE_TIME = "minter_freeze_time";
 
     /// @notice The name of parameter that defines the borrow rate
+    // TODO BORROW_RATE vs BORROW_RATE_PER_SECOND
     bytes32 public constant BORROW_RATE = "borrow_rate";
 
     /******************************************************************************************************************\
@@ -98,13 +99,18 @@ contract Protocol is IProtocol, StatelessERC712 {
     /// @notice The mint requests of minters, only 1 request per minter
     mapping(address minter => uint256 timestamp) public frozenUntil;
 
+    /// @notice The total normalized principal (t0 principal value) for all minters
     uint256 public totalNormalizedPrincipal;
 
+    /// @notice The normalized principal (t0 principal value) for each minter
     mapping(address minter => uint256 amount) public normalizedPrincipal;
 
-    /// @dev Aggregate variables tracked for the entire market
-    uint256 internal _mIndex;
-    uint256 internal _lastAccrualTime;
+    // TODO possibly bit-pack those 2 variables
+    /// @notice The current M index for the protocol tracked for the entire market
+    uint256 public mIndex;
+
+    /// @notice The timestamp of the last time the M index was updated
+    uint256 public lastAccrualTime;
 
     modifier onlyApprovedMinter() {
         if (!_isApprovedMinter(msg.sender)) revert NotApprovedMinter();
@@ -126,8 +132,8 @@ contract Protocol is IProtocol, StatelessERC712 {
         spog = spog_;
         mToken = mToken_;
 
-        _mIndex = 1e18;
-        _lastAccrualTime = block.timestamp;
+        mIndex = 1e18;
+        lastAccrualTime = block.timestamp;
 
         baseScale = (10 ** MToken(mToken_).decimals()) / COLLATERAL_BASE_SCALE;
     }
@@ -212,7 +218,6 @@ contract Protocol is IProtocol, StatelessERC712 {
     /**
      * @notice Executes minting of M tokens
      */
-    // TODO if collateral is not updated revert, do not mint
     function mint() external onlyApprovedMinter {
         address minter_ = msg.sender;
         uint256 now_ = block.timestamp;
@@ -328,10 +333,10 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     function _updateBorrowIndex() internal {
         uint256 now_ = block.timestamp;
-        uint256 timeElapsed_ = now_ - _lastAccrualTime;
+        uint256 timeElapsed_ = now_ - lastAccrualTime;
         if (timeElapsed_ > 0) {
-            _mIndex = _getIndex(timeElapsed_);
-            _lastAccrualTime = now_;
+            mIndex = _getIndex(timeElapsed_);
+            lastAccrualTime = now_;
         }
     }
 
@@ -397,7 +402,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     function _getIndex(uint timeElapsed_) internal view returns (uint256) {
         uint256 rate_ = _getBorrowRate();
-        return timeElapsed_ > 0 ? InterestMath.calculateIndex(_mIndex, rate_, timeElapsed_) : _mIndex;
+        return timeElapsed_ > 0 ? InterestMath.calculateIndex(mIndex, rate_, timeElapsed_) : mIndex;
     }
 
     function _allowedDebtOf(address minter_) internal view returns (uint256) {
@@ -410,6 +415,10 @@ contract Protocol is IProtocol, StatelessERC712 {
         return (minterCollateral_.amount * baseScale * MINT_RATIO) / ONE;
     }
 
+    function debtOf(address minter) external view returns (uint256) {
+        return _debtOf(minter);
+    }
+
     function _debtOf(address minter_) internal view returns (uint256) {
         uint256 principalValue_ = normalizedPrincipal[minter_];
         // return _presentValue(principalValue_) + penalties[minter];
@@ -417,12 +426,12 @@ contract Protocol is IProtocol, StatelessERC712 {
     }
 
     function _presentValue(uint256 principalValue_) internal view returns (uint256) {
-        uint256 timeElapsed_ = block.timestamp - _lastAccrualTime;
+        uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
         return (principalValue_ * _getIndex(timeElapsed_)) / INDEX_BASE_SCALE;
     }
 
     function _principalValue(uint256 presentValue_) internal view returns (uint256) {
-        uint256 timeElapsed_ = block.timestamp - _lastAccrualTime;
+        uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
         return (presentValue_ * INDEX_BASE_SCALE) / _getIndex(timeElapsed_);
     }
 
