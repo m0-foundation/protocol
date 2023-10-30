@@ -7,7 +7,7 @@ import { Bytes32AddressLib } from "solmate/utils/Bytes32AddressLib.sol";
 import { SignatureChecker } from "./SignatureChecker.sol";
 
 import { IProtocol } from "./interfaces/IProtocol.sol";
-import { ISPOG } from "./interfaces/ISPOG.sol";
+import { ISPOGRegistrar } from "./interfaces/ISPOGRegistrar.sol";
 
 import { StatelessERC712 } from "./StatelessERC712.sol";
 
@@ -179,18 +179,18 @@ contract Protocol is IProtocol, StatelessERC712 {
     \******************************************************************************************************************/
 
     function _isApprovedMinter(address minter_) internal view returns (bool) {
-        return ISPOG(spog).listContains(MINTERS_LIST_NAME, minter_);
+        return ISPOGRegistrar(spog).listContains(MINTERS_LIST_NAME, minter_);
     }
 
     function _isApprovedValidator(address validator_) internal view returns (bool) {
-        return ISPOG(spog).listContains(VALIDATORS_LIST_NAME, validator_);
+        return ISPOGRegistrar(spog).listContains(VALIDATORS_LIST_NAME, validator_);
     }
 
     function _getUpdateCollateralInterval() internal view returns (uint256) {
-        return uint256(ISPOG(spog).get(UPDATE_COLLATERAL_INTERVAL));
+        return uint256(ISPOGRegistrar(spog).get(UPDATE_COLLATERAL_INTERVAL));
     }
 
     function _getUpdateCollateralQuorum() internal view returns (uint256) {
-        return uint256(ISPOG(spog).get(UPDATE_COLLATERAL_QUORUM));
+        return uint256(ISPOGRegistrar(spog).get(UPDATE_COLLATERAL_QUORUM));
     }
 }

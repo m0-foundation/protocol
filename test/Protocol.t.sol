@@ -8,7 +8,7 @@ import { IProtocol } from "../src/interfaces/IProtocol.sol";
 
 import { Protocol } from "../src/Protocol.sol";
 
-import { MockSPOG } from "./utils/Mocks.sol";
+import { MockSPOGRegistrar } from "./utils/Mocks.sol";
 import { DigestHelper } from "./utils/DigestHelper.sol";
 
 contract ProtocolTests is Test {
@@ -23,7 +23,7 @@ contract ProtocolTests is Test {
     uint256 internal _updateCollateralQuorum = 1;
     uint256 internal _updateCollateralInterval = 20;
 
-    MockSPOG internal _spog;
+    MockSPOGRegistrar internal _spog;
     Protocol internal _protocol;
 
     event CollateralUpdated(address indexed minter, uint256 amount, uint256 timestamp, string metadata);
@@ -33,7 +33,7 @@ contract ProtocolTests is Test {
         (_validator1, _validator1Pk) = makeAddrAndKey("validator1");
         (_validator2, _validator2Pk) = makeAddrAndKey("validator1");
 
-        _spog = new MockSPOG();
+        _spog = new MockSPOGRegistrar();
         _protocol = new Protocol(address(_spog));
 
         _spog.addToList(_protocol.MINTERS_LIST_NAME(), _minter1);
