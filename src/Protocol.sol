@@ -257,7 +257,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         normalizedPrincipal[minter_] += normalizedPrincipal_;
         totalNormalizedPrincipal += normalizedPrincipal_;
 
-        // Mint actual tokens
+        // Mint actual M tokens
         IMToken(mToken).mint(to_, amount_);
 
         emit MintRequestExecuted(minter_, amount_, to_);
@@ -276,6 +276,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         normalizedPrincipal[minter_] -= normalizedPrincipalDelta_;
         totalNormalizedPrincipal -= normalizedPrincipalDelta_;
 
+        // Burn actual M tokens
         IMToken(mToken).burn(msg.sender, amountDelta_);
 
         emit Burn(minter_, msg.sender, amountDelta_);
