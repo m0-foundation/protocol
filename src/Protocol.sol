@@ -75,7 +75,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         // Core quorum validation, plus possible extension
         bytes32 updateCollateralDigest_ = _getUpdateCollateralDigest(minter_, amount_, metadata_, timestamp_);
         uint256 requiredQuorum_ = _getUpdateCollateralQuorum();
-        _hasEnoughValidSignatures(updateCollateralDigest_, validators_, signatures_, requiredQuorum_);
+        _revertIfInsufficientValidSignatures(updateCollateralDigest_, validators_, signatures_, requiredQuorum_);
 
         // accruePenalties(); // JIRA ticket https://mzerolabs.atlassian.net/jira/software/c/projects/WEB3/boards/10?selectedIssue=WEB3-396
 
@@ -93,7 +93,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     /// @param validators_ The list of validators who signed digest
     /// @param signatures_ The list of signatures
     /// @param requiredQuorum_ The number of signatures required for validated action
-    function _hasEnoughValidSignatures(
+    function _revertIfInsufficientValidSignatures(
         bytes32 digest_,
         address[] calldata validators_,
         bytes[] calldata signatures_,
