@@ -70,7 +70,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         if (block.timestamp > timestamp_ + updateInterval_) revert ExpiredTimestamp();
 
         CollateralBasic storage minterCollateral_ = collateral[minter_];
-        if (minterCollateral_.lastUpdated > timestamp_) revert StaleTimestamp();
+        if (minterCollateral_.lastUpdated >= timestamp_) revert StaleTimestamp();
 
         // Core quorum validation, plus possible extension
         bytes32 updateCollateralDigest_ = _getUpdateCollateralDigest(minter_, amount_, metadata_, timestamp_);
