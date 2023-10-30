@@ -2,7 +2,8 @@
 
 pragma solidity 0.8.21;
 
-import { console2, Test } from "../lib/forge-std/src/Test.sol";
+import { console2, stdError, Test } from "../lib/forge-std/src/Test.sol";
+
 import { Bytes32AddressLib } from "solmate/utils/Bytes32AddressLib.sol";
 
 import { ContractHelper } from "../src/libs/ContractHelper.sol";
@@ -42,6 +43,8 @@ contract ProtocolTests is Test {
     event MintRequestExecuted(address indexed minter, uint256 amount, address indexed to);
     event MintRequestCanceled(address indexed minter, address indexed canceller);
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
+
+    event Burn(address indexed minter, address indexed payer, uint256 amount);
 
     function setUp() external {
         (_minter1, _minter1Pk) = makeAddrAndKey("minter1");
@@ -414,6 +417,87 @@ contract ProtocolTests is Test {
         vm.prank(_validator1);
         vm.expectRevert(IProtocol.NotApprovedMinter.selector);
         _protocol.freeze(makeAddr("alice"));
+    }
+
+    function test_burn() external {
+        uint256 collateralAmount = 10000000e2;
+        uint256 mintAmount = 1000000e18;
+        uint256 timestamp = block.timestamp;
+        address to = makeAddr("to");
+
+        // initiate harness functions
+        _protocol.setCollateral(_minter1, collateralAmount, timestamp);
+        _protocol.setMintRequest(_minter1, mintAmount, timestamp, to);
+
+        vm.warp(timestamp + _mintRequestQueueTime);
+
+        vm.prank(_minter1);
+        _protocol.mint();
+
+        vm.prank(to);
+        vm.expectEmit();
+        // 1 wei precision difference for the benefit of user
+        emit Burn(_minter1, to, mintAmount - 1 wei);
+        _protocol.burn(_minter1, mintAmount);
+
+        // minter repaid all its debt
+        assertEq(_protocol.debtOf(_minter1), 0);
+        // 1 wei is left in the user `to`
+        assertEq(_protocol.normalizedPrincipal(_minter1), 0);
+    }
+
+    function test_burn_repayHalfOfDebt() external {
+        uint256 normalizedPrincipal = 100e18;
+        _protocol.setNormalizedPrinciapl(_minter1, normalizedPrincipal);
+        _protocol.setMIndex(1e18);
+
+        uint256 minterDebt = _protocol.debtOf(_minter1);
+
+        address alice = makeAddr("alice");
+        address bob = makeAddr("bob");
+
+        _mintTo(alice, minterDebt);
+        _mintTo(bob, minterDebt);
+
+        vm.prank(alice);
+        vm.expectEmit();
+        emit Burn(_minter1, alice, minterDebt / 2);
+        _protocol.burn(_minter1, minterDebt / 2);
+        assertEq(_protocol.debtOf(_minter1), minterDebt / 2);
+        assertEq(_mToken.balanceOf(alice), minterDebt / 2);
+
+        vm.prank(bob);
+        vm.expectEmit();
+        emit Burn(_minter1, bob, minterDebt / 2);
+        _protocol.burn(_minter1, minterDebt / 2);
+        assertEq(_protocol.debtOf(_minter1), 0);
+        assertEq(_mToken.balanceOf(alice), minterDebt / 2);
+    }
+
+    function test_burn_notApprovedMinter() external {
+        vm.prank(makeAddr("alice"));
+        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+        _protocol.burn(makeAddr("notApprovedMinter"), 100);
+    }
+
+    function test_burn_notEnoughBalanceToRepay() external {
+        uint256 normalizedPrincipal = 100e18;
+        _protocol.setNormalizedPrinciapl(_minter1, normalizedPrincipal);
+        _protocol.setMIndex(1e18);
+
+        uint256 minterDebt = _protocol.debtOf(_minter1);
+
+        address alice = makeAddr("alice");
+        _mintTo(alice, minterDebt / 2);
+
+        vm.prank(alice);
+        vm.expectRevert(stdError.arithmeticError);
+        _protocol.burn(_minter1, minterDebt);
+    }
+
+    function _mintTo(address account, uint256 amount) internal {
+        vm.prank(address(_protocol));
+        _mToken.mint(account, amount);
     }
 
     function _getSignature(

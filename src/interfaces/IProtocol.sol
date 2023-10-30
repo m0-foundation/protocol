@@ -24,6 +24,8 @@ interface IProtocol {
     event MintRequestCanceled(address indexed minter, address indexed canceller);
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
 
+    event Burn(address indexed minter, address indexed payer, uint256 amount);
+
     function UPDATE_COLLATERAL_TYPEHASH() external view returns (bytes32 typehash);
 
     function updateCollateral(
@@ -43,4 +45,6 @@ interface IProtocol {
     function freeze(address minter) external;
 
     function updateIndices() external;
+
+    function burn(address minter, uint256 amount) external;
 }

@@ -263,6 +263,24 @@ contract Protocol is IProtocol, StatelessERC712 {
         emit MintRequestExecuted(minter_, amount_, to_);
     }
 
+    function burn(address minter_, uint256 amount_) external {
+        if (!_isApprovedMinter(minter_)) revert NotApprovedMinter();
+
+        // _accruePenalties(); // JIRA ticket
+
+        updateIndices();
+
+        uint256 normalizedPrincipalDelta_ = _min(_principalValue(amount_), normalizedPrincipal[minter_]);
+        uint256 amountDelta_ = _presentValue(normalizedPrincipalDelta_);
+
+        normalizedPrincipal[minter_] -= normalizedPrincipalDelta_;
+        totalNormalizedPrincipal -= normalizedPrincipalDelta_;
+
+        IMToken(mToken).burn(msg.sender, amountDelta_);
+
+        emit Burn(minter_, msg.sender, amountDelta_);
+    }
+
     /******************************************************************************************************************\
     |                                                Validator Functions                                               |
     \******************************************************************************************************************/
@@ -452,6 +470,10 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     function _fromBytes32(bytes32 value) internal pure returns (address) {
         return address(uint160(uint256(value)));
+    }
+
+    function _min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
     }
 
     /******************************************************************************************************************\
