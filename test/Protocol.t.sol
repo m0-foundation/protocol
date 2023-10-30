@@ -448,7 +448,7 @@ contract ProtocolTests is Test {
 
     function test_burn_repayHalfOfDebt() external {
         uint256 normalizedPrincipal = 100e18;
-        _protocol.setNormalizedPrinciapl(_minter1, normalizedPrincipal);
+        _protocol.setNormalizedPrincipal(_minter1, normalizedPrincipal);
         _protocol.setMIndex(1e18);
 
         uint256 minterDebt = _protocol.debtOf(_minter1);
@@ -482,7 +482,7 @@ contract ProtocolTests is Test {
 
     function test_burn_notEnoughBalanceToRepay() external {
         uint256 normalizedPrincipal = 100e18;
-        _protocol.setNormalizedPrinciapl(_minter1, normalizedPrincipal);
+        _protocol.setNormalizedPrincipal(_minter1, normalizedPrincipal);
         _protocol.setMIndex(1e18);
 
         uint256 minterDebt = _protocol.debtOf(_minter1);

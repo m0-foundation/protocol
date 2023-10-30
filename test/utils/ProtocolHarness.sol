@@ -15,7 +15,7 @@ contract ProtocolHarness is Protocol {
         collateral[minter] = CollateralBasic(amount, lastUpdated);
     }
 
-    function setNormalizedPrinciapl(address minter, uint256 amount) external {
+    function setNormalizedPrincipal(address minter, uint256 amount) external {
         normalizedPrincipal[minter] = amount;
         totalNormalizedPrincipal += amount;
     }
