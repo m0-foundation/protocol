@@ -85,41 +85,27 @@ contract Protocol is IProtocol, StatelessERC712 {
     }
 
     /// @dev Checks that enough valid unique signatures were provided
+    /// @dev Validators need to be sorted in ascending order
     /// @param digest_ The message hash for signing
-    /// @param validators_ The list of validators who signed digest
+    /// @param validators_ The sorted list of validators who signed digest
     /// @param signatures_ The list of signatures
-    /// @param requiredQuorum_ The number of signatures required for validated action
+    /// @param requiredQuorum_ The number of signatures required for the action to be validated
     function _revertIfInsufficientValidSignatures(
         bytes32 digest_,
         address[] calldata validators_,
         bytes[] calldata signatures_,
         uint256 requiredQuorum_
     ) internal view {
-        address[] memory uniqueValidators_ = new address[](validators_.length);
-        uint256 validatorsNum_ = 0;
+        if (requiredQuorum_ != validators_.length) revert InvalidSignaturesLength();
 
-        if (requiredQuorum_ > validators_.length) revert NotEnoughValidSignatures();
-
-        // TODO consider reverting if any of inputs are duplicate or invalid
-        for (uint i = 0; i < signatures_.length; i++) {
-            // check that signature is unique and not accounted for
-            bool duplicate_ = _contains(uniqueValidators_, validators_[i], validatorsNum_);
-            if (duplicate_) continue;
-
-            // check that validator is approved by SPOG
-            bool authorized_ = _isApprovedValidator(validators_[i]);
-            if (!authorized_) continue;
-
-            // check that ECDSA or ERC1271 signatures for given digest are valid
-            bool valid_ = SignatureChecker.isValidSignature(validators_[i], digest_, signatures_[i]);
-            // TODO add validation extension here
-
-            if (!valid_) continue;
-
-            uniqueValidators_[validatorsNum_++] = validators_[i];
+        for (uint256 i = 0; i < signatures_.length; i++) {
+            address validator_ = validators_[i];
+            if (
+                (i > 0 && validator_ <= validators_[i - 1]) ||
+                !_isApprovedValidator(validator_) ||
+                !SignatureChecker.isValidSignature(validator_, digest_, signatures_[i])
+            ) revert NotEnoughValidSignatures();
         }
-
-        if (validatorsNum_ < requiredQuorum_) revert NotEnoughValidSignatures();
     }
 
     /// @dev Returns the EIP-712 digest for updateCollateral method
@@ -130,16 +116,6 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 timestamp_
     ) internal view returns (bytes32) {
         return _getDigest(keccak256(abi.encode(UPDATE_COLLATERAL_TYPEHASH, minter_, amount_, metadata_, timestamp_)));
-    }
-
-    /// @dev Helper function to check if a given list contains an element
-    function _contains(address[] memory arr_, address elem_, uint len_) internal pure returns (bool) {
-        for (uint i = 0; i < len_; i++) {
-            if (arr_[i] == elem_) {
-                return true;
-            }
-        }
-        return false;
     }
 
     //
