@@ -2,8 +2,6 @@
 
 pragma solidity 0.8.21;
 
-import { Bytes32AddressLib } from "solmate/utils/Bytes32AddressLib.sol";
-
 import { SignatureChecker } from "./SignatureChecker.sol";
 
 import { IProtocol } from "./interfaces/IProtocol.sol";
@@ -12,8 +10,6 @@ import { ISPOGRegistrar } from "./interfaces/ISPOGRegistrar.sol";
 import { StatelessERC712 } from "./StatelessERC712.sol";
 
 contract Protocol is IProtocol, StatelessERC712 {
-    using Bytes32AddressLib for bytes32;
-
     // TODO bit-packing
     struct CollateralBasic {
         uint256 amount;
