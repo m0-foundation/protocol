@@ -192,6 +192,9 @@ contract Protocol is IProtocol, StatelessERC712 {
         address minter_ = msg.sender;
         uint256 now_ = block.timestamp;
 
+        // No need to create empty mint request
+        if (amount_ == 0) revert InvalidMintRequestAmount();
+
         // Check is minter is frozen
         if (now_ < frozenUntil[msg.sender]) revert FrozenMinter();
 
