@@ -98,14 +98,28 @@ contract Protocol is IProtocol, StatelessERC712 {
     ) internal view {
         if (requiredQuorum_ != validators_.length) revert InvalidSignaturesLength();
 
-        for (uint256 i = 0; i < signatures_.length; i++) {
-            address validator_ = validators_[i];
-            if (
-                (i > 0 && validator_ <= validators_[i - 1]) ||
-                !_isApprovedValidator(validator_) ||
-                !SignatureChecker.isValidSignature(validator_, digest_, signatures_[i])
-            ) revert NotEnoughValidSignatures();
+        uint256 validSignaturesNum_ = 0;
+
+        // TODO consider reverting if any of inputs are duplicate or invalid
+        for (uint256 index_ = 0; index_ < signatures_.length; index_++) {
+            address validator_ = validators_[index_];
+
+            // check that signature is unique and not accounted for
+            bool duplicate_ = index_ > 0 && validator_ <= validators_[index_ - 1];
+            if (duplicate_) continue;
+
+            // check that validator is approved by SPOG
+            bool authorized_ = _isApprovedValidator(validator_);
+            if (!authorized_) continue;
+
+            // check that ECDSA or ERC1271 signatures for given digest are valid
+            bool valid_ = SignatureChecker.isValidSignature(validator_, digest_, signatures_[index_]);
+            if (!valid_) continue;
+
+            validSignaturesNum_++;
         }
+
+        if (validSignaturesNum_ < requiredQuorum_) revert NotEnoughValidSignatures();
     }
 
     /// @dev Returns the EIP-712 digest for updateCollateral method

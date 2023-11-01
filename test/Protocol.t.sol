@@ -137,7 +137,7 @@ contract ProtocolTests is Test {
 
         address[] memory validators = new address[](3);
         validators[0] = _validator1;
-        validators[1] = _validator1;
+        validators[1] = _validator2;
         validators[2] = _validator2;
 
         bytes[] memory signatures = new bytes[](3);
