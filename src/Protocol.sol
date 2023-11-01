@@ -26,7 +26,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     bytes32 public constant UPDATE_COLLATERAL_QUORUM = "updateCollateral_quorum";
     bytes32 public constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
 
-    address public immutable spog;
+    address public immutable spogRegistrar;
 
     mapping(address minter => CollateralBasic) public collateral;
 
@@ -36,8 +36,8 @@ contract Protocol is IProtocol, StatelessERC712 {
         _;
     }
 
-    constructor(address spog_) StatelessERC712("Protocol") {
-        spog = spog_;
+    constructor(address spogRegistrar_) StatelessERC712("Protocol") {
+        spogRegistrar = spogRegistrar_;
     }
 
     /******************************************************************************************************************\
@@ -165,18 +165,18 @@ contract Protocol is IProtocol, StatelessERC712 {
     \******************************************************************************************************************/
 
     function _isApprovedMinter(address minter_) internal view returns (bool) {
-        return ISPOGRegistrar(spog).listContains(MINTERS_LIST_NAME, minter_);
+        return ISPOGRegistrar(spogRegistrar).listContains(MINTERS_LIST_NAME, minter_);
     }
 
     function _isApprovedValidator(address validator_) internal view returns (bool) {
-        return ISPOGRegistrar(spog).listContains(VALIDATORS_LIST_NAME, validator_);
+        return ISPOGRegistrar(spogRegistrar).listContains(VALIDATORS_LIST_NAME, validator_);
     }
 
     function _getUpdateCollateralInterval() internal view returns (uint256) {
-        return uint256(ISPOGRegistrar(spog).get(UPDATE_COLLATERAL_INTERVAL));
+        return uint256(ISPOGRegistrar(spogRegistrar).get(UPDATE_COLLATERAL_INTERVAL));
     }
 
     function _getUpdateCollateralQuorum() internal view returns (uint256) {
-        return uint256(ISPOGRegistrar(spog).get(UPDATE_COLLATERAL_QUORUM));
+        return uint256(ISPOGRegistrar(spogRegistrar).get(UPDATE_COLLATERAL_QUORUM));
     }
 }
