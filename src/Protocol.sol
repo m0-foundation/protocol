@@ -192,9 +192,6 @@ contract Protocol is IProtocol, StatelessERC712 {
         address minter_ = msg.sender;
         uint256 now_ = block.timestamp;
 
-        // No need to create empty mint request
-        if (amount_ == 0) revert InvalidMintRequestAmount();
-
         // Check is minter is frozen
         if (now_ < frozenUntil[msg.sender]) revert FrozenMinter();
 
@@ -207,7 +204,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         // Check that mint is sufficiently collateralized
         uint256 allowedDebt_ = _allowedDebtOf(minter_);
         uint256 currentDebt_ = _debtOf(minter_);
-        if (currentDebt_ + amount_ > allowedDebt_) revert UncollateralizedMint();
+        if (currentDebt_ + amount_ > allowedDebt_) revert UndercollateralizedMint();
 
         MintRequest storage mintRequest_ = mintRequests[minter_];
         mintRequest_.amount = amount_;
@@ -235,8 +232,6 @@ contract Protocol is IProtocol, StatelessERC712 {
             mintRequest_.to
         );
 
-        if (amount_ == 0) revert NoMintRequest();
-
         uint256 activeAt_ = createdAt_ + _getMintRequestQueueTime();
         if (now_ < activeAt_) revert PendingMintRequest();
 
@@ -250,7 +245,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         // Check that mint is sufficiently collateralized
         uint256 allowedDebt_ = _allowedDebtOf(minter_);
         uint256 currentDebt_ = _debtOf(minter_);
-        if (currentDebt_ + amount_ > allowedDebt_) revert UncollateralizedMint();
+        if (currentDebt_ + amount_ > allowedDebt_) revert UndercollateralizedMint();
 
         // Delete mint request
         delete mintRequests[minter_];
@@ -305,8 +300,6 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @param minter_ The address of the minter to freeze
      */
     function freeze(address minter_) external onlyApprovedValidator {
-        if (!_isApprovedMinter(minter_)) revert NotApprovedMinter();
-
         uint256 frozenUntil_ = block.timestamp + _getMinterFreezeTime();
 
         emit MinterFrozen(minter_, frozenUntil[minter_] = frozenUntil_);

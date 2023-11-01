@@ -13,8 +13,7 @@ interface IProtocol {
     error ExpiredTimestamp();
     error StaleTimestamp();
 
-    error InvalidMintRequestAmount();
-    error UncollateralizedMint();
+    error UndercollateralizedMint();
     error NoMintRequest();
     error PendingMintRequest();
     error ExpiredMintRequest();

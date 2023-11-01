@@ -198,14 +198,6 @@ contract ProtocolTests is Test {
         assertEq(timestamp_, timestamp);
     }
 
-    function test_proposeMint_invalidMintRequestAmount() external {
-        address to = makeAddr("to");
-
-        vm.prank(_minter1);
-        vm.expectRevert(IProtocol.InvalidMintRequestAmount.selector);
-        _protocol.proposeMint(0, to);
-    }
-
     function test_proposeMint_frozenMinter() external {
         vm.prank(_validator1);
         _protocol.freeze(_minter1);
@@ -221,7 +213,7 @@ contract ProtocolTests is Test {
         _protocol.proposeMint(100e18, makeAddr("to"));
     }
 
-    function test_proposeMint_uncollaterizedMint() external {
+    function test_proposeMint_undercollateralizedMint() external {
         uint256 collateral = 100e2;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
@@ -231,7 +223,7 @@ contract ProtocolTests is Test {
         vm.warp(timestamp + _mintRequestQueueTime);
 
         vm.prank(_minter1);
-        vm.expectRevert(IProtocol.UncollateralizedMint.selector);
+        vm.expectRevert(IProtocol.UndercollateralizedMint.selector);
         // mint ratio * collateral is not satisfied
         _protocol.proposeMint(100e18, to);
     }
@@ -314,12 +306,6 @@ contract ProtocolTests is Test {
         _protocol.mint();
     }
 
-    function test_mint_noMintRequest() external {
-        vm.prank(_minter1);
-        vm.expectRevert(IProtocol.NoMintRequest.selector);
-        _protocol.mint();
-    }
-
     function test_mint_pendingMintRequest() external {
         uint256 timestamp = block.timestamp;
         _protocol.setMintRequest(_minter1, 100, timestamp, makeAddr("to"));
@@ -342,7 +328,7 @@ contract ProtocolTests is Test {
         _protocol.mint();
     }
 
-    function test_mint_uncollateralizedMint() external {
+    function test_mint_undercollateralizedMint() external {
         uint256 collateral = 100e2;
         uint256 amount = 95e18;
         uint256 timestamp = block.timestamp;
@@ -354,11 +340,11 @@ contract ProtocolTests is Test {
         vm.warp(timestamp + _mintRequestQueueTime + 1);
 
         vm.prank(_minter1);
-        vm.expectRevert(IProtocol.UncollateralizedMint.selector);
+        vm.expectRevert(IProtocol.UndercollateralizedMint.selector);
         _protocol.mint();
     }
 
-    function test_mint_uncollateralizedMint_outdatedCollateral() external {
+    function test_mint_undercollateralizedMint_outdatedCollateral() external {
         uint256 collateral = 100e2;
         uint256 amount = 95e18;
         uint256 timestamp = block.timestamp;
@@ -370,7 +356,7 @@ contract ProtocolTests is Test {
         vm.warp(timestamp + _mintRequestQueueTime + 1);
 
         vm.prank(_minter1);
-        vm.expectRevert(IProtocol.UncollateralizedMint.selector);
+        vm.expectRevert(IProtocol.UndercollateralizedMint.selector);
         _protocol.mint();
     }
 
@@ -449,12 +435,6 @@ contract ProtocolTests is Test {
         vm.prank(makeAddr("alice"));
         vm.expectRevert(IProtocol.NotApprovedValidator.selector);
         _protocol.freeze(_minter1);
-    }
-
-    function test_freeze_notApprovedMinter() external {
-        vm.prank(_validator1);
-        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
-        _protocol.freeze(makeAddr("alice"));
     }
 
     function test_burn() external {
