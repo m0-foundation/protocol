@@ -19,11 +19,11 @@ contract MToken is IMToken, ERC20 {
         protocol = protocol_;
     }
 
-    function mint(address account, uint256 amount) external onlyProtocol {
-        _mint(account, amount);
+    function mint(address account_, uint256 amount_) external onlyProtocol {
+        _mint(account_, amount_);
     }
 
-    function burn(address account, uint amount) external onlyProtocol {
-        _burn(account, amount);
+    function burn(address account_, uint amount_) external onlyProtocol {
+        _burn(account_, amount_);
     }
 }

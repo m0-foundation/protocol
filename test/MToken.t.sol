@@ -6,6 +6,8 @@ import { console2, Test } from "../lib/forge-std/src/Test.sol";
 
 import { IMToken } from "../src/interfaces/IMToken.sol";
 
+import { MockSPOGRegistrar } from "./utils/Mocks.sol";
+
 import { Protocol } from "../src/Protocol.sol";
 import { MToken } from "../src/MToken.sol";
 
@@ -16,9 +18,11 @@ contract MTokenTests is Test {
     address internal _protocol = makeAddr("protocol");
 
     MToken internal _mToken;
+    MockSPOGRegistrar internal _spog;
 
     function setUp() external {
-        _mToken = new MToken(_protocol);
+        _spog = new MockSPOGRegistrar();
+        _mToken = new MToken(address(_protocol));
     }
 
     function test_mint() external {
