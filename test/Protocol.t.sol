@@ -29,7 +29,7 @@ contract ProtocolTests is Test {
     uint256 internal _updateCollateralInterval = 2000;
     uint256 internal _minterFreezeTime = 1000;
     uint256 internal _mintRequestQueueTime = 1000;
-    uint256 internal _mintRequestTtl = 1500;
+    uint256 internal _mintRequestTtl = 500;
     uint256 internal _borrowRate = 400; // 4%, bps
     uint256 internal _minRatio = 9000; // 90%, bps
 
@@ -321,7 +321,7 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
         _protocol.setMintRequest(_minter1, 100, timestamp, makeAddr("to"));
 
-        vm.warp(timestamp + _mintRequestTtl + 1);
+        vm.warp(timestamp + _mintRequestQueueTime + _mintRequestTtl + 1);
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.ExpiredMintRequest.selector);

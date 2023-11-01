@@ -235,7 +235,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 activeAt_ = createdAt_ + _getMintRequestQueueTime();
         if (now_ < activeAt_) revert PendingMintRequest();
 
-        uint256 expiresAt_ = createdAt_ + _getMintRequestTimeToLive();
+        uint256 expiresAt_ = activeAt_ + _getMintRequestTimeToLive();
         if (now_ > expiresAt_) revert ExpiredMintRequest();
 
         // _accruePenalties(); // JIRA ticket
@@ -274,7 +274,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         updateIndices();
 
-        // Find minimum amount between provided amount to burn and minter's debt
+        // Find minimum amount between given `amount_` to burn and minter's debt
         uint256 normalizedPrincipalDelta_ = _min(_principalValue(amount_), normalizedPrincipal[minter_]);
         uint256 amountDelta_ = _presentValue(normalizedPrincipalDelta_);
 
