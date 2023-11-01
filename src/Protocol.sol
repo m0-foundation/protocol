@@ -238,14 +238,14 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 expiresAt_ = createdAt_ + _getMintRequestTimeToLive();
         if (now_ > expiresAt_) revert ExpiredMintRequest();
 
-        updateIndices();
-
         // _accruePenalties(); // JIRA ticket
 
         // Check that mint is sufficiently collateralized
         uint256 allowedDebt_ = _allowedDebtOf(minter_);
         uint256 currentDebt_ = _debtOf(minter_);
         if (currentDebt_ + amount_ > allowedDebt_) revert UndercollateralizedMint();
+
+        updateIndices();
 
         // Delete mint request
         delete mintRequests[minter_];
@@ -261,6 +261,12 @@ contract Protocol is IProtocol, StatelessERC712 {
         emit MintRequestExecuted(minter_, amount_, to_);
     }
 
+    /**
+     * @notice Burns M tokens
+     * @param minter_ The address of the minter to burn M tokens for
+     * @param amount_ The max amount of M tokens to burn
+     * @dev If amount to burn is greater than minter's debt, burn all debt
+     */
     function burn(address minter_, uint256 amount_) external {
         if (!_isApprovedMinter(minter_)) revert NotApprovedMinter();
 
@@ -268,6 +274,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         updateIndices();
 
+        // Find minimum amount between provided amount to burn and minter's debt
         uint256 normalizedPrincipalDelta_ = _min(_principalValue(amount_), normalizedPrincipal[minter_]);
         uint256 amountDelta_ = _presentValue(normalizedPrincipalDelta_);
 
@@ -289,7 +296,6 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @param minter_ The address of the minter to cancel active outstanding mint request
      */
     function cancel(address minter_) external onlyApprovedValidator {
-        // TODO check if request is present, do we need it?
         delete mintRequests[minter_];
 
         emit MintRequestCanceled(minter_, msg.sender);
