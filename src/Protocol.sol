@@ -274,13 +274,7 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @param mintId_ The id of outstanding mint request
      */
     function cancel(uint256 mintId_) external onlyApprovedMinter {
-        address minter_ = msg.sender;
-
-        if (mintRequests[minter_].mintId != mintId_) revert InvalidMintRequest();
-
-        delete mintRequests[minter_];
-
-        emit MintRequestCanceled(mintId_, minter_, msg.sender);
+        _cancel(msg.sender, mintId_);
     }
 
     /**
@@ -309,6 +303,13 @@ contract Protocol is IProtocol, StatelessERC712 {
         emit Burn(minter_, msg.sender, amountDelta_);
     }
 
+    /**
+     * @notice Returns the amount of M tokens that minter owes to the protocol
+     */
+    function debtOf(address minter_) external view returns (uint256) {
+        return _debtOf(minter_);
+    }
+
     /******************************************************************************************************************\
     |                                                Validator Functions                                               |
     \******************************************************************************************************************/
@@ -319,11 +320,7 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @param mintId_ The id of outstanding mint request
      */
     function cancel(address minter_, uint256 mintId_) external onlyApprovedValidator {
-        if (mintRequests[minter_].mintId != mintId_) revert InvalidMintRequest();
-
-        delete mintRequests[minter_];
-
-        emit MintRequestCanceled(mintId_, minter_, msg.sender);
+        _cancel(minter_, mintId_);
     }
 
     /**
@@ -334,10 +331,6 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 frozenUntil_ = block.timestamp + _getMinterFreezeTime();
 
         emit MinterFrozen(minter_, frozenUntil[minter_] = frozenUntil_);
-    }
-
-    function debtOf(address minter) external view returns (uint256) {
-        return _debtOf(minter);
     }
 
     //
@@ -393,6 +386,19 @@ contract Protocol is IProtocol, StatelessERC712 {
     /******************************************************************************************************************\
     |                                           Internal View/Pure Functions                                           |
     \******************************************************************************************************************/
+
+    /**
+     * @notice Cancels minting request for minter
+     * @param minter_ The address of the minter to cancel minting request for
+     * @param mintId_ The id of outstanding mint request
+     */
+    function _cancel(address minter_, uint256 mintId_) internal {
+        if (mintRequests[minter_].mintId != mintId_) revert InvalidMintRequest();
+
+        delete mintRequests[minter_];
+
+        emit MintRequestCanceled(mintId_, minter_, msg.sender);
+    }
 
     /**
      * @notice Returns the EIP-712 digest for updateCollateral method
