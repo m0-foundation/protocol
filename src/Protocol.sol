@@ -13,8 +13,6 @@ import { ISPOGRegistrar } from "./interfaces/ISPOGRegistrar.sol";
 import { StatelessERC712 } from "./StatelessERC712.sol";
 import { MToken } from "./MToken.sol";
 
-import "forge-std/console.sol";
-
 /**
  * @title Protocol
  * @author M^ZERO LABS_
