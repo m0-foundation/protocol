@@ -39,9 +39,10 @@ contract ProtocolTests is Test {
     MockBorrowRateModel internal _borrowRateModel;
 
     event CollateralUpdated(address indexed minter, uint256 amount, uint256 timestamp, string metadata);
-    event MintRequestedCreated(address indexed minter, uint256 amount, address indexed to);
-    event MintRequestExecuted(address indexed minter, uint256 amount, address indexed to);
-    event MintRequestCanceled(address indexed minter, address indexed canceller);
+
+    event MintRequestedCreated(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
+    event MintRequestExecuted(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
+    event MintRequestCanceled(uint256 mintId, address indexed minter, address indexed canceller);
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
 
     event Burn(address indexed minter, address indexed payer, uint256 amount);
@@ -181,18 +182,26 @@ contract ProtocolTests is Test {
     }
 
     function test_proposeMint() external {
-        uint256 amount = 200e2;
+        uint256 collateral = 100e18;
+        uint256 amount = 60e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
-        _protocol.setCollateral(_minter1, amount, timestamp);
+        _protocol.setCollateral(_minter1, collateral, timestamp);
+
+        vm.pauseGasMetering();
+        uint256 expectedMintId = uint256(keccak256(abi.encode(_minter1, amount, to, timestamp, gasleft())));
 
         vm.prank(_minter1);
         vm.expectEmit();
-        emit MintRequestedCreated(_minter1, amount, to);
-        _protocol.proposeMint(amount, to);
+        emit MintRequestedCreated(expectedMintId, _minter1, amount, to);
+        uint256 mintId = _protocol.proposeMint(amount, to);
+        assertEq(mintId, expectedMintId);
 
-        (uint256 amount_, uint256 timestamp_, address to_) = _protocol.mintRequests(_minter1);
+        vm.resumeGasMetering();
+
+        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintRequests(_minter1);
+        assertEq(mintId_, mintId);
         assertEq(amount_, amount);
         assertEq(to_, to);
         assertEq(timestamp_, timestamp);
@@ -214,7 +223,7 @@ contract ProtocolTests is Test {
     }
 
     function test_proposeMint_undercollateralizedMint() external {
-        uint256 collateral = 100e2;
+        uint256 collateral = 100e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
@@ -229,26 +238,27 @@ contract ProtocolTests is Test {
     }
 
     function test_mint() external {
-        uint256 collateral = 100e2;
+        uint256 collateral = 100e18;
         uint256 amount = 80e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
         _protocol.setCollateral(_minter1, collateral, timestamp);
-        _protocol.setMintRequest(_minter1, amount, timestamp, to);
+        uint256 mintId = _protocol.setMintRequest(_minter1, amount, timestamp, to, 1);
 
         vm.warp(timestamp + _mintRequestQueueTime);
 
         vm.prank(_minter1);
         vm.expectEmit();
-        emit MintRequestExecuted(_minter1, amount, to);
-        _protocol.mint();
+        emit MintRequestExecuted(mintId, _minter1, amount, to);
+        _protocol.mint(mintId);
 
         // check that mint request has been deleted
-        (uint256 amount_, uint256 timestamp_, address to_) = _protocol.mintRequests(_minter1);
+        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintRequests(_minter1);
+        assertEq(mintId_, 0);
+        assertEq(to_, address(0));
         assertEq(amount_, 0);
         assertEq(timestamp_, 0);
-        assertEq(to_, address(0));
 
         // check that normalizedPrincipal has been updated
         assertTrue(_protocol.normalizedPrincipal(_minter1) > 0);
@@ -258,19 +268,19 @@ contract ProtocolTests is Test {
     }
 
     function test_mint_debtOf() external {
-        uint256 collateralAmount = 10000e2;
+        uint256 collateralAmount = 10000e18;
         uint256 mintAmount = 1000000e6;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
         // initiate harness functions
         _protocol.setCollateral(_minter1, collateralAmount, timestamp);
-        _protocol.setMintRequest(_minter1, mintAmount, timestamp, to);
+        uint256 mintId = _protocol.setMintRequest(_minter1, mintAmount, timestamp, to, 1);
 
         vm.warp(timestamp + _mintRequestQueueTime);
 
         vm.prank(_minter1);
-        _protocol.mint();
+        _protocol.mint(mintId);
 
         uint256 initialDebt = _protocol.debtOf(_minter1);
         uint256 initialIndex = _protocol.mIndex();
@@ -292,102 +302,152 @@ contract ProtocolTests is Test {
     }
 
     function test_mint_notApprovedMinter() external {
+        uint256 mintId = _protocol.setMintRequest(_minter1, 100e18, block.timestamp, makeAddr("to"), 1);
+
         vm.prank(makeAddr("alice"));
         vm.expectRevert(IProtocol.NotApprovedMinter.selector);
-        _protocol.mint();
+        _protocol.mint(mintId);
     }
 
     function test_mint_frozenMinter() external {
         vm.prank(_validator1);
         _protocol.freeze(_minter1);
 
+        uint256 mintId = _protocol.setMintRequest(_minter1, 100e18, block.timestamp, _minter1, 1);
+
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.FrozenMinter.selector);
-        _protocol.mint();
+        _protocol.mint(mintId);
     }
 
     function test_mint_pendingMintRequest() external {
         uint256 timestamp = block.timestamp;
-        _protocol.setMintRequest(_minter1, 100, timestamp, makeAddr("to"));
+        uint256 mintId = _protocol.setMintRequest(_minter1, 100, timestamp, makeAddr("to"), 1);
 
         vm.warp(timestamp + _mintRequestQueueTime / 2);
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.PendingMintRequest.selector);
-        _protocol.mint();
+        _protocol.mint(mintId);
     }
 
     function test_mint_expiredMintRequest() external {
         uint256 timestamp = block.timestamp;
-        _protocol.setMintRequest(_minter1, 100, timestamp, makeAddr("to"));
+        uint256 mintId = _protocol.setMintRequest(_minter1, 100, timestamp, makeAddr("to"), 1);
 
         vm.warp(timestamp + _mintRequestQueueTime + _mintRequestTtl + 1);
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.ExpiredMintRequest.selector);
-        _protocol.mint();
+        _protocol.mint(mintId);
     }
 
     function test_mint_undercollateralizedMint() external {
-        uint256 collateral = 100e2;
+        uint256 collateral = 100e18;
         uint256 amount = 95e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
         _protocol.setCollateral(_minter1, collateral, timestamp);
-        _protocol.setMintRequest(_minter1, amount, timestamp, to);
+        uint256 mintId = _protocol.setMintRequest(_minter1, amount, timestamp, to, 1);
 
         vm.warp(timestamp + _mintRequestQueueTime + 1);
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.UndercollateralizedMint.selector);
-        _protocol.mint();
+        _protocol.mint(mintId);
     }
 
     function test_mint_undercollateralizedMint_outdatedCollateral() external {
-        uint256 collateral = 100e2;
+        uint256 collateral = 100e18;
         uint256 amount = 95e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
         _protocol.setCollateral(_minter1, collateral, timestamp - _updateCollateralInterval);
-        _protocol.setMintRequest(_minter1, amount, timestamp, to);
+        uint256 mintId = _protocol.setMintRequest(_minter1, amount, timestamp, to, 1);
 
         vm.warp(timestamp + _mintRequestQueueTime + 1);
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.UndercollateralizedMint.selector);
-        _protocol.mint();
+        _protocol.mint(mintId);
     }
 
-    function test_cancel() external {
-        _protocol.setMintRequest(_minter1, 100, block.timestamp, makeAddr("to"));
+    function test_mint_invalidMintRequest() external {
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.InvalidMintRequest.selector);
+        _protocol.mint(1);
+    }
+
+    function test_mint_invalidMintRequest_mistmatchOfIds() external {
+        uint256 amount = 95e18;
+        uint256 timestamp = block.timestamp;
+        address to = makeAddr("to");
+        uint256 gasLeft = 1;
+
+        uint256 mintId = _protocol.setMintRequest(_minter1, amount, timestamp, to, gasLeft);
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.InvalidMintRequest.selector);
+        _protocol.mint(mintId - 1);
+    }
+
+    function test_cancel_byValidator() external {
+        uint256 mintId = _protocol.setMintRequest(_minter1, 100, block.timestamp, makeAddr("to"), 1);
 
         vm.prank(_validator1);
         vm.expectEmit();
-        emit MintRequestCanceled(_minter1, _validator1);
-        _protocol.cancel(_minter1);
+        emit MintRequestCanceled(mintId, _minter1, _validator1);
+        _protocol.cancel(_minter1, mintId);
 
-        (uint256 amount_, uint256 timestamp_, address to_) = _protocol.mintRequests(_minter1);
+        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintRequests(_minter1);
+        assertEq(mintId_, 0);
+        assertEq(to_, address(0));
         assertEq(amount_, 0);
         assertEq(timestamp_, 0);
+    }
+
+    function test_cancel_byMinter() external {
+        uint256 mintId = _protocol.setMintRequest(_minter1, 100, block.timestamp, makeAddr("to"), 1);
+
+        vm.prank(_minter1);
+        vm.expectEmit();
+        emit MintRequestCanceled(mintId, _minter1, _minter1);
+        _protocol.cancel(mintId);
+
+        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintRequests(_minter1);
+        assertEq(mintId_, 0);
         assertEq(to_, address(0));
+        assertEq(amount_, 0);
+        assertEq(timestamp_, 0);
     }
 
     function test_cancel_notApprovedValidator() external {
-        _protocol.setMintRequest(_minter1, 100, block.timestamp, makeAddr("to"));
+        uint256 mintId = _protocol.setMintRequest(_minter1, 100, block.timestamp, makeAddr("to"), 1);
 
         vm.prank(makeAddr("alice"));
         vm.expectRevert(IProtocol.NotApprovedValidator.selector);
-        _protocol.cancel(_minter1);
+        _protocol.cancel(_minter1, mintId);
+    }
+
+    function test_cancel_invalidMintRequest() external {
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.InvalidMintRequest.selector);
+        _protocol.cancel(1);
+
+        vm.prank(_validator1);
+        vm.expectRevert(IProtocol.InvalidMintRequest.selector);
+        _protocol.cancel(_minter1, 1);
     }
 
     function test_freeze() external {
-        uint256 amount = 100;
+        uint256 collateral = 100e18;
+        uint256 amount = 60e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
-        _protocol.setCollateral(_minter1, amount, timestamp);
+        _protocol.setCollateral(_minter1, collateral, timestamp);
 
         uint256 frozenUntil = timestamp + _minterFreezeTime;
 
@@ -405,10 +465,17 @@ contract ProtocolTests is Test {
         // fast-worward to the time when minter is unfrozen
         vm.warp(frozenUntil);
 
+        vm.pauseGasMetering();
+        uint256 expectedMintId = uint256(keccak256(abi.encode(_minter1, amount, to, block.timestamp, gasleft())));
+
         vm.prank(_minter1);
         vm.expectEmit();
-        emit MintRequestedCreated(_minter1, amount, to);
-        _protocol.proposeMint(amount, to);
+        emit MintRequestedCreated(expectedMintId, _minter1, amount, to);
+        uint mintId = _protocol.proposeMint(amount, to);
+
+        vm.resumeGasMetering();
+
+        assertEq(mintId, expectedMintId);
     }
 
     function test_freeze_sequence() external {
@@ -438,19 +505,19 @@ contract ProtocolTests is Test {
     }
 
     function test_burn() external {
-        uint256 collateralAmount = 10000000e2;
+        uint256 collateralAmount = 10000000e18;
         uint256 mintAmount = 1000000e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
         // initiate harness functions
         _protocol.setCollateral(_minter1, collateralAmount, timestamp);
-        _protocol.setMintRequest(_minter1, mintAmount, timestamp, to);
+        uint256 mintId = _protocol.setMintRequest(_minter1, mintAmount, timestamp, to, 1);
 
         vm.warp(timestamp + _mintRequestQueueTime);
 
         vm.prank(_minter1);
-        _protocol.mint();
+        _protocol.mint(mintId);
 
         vm.prank(to);
         vm.expectEmit();
