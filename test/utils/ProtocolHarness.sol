@@ -8,28 +8,28 @@ contract ProtocolHarness is Protocol {
     constructor(address spog_, address mToken_) Protocol(spog_, mToken_) {}
 
     function setMintRequest(
-        address minter,
-        uint256 amount,
-        uint256 createdAt,
-        address to,
-        uint256 gasLeft
+        address minter_,
+        uint256 amount_,
+        uint256 createdAt_,
+        address to_,
+        uint256 gasLeft_
     ) external returns (uint256) {
-        uint256 mintId = uint256(keccak256(abi.encodePacked(minter, amount, to, createdAt, gasLeft)));
-        mintRequests[minter] = MintRequest(mintId, to, amount, createdAt);
+        uint256 mintId_ = uint256(keccak256(abi.encodePacked(minter_, amount_, to_, createdAt_, gasLeft_)));
+        mintRequests[minter_] = MintRequest(mintId_, to_, amount_, createdAt_);
 
-        return mintId;
+        return mintId_;
     }
 
-    function setCollateral(address minter, uint256 amount, uint256 lastUpdated) external {
-        collateral[minter] = CollateralBasic(amount, lastUpdated);
+    function setCollateral(address minter_, uint256 amount_, uint256 lastUpdated_) external {
+        collateral[minter_] = CollateralBasic(amount_, lastUpdated_);
     }
 
-    function setNormalizedPrincipal(address minter, uint256 amount) external {
-        normalizedPrincipal[minter] = amount;
-        totalNormalizedPrincipal += amount;
+    function setNormalizedPrincipal(address minter_, uint256 amount_) external {
+        normalizedPrincipal[minter_] = amount_;
+        totalNormalizedPrincipal += amount_;
     }
 
-    function setMIndex(uint256 index) external {
-        mIndex = index;
+    function setMIndex(uint256 mIndex_) external {
+        mIndex = mIndex_;
     }
 }
