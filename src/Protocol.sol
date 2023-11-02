@@ -13,6 +13,8 @@ import { ISPOGRegistrar } from "./interfaces/ISPOGRegistrar.sol";
 import { StatelessERC712 } from "./StatelessERC712.sol";
 import { MToken } from "./MToken.sol";
 
+import "forge-std/console.sol";
+
 /**
  * @title Protocol
  * @author M^ZERO LABS_
@@ -27,9 +29,10 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     // TODO bit-packing
     struct MintRequest {
+        uint256 mintId; // TODO uint96 or uint48 if 2 additional fields
+        address to;
         uint256 amount;
         uint256 createdAt;
-        address to;
     }
 
     /******************************************************************************************************************\
@@ -183,7 +186,7 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @param amount_ The amount of M tokens to mint
      * @param to_ The address to mint to
      */
-    function proposeMint(uint256 amount_, address to_) external onlyApprovedMinter {
+    function proposeMint(uint256 amount_, address to_) external onlyApprovedMinter returns (uint256) {
         address minter_ = msg.sender;
         uint256 now_ = block.timestamp;
 
@@ -201,26 +204,38 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 currentDebt_ = _debtOf(minter_);
         if (currentDebt_ + amount_ > allowedDebt_) revert UndercollateralizedMint();
 
+        uint256 mintId_ = uint256(keccak256(abi.encode(minter_, amount_, to_, now_, gasleft())));
+
+        // Save mint request info
         MintRequest storage mintRequest_ = mintRequests[minter_];
+        mintRequest_.mintId = mintId_;
+        mintRequest_.to = to_;
         mintRequest_.amount = amount_;
         mintRequest_.createdAt = now_;
-        mintRequest_.to = to_;
 
-        emit MintRequestedCreated(minter_, amount_, to_);
+        emit MintRequestedCreated(mintId_, minter_, amount_, to_);
+
+        return mintId_;
     }
 
     /**
      * @notice Executes minting of M tokens
+     * @param mintId_ The id of outstanding mint request for minter
      */
-    function mint() external onlyApprovedMinter {
+    function mint(uint256 mintId_) external onlyApprovedMinter {
         address minter_ = msg.sender;
+
         uint256 now_ = block.timestamp;
 
         // Check is minter is frozen
         if (now_ < frozenUntil[minter_]) revert FrozenMinter();
 
-        // Check that request is executable
         MintRequest storage mintRequest_ = mintRequests[minter_];
+
+        // Inconsistent mintId_
+        if (mintRequest_.mintId != mintId_) revert InvalidMintRequest();
+
+        // Check that request is executable
         (uint256 amount_, uint256 createdAt_, address to_) = (
             mintRequest_.amount,
             mintRequest_.createdAt,
@@ -253,7 +268,21 @@ contract Protocol is IProtocol, StatelessERC712 {
         // Mint actual M tokens
         IMToken(mToken).mint(to_, amount_);
 
-        emit MintRequestExecuted(minter_, amount_, to_);
+        emit MintRequestExecuted(mintId_, minter_, amount_, to_);
+    }
+
+    /**
+     * @notice Cancels minting request for minter
+     * @param mintId_ The id of outstanding mint request
+     */
+    function cancel(uint256 mintId_) external onlyApprovedMinter {
+        address minter_ = msg.sender;
+
+        if (mintRequests[minter_].mintId != mintId_) revert InvalidMintRequest();
+
+        delete mintRequests[minter_];
+
+        emit MintRequestCanceled(mintId_, minter_, msg.sender);
     }
 
     /**
@@ -288,12 +317,15 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     /**
      * @notice Cancels minting request for selected minter by validator
-     * @param minter_ The address of the minter to cancel active outstanding mint request
+     * @param minter_ The address of the minter to cancel minting request for
+     * @param mintId_ The id of outstanding mint request
      */
-    function cancel(address minter_) external onlyApprovedValidator {
+    function cancel(address minter_, uint256 mintId_) external onlyApprovedValidator {
+        if (mintRequests[minter_].mintId != mintId_) revert InvalidMintRequest();
+
         delete mintRequests[minter_];
 
-        emit MintRequestCanceled(minter_, msg.sender);
+        emit MintRequestCanceled(mintId_, minter_, msg.sender);
     }
 
     /**

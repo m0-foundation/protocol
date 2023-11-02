@@ -14,14 +14,15 @@ interface IProtocol {
     error StaleTimestamp();
 
     error UndercollateralizedMint();
-    error NoMintRequest();
+    error InvalidMintRequest();
     error PendingMintRequest();
     error ExpiredMintRequest();
 
     event CollateralUpdated(address indexed minter, uint256 amount, uint256 timestamp, string metadata);
-    event MintRequestedCreated(address indexed minter, uint256 amount, address indexed to);
-    event MintRequestExecuted(address indexed minter, uint256 amount, address indexed to);
-    event MintRequestCanceled(address indexed minter, address indexed canceller);
+
+    event MintRequestedCreated(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
+    event MintRequestExecuted(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
+    event MintRequestCanceled(uint256 mintId, address indexed minter, address indexed canceller);
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
 
     event Burn(address indexed minter, address indexed payer, uint256 amount);
@@ -36,11 +37,13 @@ interface IProtocol {
         bytes[] calldata signatures
     ) external;
 
-    function proposeMint(uint256 amount, address to) external;
+    function proposeMint(uint256 amount, address to) external returns (uint256 mintId);
 
-    function mint() external;
+    function mint(uint256 mintId) external;
 
-    function cancel(address minter) external;
+    function cancel(uint256 mintId) external;
+
+    function cancel(address minter, uint256 mintId) external;
 
     function freeze(address minter) external;
 
