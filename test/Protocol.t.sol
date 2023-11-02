@@ -431,6 +431,16 @@ contract ProtocolTests is Test {
         _protocol.cancel(_minter1, mintId);
     }
 
+    function test_cancel_invalidMintRequest() external {
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.InvalidMintRequest.selector);
+        _protocol.cancel(1);
+
+        vm.prank(_validator1);
+        vm.expectRevert(IProtocol.InvalidMintRequest.selector);
+        _protocol.cancel(_minter1, 1);
+    }
+
     function test_freeze() external {
         uint256 collateral = 100e18;
         uint256 amount = 60e18;
