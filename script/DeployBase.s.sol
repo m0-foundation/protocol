@@ -13,7 +13,7 @@ contract DeployBase is Script {
     function deploy(
         address deployer_,
         uint256 deployerNonce_,
-        address spog_
+        address spogRegistrar_
     ) public returns (address protocol_, address mToken_) {
         vm.startBroadcast(deployer_);
 
@@ -24,7 +24,7 @@ contract DeployBase is Script {
 
         address expectedProtocol_ = ContractHelper.getContractFrom(deployer_, deployerNonce_ + 1);
         mToken_ = address(new MToken(expectedProtocol_));
-        protocol_ = address(new Protocol(mToken_, spog_));
+        protocol_ = address(new Protocol(mToken_, spogRegistrar_));
 
         console.log("Protocol address: ", protocol_);
         console.log("M Token address: ", mToken_);
