@@ -12,7 +12,7 @@ import { InterestMath } from "../src/libs/InterestMath.sol";
 import { IProtocol } from "../src/interfaces/IProtocol.sol";
 
 import { MToken } from "../src/MToken.sol";
-import { MockSPOG, MockBorrowRateModel } from "./utils/Mocks.sol";
+import { MockSPOGRegistrar, MockBorrowRateModel } from "./utils/Mocks.sol";
 import { DigestHelper } from "./utils/DigestHelper.sol";
 import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
 
@@ -33,7 +33,7 @@ contract ProtocolTests is Test {
     uint256 internal _borrowRate = 400; // 4%, bps
     uint256 internal _minRatio = 9000; // 90%, bps
 
-    MockSPOG internal _spog;
+    MockSPOGRegistrar internal _spogRegistrar;
     MToken internal _mToken;
     ProtocolHarness internal _protocol;
     MockBorrowRateModel internal _borrowRateModel;
@@ -52,24 +52,24 @@ contract ProtocolTests is Test {
         (_validator2, _validator2Pk) = makeAddrAndKey("validator1");
 
         // Initiate protocol and M token, use ContractHelper to solve circular dependeny.
-        _spog = new MockSPOG();
+        _spogRegistrar = new MockSPOGRegistrar();
         address expectedProtocol_ = ContractHelper.getContractFrom(address(this), vm.getNonce(address(this)) + 1);
         _mToken = new MToken(address(expectedProtocol_));
-        _protocol = new ProtocolHarness(address(_spog), address(_mToken));
+        _protocol = new ProtocolHarness(address(_spogRegistrar), address(_mToken));
 
-        _spog.addToList(_protocol.MINTERS_LIST_NAME(), _minter1);
-        _spog.addToList(_protocol.VALIDATORS_LIST_NAME(), _validator1);
+        _spogRegistrar.addToList(_protocol.MINTERS_LIST_NAME(), _minter1);
+        _spogRegistrar.addToList(_protocol.VALIDATORS_LIST_NAME(), _validator1);
 
-        _spog.updateConfig(_protocol.UPDATE_COLLATERAL_QUORUM(), bytes32(_updateCollateralQuorum));
-        _spog.updateConfig(_protocol.UPDATE_COLLATERAL_INTERVAL(), bytes32(_updateCollateralInterval));
+        _spogRegistrar.updateConfig(_protocol.UPDATE_COLLATERAL_QUORUM(), bytes32(_updateCollateralQuorum));
+        _spogRegistrar.updateConfig(_protocol.UPDATE_COLLATERAL_INTERVAL(), bytes32(_updateCollateralInterval));
 
-        _spog.updateConfig(_protocol.MINTER_FREEZE_TIME(), bytes32(_minterFreezeTime));
-        _spog.updateConfig(_protocol.MINT_REQUEST_QUEUE_TIME(), bytes32(_mintRequestQueueTime));
-        _spog.updateConfig(_protocol.MINT_REQUEST_TTL(), bytes32(_mintRequestTtl));
-        _spog.updateConfig(_protocol.MINT_RATIO(), bytes32(_minRatio));
+        _spogRegistrar.updateConfig(_protocol.MINTER_FREEZE_TIME(), bytes32(_minterFreezeTime));
+        _spogRegistrar.updateConfig(_protocol.MINT_REQUEST_QUEUE_TIME(), bytes32(_mintRequestQueueTime));
+        _spogRegistrar.updateConfig(_protocol.MINT_REQUEST_TTL(), bytes32(_mintRequestTtl));
+        _spogRegistrar.updateConfig(_protocol.MINT_RATIO(), bytes32(_minRatio));
 
         _borrowRateModel = new MockBorrowRateModel();
-        _spog.updateConfig(_protocol.BORROW_RATE_MODEL(), _toBytes32(address(_borrowRateModel)));
+        _spogRegistrar.updateConfig(_protocol.BORROW_RATE_MODEL(), _toBytes32(address(_borrowRateModel)));
     }
 
     function test_updateCollateral() external {
@@ -158,7 +158,7 @@ contract ProtocolTests is Test {
     }
 
     function test_updateCollateral_notEnoughValidSignatures() external {
-        _spog.updateConfig(_protocol.UPDATE_COLLATERAL_QUORUM(), bytes32(uint256(3)));
+        _spogRegistrar.updateConfig(_protocol.UPDATE_COLLATERAL_QUORUM(), bytes32(uint256(3)));
         uint256 collateral = 100;
         uint256 timestamp = block.timestamp;
 
@@ -167,7 +167,7 @@ contract ProtocolTests is Test {
 
         address[] memory validators = new address[](3);
         validators[0] = _validator1;
-        validators[1] = _validator1;
+        validators[1] = _validator2;
         validators[2] = _validator2;
 
         bytes[] memory signatures = new bytes[](3);

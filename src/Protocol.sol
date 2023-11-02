@@ -8,7 +8,7 @@ import { InterestMath } from "./libs/InterestMath.sol";
 import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
-import { ISPOG } from "./interfaces/ISPOG.sol";
+import { ISPOGRegistrar } from "./interfaces/ISPOGRegistrar.sol";
 
 import { StatelessERC712 } from "./StatelessERC712.sol";
 import { MToken } from "./MToken.sol";
@@ -83,8 +83,8 @@ contract Protocol is IProtocol, StatelessERC712 {
     /// @notice The scale for M token to collateral (must be less than 18 decimals)
     uint256 public immutable baseScale;
 
-    /// @notice The address of SPOG
-    address public immutable spog;
+    /// @notice The address of SPOG Registrar Contract
+    address public immutable spogRegistrar;
 
     /// @notice The address of M token
     address public immutable mToken;
@@ -125,10 +125,10 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     /**
      * @notice Constructor.
-     * @param spog_ The address of SPOG
+     * @param spogRegistrar_ The address of SPOG
      */
-    constructor(address spog_, address mToken_) StatelessERC712("Protocol") {
-        spog = spog_;
+    constructor(address spogRegistrar_, address mToken_) StatelessERC712("Protocol") {
+        spogRegistrar = spogRegistrar_;
         mToken = mToken_;
 
         mIndex = 1e18;
@@ -167,12 +167,12 @@ contract Protocol is IProtocol, StatelessERC712 {
         CollateralBasic storage minterCollateral_ = collateral[minter_];
         if (minterCollateral_.lastUpdated > timestamp_) revert StaleTimestamp();
 
-        // Core quorum validation, plus possible extension
+        // Validate that quorum of signatures was collected
         bytes32 updateCollateralDigest_ = _getUpdateCollateralDigest(minter_, amount_, metadata_, timestamp_);
         uint256 requiredQuorum_ = _getUpdateCollateralQuorum();
-        _hasEnoughValidSignatures(updateCollateralDigest_, validators_, signatures_, requiredQuorum_);
+        _revertIfInsufficientValidSignatures(updateCollateralDigest_, validators_, signatures_, requiredQuorum_);
 
-        // _accruePenalties(); // JIRA ticket https://mzerolabs.atlassian.net/jira/software/c/projects/WEB3/boards/10?selectedIssue=WEB3-396
+        // accruePenalties(); // JIRA ticket https://mzerolabs.atlassian.net/jira/software/c/projects/WEB3/boards/10?selectedIssue=WEB3-396
 
         // Update collateral
         minterCollateral_.amount = amount_;
@@ -317,7 +317,6 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     //
     //
-    // burn
     // proposeRedeem, redeem
     // removeMinter
     //
@@ -371,44 +370,6 @@ contract Protocol is IProtocol, StatelessERC712 {
     \******************************************************************************************************************/
 
     /**
-     * @notice Checks that enough valid unique signatures were provided
-     * @param digest_ The message hash for signing
-     * @param validators_ The list of validators who signed digest
-     * @param signatures_ The list of signatures
-     * @param requiredQuorum_ The number of signatures required for validated action
-     */
-    function _hasEnoughValidSignatures(
-        bytes32 digest_,
-        address[] calldata validators_,
-        bytes[] calldata signatures_,
-        uint256 requiredQuorum_
-    ) internal view {
-        address[] memory uniqueValidators_ = new address[](validators_.length);
-        uint256 validatorsNum_ = 0;
-
-        if (requiredQuorum_ > validators_.length) revert NotEnoughValidSignatures();
-
-        // TODO consider reverting if any of inputs are duplicate or invalid
-        for (uint i = 0; i < signatures_.length; i++) {
-            // check that signature is unique and not accounted for
-            bool duplicate_ = _contains(uniqueValidators_, validators_[i], validatorsNum_);
-            if (duplicate_) continue;
-
-            // check that validator is approved by SPOG
-            bool authorized_ = _isApprovedValidator(validators_[i]);
-            if (!authorized_) continue;
-
-            // check that ECDSA or ERC1271 signatures for given digest are valid
-            bool valid_ = SignatureChecker.isValidSignature(validators_[i], digest_, signatures_[i]);
-            if (!valid_) continue;
-
-            uniqueValidators_[validatorsNum_++] = validators_[i];
-        }
-
-        if (validatorsNum_ < requiredQuorum_) revert NotEnoughValidSignatures();
-    }
-
-    /**
      * @notice Returns the EIP-712 digest for updateCollateral method
      * @param minter_ The address of the minter
      * @param amount_ The amount of collateral
@@ -422,6 +383,45 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 timestamp_
     ) internal view returns (bytes32) {
         return _getDigest(keccak256(abi.encode(UPDATE_COLLATERAL_TYPEHASH, minter_, amount_, metadata_, timestamp_)));
+    }
+
+    /**
+     * @notice Checks that enough valid unique signatures were provided
+     * @param digest_ The message hash for signing
+     * @param validators_ The list of validators who signed digest
+     * @param signatures_ The list of digest signatures
+     * @param requiredQuorum_ The number of signatures required for action to be considered valid
+     */
+    function _revertIfInsufficientValidSignatures(
+        bytes32 digest_,
+        address[] calldata validators_,
+        bytes[] calldata signatures_,
+        uint256 requiredQuorum_
+    ) internal view {
+        if (validators_.length < requiredQuorum_) revert NotEnoughValidSignatures();
+
+        uint256 validSignaturesNum_ = 0;
+
+        for (uint256 index_ = 0; index_ < signatures_.length; index_++) {
+            address validator_ = validators_[index_];
+
+            // Check that validator address is unique and not accounted for
+            bool duplicate_ = index_ > 0 && validator_ <= validators_[index_ - 1];
+            if (duplicate_) continue;
+
+            // Check that validator is approved by SPOG
+            bool authorized_ = _isApprovedValidator(validator_);
+            if (!authorized_) continue;
+
+            // Check that ECDSA or ERC1271 signatures for given digest are valid
+            bool valid_ = SignatureChecker.isValidSignature(validator_, digest_, signatures_[index_]);
+            if (!valid_) continue;
+
+            // Stop processing if quorum was reached
+            if (++validSignaturesNum_ == requiredQuorum_) return;
+        }
+
+        revert NotEnoughValidSignatures();
     }
 
     function _getIndex(uint timeElapsed_) internal view returns (uint256) {
@@ -484,39 +484,39 @@ contract Protocol is IProtocol, StatelessERC712 {
     \******************************************************************************************************************/
 
     function _isApprovedMinter(address minter_) internal view returns (bool) {
-        return ISPOG(spog).listContains(MINTERS_LIST_NAME, minter_);
+        return ISPOGRegistrar(spogRegistrar).listContains(MINTERS_LIST_NAME, minter_);
     }
 
     function _isApprovedValidator(address validator_) internal view returns (bool) {
-        return ISPOG(spog).listContains(VALIDATORS_LIST_NAME, validator_);
+        return ISPOGRegistrar(spogRegistrar).listContains(VALIDATORS_LIST_NAME, validator_);
     }
 
     function _getUpdateCollateralInterval() internal view returns (uint256) {
-        return uint256(ISPOG(spog).get(UPDATE_COLLATERAL_INTERVAL));
+        return uint256(ISPOGRegistrar(spogRegistrar).get(UPDATE_COLLATERAL_INTERVAL));
     }
 
     function _getUpdateCollateralQuorum() internal view returns (uint256) {
-        return uint256(ISPOG(spog).get(UPDATE_COLLATERAL_QUORUM));
+        return uint256(ISPOGRegistrar(spogRegistrar).get(UPDATE_COLLATERAL_QUORUM));
     }
 
     function _getMintRequestQueueTime() internal view returns (uint256) {
-        return uint256(ISPOG(spog).get(MINT_REQUEST_QUEUE_TIME));
+        return uint256(ISPOGRegistrar(spogRegistrar).get(MINT_REQUEST_QUEUE_TIME));
     }
 
     function _getMintRequestTimeToLive() internal view returns (uint256) {
-        return uint256(ISPOG(spog).get(MINT_REQUEST_TTL));
+        return uint256(ISPOGRegistrar(spogRegistrar).get(MINT_REQUEST_TTL));
     }
 
     function _getMinterFreezeTime() internal view returns (uint256) {
-        return uint256(ISPOG(spog).get(MINTER_FREEZE_TIME));
+        return uint256(ISPOGRegistrar(spogRegistrar).get(MINTER_FREEZE_TIME));
     }
 
     function _getBorrowRate() internal view returns (uint256) {
-        address rateContract = _fromBytes32(ISPOG(spog).get(BORROW_RATE_MODEL));
+        address rateContract = _fromBytes32(ISPOGRegistrar(spogRegistrar).get(BORROW_RATE_MODEL));
         return IInterestRateModel(rateContract).getRate();
     }
 
     function _getMintRatio() internal view returns (uint256) {
-        return uint256(ISPOG(spog).get(MINT_RATIO));
+        return uint256(ISPOGRegistrar(spogRegistrar).get(MINT_RATIO));
     }
 }

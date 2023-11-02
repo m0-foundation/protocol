@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.21;
 
-import { ISPOG } from "../../src/interfaces/ISPOG.sol";
+import "../../src/interfaces/ISPOGRegistrar.sol";
 
-contract MockSPOG is ISPOG {
+contract MockSPOGRegistrar is ISPOGRegistrar {
     mapping(bytes32 key => bytes32 value) internal _valueAt;
 
     function updateConfig(bytes32 key_, bytes32 value_) external {
