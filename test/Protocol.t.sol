@@ -181,11 +181,12 @@ contract ProtocolTests is Test {
     }
 
     function test_proposeMint() external {
-        uint256 amount = 200e2;
+        uint256 collateral = 100e18;
+        uint256 amount = 60e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
-        _protocol.setCollateral(_minter1, amount, timestamp);
+        _protocol.setCollateral(_minter1, collateral, timestamp);
 
         vm.prank(_minter1);
         vm.expectEmit();
@@ -214,7 +215,7 @@ contract ProtocolTests is Test {
     }
 
     function test_proposeMint_undercollateralizedMint() external {
-        uint256 collateral = 100e2;
+        uint256 collateral = 100e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
@@ -229,7 +230,7 @@ contract ProtocolTests is Test {
     }
 
     function test_mint() external {
-        uint256 collateral = 100e2;
+        uint256 collateral = 100e18;
         uint256 amount = 80e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
@@ -258,7 +259,7 @@ contract ProtocolTests is Test {
     }
 
     function test_mint_debtOf() external {
-        uint256 collateralAmount = 10000e2;
+        uint256 collateralAmount = 10000e18;
         uint256 mintAmount = 1000000e6;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
@@ -329,7 +330,7 @@ contract ProtocolTests is Test {
     }
 
     function test_mint_undercollateralizedMint() external {
-        uint256 collateral = 100e2;
+        uint256 collateral = 100e18;
         uint256 amount = 95e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
@@ -345,7 +346,7 @@ contract ProtocolTests is Test {
     }
 
     function test_mint_undercollateralizedMint_outdatedCollateral() external {
-        uint256 collateral = 100e2;
+        uint256 collateral = 100e18;
         uint256 amount = 95e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
@@ -383,11 +384,12 @@ contract ProtocolTests is Test {
     }
 
     function test_freeze() external {
-        uint256 amount = 100;
+        uint256 collateral = 100e18;
+        uint256 amount = 60e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
-        _protocol.setCollateral(_minter1, amount, timestamp);
+        _protocol.setCollateral(_minter1, collateral, timestamp);
 
         uint256 frozenUntil = timestamp + _minterFreezeTime;
 
@@ -438,7 +440,7 @@ contract ProtocolTests is Test {
     }
 
     function test_burn() external {
-        uint256 collateralAmount = 10000000e2;
+        uint256 collateralAmount = 10000000e18;
         uint256 mintAmount = 1000000e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");

@@ -80,9 +80,6 @@ contract Protocol is IProtocol, StatelessERC712 {
     /// @notice Descaler for variables in basis points
     uint256 public constant ONE = 10_000; // 100% in basis points.
 
-    /// @notice The scale for M token to collateral (must be less than 18 decimals)
-    uint256 public immutable baseScale;
-
     /// @notice The address of SPOG Registrar Contract
     address public immutable spogRegistrar;
 
@@ -133,8 +130,6 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         mIndex = 1e18;
         lastAccrualTime = block.timestamp;
-
-        baseScale = (10 ** MToken(mToken_).decimals()) / COLLATERAL_BASE_SCALE;
     }
 
     /******************************************************************************************************************\
@@ -437,7 +432,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         if (minterCollateral_.lastUpdated + updateInterval_ < block.timestamp) return 0;
 
         uint256 mintRatio_ = _getMintRatio();
-        return (minterCollateral_.amount * baseScale * mintRatio_) / ONE;
+        return (minterCollateral_.amount * mintRatio_) / ONE;
     }
 
     function _debtOf(address minter_) internal view returns (uint256) {
