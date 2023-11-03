@@ -559,12 +559,6 @@ contract ProtocolTests is Test {
         assertEq(_mToken.balanceOf(alice), minterDebt / 2);
     }
 
-    function test_burn_notApprovedMinter() external {
-        vm.prank(makeAddr("alice"));
-        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
-        _protocol.burn(makeAddr("notApprovedMinter"), 100);
-    }
-
     function test_burn_notEnoughBalanceToRepay() external {
         uint256 normalizedPrincipal = 100e18;
         _protocol.setNormalizedPrincipal(_minter1, normalizedPrincipal);

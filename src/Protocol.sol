@@ -284,8 +284,6 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @dev If amount to burn is greater than minter's debt, burn all debt
      */
     function burn(address minter_, uint256 amount_) external {
-        if (!_isApprovedMinter(minter_)) revert NotApprovedMinter();
-
         // _accruePenalties(); // JIRA ticket
 
         updateIndices();
@@ -485,21 +483,6 @@ contract Protocol is IProtocol, StatelessERC712 {
     function _principalValue(uint256 presentValue_) internal view returns (uint256) {
         uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
         return (presentValue_ * INDEX_BASE_SCALE) / _getIndex(timeElapsed_);
-    }
-
-    /**
-     * @notice Helper function to check if a given list contains an element
-     * @param arr_ The list to check
-     * @param elem_ The element to check for
-     * @param len_ The length of the list
-     */
-    function _contains(address[] memory arr_, address elem_, uint256 len_) internal pure returns (bool) {
-        for (uint256 i = 0; i < len_; i++) {
-            if (arr_[i] == elem_) {
-                return true;
-            }
-        }
-        return false;
     }
 
     function _fromBytes32(bytes32 value) internal pure returns (address) {
