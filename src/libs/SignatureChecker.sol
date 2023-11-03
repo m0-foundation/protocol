@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.21;
 
-import { IERC1271 } from "./interfaces/IERC1271.sol";
+import { IERC1271 } from "../interfaces/IERC1271.sol";
 
 library SignatureChecker {
     enum RecoverError {
