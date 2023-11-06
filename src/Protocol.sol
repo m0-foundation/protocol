@@ -51,16 +51,16 @@ contract Protocol is IProtocol, StatelessERC712 {
     bytes32 public constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
 
     /// @notice The name of parameter in SPOG that defines the time to wait for mint request to be processed
-    bytes32 public constant MINT_REQUEST_QUEUE_TIME = "mintRequest_queue_time";
+    bytes32 public constant MINT_DELAY = "mint_delay";
 
     /// @notice The name of parameter in SPOG that defines the time while mint request can still be processed
-    bytes32 public constant MINT_REQUEST_TTL = "mintRequest_ttl";
+    bytes32 public constant MINT_TTL = "mint_ttl";
 
     /// @notice The name of parameter in SPOG that defines the time to freeze minter
     bytes32 public constant MINTER_FREEZE_TIME = "minter_freeze_time";
 
-    /// @notice The name of parameter in SPOG that defines the borrow rate
-    bytes32 public constant BORROW_RATE_MODEL = "borrow_rate_model";
+    /// @notice The name of parameter in SPOG that defines the M rate model contract
+    bytes32 public constant M_RATE_MODEL = "m_rate_model";
 
     /// @notice The name of parameter in SPOG that defines the mint ratio
     bytes32 public constant MINT_RATIO = "mint_ratio"; // bps
@@ -111,6 +111,9 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     /// @notice The total amount of penalties for all minters
     uint256 public totalPenalties;
+
+    /// @notice The total amount of penalties for all minters
+    uint256 public totalRepaidPenalties;
 
     // TODO possibly bit-pack those 2 variables
     /// @notice The current M index for the protocol tracked for the entire market
@@ -205,13 +208,13 @@ contract Protocol is IProtocol, StatelessERC712 {
         // uint256 expiresAt_ = mintRequest_.createdAt + _getMintRequestTimeToLive();
         // if (mintRequest_.amount > 0 && now_ < expiresAt_) revert OnlyOneMintRequestAllowed();
 
-        // Accrue penalties to correctly calculate current minter's debt
+        // Accrue penalties to correctly calculate current minter's outstandingValue
         _accruePenalties(minter_);
 
         // Check that mint is sufficiently collateralized
-        uint256 allowedDebt_ = _allowedDebtOf(minter_);
-        uint256 currentDebt_ = _debtOf(minter_);
-        if (currentDebt_ + amount_ > allowedDebt_) revert UndercollateralizedMint();
+        uint256 allowedOutstandingValue_ = _allowedOutstandingValue(minter_);
+        uint256 currentOutstandingValue_ = _outstandingValue(minter_);
+        if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedMint();
 
         uint256 mintId_ = uint256(keccak256(abi.encode(minter_, amount_, to_, now_, gasleft())));
 
@@ -260,9 +263,9 @@ contract Protocol is IProtocol, StatelessERC712 {
         _accruePenalties(minter_);
 
         // Check that mint is sufficiently collateralized
-        uint256 allowedDebt_ = _allowedDebtOf(minter_);
-        uint256 currentDebt_ = _debtOf(minter_);
-        if (currentDebt_ + amount_ > allowedDebt_) revert UndercollateralizedMint();
+        uint256 allowedOutstandingValue_ = _allowedOutstandingValue(minter_);
+        uint256 currentOutstandingValue_ = _outstandingValue(minter_);
+        if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedMint();
 
         updateIndices();
 
@@ -292,7 +295,7 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @notice Burns M tokens
      * @param minter_ The address of the minter to burn M tokens for
      * @param amount_ The max amount of M tokens to burn
-     * @dev If amount to burn is greater than minter's debt including penalties, burn all debt
+     * @dev If amount to burn is greater than minter's outstandingValue including penalties, burn all outstandingValue
      */
     function burn(address minter_, uint256 amount_) external {
         _accruePenalties(minter_);
@@ -312,8 +315,8 @@ contract Protocol is IProtocol, StatelessERC712 {
     /**
      * @notice Returns the amount of M tokens that minter owes to the protocol
      */
-    function debtOf(address minter_) external view returns (uint256) {
-        return _debtOf(minter_);
+    function outstandingValue(address minter_) external view returns (uint256) {
+        return _outstandingValue(minter_);
     }
 
     /******************************************************************************************************************\
@@ -367,20 +370,20 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @notice Updates indices
      */
     function updateIndices() public {
-        // update Minting borrow index
-        _updateBorrowIndex();
+        // Update M index
+        _updateMIndex();
 
-        // update Primary staking rate index
+        // Update Primary staking rate index
         _updateStakingIndex();
 
         // mintRewardsToZeroHolders();
     }
 
-    function _updateBorrowIndex() internal {
+    function _updateMIndex() internal {
         uint256 now_ = block.timestamp;
         uint256 timeElapsed_ = now_ - lastAccrualTime;
         if (timeElapsed_ > 0) {
-            mIndex = _getIndex(timeElapsed_);
+            mIndex = _getMIndex(timeElapsed_);
             lastAccrualTime = now_;
         }
     }
@@ -410,6 +413,8 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 penaltyDeduction_ = penalties[minter_] > amount_ ? amount_ : penalties[minter_];
 
         penalties[minter_] -= penaltyDeduction_;
+        totalPenalties -= penaltyDeduction_;
+        totalRepaidPenalties += penaltyDeduction_;
 
         emit PenaltyRepaid(minter_, msg.sender, penaltyDeduction_);
 
@@ -419,9 +424,9 @@ contract Protocol is IProtocol, StatelessERC712 {
     function _repayPrincipal(address minter_, uint256 amount_) internal returns (uint256) {
         if (amount_ == 0 || normalizedPrincipal[minter_] == 0) return 0;
 
-        // Find min between given `amount_` to burn and minter's current debt
+        // Find min between given `amount_` to burn and minter's current outstandingValue
         uint256 normalizedPrincipalDelta_ = _min(_principalValue(amount_), normalizedPrincipal[minter_]);
-        uint256 amountDelta_ = _presentValue(normalizedPrincipalDelta_);
+        uint256 amountDelta_ = _interestAdjustedMintValue(normalizedPrincipalDelta_);
 
         normalizedPrincipal[minter_] -= normalizedPrincipalDelta_;
         totalNormalizedPrincipal -= normalizedPrincipalDelta_;
@@ -486,12 +491,12 @@ contract Protocol is IProtocol, StatelessERC712 {
         revert NotEnoughValidSignatures();
     }
 
-    function _getIndex(uint timeElapsed_) internal view returns (uint256) {
+    function _getMIndex(uint timeElapsed_) internal view returns (uint256) {
         uint256 rate_ = _getBorrowRate();
         return timeElapsed_ > 0 ? InterestMath.calculateIndex(mIndex, rate_, timeElapsed_) : mIndex;
     }
 
-    function _allowedDebtOf(address minter_) internal view returns (uint256) {
+    function _allowedOutstandingValue(address minter_) internal view returns (uint256) {
         CollateralBasic storage minterCollateral_ = collateral[minter_];
 
         // if collateral was not updated on time, assume that minter_ CV is zero
@@ -502,33 +507,34 @@ contract Protocol is IProtocol, StatelessERC712 {
         return (minterCollateral_.amount * mintRatio_) / ONE;
     }
 
-    function _debtOf(address minter_) internal view returns (uint256) {
+    function _outstandingValue(address minter_) internal view returns (uint256) {
         uint256 principalValue_ = normalizedPrincipal[minter_];
-        return _presentValue(principalValue_) + penalties[minter_];
+        return _interestAdjustedMintValue(principalValue_) + penalties[minter_];
     }
 
-    function _presentValue(uint256 principalValue_) internal view returns (uint256) {
+    function _interestAdjustedMintValue(uint256 principalValue_) internal view returns (uint256) {
         uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
-        return (principalValue_ * _getIndex(timeElapsed_)) / INDEX_BASE_SCALE;
+        return (principalValue_ * _getMIndex(timeElapsed_)) / INDEX_BASE_SCALE;
     }
 
-    function _principalValue(uint256 presentValue_) internal view returns (uint256) {
+    function _principalValue(uint256 amount_) internal view returns (uint256) {
         uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
-        return (presentValue_ * INDEX_BASE_SCALE) / _getIndex(timeElapsed_);
+        return (amount_ * INDEX_BASE_SCALE) / _getMIndex(timeElapsed_);
     }
 
     function _accruePenalties(address minter_) internal {
-        uint256 minterDebt_ = _debtOf(minter_);
-        uint256 allowedDebt_ = _allowedDebtOf(minter_);
+        uint256 outstandingValue_ = _outstandingValue(minter_);
+        uint256 allowedOutstandingValue_ = _allowedOutstandingValue(minter_);
 
-        if (minterDebt_ <= allowedDebt_) return;
+        if (outstandingValue_ <= allowedOutstandingValue_) return;
 
         uint256 updateInterval_ = _getUpdateCollateralInterval();
         CollateralBasic storage minterCollateral_ = collateral[minter_];
-        // minter_ was already penalized in this period
+
+        // Minter_ was already penalized in this period, do not penalize twice
         if (minterCollateral_.lastPenalized / updateInterval_ == block.timestamp / updateInterval_) return;
 
-        uint256 penalty = ((minterDebt_ - allowedDebt_) * _getPenalty()) / ONE;
+        uint256 penalty = ((outstandingValue_ - allowedOutstandingValue_) * _getPenalty()) / ONE;
         penalties[minter_] += penalty;
         totalPenalties += penalty;
         minterCollateral_.lastPenalized = block.timestamp;
@@ -565,11 +571,11 @@ contract Protocol is IProtocol, StatelessERC712 {
     }
 
     function _getMintRequestQueueTime() internal view returns (uint256) {
-        return uint256(ISPOGRegistrar(spogRegistrar).get(MINT_REQUEST_QUEUE_TIME));
+        return uint256(ISPOGRegistrar(spogRegistrar).get(MINT_DELAY));
     }
 
     function _getMintRequestTimeToLive() internal view returns (uint256) {
-        return uint256(ISPOGRegistrar(spogRegistrar).get(MINT_REQUEST_TTL));
+        return uint256(ISPOGRegistrar(spogRegistrar).get(MINT_TTL));
     }
 
     function _getMinterFreezeTime() internal view returns (uint256) {
@@ -577,7 +583,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     }
 
     function _getBorrowRate() internal view returns (uint256) {
-        address rateContract = _fromBytes32(ISPOGRegistrar(spogRegistrar).get(BORROW_RATE_MODEL));
+        address rateContract = _fromBytes32(ISPOGRegistrar(spogRegistrar).get(M_RATE_MODEL));
         return IInterestRateModel(rateContract).getRate();
     }
 
