@@ -27,6 +27,11 @@ interface IProtocol {
 
     event Burn(address indexed minter, address indexed payer, uint256 amount);
 
+    event PenaltyCharged(address indexed minter, uint256 amount);
+
+    event PenaltyRepaid(address indexed minter, address indexed payer, uint256 amount);
+    event PrincipalRepaid(address indexed minter, address indexed payer, uint256 amount);
+
     function UPDATE_COLLATERAL_TYPEHASH() external view returns (bytes32 typehash);
 
     function updateCollateral(

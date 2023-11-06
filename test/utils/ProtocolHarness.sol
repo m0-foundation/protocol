@@ -20,8 +20,8 @@ contract ProtocolHarness is Protocol {
         return mintId_;
     }
 
-    function setCollateral(address minter_, uint256 amount_, uint256 lastUpdated_) external {
-        collateral[minter_] = CollateralBasic(amount_, lastUpdated_);
+    function setCollateral(address minter_, uint256 amount_, uint256 lastUpdated_, uint256 lastPenalized_) external {
+        collateral[minter_] = CollateralBasic(amount_, lastUpdated_, lastPenalized_);
     }
 
     function setNormalizedPrincipal(address minter_, uint256 amount_) external {

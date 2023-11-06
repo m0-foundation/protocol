@@ -23,6 +23,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     struct CollateralBasic {
         uint256 amount;
         uint256 lastUpdated;
+        uint256 lastPenalized;
     }
 
     // TODO bit-packing
@@ -64,6 +65,9 @@ contract Protocol is IProtocol, StatelessERC712 {
     /// @notice The name of parameter in SPOG that defines the mint ratio
     bytes32 public constant MINT_RATIO = "mint_ratio"; // bps
 
+    /// @notice The name of parameter in SPOG that defines the penaty ratio
+    bytes32 public constant PENALTY = "penalty"; // bps
+
     /******************************************************************************************************************\
     |                                                Protocol variables                                                |
     \******************************************************************************************************************/
@@ -101,6 +105,12 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     /// @notice The normalized principal (t0 principal value) for each minter
     mapping(address minter => uint256 amount) public normalizedPrincipal;
+
+    /// @notice The penalties for each minter
+    mapping(address minter => uint256 amount) public penalties;
+
+    /// @notice The total amount of penalties for all minters
+    uint256 public totalPenalties;
 
     // TODO possibly bit-pack those 2 variables
     /// @notice The current M index for the protocol tracked for the entire market
@@ -156,7 +166,8 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         // Timestamp sanity checks
         uint256 updateInterval_ = _getUpdateCollateralInterval();
-        if (block.timestamp > timestamp_ + updateInterval_) revert ExpiredTimestamp();
+        if (block.timestamp / updateInterval_ != timestamp_ / updateInterval_) revert ExpiredTimestamp();
+        // if (block.timestamp > timestamp_ + updateInterval_) revert ExpiredTimestamp();
 
         address minter_ = msg.sender;
 
@@ -168,13 +179,12 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 requiredQuorum_ = _getUpdateCollateralQuorum();
         _revertIfInsufficientValidSignatures(updateCollateralDigest_, validators_, signatures_, requiredQuorum_);
 
-        // accruePenalties(); // JIRA ticket https://mzerolabs.atlassian.net/jira/software/c/projects/WEB3/boards/10?selectedIssue=WEB3-396
+        // Accrue penalties before update collateral
+        _accruePenalties(minter_);
 
         // Update collateral
         minterCollateral_.amount = amount_;
         minterCollateral_.lastUpdated = timestamp_;
-
-        // _accruePenalties(); // JIRA ticket
 
         emit CollateralUpdated(minter_, amount_, timestamp_, metadata_);
     }
@@ -195,7 +205,8 @@ contract Protocol is IProtocol, StatelessERC712 {
         // uint256 expiresAt_ = mintRequest_.createdAt + _getMintRequestTimeToLive();
         // if (mintRequest_.amount > 0 && now_ < expiresAt_) revert OnlyOneMintRequestAllowed();
 
-        // _accruePenalties(); // JIRA ticket
+        // Accrue penalties to correctly calculate current minter's debt
+        _accruePenalties(minter_);
 
         // Check that mint is sufficiently collateralized
         uint256 allowedDebt_ = _allowedDebtOf(minter_);
@@ -246,7 +257,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 expiresAt_ = activeAt_ + _getMintRequestTimeToLive();
         if (now_ > expiresAt_) revert ExpiredMintRequest();
 
-        // _accruePenalties(); // JIRA ticket
+        _accruePenalties(minter_);
 
         // Check that mint is sufficiently collateralized
         uint256 allowedDebt_ = _allowedDebtOf(minter_);
@@ -281,24 +292,21 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @notice Burns M tokens
      * @param minter_ The address of the minter to burn M tokens for
      * @param amount_ The max amount of M tokens to burn
-     * @dev If amount to burn is greater than minter's debt, burn all debt
+     * @dev If amount to burn is greater than minter's debt including penalties, burn all debt
      */
     function burn(address minter_, uint256 amount_) external {
-        // _accruePenalties(); // JIRA ticket
+        _accruePenalties(minter_);
 
         updateIndices();
 
-        // Find minimum amount between given `amount_` to burn and minter's debt
-        uint256 normalizedPrincipalDelta_ = _min(_principalValue(amount_), normalizedPrincipal[minter_]);
-        uint256 amountDelta_ = _presentValue(normalizedPrincipalDelta_);
-
-        normalizedPrincipal[minter_] -= normalizedPrincipalDelta_;
-        totalNormalizedPrincipal -= normalizedPrincipalDelta_;
+        uint256 repaidPenaltyAmount_ = _repayPenalty(minter_, amount_);
+        uint256 repaidPrincipalAmount_ = _repayPrincipal(minter_, amount_ - repaidPenaltyAmount_);
+        uint256 totalRepaid = repaidPenaltyAmount_ + repaidPrincipalAmount_;
 
         // Burn actual M tokens
-        IMToken(mToken).burn(msg.sender, amountDelta_);
+        IMToken(mToken).burn(msg.sender, totalRepaid);
 
-        emit Burn(minter_, msg.sender, amountDelta_);
+        emit Burn(minter_, msg.sender, totalRepaid);
     }
 
     /**
@@ -351,8 +359,6 @@ contract Protocol is IProtocol, StatelessERC712 {
     \******************************************************************************************************************/
     //
     //
-    // updateIndices, updateBorrowIndex, updateStakingIndex
-    // accruePenalties
     // mintRewardsToZeroHolders
     //
     //
@@ -396,6 +402,33 @@ contract Protocol is IProtocol, StatelessERC712 {
         delete mintRequests[minter_];
 
         emit MintRequestCanceled(mintId_, minter_, msg.sender);
+    }
+
+    function _repayPenalty(address minter_, uint256 amount_) internal returns (uint256) {
+        if (penalties[minter_] == 0) return 0;
+
+        uint256 penaltyDeduction_ = penalties[minter_] > amount_ ? amount_ : penalties[minter_];
+
+        penalties[minter_] -= penaltyDeduction_;
+
+        emit PenaltyRepaid(minter_, msg.sender, penaltyDeduction_);
+
+        return penaltyDeduction_;
+    }
+
+    function _repayPrincipal(address minter_, uint256 amount_) internal returns (uint256) {
+        if (amount_ == 0 || normalizedPrincipal[minter_] == 0) return 0;
+
+        // Find min between given `amount_` to burn and minter's current debt
+        uint256 normalizedPrincipalDelta_ = _min(_principalValue(amount_), normalizedPrincipal[minter_]);
+        uint256 amountDelta_ = _presentValue(normalizedPrincipalDelta_);
+
+        normalizedPrincipal[minter_] -= normalizedPrincipalDelta_;
+        totalNormalizedPrincipal -= normalizedPrincipalDelta_;
+
+        emit PrincipalRepaid(minter_, msg.sender, amountDelta_);
+
+        return amountDelta_;
     }
 
     /**
@@ -463,7 +496,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         // if collateral was not updated on time, assume that minter_ CV is zero
         uint256 updateInterval_ = _getUpdateCollateralInterval();
-        if (minterCollateral_.lastUpdated + updateInterval_ < block.timestamp) return 0;
+        if (minterCollateral_.lastUpdated / updateInterval_ != block.timestamp / updateInterval_) return 0;
 
         uint256 mintRatio_ = _getMintRatio();
         return (minterCollateral_.amount * mintRatio_) / ONE;
@@ -471,8 +504,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     function _debtOf(address minter_) internal view returns (uint256) {
         uint256 principalValue_ = normalizedPrincipal[minter_];
-        // return _presentValue(principalValue_) + penalties[minter];
-        return _presentValue(principalValue_);
+        return _presentValue(principalValue_) + penalties[minter_];
     }
 
     function _presentValue(uint256 principalValue_) internal view returns (uint256) {
@@ -483,6 +515,25 @@ contract Protocol is IProtocol, StatelessERC712 {
     function _principalValue(uint256 presentValue_) internal view returns (uint256) {
         uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
         return (presentValue_ * INDEX_BASE_SCALE) / _getIndex(timeElapsed_);
+    }
+
+    function _accruePenalties(address minter_) internal {
+        uint256 minterDebt_ = _debtOf(minter_);
+        uint256 allowedDebt_ = _allowedDebtOf(minter_);
+
+        if (minterDebt_ <= allowedDebt_) return;
+
+        uint256 updateInterval_ = _getUpdateCollateralInterval();
+        CollateralBasic storage minterCollateral_ = collateral[minter_];
+        // minter_ was already penalized in this period
+        if (minterCollateral_.lastPenalized / updateInterval_ == block.timestamp / updateInterval_) return;
+
+        uint256 penalty = ((minterDebt_ - allowedDebt_) * _getPenalty()) / ONE;
+        penalties[minter_] += penalty;
+        totalPenalties += penalty;
+        minterCollateral_.lastPenalized = block.timestamp;
+
+        emit PenaltyCharged(minter_, penalty);
     }
 
     function _fromBytes32(bytes32 value) internal pure returns (address) {
@@ -532,5 +583,9 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     function _getMintRatio() internal view returns (uint256) {
         return uint256(ISPOGRegistrar(spogRegistrar).get(MINT_RATIO));
+    }
+
+    function _getPenalty() internal view returns (uint256) {
+        return uint256(ISPOGRegistrar(spogRegistrar).get(PENALTY));
     }
 }

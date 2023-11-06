@@ -32,6 +32,7 @@ contract ProtocolTests is Test {
     uint256 internal _mintRequestTtl = 500;
     uint256 internal _borrowRate = 400; // 4%, bps
     uint256 internal _minRatio = 9000; // 90%, bps
+    uint256 internal _penalty = 100; // 1%, bps
 
     MockSPOGRegistrar internal _spogRegistrar;
     MToken internal _mToken;
@@ -68,6 +69,7 @@ contract ProtocolTests is Test {
         _spogRegistrar.updateConfig(_protocol.MINT_REQUEST_QUEUE_TIME(), bytes32(_mintRequestQueueTime));
         _spogRegistrar.updateConfig(_protocol.MINT_REQUEST_TTL(), bytes32(_mintRequestTtl));
         _spogRegistrar.updateConfig(_protocol.MINT_RATIO(), bytes32(_minRatio));
+        _spogRegistrar.updateConfig(_protocol.PENALTY(), bytes32(_penalty));
 
         _borrowRateModel = new MockBorrowRateModel();
         _spogRegistrar.updateConfig(_protocol.BORROW_RATE_MODEL(), _toBytes32(address(_borrowRateModel)));
@@ -89,7 +91,7 @@ contract ProtocolTests is Test {
         emit CollateralUpdated(_minter1, collateral, timestamp, "");
         _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
 
-        (uint256 amount, uint256 lastUpdated) = _protocol.collateral(_minter1);
+        (uint256 amount, uint256 lastUpdated, ) = _protocol.collateral(_minter1);
         assertEq(amount, collateral);
         assertEq(lastUpdated, timestamp);
     }
@@ -147,7 +149,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(100, block.timestamp, "", validators, signatures);
 
-        (, uint256 lastUpdated_) = _protocol.collateral(_minter1);
+        (, uint256 lastUpdated_, ) = _protocol.collateral(_minter1);
 
         uint256 timestamp = lastUpdated_ - 1;
         signature = _getSignature(_minter1, 100, timestamp, "", _validator1Pk);
@@ -187,7 +189,7 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
-        _protocol.setCollateral(_minter1, collateral, timestamp);
+        _protocol.setCollateral(_minter1, collateral, timestamp, 0);
 
         vm.pauseGasMetering();
         uint256 expectedMintId = uint256(keccak256(abi.encode(_minter1, amount, to, timestamp, gasleft())));
@@ -227,7 +229,7 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
-        _protocol.setCollateral(_minter1, collateral, timestamp);
+        _protocol.setCollateral(_minter1, collateral, timestamp, 0);
 
         vm.warp(timestamp + _mintRequestQueueTime);
 
@@ -243,7 +245,7 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
-        _protocol.setCollateral(_minter1, collateral, timestamp);
+        _protocol.setCollateral(_minter1, collateral, timestamp, 0);
         uint256 mintId = _protocol.setMintRequest(_minter1, amount, timestamp, to, 1);
 
         vm.warp(timestamp + _mintRequestQueueTime);
@@ -274,7 +276,7 @@ contract ProtocolTests is Test {
         address to = makeAddr("to");
 
         // initiate harness functions
-        _protocol.setCollateral(_minter1, collateralAmount, timestamp);
+        _protocol.setCollateral(_minter1, collateralAmount, timestamp, 0);
         uint256 mintId = _protocol.setMintRequest(_minter1, mintAmount, timestamp, to, 1);
 
         vm.warp(timestamp + _mintRequestQueueTime);
@@ -348,7 +350,7 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
-        _protocol.setCollateral(_minter1, collateral, timestamp);
+        _protocol.setCollateral(_minter1, collateral, timestamp, 0);
         uint256 mintId = _protocol.setMintRequest(_minter1, amount, timestamp, to, 1);
 
         vm.warp(timestamp + _mintRequestQueueTime + 1);
@@ -364,7 +366,7 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
-        _protocol.setCollateral(_minter1, collateral, timestamp - _updateCollateralInterval);
+        _protocol.setCollateral(_minter1, collateral, timestamp - _updateCollateralInterval, 0);
         uint256 mintId = _protocol.setMintRequest(_minter1, amount, timestamp, to, 1);
 
         vm.warp(timestamp + _mintRequestQueueTime + 1);
@@ -447,7 +449,7 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
 
-        _protocol.setCollateral(_minter1, collateral, timestamp);
+        _protocol.setCollateral(_minter1, collateral, timestamp, 0);
 
         uint256 frozenUntil = timestamp + _minterFreezeTime;
 
@@ -511,7 +513,7 @@ contract ProtocolTests is Test {
         address to = makeAddr("to");
 
         // initiate harness functions
-        _protocol.setCollateral(_minter1, collateralAmount, timestamp);
+        _protocol.setCollateral(_minter1, collateralAmount, timestamp, 0);
         uint256 mintId = _protocol.setMintRequest(_minter1, mintAmount, timestamp, to, 1);
 
         vm.warp(timestamp + _mintRequestQueueTime);
@@ -532,6 +534,8 @@ contract ProtocolTests is Test {
     }
 
     function test_burn_repayHalfOfDebt() external {
+        _protocol.setCollateral(_minter1, 1000e18, block.timestamp, 0);
+
         uint256 normalizedPrincipal = 100e18;
         _protocol.setNormalizedPrincipal(_minter1, normalizedPrincipal);
         _protocol.setMIndex(1e18);
