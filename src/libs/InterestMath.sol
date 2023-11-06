@@ -18,6 +18,13 @@ library InterestMath {
         return (previousIndex * exponent(rate, time)) / EXP_BASE_SCALE;
     }
 
+    /// @notice Returns the latest value of M global rate index
+    /// @dev Alternative way to claculate it, TODO pick one.
+    function calculateMulIndex(uint256 previousIndex, uint256 rate, uint256 time) public pure returns (uint256) {
+        uint256 indexDelta = previousIndex * rate * time;
+        return previousIndex + indexDelta / SECONDS_PER_YEAR / BPS_BASE_SCALE;
+    }
+
     /// @notice Helper function to calculate e^rt part from countinous compounding interest formula
     /// Note: We use the third degree approximation of Taylor Series
     ///       e(x) = 1 + x/1! + x^2/2! + x^3/3!
