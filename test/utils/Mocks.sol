@@ -32,8 +32,28 @@ contract MockSPOGRegistrar is ISPOGRegistrar {
     }
 }
 
-contract MockMRateModel {
-    function getRate() external pure returns (uint256) {
-        return 400; // 4% APY in bps
+contract MockRateModel {
+    uint256 internal _rate;
+
+    function setRate(uint256 rate_) external {
+        _rate = rate_;
+    }
+
+    function rate() external view returns (uint256 rate_) {
+        return _rate;
+    }
+}
+
+contract MockMToken {
+    bool internal _burnFail;
+
+    function mint(address account_, uint256 amount_) external {}
+
+    function burn(address account_, uint256 amount_) external {
+        if (_burnFail) revert();
+    }
+
+    function setBurnFail(bool fail_) external {
+        _burnFail = fail_;
     }
 }

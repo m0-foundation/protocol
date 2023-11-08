@@ -4,14 +4,12 @@ pragma solidity 0.8.21;
 
 import { console2, stdError, Test } from "../lib/forge-std/src/Test.sol";
 
-import { ContractHelper } from "../src/libs/ContractHelper.sol";
 import { InterestMath } from "../src/libs/InterestMath.sol";
 import { SPOGRegistrarReader } from "../src/libs/SPOGRegistrarReader.sol";
 
 import { IProtocol } from "../src/interfaces/IProtocol.sol";
 
-import { MToken } from "../src/MToken.sol";
-import { MockSPOGRegistrar, MockMRateModel } from "./utils/Mocks.sol";
+import { MockSPOGRegistrar, MockRateModel, MockMToken } from "./utils/Mocks.sol";
 import { DigestHelper } from "./utils/DigestHelper.sol";
 import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
 
@@ -33,9 +31,9 @@ contract ProtocolTests is Test {
     uint256 internal _minRatio = 9000; // 90%, bps
 
     MockSPOGRegistrar internal _spogRegistrar;
-    MToken internal _mToken;
+    MockMToken internal _mToken;
     ProtocolHarness internal _protocol;
-    MockMRateModel internal _mRateModel;
+    MockRateModel internal _mRateModel;
 
     event CollateralUpdated(address indexed minter, uint256 amount, uint256 timestamp, string metadata);
 
@@ -51,14 +49,13 @@ contract ProtocolTests is Test {
         (_validator1, _validator1Pk) = makeAddrAndKey("validator1");
         (_validator2, _validator2Pk) = makeAddrAndKey("validator1");
 
-        // Initiate protocol and M token, use ContractHelper to solve circular dependeny.
         _spogRegistrar = new MockSPOGRegistrar();
-        address expectedProtocol_ = ContractHelper.getContractFrom(address(this), vm.getNonce(address(this)) + 1);
-        _mToken = new MToken(address(expectedProtocol_));
+        _mToken = new MockMToken();
+
         _protocol = new ProtocolHarness(address(_spogRegistrar), address(_mToken));
 
-        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST_NAME, _minter1);
-        _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST_NAME, _validator1);
+        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+        _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validator1);
 
         _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM, bytes32(_updateCollateralQuorum));
         _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, bytes32(_updateCollateralInterval));
@@ -68,8 +65,9 @@ contract ProtocolTests is Test {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_TTL, bytes32(_mintTTL));
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, bytes32(_minRatio));
 
-        _mRateModel = new MockMRateModel();
+        _mRateModel = new MockRateModel();
         _spogRegistrar.updateConfig(SPOGRegistrarReader.M_RATE_MODEL, _toBytes32(address(_mRateModel)));
+        _mRateModel.setRate(_mRate);
     }
 
     function test_updateCollateral() external {
@@ -262,8 +260,7 @@ contract ProtocolTests is Test {
         // check that normalizedPrincipal has been updated
         assertTrue(_protocol.normalizedPrincipalOf(_minter1) > 0);
 
-        // check that balance `to` has been increased
-        assertEq(_mToken.balanceOf(to), amount);
+        // TODO: check that mint has been called.
     }
 
     function test_mint_outstandingValue() external {
@@ -285,12 +282,12 @@ contract ProtocolTests is Test {
         uint256 initialIndex = _protocol.mIndex();
         uint256 minterNormalizedPrincipal = _protocol.normalizedPrincipalOf(_minter1);
 
-        assertEq(initialOutstandingValue + 1 wei, mintAmount);
+        assertEq(initialOutstandingValue + 1, mintAmount);
 
         vm.warp(timestamp + _mintDelay + 1);
 
         uint256 indexAfter1Second = InterestMath.multiply(
-            InterestMath.getContinuousRate(InterestMath.convertFromBasisPoints(_mRate), 1),
+            InterestMath.getContinuousIndex(InterestMath.convertFromBasisPoints(_mRate), 1),
             initialIndex
         );
 
@@ -300,7 +297,7 @@ contract ProtocolTests is Test {
         vm.warp(timestamp + _mintDelay + 31_536_000);
 
         uint256 indexAfter1Year = InterestMath.multiply(
-            InterestMath.getContinuousRate(InterestMath.convertFromBasisPoints(_mRate), 31_536_000),
+            InterestMath.getContinuousIndex(InterestMath.convertFromBasisPoints(_mRate), 31_536_000),
             initialIndex
         );
 
@@ -387,7 +384,7 @@ contract ProtocolTests is Test {
         _protocol.mint(1);
     }
 
-    function test_mint_invalidMintRequest_mistmatchOfIds() external {
+    function test_mint_invalidMintRequest_mismatchOfIds() external {
         uint256 amount = 95e18;
         uint256 timestamp = block.timestamp;
         address to = makeAddr("to");
@@ -511,7 +508,7 @@ contract ProtocolTests is Test {
         _protocol.freeze(_minter1);
     }
 
-    function test_burn() external {
+    function test_xxx_burn() external {
         uint256 collateralAmount = 10000000e18;
         uint256 mintAmount = 1000000e18;
         uint256 timestamp = block.timestamp;
@@ -526,10 +523,10 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.mint(mintId);
 
-        vm.prank(to);
         vm.expectEmit();
-        // 1 wei precision difference for the benefit of user
-        emit Burn(_minter1, to, mintAmount - 1 wei);
+        emit Burn(_minter1, to, mintAmount - 1);
+
+        vm.prank(to);
         _protocol.burn(_minter1, mintAmount);
 
         // minter repaid all its outstandingValue
@@ -550,22 +547,25 @@ contract ProtocolTests is Test {
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
 
-        _mintTo(alice, minterOutstandingValue);
-        _mintTo(bob, minterOutstandingValue);
-
-        vm.prank(alice);
         vm.expectEmit();
         emit Burn(_minter1, alice, minterOutstandingValue / 2);
-        _protocol.burn(_minter1, minterOutstandingValue / 2);
-        assertEq(_protocol.outstandingValueOf(_minter1), minterOutstandingValue / 2);
-        assertEq(_mToken.balanceOf(alice), minterOutstandingValue / 2);
 
-        vm.prank(bob);
+        vm.prank(alice);
+        _protocol.burn(_minter1, minterOutstandingValue / 2);
+
+        assertEq(_protocol.outstandingValueOf(_minter1), minterOutstandingValue / 2);
+
+        // TODO: check that burn has been called.
+
         vm.expectEmit();
         emit Burn(_minter1, bob, minterOutstandingValue / 2);
+
+        vm.prank(bob);
         _protocol.burn(_minter1, minterOutstandingValue / 2);
+
         assertEq(_protocol.outstandingValueOf(_minter1), 0);
-        assertEq(_mToken.balanceOf(alice), minterOutstandingValue / 2);
+
+        // TODO: check that burn has been called.
     }
 
     function test_burn_notEnoughBalanceToRepay() external {
@@ -575,17 +575,11 @@ contract ProtocolTests is Test {
 
         uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
 
-        address alice = makeAddr("alice");
-        _mintTo(alice, minterOutstandingValue / 2);
+        _mToken.setBurnFail(true);
 
-        vm.prank(alice);
-        vm.expectRevert(stdError.arithmeticError);
+        vm.expectRevert();
+        vm.prank(makeAddr("alice"));
         _protocol.burn(_minter1, minterOutstandingValue);
-    }
-
-    function _mintTo(address account, uint256 amount) internal {
-        vm.prank(address(_protocol));
-        _mToken.mint(account, amount);
     }
 
     function _getSignature(

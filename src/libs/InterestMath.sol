@@ -27,7 +27,7 @@ library InterestMath {
     }
 
     /// @notice Helper function to calculate e^rt (continuos compounding interest formula).
-    function getContinuousRate(uint256 apy, uint256 time) internal pure returns (uint256 rate) {
+    function getContinuousIndex(uint256 apy, uint256 time) internal pure returns (uint256 rate) {
         return exponent((apy * time) / SECONDS_PER_YEAR);
     }
 
