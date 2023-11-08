@@ -41,9 +41,6 @@ contract Protocol is IProtocol, StatelessERC712 {
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
         keccak256("UpdateCollateral(address minter,uint256 amount,uint256 timestamp,string metadata)");
 
-    /// @notice The scale for M index
-    uint256 public constant INDEX_BASE_SCALE = 1e18;
-
     /// @notice TODO The scale for collateral, most likely will be passed in cents
     uint256 public constant COLLATERAL_BASE_SCALE = 1e2;
 
@@ -426,9 +423,14 @@ contract Protocol is IProtocol, StatelessERC712 {
         revert NotEnoughValidSignatures();
     }
 
-    function _getIndex(uint timeElapsed_) internal view returns (uint256) {
-        uint256 rate_ = _getBorrowRate();
-        return timeElapsed_ > 0 ? InterestMath.calculateIndex(mIndex, rate_, timeElapsed_) : mIndex;
+    function _getIndex(uint256 timeElapsed_) internal view returns (uint256) {
+        return InterestMath.multiply(
+            mIndex,
+            InterestMath.getContinuousRate(
+                InterestMath.convertFromBasisPoints(_getBorrowRate()),
+                timeElapsed_
+            )
+        );
     }
 
     function _allowedDebtOf(address minter_) internal view returns (uint256) {
@@ -449,13 +451,11 @@ contract Protocol is IProtocol, StatelessERC712 {
     }
 
     function _presentValue(uint256 principalValue_) internal view returns (uint256) {
-        uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
-        return (principalValue_ * _getIndex(timeElapsed_)) / INDEX_BASE_SCALE;
+        return InterestMath.multiply(principalValue_, _getIndex(block.timestamp - lastAccrualTime));
     }
 
     function _principalValue(uint256 presentValue_) internal view returns (uint256) {
-        uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
-        return (presentValue_ * INDEX_BASE_SCALE) / _getIndex(timeElapsed_);
+        return InterestMath.divide(presentValue_, _getIndex(block.timestamp - lastAccrualTime));
     }
 
     function _min(uint256 a, uint256 b) internal pure returns (uint256) {
