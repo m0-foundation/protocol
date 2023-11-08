@@ -4,11 +4,11 @@ pragma solidity 0.8.21;
 
 import { SignatureChecker } from "./libs/SignatureChecker.sol";
 import { InterestMath } from "./libs/InterestMath.sol";
+import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
-import { ISPOGRegistrar } from "./interfaces/ISPOGRegistrar.sol";
 
 import { StatelessERC712 } from "./StatelessERC712.sol";
 import { MToken } from "./MToken.sol";
@@ -32,37 +32,6 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 amount;
         uint256 createdAt;
     }
-
-    /******************************************************************************************************************\
-    |                                                SPOG Variables and Lists Names                                    |
-    \******************************************************************************************************************/
-
-    /// @notice The minters' list name in SPOG
-    bytes32 public constant MINTERS_LIST_NAME = "minters";
-
-    /// @notice The validators' list name in SPOG
-    bytes32 public constant VALIDATORS_LIST_NAME = "validators";
-
-    /// @notice The name of parameter that defines number of signatures required for successful collateral update
-    bytes32 public constant UPDATE_COLLATERAL_QUORUM = "updateCollateral_quorum";
-
-    /// @notice The name of parameter in SPOG that required interval to update collateral
-    bytes32 public constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
-
-    /// @notice The name of parameter in SPOG that defines the time to wait for mint request to be processed
-    bytes32 public constant MINT_REQUEST_QUEUE_TIME = "mintRequest_queue_time";
-
-    /// @notice The name of parameter in SPOG that defines the time while mint request can still be processed
-    bytes32 public constant MINT_REQUEST_TTL = "mintRequest_ttl";
-
-    /// @notice The name of parameter in SPOG that defines the time to freeze minter
-    bytes32 public constant MINTER_FREEZE_TIME = "minter_freeze_time";
-
-    /// @notice The name of parameter in SPOG that defines the borrow rate
-    bytes32 public constant BORROW_RATE_MODEL = "borrow_rate_model";
-
-    /// @notice The name of parameter in SPOG that defines the mint ratio
-    bytes32 public constant MINT_RATIO = "mint_ratio"; // bps
 
     /******************************************************************************************************************\
     |                                                Protocol variables                                                |
@@ -110,13 +79,13 @@ contract Protocol is IProtocol, StatelessERC712 {
     uint256 public lastAccrualTime;
 
     modifier onlyApprovedMinter() {
-        if (!_isApprovedMinter(msg.sender)) revert NotApprovedMinter();
+        _revertIfNotApprovedMinter(msg.sender);
 
         _;
     }
 
     modifier onlyApprovedValidator() {
-        if (!_isApprovedValidator(msg.sender)) revert NotApprovedValidator();
+        _revertIfNotApprovedValidator(msg.sender);
 
         _;
     }
@@ -155,7 +124,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         if (validators_.length != signatures_.length) revert InvalidSignaturesLength();
 
         // Timestamp sanity checks
-        uint256 updateInterval_ = _getUpdateCollateralInterval();
+        uint256 updateInterval_ = SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar);
         if (block.timestamp > timestamp_ + updateInterval_) revert ExpiredTimestamp();
 
         address minter_ = msg.sender;
@@ -165,7 +134,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         // Validate that quorum of signatures was collected
         bytes32 updateCollateralDigest_ = _getUpdateCollateralDigest(minter_, amount_, metadata_, timestamp_);
-        uint256 requiredQuorum_ = _getUpdateCollateralQuorum();
+        uint256 requiredQuorum_ = SPOGRegistrarReader.getUpdateCollateralQuorum(spogRegistrar);
         _revertIfInsufficientValidSignatures(updateCollateralDigest_, validators_, signatures_, requiredQuorum_);
 
         // accruePenalties(); // JIRA ticket https://mzerolabs.atlassian.net/jira/software/c/projects/WEB3/boards/10?selectedIssue=WEB3-396
@@ -240,10 +209,10 @@ contract Protocol is IProtocol, StatelessERC712 {
             mintRequest_.to
         );
 
-        uint256 activeAt_ = createdAt_ + _getMintRequestQueueTime();
+        uint256 activeAt_ = createdAt_ + SPOGRegistrarReader.getMintRequestQueueTime(spogRegistrar);
         if (now_ < activeAt_) revert PendingMintRequest();
 
-        uint256 expiresAt_ = activeAt_ + _getMintRequestTimeToLive();
+        uint256 expiresAt_ = activeAt_ + SPOGRegistrarReader.getMintRequestTimeToLive(spogRegistrar);
         if (now_ > expiresAt_) revert ExpiredMintRequest();
 
         // _accruePenalties(); // JIRA ticket
@@ -326,7 +295,7 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @param minter_ The address of the minter to freeze
      */
     function freeze(address minter_) external onlyApprovedValidator {
-        uint256 frozenUntil_ = block.timestamp + _getMinterFreezeTime();
+        uint256 frozenUntil_ = block.timestamp + SPOGRegistrarReader.getMinterFreezeTime(spogRegistrar);
 
         emit MinterFrozen(minter_, frozenUntil[minter_] = frozenUntil_);
     }
@@ -382,7 +351,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     function _updateStakingIndex() internal {}
 
     /******************************************************************************************************************\
-    |                                           Internal View/Pure Functions                                           |
+    |                                          Internal Interactive Functions                                          |
     \******************************************************************************************************************/
 
     /**
@@ -397,6 +366,10 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         emit MintRequestCanceled(mintId_, minter_, msg.sender);
     }
+
+    /******************************************************************************************************************\
+    |                                           Internal View/Pure Functions                                           |
+    \******************************************************************************************************************/
 
     /**
      * @notice Returns the EIP-712 digest for updateCollateral method
@@ -439,7 +412,7 @@ contract Protocol is IProtocol, StatelessERC712 {
             if (duplicate_) continue;
 
             // Check that validator is approved by SPOG
-            bool authorized_ = _isApprovedValidator(validator_);
+            bool authorized_ = SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_);
             if (!authorized_) continue;
 
             // Check that ECDSA or ERC1271 signatures for given digest are valid
@@ -462,10 +435,10 @@ contract Protocol is IProtocol, StatelessERC712 {
         CollateralBasic storage minterCollateral_ = collateral[minter_];
 
         // if collateral was not updated on time, assume that minter_ CV is zero
-        uint256 updateInterval_ = _getUpdateCollateralInterval();
+        uint256 updateInterval_ = SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar);
         if (minterCollateral_.lastUpdated + updateInterval_ < block.timestamp) return 0;
 
-        uint256 mintRatio_ = _getMintRatio();
+        uint256 mintRatio_ = SPOGRegistrarReader.getMintRatio(spogRegistrar);
         return (minterCollateral_.amount * mintRatio_) / ONE;
     }
 
@@ -485,52 +458,19 @@ contract Protocol is IProtocol, StatelessERC712 {
         return (presentValue_ * INDEX_BASE_SCALE) / _getIndex(timeElapsed_);
     }
 
-    function _fromBytes32(bytes32 value) internal pure returns (address) {
-        return address(uint160(uint256(value)));
-    }
-
     function _min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
     }
 
-    /******************************************************************************************************************\
-    |                                                SPOG Accessors                                                    |
-    \******************************************************************************************************************/
-
-    function _isApprovedMinter(address minter_) internal view returns (bool) {
-        return ISPOGRegistrar(spogRegistrar).listContains(MINTERS_LIST_NAME, minter_);
+    function _getBorrowRate() internal view returns (uint256 rate_) {
+        return IInterestRateModel(SPOGRegistrarReader.getBorrowRateModel(spogRegistrar)).getRate();
     }
 
-    function _isApprovedValidator(address validator_) internal view returns (bool) {
-        return ISPOGRegistrar(spogRegistrar).listContains(VALIDATORS_LIST_NAME, validator_);
+    function _revertIfNotApprovedMinter(address minter_) internal view {
+        if (!SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_)) revert NotApprovedMinter();
     }
 
-    function _getUpdateCollateralInterval() internal view returns (uint256) {
-        return uint256(ISPOGRegistrar(spogRegistrar).get(UPDATE_COLLATERAL_INTERVAL));
-    }
-
-    function _getUpdateCollateralQuorum() internal view returns (uint256) {
-        return uint256(ISPOGRegistrar(spogRegistrar).get(UPDATE_COLLATERAL_QUORUM));
-    }
-
-    function _getMintRequestQueueTime() internal view returns (uint256) {
-        return uint256(ISPOGRegistrar(spogRegistrar).get(MINT_REQUEST_QUEUE_TIME));
-    }
-
-    function _getMintRequestTimeToLive() internal view returns (uint256) {
-        return uint256(ISPOGRegistrar(spogRegistrar).get(MINT_REQUEST_TTL));
-    }
-
-    function _getMinterFreezeTime() internal view returns (uint256) {
-        return uint256(ISPOGRegistrar(spogRegistrar).get(MINTER_FREEZE_TIME));
-    }
-
-    function _getBorrowRate() internal view returns (uint256) {
-        address rateContract = _fromBytes32(ISPOGRegistrar(spogRegistrar).get(BORROW_RATE_MODEL));
-        return IInterestRateModel(rateContract).getRate();
-    }
-
-    function _getMintRatio() internal view returns (uint256) {
-        return uint256(ISPOGRegistrar(spogRegistrar).get(MINT_RATIO));
+    function _revertIfNotApprovedValidator(address validator_) internal view {
+        if (!SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_)) revert NotApprovedValidator();
     }
 }

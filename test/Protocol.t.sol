@@ -8,6 +8,7 @@ import { Bytes32AddressLib } from "solmate/utils/Bytes32AddressLib.sol";
 
 import { ContractHelper } from "../src/libs/ContractHelper.sol";
 import { InterestMath } from "../src/libs/InterestMath.sol";
+import { SPOGRegistrarReader } from "../src/libs/SPOGRegistrarReader.sol";
 
 import { IProtocol } from "../src/interfaces/IProtocol.sol";
 
@@ -58,19 +59,19 @@ contract ProtocolTests is Test {
         _mToken = new MToken(address(expectedProtocol_));
         _protocol = new ProtocolHarness(address(_spogRegistrar), address(_mToken));
 
-        _spogRegistrar.addToList(_protocol.MINTERS_LIST_NAME(), _minter1);
-        _spogRegistrar.addToList(_protocol.VALIDATORS_LIST_NAME(), _validator1);
+        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST_NAME, _minter1);
+        _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST_NAME, _validator1);
 
-        _spogRegistrar.updateConfig(_protocol.UPDATE_COLLATERAL_QUORUM(), bytes32(_updateCollateralQuorum));
-        _spogRegistrar.updateConfig(_protocol.UPDATE_COLLATERAL_INTERVAL(), bytes32(_updateCollateralInterval));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM, bytes32(_updateCollateralQuorum));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, bytes32(_updateCollateralInterval));
 
-        _spogRegistrar.updateConfig(_protocol.MINTER_FREEZE_TIME(), bytes32(_minterFreezeTime));
-        _spogRegistrar.updateConfig(_protocol.MINT_REQUEST_QUEUE_TIME(), bytes32(_mintRequestQueueTime));
-        _spogRegistrar.updateConfig(_protocol.MINT_REQUEST_TTL(), bytes32(_mintRequestTtl));
-        _spogRegistrar.updateConfig(_protocol.MINT_RATIO(), bytes32(_minRatio));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_FREEZE_TIME, bytes32(_minterFreezeTime));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_REQUEST_QUEUE_TIME, bytes32(_mintRequestQueueTime));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_REQUEST_TTL, bytes32(_mintRequestTtl));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, bytes32(_minRatio));
 
         _borrowRateModel = new MockBorrowRateModel();
-        _spogRegistrar.updateConfig(_protocol.BORROW_RATE_MODEL(), _toBytes32(address(_borrowRateModel)));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.BORROW_RATE_MODEL, _toBytes32(address(_borrowRateModel)));
     }
 
     function test_updateCollateral() external {
@@ -159,7 +160,7 @@ contract ProtocolTests is Test {
     }
 
     function test_updateCollateral_notEnoughValidSignatures() external {
-        _spogRegistrar.updateConfig(_protocol.UPDATE_COLLATERAL_QUORUM(), bytes32(uint256(3)));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM, bytes32(uint256(3)));
         uint256 collateral = 100;
         uint256 timestamp = block.timestamp;
 
