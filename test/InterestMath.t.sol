@@ -21,45 +21,46 @@ contract InterestMathTests is Test {
         assertEq(InterestMath.exponent(ONE_IN_EXP * 2), 6999999999999999999); // 7.3890560989306495
     }
 
-    function test_getContinuousRate() external {
-        assertEq(InterestMath.getContinuousRate(ONE_IN_EXP, 0),  1000000000000000000); // 1
-        assertEq(InterestMath.getContinuousRate(ONE_IN_EXP, 1 days),  1002743482506539752); // 1.00274348
-        assertEq(InterestMath.getContinuousRate(ONE_IN_EXP, 10 days), 1027776016127196045); // 1.02777602
-        assertEq(InterestMath.getContinuousRate(ONE_IN_EXP, 365 days), 2708333333333333332); // 2.71828183
+    function test_getContinuousIndex() external {
+        assertEq(InterestMath.getContinuousIndex(ONE_IN_EXP, 0), 1000000000000000000); // 1
+        assertEq(InterestMath.getContinuousIndex(ONE_IN_EXP, 1 days), 1002743482506539752); // 1.00274348
+        assertEq(InterestMath.getContinuousIndex(ONE_IN_EXP, 10 days), 1027776016127196045); // 1.02777602
+        assertEq(InterestMath.getContinuousIndex(ONE_IN_EXP, 365 days), 2708333333333333332); // 2.71828183
     }
 
     function test_multiplyContinuousRates() external {
-        uint256 oneHourRate = InterestMath.getContinuousRate(ONE_IN_EXP, 1 hours);
-        uint256 twoHourRate = InterestMath.getContinuousRate(ONE_IN_EXP, 2 hours);
-        uint256 fourHourRate = InterestMath.getContinuousRate(ONE_IN_EXP, 4 hours);
-        uint256 sixteenHourRate = InterestMath.getContinuousRate(ONE_IN_EXP, 16 hours);
-        uint256 oneDayRate = InterestMath.getContinuousRate(ONE_IN_EXP, 1 days);
-        uint256 twoDayRate = InterestMath.getContinuousRate(ONE_IN_EXP, 2 days);
+        uint256 oneHourRate = InterestMath.getContinuousIndex(ONE_IN_EXP, 1 hours);
+        uint256 twoHourRate = InterestMath.getContinuousIndex(ONE_IN_EXP, 2 hours);
+        uint256 fourHourRate = InterestMath.getContinuousIndex(ONE_IN_EXP, 4 hours);
+        uint256 sixteenHourRate = InterestMath.getContinuousIndex(ONE_IN_EXP, 16 hours);
+        uint256 oneDayRate = InterestMath.getContinuousIndex(ONE_IN_EXP, 1 days);
+        uint256 twoDayRate = InterestMath.getContinuousIndex(ONE_IN_EXP, 2 days);
 
-        assertEq(oneHourRate * oneHourRate / (ONE_IN_EXP * 10), twoHourRate / 10); // within 1 decimal precision
+        assertEq((oneHourRate * oneHourRate) / (ONE_IN_EXP * 10), twoHourRate / 10); // within 1 decimal precision
         assertEq(
-            oneHourRate * oneHourRate * oneHourRate * oneHourRate / (ONE_IN_EXP * ONE_IN_EXP * ONE_IN_EXP * 10),
+            (oneHourRate * oneHourRate * oneHourRate * oneHourRate) / (ONE_IN_EXP * ONE_IN_EXP * ONE_IN_EXP * 10),
             fourHourRate / 10
         ); // within 1 decimal precision
         assertEq(
-            fourHourRate * fourHourRate * fourHourRate * fourHourRate / (ONE_IN_EXP * ONE_IN_EXP * ONE_IN_EXP * 1_000),
+            (fourHourRate * fourHourRate * fourHourRate * fourHourRate) /
+                (ONE_IN_EXP * ONE_IN_EXP * ONE_IN_EXP * 1_000),
             sixteenHourRate / 1_000
         ); // within 3 decimal precision
         assertEq(
-            sixteenHourRate * fourHourRate * fourHourRate / (ONE_IN_EXP * ONE_IN_EXP * 100_000),
+            (sixteenHourRate * fourHourRate * fourHourRate) / (ONE_IN_EXP * ONE_IN_EXP * 100_000),
             oneDayRate / 100_000
         ); // within 5 decimal precision
         assertEq(
-            sixteenHourRate * sixteenHourRate * sixteenHourRate / (ONE_IN_EXP * ONE_IN_EXP * 100_000),
+            (sixteenHourRate * sixteenHourRate * sixteenHourRate) / (ONE_IN_EXP * ONE_IN_EXP * 100_000),
             twoDayRate / 100_000
         ); // within 5 decimal precision
-        assertEq(oneDayRate * oneDayRate / (ONE_IN_EXP * 100_000), twoDayRate / 100_000); // within 5 decimal precision
+        assertEq((oneDayRate * oneDayRate) / (ONE_IN_EXP * 100_000), twoDayRate / 100_000); // within 5 decimal precision
     }
 
     function test_multiplyThenDivide_100apy() external {
         uint256 amount = 1_000e6;
-        uint256 sevenDayRate = InterestMath.getContinuousRate(ONE_IN_EXP, 7 days);
-        uint256 thirtyDayRate = InterestMath.getContinuousRate(ONE_IN_EXP, 30 days);
+        uint256 sevenDayRate = InterestMath.getContinuousIndex(ONE_IN_EXP, 7 days);
+        uint256 thirtyDayRate = InterestMath.getContinuousIndex(ONE_IN_EXP, 30 days);
 
         assertEq(InterestMath.divide(InterestMath.multiply(amount, sevenDayRate), sevenDayRate), amount - 1);
         assertEq(InterestMath.multiply(InterestMath.divide(amount, sevenDayRate), sevenDayRate), amount - 1);
@@ -70,8 +71,8 @@ contract InterestMathTests is Test {
 
     function test_multiplyThenDivide_6apy() external {
         uint256 amount = 1_000e6;
-        uint256 sevenDayRate = InterestMath.getContinuousRate((ONE_IN_EXP * 6) / 100, 7 days);
-        uint256 thirtyDayRate = InterestMath.getContinuousRate((ONE_IN_EXP * 6) / 100, 30 days);
+        uint256 sevenDayRate = InterestMath.getContinuousIndex((ONE_IN_EXP * 6) / 100, 7 days);
+        uint256 thirtyDayRate = InterestMath.getContinuousIndex((ONE_IN_EXP * 6) / 100, 30 days);
 
         assertEq(InterestMath.divide(InterestMath.multiply(amount, sevenDayRate), sevenDayRate), amount - 1);
         assertEq(InterestMath.multiply(InterestMath.divide(amount, sevenDayRate), sevenDayRate), amount - 1);

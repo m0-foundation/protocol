@@ -7,5 +7,5 @@ interface IInterestRateModel {
      * @notice Returns the current value of interest rate
      * @dev APY in BPS
      */
-    function getRate() external view returns (uint256);
+    function rate() external view returns (uint256);
 }

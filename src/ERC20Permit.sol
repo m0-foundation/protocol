@@ -119,12 +119,7 @@ abstract contract ERC20Permit is IERC20Permit, ERC712 {
         emit Approval(account_, spender_, _allowance[account_][spender_] = amount_);
     }
 
-    function _burn(address account_, uint256 amount_) internal virtual {
-        _balances[account_] -= amount_;
-        _totalSupply -= amount_;
-
-        emit Transfer(account_, address(0), amount_);
-    }
+    function _burn(address account_, uint256 amount_) internal virtual;
 
     function _decreaseAllowance(address account_, address spender_, uint256 subtractedAmount_) internal virtual {
         if (subtractedAmount_ == 0) revert ZeroDecreaseAllowance();
@@ -136,25 +131,9 @@ abstract contract ERC20Permit is IERC20Permit, ERC712 {
         _approve(account_, spender_, spenderAllowance_ - subtractedAmount_);
     }
 
-    function _mint(address recipient_, uint256 amount_) internal virtual {
-        _totalSupply += amount_;
+    function _mint(address recipient_, uint256 amount_) internal virtual;
 
-        unchecked {
-            _balances[recipient_] += amount_; // Note: If `_totalSupply` hasn't overflowed, neither will this.
-        }
-
-        emit Transfer(address(0), recipient_, amount_);
-    }
-
-    function _transfer(address sender_, address recipient_, uint256 amount_) internal virtual {
-        _balances[sender_] -= amount_;
-
-        unchecked {
-            _balances[recipient_] += amount_; // Note: If `_totalSupply` hasn't overflowed, neither will this.
-        }
-
-        emit Transfer(sender_, recipient_, amount_);
-    }
+    function _transfer(address sender_, address recipient_, uint256 amount_) internal virtual;
 
     /******************************************************************************************************************\
     |                                           Internal View/Pure Functions                                           |
