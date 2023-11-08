@@ -88,7 +88,7 @@ contract ProtocolTests is Test {
         emit CollateralUpdated(_minter1, collateral, timestamp, "");
         _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
 
-        (uint256 amount, uint256 lastUpdated) = _protocol.collateral(_minter1);
+        (uint256 amount, uint256 lastUpdated) = _protocol.collateralOf(_minter1);
         assertEq(amount, collateral);
         assertEq(lastUpdated, timestamp);
     }
@@ -146,7 +146,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(100, block.timestamp, "", validators, signatures);
 
-        (, uint256 lastUpdated_) = _protocol.collateral(_minter1);
+        (, uint256 lastUpdated_) = _protocol.collateralOf(_minter1);
 
         uint256 timestamp = lastUpdated_ - 1;
         signature = _getSignature(_minter1, 100, timestamp, "", _validator1Pk);
@@ -199,7 +199,7 @@ contract ProtocolTests is Test {
 
         vm.resumeGasMetering();
 
-        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintRequests(_minter1);
+        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintRequestOf(_minter1);
         assertEq(mintId_, mintId);
         assertEq(amount_, amount);
         assertEq(to_, to);
@@ -253,14 +253,14 @@ contract ProtocolTests is Test {
         _protocol.mint(mintId);
 
         // check that mint request has been deleted
-        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintRequests(_minter1);
+        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintRequestOf(_minter1);
         assertEq(mintId_, 0);
         assertEq(to_, address(0));
         assertEq(amount_, 0);
         assertEq(timestamp_, 0);
 
         // check that normalizedPrincipal has been updated
-        assertTrue(_protocol.normalizedPrincipal(_minter1) > 0);
+        assertTrue(_protocol.normalizedPrincipalOf(_minter1) > 0);
 
         // check that balance `to` has been increased
         assertEq(_mToken.balanceOf(to), amount);
@@ -283,7 +283,7 @@ contract ProtocolTests is Test {
 
         uint256 initialDebt = _protocol.debtOf(_minter1);
         uint256 initialIndex = _protocol.mIndex();
-        uint256 minterNormalizedPrincipal = _protocol.normalizedPrincipal(_minter1);
+        uint256 minterNormalizedPrincipal = _protocol.normalizedPrincipalOf(_minter1);
 
         assertEq(initialDebt + 1 wei, mintAmount);
 
@@ -408,7 +408,7 @@ contract ProtocolTests is Test {
         emit MintRequestCanceled(mintId, _minter1, _validator1);
         _protocol.cancel(_minter1, mintId);
 
-        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintRequests(_minter1);
+        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintRequestOf(_minter1);
         assertEq(mintId_, 0);
         assertEq(to_, address(0));
         assertEq(amount_, 0);
@@ -423,7 +423,7 @@ contract ProtocolTests is Test {
         emit MintRequestCanceled(mintId, _minter1, _minter1);
         _protocol.cancel(mintId);
 
-        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintRequests(_minter1);
+        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintRequestOf(_minter1);
         assertEq(mintId_, 0);
         assertEq(to_, address(0));
         assertEq(amount_, 0);
@@ -463,7 +463,7 @@ contract ProtocolTests is Test {
         emit MinterFrozen(_minter1, frozenUntil);
         _protocol.freeze(_minter1);
 
-        assertEq(_protocol.frozenUntil(_minter1), frozenUntil);
+        assertEq(_protocol.frozenUntilOf(_minter1), frozenUntil);
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.FrozenMinter.selector);
@@ -535,7 +535,7 @@ contract ProtocolTests is Test {
         // minter repaid all its debt
         assertEq(_protocol.debtOf(_minter1), 0);
         // 1 wei is left in the user `to`
-        assertEq(_protocol.normalizedPrincipal(_minter1), 0);
+        assertEq(_protocol.normalizedPrincipalOf(_minter1), 0);
     }
 
     function test_burn_repayHalfOfDebt() external {

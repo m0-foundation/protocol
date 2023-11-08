@@ -15,17 +15,17 @@ contract ProtocolHarness is Protocol {
         uint256 gasLeft_
     ) external returns (uint256) {
         uint256 mintId_ = uint256(keccak256(abi.encodePacked(minter_, amount_, to_, createdAt_, gasLeft_)));
-        mintRequests[minter_] = MintRequest(mintId_, to_, amount_, createdAt_);
+        mintRequestOf[minter_] = MintRequest(mintId_, to_, amount_, createdAt_);
 
         return mintId_;
     }
 
     function setCollateral(address minter_, uint256 amount_, uint256 lastUpdated_) external {
-        collateral[minter_] = CollateralBasic(amount_, lastUpdated_);
+        collateralOf[minter_] = CollateralBasic(amount_, lastUpdated_);
     }
 
     function setNormalizedPrincipal(address minter_, uint256 amount_) external {
-        normalizedPrincipal[minter_] = amount_;
+        normalizedPrincipalOf[minter_] = amount_;
         totalNormalizedPrincipal += amount_;
     }
 
