@@ -4,8 +4,6 @@ pragma solidity 0.8.21;
 
 import { console2, stdError, Test } from "../lib/forge-std/src/Test.sol";
 
-import { Bytes32AddressLib } from "solmate/utils/Bytes32AddressLib.sol";
-
 import { ContractHelper } from "../src/libs/ContractHelper.sol";
 import { InterestMath } from "../src/libs/InterestMath.sol";
 import { SPOGRegistrarReader } from "../src/libs/SPOGRegistrarReader.sol";
