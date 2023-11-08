@@ -424,13 +424,11 @@ contract Protocol is IProtocol, StatelessERC712 {
     }
 
     function _getIndex(uint256 timeElapsed_) internal view returns (uint256) {
-        return InterestMath.multiply(
-            mIndex,
-            InterestMath.getContinuousRate(
-                InterestMath.convertFromBasisPoints(_getBorrowRate()),
-                timeElapsed_
-            )
-        );
+        return
+            InterestMath.multiply(
+                mIndex,
+                InterestMath.getContinuousRate(InterestMath.convertFromBasisPoints(_getBorrowRate()), timeElapsed_)
+            );
     }
 
     function _allowedDebtOf(address minter_) internal view returns (uint256) {
