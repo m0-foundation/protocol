@@ -291,14 +291,22 @@ contract ProtocolTests is Test {
 
         vm.warp(timestamp + _mintRequestQueueTime + 1);
 
-        uint256 indexAfter1Second = (InterestMath.exponent(_borrowRate, 1) * initialIndex) / 1e18;
-        uint256 expectedResult = (minterNormalizedPrincipal * indexAfter1Second) / 1e18;
+        uint256 indexAfter1Second = InterestMath.multiply(
+            InterestMath.getContinuousRate(InterestMath.convertFromBasisPoints(_borrowRate), 1),
+            initialIndex
+        );
+
+        uint256 expectedResult = InterestMath.multiply(minterNormalizedPrincipal, indexAfter1Second);
         assertEq(_protocol.debtOf(_minter1), expectedResult);
 
         vm.warp(timestamp + _mintRequestQueueTime + 31_536_000);
 
-        uint256 indexAfter1Year = (InterestMath.exponent(_borrowRate, 31_536_000) * initialIndex) / 1e18;
-        expectedResult = (minterNormalizedPrincipal * indexAfter1Year) / 1e18;
+        uint256 indexAfter1Year = InterestMath.multiply(
+            InterestMath.getContinuousRate(InterestMath.convertFromBasisPoints(_borrowRate), 31_536_000),
+            initialIndex
+        );
+
+        expectedResult = InterestMath.multiply(minterNormalizedPrincipal, indexAfter1Year);
         assertEq(_protocol.debtOf(_minter1), expectedResult);
     }
 
