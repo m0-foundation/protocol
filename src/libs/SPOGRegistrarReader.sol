@@ -18,16 +18,16 @@ library SPOGRegistrarReader {
     bytes32 public constant UPDATE_COLLATERAL_QUORUM = "updateCollateral_quorum";
 
     /// @notice The name of parameter in SPOG that defines the time to wait for mint request to be processed
-    bytes32 public constant MINT_REQUEST_QUEUE_TIME = "mintRequest_queue_time";
+    bytes32 public constant MINT_DELAY = "mint_delay";
 
     /// @notice The name of parameter in SPOG that defines the time while mint request can still be processed
-    bytes32 public constant MINT_REQUEST_TTL = "mintRequest_ttl";
+    bytes32 public constant MINT_TTL = "mint_ttl";
 
     /// @notice The name of parameter in SPOG that defines the time to freeze minter
     bytes32 public constant MINTER_FREEZE_TIME = "minter_freeze_time";
 
-    /// @notice The name of parameter in SPOG that defines the borrow rate
-    bytes32 public constant BORROW_RATE_MODEL = "borrow_rate_model";
+    /// @notice The name of parameter in SPOG that defines the M rate
+    bytes32 public constant M_RATE_MODEL = "m_rate_model";
 
     /// @notice The name of parameter in SPOG that defines the mint ratio
     bytes32 public constant MINT_RATIO = "mint_ratio"; // bps
@@ -48,20 +48,20 @@ library SPOGRegistrarReader {
         return uint256(_get(registrar_, UPDATE_COLLATERAL_QUORUM));
     }
 
-    function getMintRequestQueueTime(address registrar_) internal view returns (uint256 queueTime_) {
-        return uint256(_get(registrar_, MINT_REQUEST_QUEUE_TIME));
+    function getMintDelay(address registrar_) internal view returns (uint256 queueTime_) {
+        return uint256(_get(registrar_, MINT_DELAY));
     }
 
-    function getMintRequestTimeToLive(address registrar_) internal view returns (uint256 timeToLive_) {
-        return uint256(_get(registrar_, MINT_REQUEST_TTL));
+    function getMintTTL(address registrar_) internal view returns (uint256 timeToLive_) {
+        return uint256(_get(registrar_, MINT_TTL));
     }
 
     function getMinterFreezeTime(address registrar_) internal view returns (uint256 freezeTime_) {
         return uint256(_get(registrar_, MINTER_FREEZE_TIME));
     }
 
-    function getBorrowRateModel(address registrar_) internal view returns (address rateModel_) {
-        return _toAddress(_get(registrar_, BORROW_RATE_MODEL));
+    function getMRateModel(address registrar_) internal view returns (address rateModel_) {
+        return _toAddress(_get(registrar_, M_RATE_MODEL));
     }
 
     function getMintRatio(address registrar_) internal view returns (uint256 ratio_) {
