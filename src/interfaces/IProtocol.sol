@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 
 interface IProtocol {
     error NotApprovedMinter();
+    error StillApprovedMinter();
     error NotApprovedValidator();
     error FrozenMinter();
 
@@ -23,7 +24,9 @@ interface IProtocol {
     event MintRequestedCreated(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
     event MintRequestExecuted(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
     event MintRequestCanceled(uint256 mintId, address indexed minter, address indexed canceller);
+
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
+    event MinterRemoved(address indexed minter, address indexed remover, uint256 minterDebt);
 
     event Burn(address indexed minter, address indexed payer, uint256 amount);
 

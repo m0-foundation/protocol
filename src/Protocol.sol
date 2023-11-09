@@ -68,6 +68,12 @@ contract Protocol is IProtocol, StatelessERC712 {
     /// @notice The total normalized principal (t0 principal value) for all minters
     uint256 public totalNormalizedPrincipal;
 
+    /// @notice The removed debt of minters after they were removed from the protocol by SPOG
+    mapping(address minter => uint256 amount) public removedDebtOf;
+
+    /// @notice The total removed debt of minters after they were removed from the protocol by SPOG
+    uint256 public totalRemovedDebt;
+
     /// @notice The normalized principal (t0 principal value) for each minter
     mapping(address minter => uint256 amount) public normalizedPrincipal;
 
@@ -257,17 +263,37 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         updateIndices();
 
-        // Find minimum amount between given `amount_` to burn and minter's debt
-        uint256 normalizedPrincipalDelta_ = _min(_principalValue(amount_), normalizedPrincipal[minter_]);
-        uint256 amountDelta_ = _presentValue(normalizedPrincipalDelta_);
+        uint256 repayAmount_;
 
-        normalizedPrincipal[minter_] -= normalizedPrincipalDelta_;
-        totalNormalizedPrincipal -= normalizedPrincipalDelta_;
+        if (SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_)) {
+            repayAmount_ = _repayForActiveMinter(minter_, amount_);
+        } else {
+            repayAmount_ = _repayForRemovedMinter(minter_, amount_);
+        }
 
         // Burn actual M tokens
-        IMToken(mToken).burn(msg.sender, amountDelta_);
+        IMToken(mToken).burn(msg.sender, repayAmount_);
 
-        emit Burn(minter_, msg.sender, amountDelta_);
+        emit Burn(minter_, msg.sender, repayAmount_);
+    }
+
+    function _repayForActiveMinter(address minter_, uint256 amount_) internal returns (uint256) {
+        uint256 repayAmount_ = _min(_debtOf(minter_), amount_);
+        uint256 repayPrincipal_ = _principalValue(repayAmount_);
+
+        normalizedPrincipal[minter_] -= repayPrincipal_;
+        totalNormalizedPrincipal -= repayPrincipal_;
+
+        return repayAmount_;
+    }
+
+    function _repayForRemovedMinter(address minter_, uint256 amount_) internal returns (uint256) {
+        uint256 repayAmount_ = _min(removedDebtOf[minter_], amount_);
+
+        removedDebtOf[minter_] -= repayAmount_;
+        totalRemovedDebt -= repayAmount_;
+
+        return repayAmount_;
     }
 
     /**
@@ -302,8 +328,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     //
     //
-    // proposeRedeem, redeem
-    // removeMinter
+    // retrieve
     //
     //
     /******************************************************************************************************************\
@@ -337,6 +362,29 @@ contract Protocol is IProtocol, StatelessERC712 {
         _updateStakingIndex();
 
         // mintRewardsToZeroHolders();
+    }
+
+    function remove(address minter_) external {
+        if (SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_)) revert StillApprovedMinter();
+
+        updateIndices();
+
+        // accruePenalties(); // JIRA ticket
+
+        uint256 remainingDebt_ = _debtOf(minter_);
+        // NOTE: Do not allow setting removedDebtOf to 0 by calling this function multiple times
+        removedDebtOf[minter_] += remainingDebt_;
+        totalRemovedDebt += remainingDebt_;
+
+        // Clean up minter's additional data, do we need it?
+        delete collateral[minter_];
+        delete mintRequests[minter_];
+        delete frozenUntil[minter_];
+
+        totalNormalizedPrincipal -= normalizedPrincipal[minter_];
+        delete normalizedPrincipal[minter_];
+
+        emit MinterRemoved(minter_, msg.sender, remainingDebt_);
     }
 
     function _updateBorrowIndex() internal {

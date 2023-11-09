@@ -44,7 +44,9 @@ contract ProtocolTests is Test {
     event MintRequestedCreated(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
     event MintRequestExecuted(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
     event MintRequestCanceled(uint256 mintId, address indexed minter, address indexed canceller);
+
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
+    event MinterRemoved(address indexed minter, address indexed remover, uint256 minterDebt);
 
     event Burn(address indexed minter, address indexed payer, uint256 amount);
 
@@ -520,16 +522,15 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.mint(mintId);
 
-        vm.prank(to);
-        vm.expectEmit();
         // 1 wei precision difference for the benefit of user
-        emit Burn(_minter1, to, mintAmount - 1 wei);
-        _protocol.burn(_minter1, mintAmount);
+        uint256 minterDebt = _protocol.debtOf(_minter1);
 
-        // minter repaid all its debt
-        assertEq(_protocol.debtOf(_minter1), 0);
-        // 1 wei is left in the user `to`
-        assertEq(_protocol.normalizedPrincipal(_minter1), 0);
+        vm.prank(to);
+        emit Burn(_minter1, to, minterDebt);
+        _protocol.burn(_minter1, minterDebt);
+
+        assertEq(_protocol.debtOf(_minter1), 1); // 1 wei leftover
+        assertEq(_protocol.normalizedPrincipal(_minter1), 1); // 1 wei leftover
     }
 
     function test_burn_repayHalfOfDebt() external {
@@ -573,6 +574,37 @@ contract ProtocolTests is Test {
         vm.prank(alice);
         vm.expectRevert(stdError.arithmeticError);
         _protocol.burn(_minter1, minterDebt);
+    }
+
+    function test_remove() external {
+        uint256 mintAmount = 1000000e18;
+
+        _protocol.setNormalizedPrincipal(_minter1, mintAmount);
+        uint256 minterDebt = _protocol.debtOf(_minter1);
+
+        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST_NAME, _minter1);
+
+        address alice = makeAddr("alice");
+        vm.prank(alice);
+        vm.expectEmit();
+        emit MinterRemoved(_minter1, alice, minterDebt);
+        _protocol.remove(_minter1);
+
+        assertEq(_protocol.normalizedPrincipal(_minter1), 0);
+        assertEq(_protocol.debtOf(_minter1), 0);
+        assertEq(_protocol.removedDebtOf(_minter1), minterDebt);
+
+        _mintTo(alice, minterDebt);
+
+        vm.prank(alice);
+        vm.expectEmit();
+        emit Burn(_minter1, alice, minterDebt);
+        _protocol.burn(_minter1, minterDebt);
+    }
+
+    function test_remove_stillApprovedMinter() external {
+        vm.expectRevert(IProtocol.StillApprovedMinter.selector);
+        _protocol.remove(_minter1);
     }
 
     function _mintTo(address account, uint256 amount) internal {
