@@ -167,7 +167,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         // _accruePenalties(); // JIRA ticket
 
         // Check that mint is sufficiently collateralized
-        uint256 allowedOutstandingValue_ = _allowedOutstandingValue(minter_);
+        uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
         uint256 currentOutstandingValue_ = _outstandingValue(minter_);
         if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedMint();
 
