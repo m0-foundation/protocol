@@ -259,7 +259,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         // Find minimum amount between given `amount_` to burn and minter's debt
         uint256 normalizedPrincipalDelta_ = _min(_principalValue(amount_), normalizedPrincipal[minter_]);
-        uint256 amountDelta_ = _interestAdjustedMintValue(normalizedPrincipalDelta_);
+        uint256 amountDelta_ = _getInterestAdjustedMintValue(normalizedPrincipalDelta_);
 
         normalizedPrincipal[minter_] -= normalizedPrincipalDelta_;
         totalNormalizedPrincipal -= normalizedPrincipalDelta_;
