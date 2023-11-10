@@ -442,7 +442,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         return (minterCollateral_.amount * mintRatio_) / ONE;
     }
 
-    function _outstandingValue(address minter_) internal view returns (uint256) {
+    function _outstandingValueOf(address minter_) internal view returns (uint256) {
         uint256 principalValue_ = normalizedPrincipal[minter_];
         return _interestAdjustedMintValue(principalValue_);
     }
