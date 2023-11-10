@@ -447,7 +447,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         return _interestAdjustedMintValue(principalValue_);
     }
 
-    function _interestAdjustedMintValue(uint256 principalValue_) internal view returns (uint256) {
+    function _getInterestAdjustedMintValue(uint256 principalValue_) internal view returns (uint256) {
         uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
         return (principalValue_ * _getMIndex(timeElapsed_)) / INDEX_BASE_SCALE;
     }
