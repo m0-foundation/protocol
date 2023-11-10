@@ -431,7 +431,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         return timeElapsed_ > 0 ? InterestMath.calculateIndex(mIndex, rate_, timeElapsed_) : mIndex;
     }
 
-    function _allowedOutstandingValue(address minter_) internal view returns (uint256) {
+    function _getAllowedOutstandingValue(address minter_) internal view returns (uint256) {
         CollateralBasic storage minterCollateral_ = collateral[minter_];
 
         // if collateral was not updated on time, assume that minter_ CV is zero
