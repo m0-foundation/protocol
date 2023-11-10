@@ -452,7 +452,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         return (principalValue_ * _getMIndex(timeElapsed_)) / INDEX_BASE_SCALE;
     }
 
-    function _principalValue(uint256 amount_) internal view returns (uint256) {
+    function _getPrincipalValue(uint256 amount_) internal view returns (uint256) {
         uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
         return (amount_ * INDEX_BASE_SCALE) / _getMIndex(timeElapsed_);
     }
