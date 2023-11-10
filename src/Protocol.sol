@@ -273,7 +273,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     /**
      * @notice Returns the amount of M tokens that minter owes to the protocol
      */
-    function outstandingValue(address minter_) external view returns (uint256) {
+    function outstandingValueOf(address minter_) external view returns (uint256) {
         return _outstandingValue(minter_);
     }
 
