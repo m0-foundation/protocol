@@ -168,7 +168,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         // Check that mint is sufficiently collateralized
         uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
-        uint256 currentOutstandingValue_ = _outstandingValue(minter_);
+        uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
         if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedMint();
 
         uint256 mintId_ = uint256(keccak256(abi.encode(minter_, amount_, to_, now_, gasleft())));
