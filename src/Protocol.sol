@@ -218,8 +218,8 @@ contract Protocol is IProtocol, StatelessERC712 {
         // _accruePenalties(); // JIRA ticket
 
         // Check that mint is sufficiently collateralized
-        uint256 allowedOutstandingValue_ = _allowedOutstandingValue(minter_);
-        uint256 currentOutstandingValue_ = _outstandingValue(minter_);
+        uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
+        uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
         if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedMint();
 
         updateIndices();
@@ -228,7 +228,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         delete mintRequests[minter_];
 
         // Adjust normalized principal for minter
-        uint256 normalizedPrincipal_ = _principalValue(amount_);
+        uint256 normalizedPrincipal_ = _getPrincipalValue(amount_);
         normalizedPrincipal[minter_] += normalizedPrincipal_;
         totalNormalizedPrincipal += normalizedPrincipal_;
 
@@ -258,7 +258,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         updateIndices();
 
         // Find minimum amount between given `amount_` to burn and minter's debt
-        uint256 normalizedPrincipalDelta_ = _min(_principalValue(amount_), normalizedPrincipal[minter_]);
+        uint256 normalizedPrincipalDelta_ = _min(_getPrincipalValue(amount_), normalizedPrincipal[minter_]);
         uint256 amountDelta_ = _getInterestAdjustedMintValue(normalizedPrincipalDelta_);
 
         normalizedPrincipal[minter_] -= normalizedPrincipalDelta_;
@@ -274,7 +274,7 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @notice Returns the amount of M tokens that minter owes to the protocol
      */
     function outstandingValueOf(address minter_) external view returns (uint256) {
-        return _outstandingValue(minter_);
+        return _outstandingValueOf(minter_);
     }
 
     /******************************************************************************************************************\
@@ -431,7 +431,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         return timeElapsed_ > 0 ? InterestMath.calculateIndex(mIndex, rate_, timeElapsed_) : mIndex;
     }
 
-    function _getAllowedOutstandingValue(address minter_) internal view returns (uint256) {
+    function _allowedOutstandingValueOf(address minter_) internal view returns (uint256) {
         CollateralBasic storage minterCollateral_ = collateral[minter_];
 
         // if collateral was not updated on time, assume that minter_ CV is zero
@@ -444,7 +444,7 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     function _outstandingValueOf(address minter_) internal view returns (uint256) {
         uint256 principalValue_ = normalizedPrincipal[minter_];
-        return _interestAdjustedMintValue(principalValue_);
+        return _getInterestAdjustedMintValue(principalValue_);
     }
 
     function _getInterestAdjustedMintValue(uint256 principalValue_) internal view returns (uint256) {

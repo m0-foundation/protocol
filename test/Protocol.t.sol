@@ -283,7 +283,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.mint(mintId);
 
-        uint256 initialOutstandingValue = _protocol.outstandingValue(_minter1);
+        uint256 initialOutstandingValue = _protocol.outstandingValueOf(_minter1);
         uint256 initialIndex = _protocol.mIndex();
         uint256 minterNormalizedPrincipal = _protocol.normalizedPrincipal(_minter1);
 
@@ -293,13 +293,13 @@ contract ProtocolTests is Test {
 
         uint256 indexAfter1Second = (InterestMath.exponent(_mRate, 1) * initialIndex) / 1e18;
         uint256 expectedResult = (minterNormalizedPrincipal * indexAfter1Second) / 1e18;
-        assertEq(_protocol.outstandingValue(_minter1), expectedResult);
+        assertEq(_protocol.outstandingValueOf(_minter1), expectedResult);
 
         vm.warp(timestamp + _mintDelay + 31_536_000);
 
         uint256 indexAfter1Year = (InterestMath.exponent(_mRate, 31_536_000) * initialIndex) / 1e18;
         expectedResult = (minterNormalizedPrincipal * indexAfter1Year) / 1e18;
-        assertEq(_protocol.outstandingValue(_minter1), expectedResult);
+        assertEq(_protocol.outstandingValueOf(_minter1), expectedResult);
     }
 
     function test_mint_notApprovedMinter() external {
@@ -527,7 +527,7 @@ contract ProtocolTests is Test {
         _protocol.burn(_minter1, mintAmount);
 
         // minter repaid all its outstandingValue
-        assertEq(_protocol.outstandingValue(_minter1), 0);
+        assertEq(_protocol.outstandingValueOf(_minter1), 0);
         // 1 wei is left in the user `to`
         assertEq(_protocol.normalizedPrincipal(_minter1), 0);
     }
@@ -539,7 +539,7 @@ contract ProtocolTests is Test {
         _protocol.setNormalizedPrincipal(_minter1, normalizedPrincipal);
         _protocol.setMIndex(1e18);
 
-        uint256 minterOutstandingValue = _protocol.outstandingValue(_minter1);
+        uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
 
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
@@ -551,14 +551,14 @@ contract ProtocolTests is Test {
         vm.expectEmit();
         emit Burn(_minter1, alice, minterOutstandingValue / 2);
         _protocol.burn(_minter1, minterOutstandingValue / 2);
-        assertEq(_protocol.outstandingValue(_minter1), minterOutstandingValue / 2);
+        assertEq(_protocol.outstandingValueOf(_minter1), minterOutstandingValue / 2);
         assertEq(_mToken.balanceOf(alice), minterOutstandingValue / 2);
 
         vm.prank(bob);
         vm.expectEmit();
         emit Burn(_minter1, bob, minterOutstandingValue / 2);
         _protocol.burn(_minter1, minterOutstandingValue / 2);
-        assertEq(_protocol.outstandingValue(_minter1), 0);
+        assertEq(_protocol.outstandingValueOf(_minter1), 0);
         assertEq(_mToken.balanceOf(alice), minterOutstandingValue / 2);
     }
 
@@ -567,7 +567,7 @@ contract ProtocolTests is Test {
         _protocol.setNormalizedPrincipal(_minter1, normalizedPrincipal);
         _protocol.setMIndex(1e18);
 
-        uint256 minterOutstandingValue = _protocol.outstandingValue(_minter1);
+        uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
 
         address alice = makeAddr("alice");
         _mintTo(alice, minterOutstandingValue / 2);
