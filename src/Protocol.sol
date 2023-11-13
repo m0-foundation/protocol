@@ -41,9 +41,6 @@ contract Protocol is IProtocol, StatelessERC712 {
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
         keccak256("UpdateCollateral(address minter,uint256 amount,uint256 timestamp,string metadata)");
 
-    /// @notice The scale for M index
-    uint256 public constant INDEX_BASE_SCALE = 1e18;
-
     /// @notice TODO The scale for collateral, most likely will be passed in cents
     uint256 public constant COLLATERAL_BASE_SCALE = 1e2;
 
@@ -426,9 +423,13 @@ contract Protocol is IProtocol, StatelessERC712 {
         revert NotEnoughValidSignatures();
     }
 
-    function _getMIndex(uint timeElapsed_) internal view returns (uint256) {
-        uint256 rate_ = _getMRate();
-        return timeElapsed_ > 0 ? InterestMath.calculateIndex(mIndex, rate_, timeElapsed_) : mIndex;
+    function _getMIndex(uint256 timeElapsed_) internal view returns (uint256) {
+        // TODO revert back to check if timeElapsed > 0
+        return
+            InterestMath.multiply(
+                mIndex,
+                InterestMath.getContinuousRate(InterestMath.convertFromBasisPoints(_getMRate()), timeElapsed_)
+            );
     }
 
     function _allowedOutstandingValueOf(address minter_) internal view returns (uint256) {
@@ -448,13 +449,11 @@ contract Protocol is IProtocol, StatelessERC712 {
     }
 
     function _getInterestAdjustedMintValue(uint256 principalValue_) internal view returns (uint256) {
-        uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
-        return (principalValue_ * _getMIndex(timeElapsed_)) / INDEX_BASE_SCALE;
+        return InterestMath.multiply(principalValue_, _getMIndex(block.timestamp - lastAccrualTime));
     }
 
     function _getPrincipalValue(uint256 amount_) internal view returns (uint256) {
-        uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
-        return (amount_ * INDEX_BASE_SCALE) / _getMIndex(timeElapsed_);
+        return InterestMath.divide(amount_, _getMIndex(block.timestamp - lastAccrualTime));
     }
 
     function _min(uint256 a, uint256 b) internal pure returns (uint256) {
