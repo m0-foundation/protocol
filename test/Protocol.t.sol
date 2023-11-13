@@ -11,7 +11,7 @@ import { SPOGRegistrarReader } from "../src/libs/SPOGRegistrarReader.sol";
 import { IProtocol } from "../src/interfaces/IProtocol.sol";
 
 import { MToken } from "../src/MToken.sol";
-import { MockSPOGRegistrar, MockBorrowRateModel } from "./utils/Mocks.sol";
+import { MockSPOGRegistrar, MockMRateModel } from "./utils/Mocks.sol";
 import { DigestHelper } from "./utils/DigestHelper.sol";
 import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
 
@@ -27,15 +27,15 @@ contract ProtocolTests is Test {
     uint256 internal _updateCollateralQuorum = 1;
     uint256 internal _updateCollateralInterval = 2000;
     uint256 internal _minterFreezeTime = 1000;
-    uint256 internal _mintRequestQueueTime = 1000;
-    uint256 internal _mintRequestTtl = 500;
-    uint256 internal _borrowRate = 400; // 4%, bps
+    uint256 internal _mintDelay = 1000;
+    uint256 internal _mintTTL = 500;
+    uint256 internal _mRate = 400; // 4%, bps
     uint256 internal _minRatio = 9000; // 90%, bps
 
     MockSPOGRegistrar internal _spogRegistrar;
     MToken internal _mToken;
     ProtocolHarness internal _protocol;
-    MockBorrowRateModel internal _borrowRateModel;
+    MockMRateModel internal _mRateModel;
 
     event CollateralUpdated(address indexed minter, uint256 amount, uint256 timestamp, string metadata);
 
@@ -64,12 +64,12 @@ contract ProtocolTests is Test {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, bytes32(_updateCollateralInterval));
 
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_FREEZE_TIME, bytes32(_minterFreezeTime));
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_REQUEST_QUEUE_TIME, bytes32(_mintRequestQueueTime));
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_REQUEST_TTL, bytes32(_mintRequestTtl));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_DELAY, bytes32(_mintDelay));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_TTL, bytes32(_mintTTL));
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, bytes32(_minRatio));
 
-        _borrowRateModel = new MockBorrowRateModel();
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.BORROW_RATE_MODEL, _toBytes32(address(_borrowRateModel)));
+        _mRateModel = new MockMRateModel();
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.M_RATE_MODEL, _toBytes32(address(_mRateModel)));
     }
 
     function test_updateCollateral() external {
@@ -228,7 +228,7 @@ contract ProtocolTests is Test {
 
         _protocol.setCollateral(_minter1, collateral, timestamp);
 
-        vm.warp(timestamp + _mintRequestQueueTime);
+        vm.warp(timestamp + _mintDelay);
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.UndercollateralizedMint.selector);
@@ -245,7 +245,7 @@ contract ProtocolTests is Test {
         _protocol.setCollateral(_minter1, collateral, timestamp);
         uint256 mintId = _protocol.setMintRequest(_minter1, amount, timestamp, to, 1);
 
-        vm.warp(timestamp + _mintRequestQueueTime);
+        vm.warp(timestamp + _mintDelay);
 
         vm.prank(_minter1);
         vm.expectEmit();
@@ -266,7 +266,7 @@ contract ProtocolTests is Test {
         assertEq(_mToken.balanceOf(to), amount);
     }
 
-    function test_mint_debtOf() external {
+    function test_mint_outstandingValue() external {
         uint256 collateralAmount = 10000e18;
         uint256 mintAmount = 1000000e6;
         uint256 timestamp = block.timestamp;
@@ -276,36 +276,36 @@ contract ProtocolTests is Test {
         _protocol.setCollateral(_minter1, collateralAmount, timestamp);
         uint256 mintId = _protocol.setMintRequest(_minter1, mintAmount, timestamp, to, 1);
 
-        vm.warp(timestamp + _mintRequestQueueTime);
+        vm.warp(timestamp + _mintDelay);
 
         vm.prank(_minter1);
         _protocol.mint(mintId);
 
-        uint256 initialDebt = _protocol.debtOf(_minter1);
+        uint256 initialOutstandingValue = _protocol.outstandingValueOf(_minter1);
         uint256 initialIndex = _protocol.mIndex();
         uint256 minterNormalizedPrincipal = _protocol.normalizedPrincipal(_minter1);
 
-        assertEq(initialDebt + 1 wei, mintAmount);
+        assertEq(initialOutstandingValue + 1 wei, mintAmount);
 
-        vm.warp(timestamp + _mintRequestQueueTime + 1);
+        vm.warp(timestamp + _mintDelay + 1);
 
         uint256 indexAfter1Second = InterestMath.multiply(
-            InterestMath.getContinuousRate(InterestMath.convertFromBasisPoints(_borrowRate), 1),
+            InterestMath.getContinuousRate(InterestMath.convertFromBasisPoints(_mRate), 1),
             initialIndex
         );
 
         uint256 expectedResult = InterestMath.multiply(minterNormalizedPrincipal, indexAfter1Second);
-        assertEq(_protocol.debtOf(_minter1), expectedResult);
+        assertEq(_protocol.outstandingValueOf(_minter1), expectedResult);
 
-        vm.warp(timestamp + _mintRequestQueueTime + 31_536_000);
+        vm.warp(timestamp + _mintDelay + 31_536_000);
 
         uint256 indexAfter1Year = InterestMath.multiply(
-            InterestMath.getContinuousRate(InterestMath.convertFromBasisPoints(_borrowRate), 31_536_000),
+            InterestMath.getContinuousRate(InterestMath.convertFromBasisPoints(_mRate), 31_536_000),
             initialIndex
         );
 
         expectedResult = InterestMath.multiply(minterNormalizedPrincipal, indexAfter1Year);
-        assertEq(_protocol.debtOf(_minter1), expectedResult);
+        assertEq(_protocol.outstandingValueOf(_minter1), expectedResult);
     }
 
     function test_mint_notApprovedMinter() external {
@@ -331,7 +331,7 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
         uint256 mintId = _protocol.setMintRequest(_minter1, 100, timestamp, makeAddr("to"), 1);
 
-        vm.warp(timestamp + _mintRequestQueueTime / 2);
+        vm.warp(timestamp + _mintDelay / 2);
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.PendingMintRequest.selector);
@@ -342,7 +342,7 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
         uint256 mintId = _protocol.setMintRequest(_minter1, 100, timestamp, makeAddr("to"), 1);
 
-        vm.warp(timestamp + _mintRequestQueueTime + _mintRequestTtl + 1);
+        vm.warp(timestamp + _mintDelay + _mintTTL + 1);
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.ExpiredMintRequest.selector);
@@ -358,7 +358,7 @@ contract ProtocolTests is Test {
         _protocol.setCollateral(_minter1, collateral, timestamp);
         uint256 mintId = _protocol.setMintRequest(_minter1, amount, timestamp, to, 1);
 
-        vm.warp(timestamp + _mintRequestQueueTime + 1);
+        vm.warp(timestamp + _mintDelay + 1);
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.UndercollateralizedMint.selector);
@@ -374,7 +374,7 @@ contract ProtocolTests is Test {
         _protocol.setCollateral(_minter1, collateral, timestamp - _updateCollateralInterval);
         uint256 mintId = _protocol.setMintRequest(_minter1, amount, timestamp, to, 1);
 
-        vm.warp(timestamp + _mintRequestQueueTime + 1);
+        vm.warp(timestamp + _mintDelay + 1);
 
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.UndercollateralizedMint.selector);
@@ -521,7 +521,7 @@ contract ProtocolTests is Test {
         _protocol.setCollateral(_minter1, collateralAmount, timestamp);
         uint256 mintId = _protocol.setMintRequest(_minter1, mintAmount, timestamp, to, 1);
 
-        vm.warp(timestamp + _mintRequestQueueTime);
+        vm.warp(timestamp + _mintDelay);
 
         vm.prank(_minter1);
         _protocol.mint(mintId);
@@ -532,38 +532,40 @@ contract ProtocolTests is Test {
         emit Burn(_minter1, to, mintAmount - 1 wei);
         _protocol.burn(_minter1, mintAmount);
 
-        // minter repaid all its debt
-        assertEq(_protocol.debtOf(_minter1), 0);
+        // minter repaid all its outstandingValue
+        assertEq(_protocol.outstandingValueOf(_minter1), 0);
         // 1 wei is left in the user `to`
         assertEq(_protocol.normalizedPrincipal(_minter1), 0);
     }
 
-    function test_burn_repayHalfOfDebt() external {
+    function test_burn_repayHalfOfOutstandingValue() external {
+        _protocol.setCollateral(_minter1, 1000e18, block.timestamp);
+
         uint256 normalizedPrincipal = 100e18;
         _protocol.setNormalizedPrincipal(_minter1, normalizedPrincipal);
         _protocol.setMIndex(1e18);
 
-        uint256 minterDebt = _protocol.debtOf(_minter1);
+        uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
 
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
 
-        _mintTo(alice, minterDebt);
-        _mintTo(bob, minterDebt);
+        _mintTo(alice, minterOutstandingValue);
+        _mintTo(bob, minterOutstandingValue);
 
         vm.prank(alice);
         vm.expectEmit();
-        emit Burn(_minter1, alice, minterDebt / 2);
-        _protocol.burn(_minter1, minterDebt / 2);
-        assertEq(_protocol.debtOf(_minter1), minterDebt / 2);
-        assertEq(_mToken.balanceOf(alice), minterDebt / 2);
+        emit Burn(_minter1, alice, minterOutstandingValue / 2);
+        _protocol.burn(_minter1, minterOutstandingValue / 2);
+        assertEq(_protocol.outstandingValueOf(_minter1), minterOutstandingValue / 2);
+        assertEq(_mToken.balanceOf(alice), minterOutstandingValue / 2);
 
         vm.prank(bob);
         vm.expectEmit();
-        emit Burn(_minter1, bob, minterDebt / 2);
-        _protocol.burn(_minter1, minterDebt / 2);
-        assertEq(_protocol.debtOf(_minter1), 0);
-        assertEq(_mToken.balanceOf(alice), minterDebt / 2);
+        emit Burn(_minter1, bob, minterOutstandingValue / 2);
+        _protocol.burn(_minter1, minterOutstandingValue / 2);
+        assertEq(_protocol.outstandingValueOf(_minter1), 0);
+        assertEq(_mToken.balanceOf(alice), minterOutstandingValue / 2);
     }
 
     function test_burn_notEnoughBalanceToRepay() external {
@@ -571,14 +573,14 @@ contract ProtocolTests is Test {
         _protocol.setNormalizedPrincipal(_minter1, normalizedPrincipal);
         _protocol.setMIndex(1e18);
 
-        uint256 minterDebt = _protocol.debtOf(_minter1);
+        uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
 
         address alice = makeAddr("alice");
-        _mintTo(alice, minterDebt / 2);
+        _mintTo(alice, minterOutstandingValue / 2);
 
         vm.prank(alice);
         vm.expectRevert(stdError.arithmeticError);
-        _protocol.burn(_minter1, minterDebt);
+        _protocol.burn(_minter1, minterOutstandingValue);
     }
 
     function _mintTo(address account, uint256 amount) internal {
