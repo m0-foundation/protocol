@@ -32,7 +32,7 @@ contract MockSPOGRegistrar is ISPOGRegistrar {
     }
 }
 
-contract MockBorrowRateModel {
+contract MockMRateModel {
     function getRate() external pure returns (uint256) {
         return 400; // 4% APY in bps
     }
