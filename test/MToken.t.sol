@@ -12,15 +12,21 @@ import { InterestMath } from "../src/libs/InterestMath.sol";
 import { MockSPOGRegistrar, MockRateModel } from "./utils/Mocks.sol";
 import { MTokenHarness } from "./utils/MTokenHarness.sol";
 
+// TODO: Fuzz and/or invariant tests.
+
 contract MTokenTests is Test {
     address internal _alice = makeAddr("alice");
     address internal _bob = makeAddr("bob");
     address internal _charlie = makeAddr("charlie");
     address internal _david = makeAddr("david");
+    address internal _protocol = makeAddr("protocol");
 
     address[] internal _accounts = [_alice, _bob, _charlie, _david];
 
-    address internal _protocol = makeAddr("protocol");
+    uint256 internal _rate = InterestMath.BPS_BASE_SCALE / 10; // 10% APY
+    uint256 internal _start = block.timestamp;
+
+    uint256 internal _expectedCurrentIndex;
 
     MTokenHarness internal _mToken;
     MockSPOGRegistrar internal _registrar;
@@ -32,9 +38,15 @@ contract MTokenTests is Test {
         _mToken = new MTokenHarness(address(_protocol), address(_registrar));
 
         _registrar.updateConfig(
-            SPOGRegistrarReader.INTEREST_RATE_MODEL,
+            SPOGRegistrarReader.EARNER_RATE_MODEL,
             SPOGRegistrarReader.toBytes32(address(_rateModel))
         );
+
+        _rateModel.setRate(_rate);
+
+        vm.warp(_start + 30_057_038); // Just enough time for the index to be ~1.1.
+
+        _expectedCurrentIndex = 1_100_000_002_107_323_285;
     }
 
     function test_mint_notProtocol() external {
@@ -42,29 +54,28 @@ contract MTokenTests is Test {
         _mToken.mint(_alice, 0);
     }
 
-    function test_mint_toNonInterestEarner() external {
+    function test_mint_toNonEarner() external {
         vm.prank(address(_protocol));
         _mToken.mint(_alice, 1_000);
 
-        assertEq(_mToken.balanceOf(_alice), 1_000);
         assertEq(_mToken.internalBalanceOf(_alice), 1_000);
-        assertEq(_mToken.totalSupply(), 1_000);
-        assertEq(_mToken.interestEarningTotalSupply(), 0);
         assertEq(_mToken.internalTotalSupply(), 1_000);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
+        assertEq(_mToken.index(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.lastUpdated(), _start);
     }
 
-    function test_mint_toInterestEarner() external {
-        _mToken.setInterestIndex(InterestMath.EXP_BASE_SCALE + InterestMath.EXP_BASE_SCALE / 10); // 10% interest index.
-        _mToken.setIsEarningInterest(_alice, true);
+    function test_mint_toEarner() external {
+        _mToken.setIsEarning(_alice, true);
 
         vm.prank(address(_protocol));
         _mToken.mint(_alice, 1_000);
 
-        assertEq(_mToken.balanceOf(_alice), 999);
         assertEq(_mToken.internalBalanceOf(_alice), 909);
-        assertEq(_mToken.totalSupply(), 999);
-        assertEq(_mToken.interestEarningTotalSupply(), 909);
         assertEq(_mToken.internalTotalSupply(), 0);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 909);
+        assertEq(_mToken.index(), _expectedCurrentIndex);
+        assertEq(_mToken.lastUpdated(), block.timestamp);
     }
 
     function test_burn_notProtocol() external {
@@ -72,354 +83,419 @@ contract MTokenTests is Test {
         _mToken.burn(_alice, 0);
     }
 
-    function test_burn_insufficientBalance_fromNonInterestEarner() external {
-        _mToken.setInternalBalance(_alice, 999);
+    function test_burn_insufficientBalance_fromNonEarner() external {
+        _mToken.setInternalBalanceOf(_alice, 999);
 
         vm.expectRevert(stdError.arithmeticError);
         vm.prank(address(_protocol));
         _mToken.burn(_alice, 1_000);
     }
 
-    function test_burn_insufficientBalance_fromInterestEarner() external {
-        _mToken.setInterestIndex(InterestMath.EXP_BASE_SCALE + InterestMath.EXP_BASE_SCALE / 10); // 10% interest index.
-        _mToken.setIsEarningInterest(_alice, true);
-        _mToken.setInternalBalance(_alice, 908);
+    function test_burn_insufficientBalance_fromEarner() external {
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, 908);
 
         vm.expectRevert(stdError.arithmeticError);
         vm.prank(address(_protocol));
         _mToken.burn(_alice, 1_000);
     }
 
-    function test_burn_fromNonInterestEarner() external {
+    function test_burn_fromNonEarner() external {
         _mToken.setInternalTotalSupply(1_000);
-        _mToken.setInternalBalance(_alice, 1_000);
+        _mToken.setInternalBalanceOf(_alice, 1_000);
 
         vm.prank(address(_protocol));
         _mToken.burn(_alice, 500);
 
-        assertEq(_mToken.balanceOf(_alice), 500);
         assertEq(_mToken.internalBalanceOf(_alice), 500);
-        assertEq(_mToken.totalSupply(), 500);
-        assertEq(_mToken.interestEarningTotalSupply(), 0);
         assertEq(_mToken.internalTotalSupply(), 500);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
+        assertEq(_mToken.index(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.lastUpdated(), _start);
 
         vm.prank(address(_protocol));
         _mToken.burn(_alice, 500);
 
-        assertEq(_mToken.balanceOf(_alice), 0);
         assertEq(_mToken.internalBalanceOf(_alice), 0);
-        assertEq(_mToken.totalSupply(), 0);
-        assertEq(_mToken.interestEarningTotalSupply(), 0);
         assertEq(_mToken.internalTotalSupply(), 0);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
+        assertEq(_mToken.index(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.lastUpdated(), _start);
     }
 
-    function test_burn_fromInterestEarner() external {
-        _mToken.setInterestIndex(InterestMath.EXP_BASE_SCALE + InterestMath.EXP_BASE_SCALE / 10); // 10% interest index.
-        _mToken.setInterestEarningTotalSupply(909);
-        _mToken.setIsEarningInterest(_alice, true);
-        _mToken.setInternalBalance(_alice, 909);
+    function test_burn_fromEarner() external {
+        _mToken.setTotalEarningSupplyPrincipal(909);
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, 909);
 
         vm.prank(address(_protocol));
         _mToken.burn(_alice, 500);
 
-        assertEq(_mToken.balanceOf(_alice), 500);
         assertEq(_mToken.internalBalanceOf(_alice), 455);
-        assertEq(_mToken.totalSupply(), 500);
-        assertEq(_mToken.interestEarningTotalSupply(), 455);
         assertEq(_mToken.internalTotalSupply(), 0);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 455);
+        assertEq(_mToken.index(), _expectedCurrentIndex);
+        assertEq(_mToken.lastUpdated(), block.timestamp);
 
         vm.prank(address(_protocol));
         _mToken.burn(_alice, 500);
 
-        assertEq(_mToken.balanceOf(_alice), 1);
         assertEq(_mToken.internalBalanceOf(_alice), 1);
-        assertEq(_mToken.totalSupply(), 1);
-        assertEq(_mToken.interestEarningTotalSupply(), 1);
         assertEq(_mToken.internalTotalSupply(), 0);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 1);
+        assertEq(_mToken.index(), _expectedCurrentIndex);
+        assertEq(_mToken.lastUpdated(), block.timestamp);
     }
 
-    function test_transfer_insufficientBalance_fromNonInterestEarner_toNonInterestEarner() external {
-        _mToken.setInternalBalance(_alice, 999);
+    function test_transfer_insufficientBalance_fromNonEarner_toNonEarner() external {
+        _mToken.setInternalBalanceOf(_alice, 999);
 
         vm.expectRevert(stdError.arithmeticError);
         vm.prank(_alice);
         _mToken.transfer(_bob, 1_000);
     }
 
-    function test_transfer_insufficientBalance_fromInterestEarner_toNonInterestEarner() external {
-        _mToken.setInterestIndex(InterestMath.EXP_BASE_SCALE + InterestMath.EXP_BASE_SCALE / 10); // 10% interest index.
-        _mToken.setIsEarningInterest(_alice, true);
-        _mToken.setInternalBalance(_alice, 908);
+    function test_transfer_insufficientBalance_fromEarner_toNonEarner() external {
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, 908);
 
         vm.expectRevert(stdError.arithmeticError);
         vm.prank(_alice);
         _mToken.transfer(_bob, 1_000);
     }
 
-    function test_transfer_fromNonInterestEarner_toNonInterestEarner() external {
+    function test_transfer_fromNonEarner_toNonEarner() external {
         _mToken.setInternalTotalSupply(1_500);
-        _mToken.setInternalBalance(_alice, 1_000);
-        _mToken.setInternalBalance(_bob, 500);
+        _mToken.setInternalBalanceOf(_alice, 1_000);
+        _mToken.setInternalBalanceOf(_bob, 500);
 
         vm.prank(_alice);
         _mToken.transfer(_bob, 500);
 
-        assertEq(_mToken.balanceOf(_alice), 500);
         assertEq(_mToken.internalBalanceOf(_alice), 500);
 
-        assertEq(_mToken.balanceOf(_bob), 1_000);
         assertEq(_mToken.internalBalanceOf(_bob), 1_000);
 
-        assertEq(_mToken.totalSupply(), 1_500);
-        assertEq(_mToken.interestEarningTotalSupply(), 0);
         assertEq(_mToken.internalTotalSupply(), 1_500);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
+        assertEq(_mToken.index(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.lastUpdated(), _start);
     }
 
-    function test_transfer_fromInterestEarner_toNonInterestEarner() external {
-        _mToken.setInterestIndex(InterestMath.EXP_BASE_SCALE + InterestMath.EXP_BASE_SCALE / 10); // 10% interest index.
-        _mToken.setInterestEarningTotalSupply(909);
+    function test_transfer_fromEarner_toNonEarner() external {
+        _mToken.setTotalEarningSupplyPrincipal(909);
         _mToken.setInternalTotalSupply(500);
 
-        _mToken.setIsEarningInterest(_alice, true);
-        _mToken.setInternalBalance(_alice, 909);
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, 909);
 
-        _mToken.setInternalBalance(_bob, 500);
+        _mToken.setInternalBalanceOf(_bob, 500);
 
         vm.prank(_alice);
         _mToken.transfer(_bob, 500);
 
-        assertEq(_mToken.balanceOf(_alice), 500);
         assertEq(_mToken.internalBalanceOf(_alice), 455);
 
-        assertEq(_mToken.balanceOf(_bob), 1_000);
         assertEq(_mToken.internalBalanceOf(_bob), 1_000);
 
-        assertEq(_mToken.totalSupply(), 1_500);
-        assertEq(_mToken.interestEarningTotalSupply(), 455);
         assertEq(_mToken.internalTotalSupply(), 1_000);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 455);
+        assertEq(_mToken.index(), _expectedCurrentIndex);
+        assertEq(_mToken.lastUpdated(), block.timestamp);
     }
 
-    function test_transfer_fromNonInterestEarner_toInterestEarner() external {
-        _mToken.setInterestIndex(InterestMath.EXP_BASE_SCALE + InterestMath.EXP_BASE_SCALE / 10); // 10% interest index.
-        _mToken.setInterestEarningTotalSupply(455);
+    function test_transfer_fromNonEarner_toEarner() external {
+        _mToken.setTotalEarningSupplyPrincipal(455);
         _mToken.setInternalTotalSupply(1000);
 
-        _mToken.setInternalBalance(_alice, 1_000);
+        _mToken.setInternalBalanceOf(_alice, 1_000);
 
-        _mToken.setIsEarningInterest(_bob, true);
-        _mToken.setInternalBalance(_bob, 455);
+        _mToken.setIsEarning(_bob, true);
+        _mToken.setInternalBalanceOf(_bob, 455);
 
         vm.prank(_alice);
         _mToken.transfer(_bob, 500);
 
-        assertEq(_mToken.balanceOf(_alice), 500);
         assertEq(_mToken.internalBalanceOf(_alice), 500);
 
-        assertEq(_mToken.balanceOf(_bob), 999);
         assertEq(_mToken.internalBalanceOf(_bob), 909);
 
-        assertEq(_mToken.totalSupply(), 1_499);
-        assertEq(_mToken.interestEarningTotalSupply(), 909);
         assertEq(_mToken.internalTotalSupply(), 500);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 909);
+        assertEq(_mToken.index(), _expectedCurrentIndex);
+        assertEq(_mToken.lastUpdated(), block.timestamp);
     }
 
-    function test_transfer_fromInterestEarner_toInterestEarner() external {
-        _mToken.setInterestIndex(InterestMath.EXP_BASE_SCALE + InterestMath.EXP_BASE_SCALE / 10); // 10% interest index.
-        _mToken.setInterestEarningTotalSupply(1364);
+    function test_transfer_fromEarner_toEarner() external {
+        _mToken.setTotalEarningSupplyPrincipal(1364);
 
-        _mToken.setIsEarningInterest(_alice, true);
-        _mToken.setInternalBalance(_alice, 909);
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, 909);
 
-        _mToken.setIsEarningInterest(_bob, true);
-        _mToken.setInternalBalance(_bob, 455);
+        _mToken.setIsEarning(_bob, true);
+        _mToken.setInternalBalanceOf(_bob, 455);
 
         vm.prank(_alice);
         _mToken.transfer(_bob, 500);
 
-        assertEq(_mToken.balanceOf(_alice), 500);
         assertEq(_mToken.internalBalanceOf(_alice), 455);
 
-        assertEq(_mToken.balanceOf(_bob), 999);
         assertEq(_mToken.internalBalanceOf(_bob), 909);
 
-        assertEq(_mToken.totalSupply(), 1_500);
-        assertEq(_mToken.interestEarningTotalSupply(), 1364);
         assertEq(_mToken.internalTotalSupply(), 0);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 1364);
+        assertEq(_mToken.index(), _expectedCurrentIndex);
+        assertEq(_mToken.lastUpdated(), block.timestamp);
     }
 
-    function test_startEarningInterest_notApprovedInterestEarner() external {
-        vm.expectRevert(IMToken.NotApprovedInterestEarner.selector);
-        vm.prank(_alice);
-        _mToken.startEarningInterest();
+    function test_startEarning_onBehalfOf_notApprovedEarner() external {
+        vm.expectRevert(IMToken.NotApprovedEarner.selector);
+        _mToken.startEarning(_alice);
     }
 
-    function test_startEarningInterest_alreadyEarningInterest() external {
-        _registrar.addToList(SPOGRegistrarReader.INTEREST_EARNERS_LIST, _alice);
-        _mToken.setIsEarningInterest(_alice, true);
+    function test_startEarning_onBehalfOf_hasOptedOut() external {
+        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _alice);
 
-        vm.expectRevert(IMToken.AlreadyEarningInterest.selector);
-        vm.prank(_alice);
-        _mToken.startEarningInterest();
+        _mToken.setHasOptedOut(_alice, true);
+
+        vm.expectRevert(IMToken.HasOptedOut.selector);
+        _mToken.startEarning(_alice);
     }
 
-    function test_startEarningInterest() external {
-        _mToken.setInterestIndex(InterestMath.EXP_BASE_SCALE + InterestMath.EXP_BASE_SCALE / 10); // 10% interest index.
-        _mToken.setInternalBalance(_alice, 1_000);
+    function test_startEarning_onBehalfOf_alreadyEarning() external {
+        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _alice);
+        _mToken.setIsEarning(_alice, true);
+
+        vm.expectRevert(IMToken.AlreadyEarning.selector);
+        _mToken.startEarning(_alice);
+    }
+
+    function test_startEarning_onBehalfOf() external {
+        _mToken.setInternalBalanceOf(_alice, 1_000);
         _mToken.setInternalTotalSupply(1_000);
 
-        _registrar.addToList(SPOGRegistrarReader.INTEREST_EARNERS_LIST, _alice);
+        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _alice);
 
-        vm.prank(_alice);
-        _mToken.startEarningInterest();
+        _mToken.startEarning(_alice);
 
-        assertEq(_mToken.balanceOf(_alice), 999);
         assertEq(_mToken.internalBalanceOf(_alice), 909);
-        assertEq(_mToken.totalSupply(), 999);
-        assertEq(_mToken.interestEarningTotalSupply(), 909);
+        assertEq(_mToken.isEarning(_alice), true);
+
         assertEq(_mToken.internalTotalSupply(), 0);
-        assertEq(_mToken.isEarningInterest(_alice), true);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 909);
+        assertEq(_mToken.index(), _expectedCurrentIndex);
+        assertEq(_mToken.lastUpdated(), block.timestamp);
     }
 
-    function test_stopEarningInterest_onBehalfOf_isApprovedInterestEarner() external {
-        _registrar.addToList(SPOGRegistrarReader.INTEREST_EARNERS_LIST, _alice);
-
-        vm.expectRevert(IMToken.IsApprovedInterestEarner.selector);
-        _mToken.stopEarningInterest(_alice);
-    }
-
-    function test_stopEarningInterest_onBehalfOf_alreadyNotEarningInterest() external {
-        vm.expectRevert(IMToken.AlreadyNotEarningInterest.selector);
-        _mToken.stopEarningInterest(_alice);
-    }
-
-    function test_stopEarningInterest_onBehalfOf() external {
-        _mToken.setInterestIndex(InterestMath.EXP_BASE_SCALE + InterestMath.EXP_BASE_SCALE / 10); // 10% interest index.
-        _mToken.setInterestEarningTotalSupply(909);
-        _mToken.setIsEarningInterest(_alice, true);
-        _mToken.setInternalBalance(_alice, 909);
-
-        _mToken.stopEarningInterest(_alice);
-
-        assertEq(_mToken.balanceOf(_alice), 999);
-        assertEq(_mToken.internalBalanceOf(_alice), 999);
-        assertEq(_mToken.totalSupply(), 999);
-        assertEq(_mToken.interestEarningTotalSupply(), 0);
-        assertEq(_mToken.internalTotalSupply(), 999);
-        assertEq(_mToken.isEarningInterest(_alice), false);
-    }
-
-    function test_stopEarningInterest_alreadyNotEarningInterest() external {
-        vm.expectRevert(IMToken.AlreadyNotEarningInterest.selector);
+    function test_startEarning_notApprovedEarner() external {
+        vm.expectRevert(IMToken.NotApprovedEarner.selector);
         vm.prank(_alice);
-        _mToken.stopEarningInterest();
+        _mToken.startEarning();
     }
 
-    function test_stopEarningInterest() external {
-        _mToken.setInterestIndex(InterestMath.EXP_BASE_SCALE + InterestMath.EXP_BASE_SCALE / 10); // 10% interest index.
-        _mToken.setInterestEarningTotalSupply(909);
-        _mToken.setIsEarningInterest(_alice, true);
-        _mToken.setInternalBalance(_alice, 909);
+    function test_startEarning_alreadyEarning() external {
+        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _alice);
+        _mToken.setIsEarning(_alice, true);
+
+        vm.expectRevert(IMToken.AlreadyEarning.selector);
+        vm.prank(_alice);
+        _mToken.startEarning();
+    }
+
+    function test_startEarning() external {
+        _mToken.setInternalBalanceOf(_alice, 1_000);
+        _mToken.setInternalTotalSupply(1_000);
+
+        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _alice);
 
         vm.prank(_alice);
-        _mToken.stopEarningInterest();
+        _mToken.startEarning();
 
-        assertEq(_mToken.balanceOf(_alice), 999);
-        assertEq(_mToken.internalBalanceOf(_alice), 999);
-        assertEq(_mToken.totalSupply(), 999);
-        assertEq(_mToken.interestEarningTotalSupply(), 0);
-        assertEq(_mToken.internalTotalSupply(), 999);
-        assertEq(_mToken.isEarningInterest(_alice), false);
+        assertEq(_mToken.internalBalanceOf(_alice), 909);
+        assertEq(_mToken.isEarning(_alice), true);
+
+        assertEq(_mToken.internalTotalSupply(), 0);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 909);
+        assertEq(_mToken.index(), _expectedCurrentIndex);
+        assertEq(_mToken.lastUpdated(), block.timestamp);
     }
 
-    function test_earningInterest() external {
-        uint256 apy_ = InterestMath.BPS_BASE_SCALE / 10; // 10% APY
-        uint256 start_ = block.timestamp;
-        uint256 currentInterestIndex_ = InterestMath.EXP_BASE_SCALE + InterestMath.convertFromBasisPoints(apy_);
+    function test_stopEarning_onBehalfOf_isApprovedEarner() external {
+        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _alice);
 
-        _rateModel.setRate(apy_);
+        vm.expectRevert(IMToken.IsApprovedEarner.selector);
+        _mToken.stopEarning(_alice);
+    }
 
-        _mToken.setInterestIndex(currentInterestIndex_); // 10% interest index.
-        _mToken.setInterestEarningTotalSupply(909);
-        _mToken.setInternalTotalSupply(1000);
+    function test_stopEarning_onBehalfOf_alreadyNotEarning() external {
+        vm.expectRevert(IMToken.AlreadyNotEarning.selector);
+        _mToken.stopEarning(_alice);
+    }
 
-        _mToken.setIsEarningInterest(_alice, true);
-        _mToken.setInternalBalance(_alice, 909);
+    function test_stopEarning_onBehalfOf() external {
+        _mToken.setTotalEarningSupplyPrincipal(909);
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, 909);
 
-        _mToken.setInternalBalance(_bob, 1000);
+        _mToken.stopEarning(_alice);
 
-        assertEq(_mToken.currentInterestIndex(), currentInterestIndex_);
-        assertEq(_mToken.interestIndex(), currentInterestIndex_);
+        assertEq(_mToken.internalBalanceOf(_alice), 999);
+        assertEq(_mToken.isEarning(_alice), false);
 
-        vm.warp(start_ + 365 days);
+        assertEq(_mToken.internalTotalSupply(), 999);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
+        assertEq(_mToken.index(), _expectedCurrentIndex);
+        assertEq(_mToken.lastUpdated(), block.timestamp);
+    }
 
-        currentInterestIndex_ = InterestMath.multiply(
-            currentInterestIndex_,
-            InterestMath.getContinuousIndex(InterestMath.convertFromBasisPoints(apy_), 365 days)
+    function test_stopEarning_alreadyNotEarning() external {
+        vm.expectRevert(IMToken.AlreadyNotEarning.selector);
+        vm.prank(_alice);
+        _mToken.stopEarning();
+    }
+
+    function test_stopEarning() external {
+        _mToken.setTotalEarningSupplyPrincipal(909);
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, 909);
+
+        vm.prank(_alice);
+        _mToken.stopEarning();
+
+        assertEq(_mToken.internalBalanceOf(_alice), 999);
+        assertEq(_mToken.isEarning(_alice), false);
+        assertEq(_mToken.hasOptedOut(_alice), true);
+
+        assertEq(_mToken.internalTotalSupply(), 999);
+        assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
+        assertEq(_mToken.index(), _expectedCurrentIndex);
+        assertEq(_mToken.lastUpdated(), block.timestamp);
+    }
+
+    function test_updateIndex() external {
+        assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.index(), InterestMath.EXP_BASE_SCALE);
+
+        vm.warp(block.timestamp + 365 days);
+
+        _expectedCurrentIndex = InterestMath.multiply(
+            InterestMath.EXP_BASE_SCALE,
+            InterestMath.getContinuousIndex(InterestMath.convertFromBasisPoints(_rate), block.timestamp - _start)
         );
 
-        assertEq(_mToken.currentInterestIndex(), currentInterestIndex_);
+        assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
 
-        assertEq(_mToken.balanceOf(_alice), 1_105);
-        assertEq(_mToken.internalBalanceOf(_alice), 909);
+        _mToken.updateIndex();
 
-        assertEq(_mToken.balanceOf(_bob), 1_000);
-        assertEq(_mToken.internalBalanceOf(_bob), 1_000);
+        assertEq(_mToken.index(), _expectedCurrentIndex);
+        assertEq(_mToken.lastUpdated(), block.timestamp);
 
-        assertEq(_mToken.totalSupply(), 2_105);
-        assertEq(_mToken.interestEarningTotalSupply(), 909);
-        assertEq(_mToken.internalTotalSupply(), 1_000);
+        _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
 
-        _mToken.updateInterestIndex();
+        assertEq(_mToken.currentIndex(), _expectedCurrentIndex); // Has not changed yet.
 
-        assertEq(_mToken.interestIndex(), currentInterestIndex_);
+        vm.warp(block.timestamp + 365 days);
 
-        assertEq(_mToken.balanceOf(_alice), 1_105);
-        assertEq(_mToken.internalBalanceOf(_alice), 909);
-
-        assertEq(_mToken.balanceOf(_bob), 1_000);
-        assertEq(_mToken.internalBalanceOf(_bob), 1_000);
-
-        assertEq(_mToken.totalSupply(), 2_105);
-        assertEq(_mToken.interestEarningTotalSupply(), 909);
-        assertEq(_mToken.internalTotalSupply(), 1_000);
-
-        apy_ = InterestMath.BPS_BASE_SCALE / 20; // 5% APY
-
-        _rateModel.setRate(apy_);
-
-        assertEq(_mToken.currentInterestIndex(), currentInterestIndex_); // Has not changed yet.
-
-        vm.warp(start_ + 2 * 365 days);
-
-        currentInterestIndex_ = InterestMath.multiply(
-            currentInterestIndex_,
-            InterestMath.getContinuousIndex(InterestMath.convertFromBasisPoints(apy_), 365 days)
+        _expectedCurrentIndex = InterestMath.multiply(
+            _expectedCurrentIndex,
+            InterestMath.getContinuousIndex(InterestMath.convertFromBasisPoints(_rate), 365 days)
         );
 
-        assertEq(_mToken.currentInterestIndex(), currentInterestIndex_);
+        assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
 
-        assertEq(_mToken.balanceOf(_alice), 1_161);
-        assertEq(_mToken.internalBalanceOf(_alice), 909);
+        _mToken.updateIndex();
 
-        assertEq(_mToken.balanceOf(_bob), 1_000);
-        assertEq(_mToken.internalBalanceOf(_bob), 1_000);
+        assertEq(_mToken.index(), _expectedCurrentIndex);
+        assertEq(_mToken.lastUpdated(), block.timestamp);
+    }
 
-        assertEq(_mToken.totalSupply(), 2_161);
-        assertEq(_mToken.interestEarningTotalSupply(), 909);
-        assertEq(_mToken.internalTotalSupply(), 1_000);
+    function test_balanceOf_nonEarner() external {
+        _mToken.setInternalBalanceOf(_alice, 1_000);
 
-        _mToken.updateInterestIndex();
+        assertEq(_mToken.balanceOf(_alice), 1_000);
 
-        assertEq(_mToken.interestIndex(), currentInterestIndex_);
+        vm.warp(block.timestamp + 365 days);
 
-        assertEq(_mToken.balanceOf(_alice), 1_161);
-        assertEq(_mToken.internalBalanceOf(_alice), 909);
+        assertEq(_mToken.balanceOf(_alice), 1_000);
+    }
 
-        assertEq(_mToken.balanceOf(_bob), 1_000);
-        assertEq(_mToken.internalBalanceOf(_bob), 1_000);
+    function test_balanceOf_earner() external {
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, 909);
 
-        assertEq(_mToken.totalSupply(), 2_161);
-        assertEq(_mToken.interestEarningTotalSupply(), 909);
-        assertEq(_mToken.internalTotalSupply(), 1_000);
+        assertEq(_mToken.balanceOf(_alice), 999);
+
+        vm.warp(block.timestamp + 365 days);
+
+        assertEq(_mToken.balanceOf(_alice), 1_105);
+
+        _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
+
+        // Note that unrealized earnings are subject to change for any period before the last index update.
+        assertEq(_mToken.balanceOf(_alice), 1_002);
+    }
+
+    function test_totalEarningSupply() external {
+        _mToken.setTotalEarningSupplyPrincipal(909);
+
+        assertEq(_mToken.totalEarningSupply(), 999);
+
+        vm.warp(block.timestamp + 365 days);
+
+        assertEq(_mToken.totalEarningSupply(), 1_105);
+
+        _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
+
+        // Note that unrealized earnings are subject to change for any period before the last index update.
+        assertEq(_mToken.totalEarningSupply(), 1_002);
+    }
+
+    function test_totalSupply_noTotalEarningSupply() external {
+        _mToken.setInternalTotalSupply(1_000);
+
+        assertEq(_mToken.totalSupply(), 1_000);
+
+        vm.warp(block.timestamp + 365 days);
+
+        assertEq(_mToken.totalSupply(), 1_000);
+    }
+
+    function test_totalSupply_onlyTotalEarningSupply() external {
+        _mToken.setTotalEarningSupplyPrincipal(909);
+
+        assertEq(_mToken.totalSupply(), 999);
+
+        vm.warp(block.timestamp + 365 days);
+
+        assertEq(_mToken.totalSupply(), 1_105);
+
+        _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
+
+        // Note that unrealized earnings are subject to change for any period before the last index update.
+        assertEq(_mToken.totalSupply(), 1_002);
+    }
+
+    function test_totalSupply() external {
+        _mToken.setInternalTotalSupply(1_000);
+        _mToken.setTotalEarningSupplyPrincipal(909);
+
+        assertEq(_mToken.totalSupply(), 1_999);
+
+        vm.warp(block.timestamp + 365 days);
+
+        assertEq(_mToken.totalSupply(), 2_105);
+
+        _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
+
+        // Note that unrealized earnings are subject to change for any period before the last index update.
+        assertEq(_mToken.totalSupply(), 2_002);
+    }
+
+    function test_earningRate() external {
+        assertEq(_mToken.earningRate(), _rate);
+
+        _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
+
+        assertEq(_mToken.earningRate(), _rate);
     }
 }

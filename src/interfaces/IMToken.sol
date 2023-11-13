@@ -3,19 +3,39 @@
 pragma solidity 0.8.21;
 
 interface IMToken {
-    error AlreadyEarningInterest();
+    /******************************************************************************************************************\
+    |                                                     Errors                                                       |
+    \******************************************************************************************************************/
 
-    error AlreadyNotEarningInterest();
+    error AlreadyEarning();
 
-    error IsApprovedInterestEarner();
+    error AlreadyNotEarning();
 
-    error NotApprovedInterestEarner();
+    error HasOptedOut();
+
+    error IsApprovedEarner();
+
+    error NotApprovedEarner();
 
     error NotProtocol();
 
-    event StartedEarningInterest(address indexed account);
+    /******************************************************************************************************************\
+    |                                                     Events                                                       |
+    \******************************************************************************************************************/
 
-    event StoppedEarningInterest(address indexed account);
+    event StartedEarning(address indexed account);
+
+    event StoppedEarning(address indexed account);
+
+    /******************************************************************************************************************\
+    |                                         External Interactive Functions                                           |
+    \******************************************************************************************************************/
+
+    function earningRate() external view returns (uint256 rate_);
+
+    function hasOptedOut(address account) external view returns (bool hasOpted);
+
+    function isEarning(address account) external view returns (bool isEarning);
 
     /**
      * @notice The address of the Protocol contract.
@@ -27,12 +47,11 @@ interface IMToken {
      */
     function spogRegistrar() external view returns (address spogRegistrar);
 
-    /**
-     * @notice Mints M Token by protocol.
-     * @param account The address of account to mint to.
-     * @param amount The amount of M Token to mint.
-     */
-    function mint(address account, uint256 amount) external;
+    function totalEarningSupply() external view returns (uint256 totalEarningSupply);
+
+    /******************************************************************************************************************\
+    |                                          External View/Pure Functions                                            |
+    \******************************************************************************************************************/
 
     /**
      * @notice Burns M Token by protocol.
@@ -40,4 +59,21 @@ interface IMToken {
      * @param amount The amount of M Token to burn.
      */
     function burn(address account, uint256 amount) external;
+
+    /**
+     * @notice Mints M Token by protocol.
+     * @param account The address of account to mint to.
+     * @param amount The amount of M Token to mint.
+     */
+    function mint(address account, uint256 amount) external;
+
+    function startEarning() external;
+
+    function startEarning(address account) external;
+
+    function stopEarning() external;
+
+    function stopEarning(address account) external;
+
+    function updateIndex() external returns (uint256 currentIndex);
 }

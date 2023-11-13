@@ -7,36 +7,40 @@ import { MToken } from "../../src/MToken.sol";
 contract MTokenHarness is MToken {
     constructor(address protocol_, address spogRegistrar_) MToken(protocol_, spogRegistrar_) {}
 
-    function setInterestIndex(uint256 interestIndex_) external {
-        _interestIndex = interestIndex_;
+    function setIndex(uint256 index_) external {
+        _index = index_;
     }
 
     function setLastUpdated(uint256 lastUpdated_) external {
         _lastUpdated = lastUpdated_;
     }
 
-    function setIsEarningInterest(address account_, bool isEarningInterest_) external {
-        _isEarningInterest[account_] = isEarningInterest_;
+    function setIsEarning(address account_, bool isEarning_) external {
+        _isEarning[account_] = isEarning_;
+    }
+
+    function setHasOptedOut(address account_, bool hasOptedOut_) external {
+        _hasOptedOut[account_] = hasOptedOut_;
     }
 
     function setInternalTotalSupply(uint256 totalSupply_) external {
         _totalSupply = totalSupply_;
     }
 
-    function setInterestEarningTotalSupply(uint256 interestEarningTotalSupply_) external {
-        _interestEarningTotalSupply = interestEarningTotalSupply_;
+    function setTotalEarningSupplyPrincipal(uint256 totalEarningSupplyPrincipal_) external {
+        _totalEarningSupplyPrincipal = totalEarningSupplyPrincipal_;
     }
 
-    function setInternalBalance(address account_, uint256 balance_) external {
+    function setInternalBalanceOf(address account_, uint256 balance_) external {
         _balances[account_] = balance_;
     }
 
-    function interestIndex() external view returns (uint256 interestIndex_) {
-        return _interestIndex;
+    function index() external view returns (uint256 index_) {
+        return _index;
     }
 
-    function currentInterestIndex() external view returns (uint256 interestIndex_) {
-        return _currentInterestIndex();
+    function currentIndex() external view returns (uint256 index_) {
+        return _currentIndex();
     }
 
     function lastUpdated() external view returns (uint256 lastUpdated_) {
@@ -47,8 +51,8 @@ contract MTokenHarness is MToken {
         return _balances[account_];
     }
 
-    function interestEarningTotalSupply() external view returns (uint256 totalSupply_) {
-        return _interestEarningTotalSupply;
+    function totalEarningSupplyPrincipal() external view returns (uint256 totalSupply_) {
+        return _totalEarningSupplyPrincipal;
     }
 
     function internalTotalSupply() external view returns (uint256 totalSupply_) {
