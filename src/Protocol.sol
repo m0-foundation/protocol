@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.21;
 
+import { console2 } from "../lib/forge-std/src/Test.sol";
+
 import { SignatureChecker } from "./libs/SignatureChecker.sol";
 import { InterestMath } from "./libs/InterestMath.sol";
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
@@ -220,10 +222,10 @@ contract Protocol is IProtocol, StatelessERC712 {
         normalizedPrincipalOf[minter_] -= normalizedPrincipalDelta_;
         totalNormalizedPrincipal -= normalizedPrincipalDelta_;
 
+        emit Burn(minter_, msg.sender, amountDelta_);
+
         // Burn actual M tokens
         IMToken(mToken).burn(msg.sender, amountDelta_);
-
-        emit Burn(minter_, msg.sender, amountDelta_);
     }
 
     function outstandingValueOf(address minter_) external view returns (uint256) {
@@ -354,7 +356,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         return
             InterestMath.multiply(
                 mIndex,
-                InterestMath.getContinuousRate(InterestMath.convertFromBasisPoints(_getMRate()), timeElapsed_)
+                InterestMath.getContinuousIndex(InterestMath.convertFromBasisPoints(_getMRate()), timeElapsed_)
             );
     }
 
@@ -387,7 +389,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     }
 
     function _getMRate() internal view returns (uint256 rate_) {
-        return IInterestRateModel(SPOGRegistrarReader.getMRateModel(spogRegistrar)).getRate();
+        return IInterestRateModel(SPOGRegistrarReader.getMRateModel(spogRegistrar)).rate();
     }
 
     function _revertIfNotApprovedMinter(address minter_) internal view {

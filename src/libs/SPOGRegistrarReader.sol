@@ -5,20 +5,20 @@ pragma solidity 0.8.21;
 import { ISPOGRegistrar } from "../interfaces/ISPOGRegistrar.sol";
 
 library SPOGRegistrarReader {
-    /// @notice The minters' list name in SPOG
-    bytes32 public constant MINTERS_LIST_NAME = "minters";
+    /// @notice The interest earners list name in SPOG.
+    bytes32 internal constant INTEREST_EARNERS_LIST = "interest_earners";
 
-    /// @notice The validators' list name in SPOG
-    bytes32 public constant VALIDATORS_LIST_NAME = "validators";
+    /// @notice The name of parameter in SPOG that defines the interest rate model contract.
+    bytes32 internal constant INTEREST_RATE_MODEL = "interest_rate_model";
 
-    /// @notice The name of parameter in SPOG that required interval to update collateral
-    bytes32 public constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
-
-    /// @notice The name of parameter that defines number of signatures required for successful collateral update
-    bytes32 public constant UPDATE_COLLATERAL_QUORUM = "updateCollateral_quorum";
+    /// @notice The name of parameter in SPOG that defines the M rate
+    bytes32 public constant M_RATE_MODEL = "m_rate_model";
 
     /// @notice The name of parameter in SPOG that defines the time to wait for mint request to be processed
     bytes32 public constant MINT_DELAY = "mint_delay";
+
+    /// @notice The name of parameter in SPOG that defines the mint ratio.
+    bytes32 internal constant MINT_RATIO = "mint_ratio"; // bps
 
     /// @notice The name of parameter in SPOG that defines the time while mint request can still be processed
     bytes32 public constant MINT_TTL = "mint_ttl";
@@ -26,18 +26,28 @@ library SPOGRegistrarReader {
     /// @notice The name of parameter in SPOG that defines the time to freeze minter
     bytes32 public constant MINTER_FREEZE_TIME = "minter_freeze_time";
 
-    /// @notice The name of parameter in SPOG that defines the M rate
-    bytes32 public constant M_RATE_MODEL = "m_rate_model";
+    /// @notice The minters list name in SPOG.
+    bytes32 internal constant MINTERS_LIST = "minters";
 
-    /// @notice The name of parameter in SPOG that defines the mint ratio
-    bytes32 public constant MINT_RATIO = "mint_ratio"; // bps
+    /// @notice The name of parameter in SPOG that required interval to update collateral.
+    bytes32 internal constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
+
+    /// @notice The name of parameter that defines number of signatures required for successful collateral update
+    bytes32 public constant UPDATE_COLLATERAL_QUORUM = "updateCollateral_quorum";
+
+    /// @notice The validators list name in SPOG.
+    bytes32 internal constant VALIDATORS_LIST = "validators";
 
     function isApprovedMinter(address registrar_, address minter_) internal view returns (bool isApproved_) {
-        return _contains(registrar_, MINTERS_LIST_NAME, minter_);
+        return _contains(registrar_, MINTERS_LIST, minter_);
+    }
+
+    function isApprovedInterestEarner(address registrar_, address earner_) internal view returns (bool isApproved_) {
+        return _contains(registrar_, INTEREST_EARNERS_LIST, earner_);
     }
 
     function isApprovedValidator(address registrar_, address validator_) internal view returns (bool isApproved_) {
-        return _contains(registrar_, VALIDATORS_LIST_NAME, validator_);
+        return _contains(registrar_, VALIDATORS_LIST, validator_);
     }
 
     function getUpdateCollateralInterval(address registrar_) internal view returns (uint256 interval_) {
@@ -64,8 +74,20 @@ library SPOGRegistrarReader {
         return _toAddress(_get(registrar_, M_RATE_MODEL));
     }
 
+    function getInterestRateModel(address registrar_) internal view returns (address rateModel_) {
+        return toAddress(_get(registrar_, INTEREST_RATE_MODEL));
+    }
+
     function getMintRatio(address registrar_) internal view returns (uint256 ratio_) {
         return uint256(_get(registrar_, MINT_RATIO));
+    }
+
+    function toAddress(bytes32 input_) internal pure returns (address output_) {
+        return address(uint160(uint256(input_)));
+    }
+
+    function toBytes32(address input_) internal pure returns (bytes32 output_) {
+        return bytes32(uint256(uint160(input_)));
     }
 
     function _get(address registrar_, bytes32 key_) private view returns (bytes32 value_) {
