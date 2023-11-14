@@ -43,7 +43,9 @@ interface IProtocol {
 
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
 
-    event Burn(address indexed minter, address indexed payer, uint256 amount);
+    event Burn(address indexed minter, uint256 amount, address indexed payer);
+
+    event PenaltyAccrued(address indexed minter, uint256 amount, address indexed caller);
 
     /// @notice The EIP-712 typehash for the `updateCollateral` method.
     function UPDATE_COLLATERAL_TYPEHASH() external view returns (bytes32 typehash);
@@ -58,7 +60,9 @@ interface IProtocol {
     function mToken() external view returns (address mToken);
 
     /// @notice The collateral information of minters
-    function collateralOf(address minter) external view returns (uint256 amount, uint256 lastUpdated);
+    function collateralOf(
+        address minter
+    ) external view returns (uint256 amount, uint256 lastUpdated, uint256 penalizedUntil);
 
     /// @notice The mint requests of minters, only 1 request per minter
     function mintRequestOf(
@@ -145,4 +149,12 @@ interface IProtocol {
      * @dev If amount to burn is greater than minter's outstandingValue including penalties, burn all outstandingValue
      */
     function burn(address minter, uint256 amount) external;
+
+    /**
+     * @notice Returns the penalty for expired collateral value
+     * @param minter The address of the minter to get penalty for
+     * @dev Minter is penalized on current oustanding value per every missed interval.
+     * @dev Penalized only once per missed interval.
+     */
+    function getUnaccruedPenaltyForExpiredCollateralValue(address minter) external view returns (uint256);
 }
