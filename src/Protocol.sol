@@ -222,7 +222,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         normalizedPrincipalOf[minter_] -= normalizedPrincipalDelta_;
         totalNormalizedPrincipal -= normalizedPrincipalDelta_;
 
-        emit Burn(minter_, msg.sender, amountDelta_);
+        emit Burn(minter_, amountDelta_, msg.sender);
 
         // Burn actual M tokens
         IMToken(mToken).burn(msg.sender, amountDelta_);
@@ -431,7 +431,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         normalizedPrincipalOf[minter_] += penaltyPrincipal_;
         totalNormalizedPrincipal += penaltyPrincipal_;
 
-        emit PenaltyAccrued(minter_, msg.sender, penalty_);
+        emit PenaltyAccrued(minter_, penalty_, msg.sender);
     }
 
     function _min(uint256 a_, uint256 b_) internal pure returns (uint256) {

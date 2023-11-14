@@ -46,9 +46,9 @@ contract ProtocolTests is Test {
 
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
 
-    event Burn(address indexed minter, address indexed payer, uint256 amount);
+    event Burn(address indexed minter, uint256 amount, address indexed payer);
 
-    event PenaltyAccrued(address indexed minter, address indexed caller, uint256 amount);
+    event PenaltyAccrued(address indexed minter, uint256 amount, address indexed caller);
 
     function setUp() external {
         (_minter1, _minter1Pk) = makeAddrAndKey("minter1");
@@ -532,7 +532,7 @@ contract ProtocolTests is Test {
         _protocol.mint(mintId);
 
         vm.expectEmit();
-        emit Burn(_minter1, to, mintAmount - 1);
+        emit Burn(_minter1, mintAmount - 1 wei, to);
 
         vm.prank(to);
         _protocol.burn(_minter1, mintAmount);
@@ -556,7 +556,7 @@ contract ProtocolTests is Test {
         address bob = makeAddr("bob");
 
         vm.expectEmit();
-        emit Burn(_minter1, alice, minterOutstandingValue / 2);
+        emit Burn(_minter1, minterOutstandingValue / 2, alice);
 
         vm.prank(alice);
         _protocol.burn(_minter1, minterOutstandingValue / 2);
@@ -566,7 +566,7 @@ contract ProtocolTests is Test {
         // TODO: check that burn has been called.
 
         vm.expectEmit();
-        emit Burn(_minter1, bob, minterOutstandingValue / 2);
+        emit Burn(_minter1, minterOutstandingValue / 2, bob);
 
         vm.prank(bob);
         _protocol.burn(_minter1, minterOutstandingValue / 2);
@@ -614,7 +614,7 @@ contract ProtocolTests is Test {
 
         vm.prank(_minter1);
         vm.expectEmit();
-        emit PenaltyAccrued(_minter1, _minter1, penalty);
+        emit PenaltyAccrued(_minter1, penalty, _minter1);
         _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
 
         assertEq(_protocol.outstandingValueOf(_minter1), minterOutstandingValue + penalty);
@@ -652,7 +652,7 @@ contract ProtocolTests is Test {
         uint256 expectedPenalty = ((oustandingDebt - allowedOutstandingDebt) * _penalty) / ONE;
         vm.prank(_minter1);
         vm.expectEmit();
-        emit PenaltyAccrued(_minter1, _minter1, expectedPenalty);
+        emit PenaltyAccrued(_minter1, expectedPenalty, _minter1);
         _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
 
         // 1 wei precision loss
@@ -683,7 +683,7 @@ contract ProtocolTests is Test {
 
         vm.prank(_minter1);
         vm.expectEmit();
-        emit PenaltyAccrued(_minter1, _minter1, penalty);
+        emit PenaltyAccrued(_minter1, penalty, _minter1);
         _protocol.updateCollateral(newCollateral, newTimestamp, "", validators, signatures);
 
         uint256 expectedPenalty = (((minterOutstandingValue + penalty) - (newCollateral * _mintRatio) / ONE) *
@@ -717,7 +717,7 @@ contract ProtocolTests is Test {
 
         vm.prank(to);
         vm.expectEmit();
-        emit PenaltyAccrued(_minter1, to, penalty);
+        emit PenaltyAccrued(_minter1, penalty, to);
         _protocol.burn(_minter1, minterOustandingValue);
 
         minterOustandingValue = _protocol.outstandingValueOf(_minter1);

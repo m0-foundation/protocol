@@ -43,9 +43,9 @@ interface IProtocol {
 
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
 
-    event Burn(address indexed minter, address indexed payer, uint256 amount);
+    event Burn(address indexed minter, uint256 amount, address indexed payer);
 
-    event PenaltyAccrued(address indexed minter, address indexed caller, uint256 amount);
+    event PenaltyAccrued(address indexed minter, uint256 amount, address indexed caller);
 
     /// @notice The EIP-712 typehash for the `updateCollateral` method.
     function UPDATE_COLLATERAL_TYPEHASH() external view returns (bytes32 typehash);
