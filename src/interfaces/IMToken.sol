@@ -2,7 +2,9 @@
 
 pragma solidity 0.8.21;
 
-interface IMToken {
+import { IContinuousInterestIndexing } from "./IContinuousInterestIndexing.sol";
+
+interface IMToken is IContinuousInterestIndexing {
     /******************************************************************************************************************\
     |                                                     Errors                                                       |
     \******************************************************************************************************************/
@@ -33,7 +35,7 @@ interface IMToken {
     |                                         External Interactive Functions                                           |
     \******************************************************************************************************************/
 
-    function earningRate() external view returns (uint256 rate_);
+    function earningRate() external view returns (uint256 rate);
 
     function hasOptedOutOfEarning(address account) external view returns (bool hasOpted);
 
@@ -76,6 +78,4 @@ interface IMToken {
     function stopEarning() external;
 
     function stopEarning(address account) external;
-
-    function updateIndex() external returns (uint256 currentIndex);
 }

@@ -2,7 +2,9 @@
 
 pragma solidity 0.8.21;
 
-interface IProtocol {
+import { IContinuousInterestIndexing } from "./IContinuousInterestIndexing.sol";
+
+interface IProtocol is IContinuousInterestIndexing {
     /******************************************************************************************************************\
     |                                                      Errors                                                      |
     \******************************************************************************************************************/
@@ -78,12 +80,6 @@ interface IProtocol {
     /// @notice The normalized principal (t0 principal value) for each minter
     function normalizedPrincipalOf(address minter) external view returns (uint256 amount);
 
-    /// @notice The current M index for the protocol tracked for the entire market
-    function mIndex() external view returns (uint256 mIndex);
-
-    /// @notice The timestamp of the last time the M index was updated
-    function lastAccrualTime() external view returns (uint256 lastAccrualTime);
-
     /**
      * @notice Returns the amount of M tokens that minter owes to the protocol
      */
@@ -138,11 +134,6 @@ interface IProtocol {
     function freeze(address minter) external;
 
     /**
-     * @notice Updates indices
-     */
-    function updateIndices() external;
-
-    /**
      * @notice Burns M tokens
      * @param minter The address of the minter to burn M tokens for
      * @param amount The max amount of M tokens to burn
@@ -153,7 +144,7 @@ interface IProtocol {
     /**
      * @notice Returns the penalty for expired collateral value
      * @param minter The address of the minter to get penalty for
-     * @dev Minter is penalized on current oustanding value per every missed interval.
+     * @dev Minter is penalized on current outstanding value per every missed interval.
      * @dev Penalized only once per missed interval.
      */
     function getUnaccruedPenaltyForExpiredCollateralValue(address minter) external view returns (uint256);

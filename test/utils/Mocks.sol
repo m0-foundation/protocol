@@ -47,6 +47,8 @@ contract MockRateModel {
 contract MockMToken {
     bool internal _burnFail;
 
+    uint256 internal _currentIndex;
+
     function mint(address account_, uint256 amount_) external {}
 
     function burn(address account_, uint256 amount_) external {
@@ -55,5 +57,13 @@ contract MockMToken {
 
     function setBurnFail(bool fail_) external {
         _burnFail = fail_;
+    }
+
+    function setCurrentIndex(uint256 index_) external {
+        _currentIndex = index_;
+    }
+
+    function updateIndex() public virtual returns (uint256 currentIndex_) {
+        return _currentIndex;
     }
 }
