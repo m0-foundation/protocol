@@ -94,9 +94,9 @@ contract ProtocolTests is Test {
         emit CollateralUpdated(_minter1, collateral, timestamp, "");
         _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
 
-        (uint256 amount, uint256 lastUpdated, ) = _protocol.collateralOf(_minter1);
+        (uint256 amount, uint256 lastAccrualTime, ) = _protocol.collateralOf(_minter1);
         assertEq(amount, collateral);
-        assertEq(lastUpdated, timestamp);
+        assertEq(lastAccrualTime, timestamp);
     }
 
     function test_updateCollateral_notApprovedMinter() external {
@@ -287,7 +287,7 @@ contract ProtocolTests is Test {
         _protocol.mint(mintId);
 
         uint256 initialOutstandingValue = _protocol.outstandingValueOf(_minter1);
-        uint256 initialIndex = _protocol.mIndex();
+        uint256 initialIndex = _protocol.latestIndex();
         uint256 minterNormalizedPrincipal = _protocol.normalizedPrincipalOf(_minter1);
 
         assertEq(initialOutstandingValue + 1, mintAmount);
@@ -548,7 +548,7 @@ contract ProtocolTests is Test {
 
         uint256 normalizedPrincipal = 100e18;
         _protocol.setNormalizedPrincipalOf(_minter1, normalizedPrincipal);
-        _protocol.setMIndex(1e18);
+        _protocol.setIndex(1e18);
 
         uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
 
@@ -579,7 +579,7 @@ contract ProtocolTests is Test {
     function test_burn_notEnoughBalanceToRepay() external {
         uint256 normalizedPrincipal = 100e18;
         _protocol.setNormalizedPrincipalOf(_minter1, normalizedPrincipal);
-        _protocol.setMIndex(1e18);
+        _protocol.setIndex(1e18);
 
         uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
 
@@ -752,8 +752,8 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
 
-        (, uint256 lastUpdated, uint256 penalizedUntil) = _protocol.collateralOf(_minter1);
-        assertEq(lastUpdated, block.timestamp);
+        (, uint256 lastAccrualTime, uint256 penalizedUntil) = _protocol.collateralOf(_minter1);
+        assertEq(lastAccrualTime, block.timestamp);
         assertEq(penalizedUntil, timestamp + _updateCollateralInterval);
 
         address to = makeAddr("to");
@@ -763,7 +763,7 @@ contract ProtocolTests is Test {
         _protocol.burn(_minter1, 10e18);
 
         (, uint256 lastUpdatedAgain, uint256 penalizedUntilAgain) = _protocol.collateralOf(_minter1);
-        assertEq(lastUpdated, lastUpdatedAgain);
+        assertEq(lastAccrualTime, lastUpdatedAgain);
         assertEq(penalizedUntilAgain, penalizedUntilAgain);
     }
 

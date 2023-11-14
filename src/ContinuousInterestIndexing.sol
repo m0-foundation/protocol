@@ -18,6 +18,8 @@ abstract contract ContinuousInterestIndexing is IContinuousInterestIndexing {
     }
 
     function updateIndex() public virtual returns (uint256 currentIndex_) {
+        if (_latestAccrualTime == block.timestamp) return _latestIndex;
+
         currentIndex_ = currentIndex();
         _latestIndex = currentIndex_;
         _latestAccrualTime = block.timestamp;
@@ -44,27 +46,27 @@ abstract contract ContinuousInterestIndexing is IContinuousInterestIndexing {
             );
     }
 
-    function _getPrincipalAmountAndUpdateIndex(uint256 presentAmount_) internal returns (uint256 principalAmount_) {
-        return _getPrincipalAmount(presentAmount_, updateIndex());
-    }
-
     function _getPresentAmountAndUpdateIndex(uint256 principalAmount_) internal returns (uint256 presentAmount_) {
         return _getPresentAmount(principalAmount_, updateIndex());
     }
 
-    function _rate() internal view virtual returns (uint256 rate_);
-
-    function _getPrincipalAmount(
-        uint256 presentAmount_,
-        uint256 index_
-    ) internal pure returns (uint256 principalAmount_) {
-        return InterestMath.divide(presentAmount_, index_);
+    function _getPrincipalAmountAndUpdateIndex(uint256 presentAmount_) internal returns (uint256 principalAmount_) {
+        return _getPrincipalAmount(presentAmount_, updateIndex());
     }
+
+    function _rate() internal view virtual returns (uint256 rate_);
 
     function _getPresentAmount(
         uint256 principalAmount_,
         uint256 index_
     ) internal pure returns (uint256 presentAmount_) {
         return InterestMath.multiply(principalAmount_, index_);
+    }
+
+    function _getPrincipalAmount(
+        uint256 presentAmount_,
+        uint256 index_
+    ) internal pure returns (uint256 principalAmount_) {
+        return InterestMath.divide(presentAmount_, index_);
     }
 }

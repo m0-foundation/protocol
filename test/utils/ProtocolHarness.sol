@@ -33,7 +33,7 @@ contract ProtocolHarness is Protocol {
         totalNormalizedPrincipal += amount_;
     }
 
-    function setMIndex(uint256 mIndex_) external {
-        mIndex = mIndex_;
+    function setIndex(uint256 index_) external {
+        _latestIndex = index_;
     }
 }
