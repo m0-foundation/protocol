@@ -364,7 +364,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.internalBalanceOf(_alice), 999);
         assertEq(_mToken.isEarning(_alice), false);
-        assertEq(_mToken.hasOptedOut(_alice), true);
+        assertEq(_mToken.hasOptedOutOfEarning(_alice), true);
 
         assertEq(_mToken.internalTotalSupply(), 999);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
@@ -497,5 +497,12 @@ contract MTokenTests is Test {
         _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
 
         assertEq(_mToken.earningRate(), _rate);
+    }
+
+    function test_optOutOfEarning() external {
+        vm.prank(_alice);
+        _mToken.optOutOfEarning();
+
+        assertEq(_mToken.hasOptedOutOfEarning(_alice), true);
     }
 }

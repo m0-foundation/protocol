@@ -27,13 +27,15 @@ interface IMToken {
 
     event StoppedEarning(address indexed account);
 
+    event OptedOutOfEarning(address indexed account);
+
     /******************************************************************************************************************\
     |                                         External Interactive Functions                                           |
     \******************************************************************************************************************/
 
     function earningRate() external view returns (uint256 rate_);
 
-    function hasOptedOut(address account) external view returns (bool hasOpted);
+    function hasOptedOutOfEarning(address account) external view returns (bool hasOpted);
 
     function isEarning(address account) external view returns (bool isEarning);
 

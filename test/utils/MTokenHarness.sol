@@ -20,7 +20,7 @@ contract MTokenHarness is MToken {
     }
 
     function setHasOptedOut(address account_, bool hasOptedOut_) external {
-        _hasOptedOut[account_] = hasOptedOut_;
+        _hasOptedOutOfEarning[account_] = hasOptedOut_;
     }
 
     function setInternalTotalSupply(uint256 totalSupply_) external {
