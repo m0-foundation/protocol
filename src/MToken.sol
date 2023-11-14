@@ -130,10 +130,10 @@ contract MToken is IMToken, ERC20Permit {
     |                                          Internal Interactive Functions                                          |
     \******************************************************************************************************************/
 
-    function _addEarningAmount(address account_, uint256 amount_) internal {
+    function _addEarningAmount(address account_, uint256 principalAmount_) internal {
         unchecked {
-            _balances[account_] += amount_;
-            _totalEarningSupplyPrincipal += amount_;
+            _balances[account_] += principalAmount_;
+            _totalEarningSupplyPrincipal += principalAmount_;
         }
     }
 
@@ -152,12 +152,12 @@ contract MToken is IMToken, ERC20Permit {
             : _subtractNonEarningAmount(account_, amount_);
     }
 
-    function _getPrincipalAmountAndUpdateIndex(uint256 amount_) internal returns (uint256 principalAmount_) {
-        return InterestMath.divide(amount_, updateIndex());
+    function _getPrincipalAmountAndUpdateIndex(uint256 presentAmount_) internal returns (uint256 principalAmount_) {
+        return InterestMath.divide(presentAmount_, updateIndex());
     }
 
-    function _getPresentAmountAndUpdateIndex(uint256 amount_) internal returns (uint256 presentAmount_) {
-        return InterestMath.multiply(amount_, updateIndex());
+    function _getPresentAmountAndUpdateIndex(uint256 principalAmount_) internal returns (uint256 presentAmount_) {
+        return InterestMath.multiply(principalAmount_, updateIndex());
     }
 
     function _mint(address recipient_, uint256 amount_) internal override {
@@ -206,9 +206,9 @@ contract MToken is IMToken, ERC20Permit {
         emit StoppedEarning(account_);
     }
 
-    function _subtractEarningAmount(address account_, uint256 amount_) internal {
-        _balances[account_] -= amount_;
-        _totalEarningSupplyPrincipal -= amount_;
+    function _subtractEarningAmount(address account_, uint256 principalAmount_) internal {
+        _balances[account_] -= principalAmount_;
+        _totalEarningSupplyPrincipal -= principalAmount_;
     }
 
     function _subtractNonEarningAmount(address account_, uint256 amount_) internal {
@@ -219,28 +219,28 @@ contract MToken is IMToken, ERC20Permit {
     function _transfer(address sender_, address recipient_, uint256 amount_) internal override {
         emit Transfer(sender_, recipient_, amount_);
 
-        bool senderIsEarning_ = _isEarning[sender_];
-        bool recipientIsEarning_ = _isEarning[recipient_];
+        bool senderIsEarning_ = _isEarning[sender_]; // Only using the sender's earning status more than once.
 
-        if (!senderIsEarning_ && !recipientIsEarning_) return _transferAmountInKind(sender_, recipient_, amount_);
-
-        uint256 principalAmount_ = _getPrincipalAmountAndUpdateIndex(amount_);
-
-        if (!senderIsEarning_ && recipientIsEarning_) {
-            _subtractNonEarningAmount(sender_, amount_);
-            _addEarningAmount(recipient_, principalAmount_);
-
-            return;
+        // If this is an in-kind transfer, then...
+        if (senderIsEarning_ == _isEarning[recipient_]) {
+            return
+                _transferAmountInKind( // perform an in-kind transfer with...
+                    sender_,
+                    recipient_,
+                    senderIsEarning_ ? _getPrincipalAmountAndUpdateIndex(amount_) : amount_ // the appropriate amount.
+                );
         }
 
-        if (!recipientIsEarning_) {
-            _subtractEarningAmount(sender_, principalAmount_);
+        // If this is not an in-kind transfer, then...
+        if (senderIsEarning_) {
+            // either the sender is earning and the recipient is not, or...
+            _subtractEarningAmount(sender_, _getPrincipalAmountAndUpdateIndex(amount_));
             _addNonEarningAmount(recipient_, amount_);
-
-            return;
+        } else {
+            // the sender is not earning and the recipient is.
+            _subtractNonEarningAmount(sender_, amount_);
+            _addEarningAmount(recipient_, _getPrincipalAmountAndUpdateIndex(amount_));
         }
-
-        _transferAmountInKind(sender_, recipient_, principalAmount_);
     }
 
     function _transferAmountInKind(address sender_, address recipient_, uint256 amount_) internal {
