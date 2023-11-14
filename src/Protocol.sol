@@ -76,9 +76,8 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
      */
     constructor(address spogRegistrar_, address mToken_) ContinuousInterestIndexing() StatelessERC712("Protocol") {
         if ((spogRegistrar = spogRegistrar_) == address(0)) revert ZeroSpogRegistrar();
+        if ((spogVault = SPOGRegistrarReader.getVault(spogRegistrar_)) == address(0)) revert ZeroSpogVault();
         if ((mToken = mToken_) == address(0)) revert ZeroMToken();
-
-        spogVault = SPOGRegistrarReader.getVault(spogRegistrar_);
     }
 
     /******************************************************************************************************************\
@@ -253,7 +252,6 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
     \******************************************************************************************************************/
 
     // TODO: accruePenalties
-    // TODO: mintRewardsToZeroHolders
 
     function updateIndex()
         public
@@ -333,9 +331,9 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
 
     function _getExcessMintedValue() internal view returns (uint256 excessMintedValue_) {
         uint256 totalSupply_ = IMToken(mToken).totalSupply();
-        uint256 totalNormalizedPrincipal_ = totalNormalizedPrincipal;
+        uint256 totalOutstandingValue_ = _getOutstandingValue(totalNormalizedPrincipal);
 
-        if (totalNormalizedPrincipal_ > totalSupply_) return totalNormalizedPrincipal_ - totalSupply_;
+        if (totalOutstandingValue_ > totalSupply_) return totalOutstandingValue_ - totalSupply_;
     }
 
     /**

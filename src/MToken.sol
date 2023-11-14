@@ -15,7 +15,6 @@ import { ERC20Permit } from "./ERC20Permit.sol";
 // TODO: Some mechanism that allows a UI/script to determine how much an account or the system stands to gain from
 //       calling `updateIndex()`.
 // TODO: Some increased/decreased earning supply event(s)? Might be useful for a UI/script, or useless in general.
-// TODO: Is an `indexUpdated` event useful?
 
 contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
     address public immutable protocol;
