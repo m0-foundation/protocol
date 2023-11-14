@@ -2,25 +2,23 @@
 
 pragma solidity 0.8.21;
 
-import { console2 } from "../lib/forge-std/src/Test.sol";
-
 import { SignatureChecker } from "./libs/SignatureChecker.sol";
-import { InterestMath } from "./libs/InterestMath.sol";
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
+import { IContinuousInterestIndexing } from "./interfaces/IContinuousInterestIndexing.sol";
 
+import { ContinuousInterestIndexing } from "./ContinuousInterestIndexing.sol";
 import { StatelessERC712 } from "./StatelessERC712.sol";
-import { MToken } from "./MToken.sol";
 
 /**
  * @title Protocol
  * @author M^ZERO LABS_
  * @notice Core protocol of M^ZERO ecosystem. TODO Add description.
  */
-contract Protocol is IProtocol, StatelessERC712 {
+contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
     // TODO: bit-packing
     struct CollateralBasic {
         uint256 amount;
@@ -59,11 +57,6 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     mapping(address minter => uint256 amount) public normalizedPrincipalOf;
 
-    // TODO possibly bit-pack these 2 variables
-    uint256 public mIndex;
-
-    uint256 public lastAccrualTime;
-
     modifier onlyApprovedMinter() {
         _revertIfNotApprovedMinter(msg.sender);
 
@@ -80,12 +73,9 @@ contract Protocol is IProtocol, StatelessERC712 {
      * @notice Constructor.
      * @param spogRegistrar_ The address of the SPOG Registrar contract.
      */
-    constructor(address spogRegistrar_, address mToken_) StatelessERC712("Protocol") {
+    constructor(address spogRegistrar_, address mToken_) ContinuousInterestIndexing() StatelessERC712("Protocol") {
         spogRegistrar = spogRegistrar_;
         mToken = mToken_;
-
-        mIndex = 1e18;
-        lastAccrualTime = block.timestamp;
     }
 
     /******************************************************************************************************************\
@@ -116,7 +106,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         _revertIfInsufficientValidSignatures(updateCollateralDigest_, validators_, signatures_, requiredQuorum_);
 
         // If minter_ is penalized, total normalized M principal is changing
-        updateIndices();
+        updateIndex();
 
         _accruePenaltyForExpiredCollateralValue(minter_);
 
@@ -190,7 +180,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
         if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedMint();
 
-        updateIndices();
+        updateIndex();
 
         // Delete mint request
         delete mintRequestOf[minter_];
@@ -211,7 +201,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     }
 
     function burn(address minter_, uint256 amount_) external {
-        updateIndices();
+        updateIndex();
 
         _accruePenaltyForExpiredCollateralValue(minter_);
 
@@ -259,35 +249,56 @@ contract Protocol is IProtocol, StatelessERC712 {
     |                                                Brains Functions                                                  |
     \******************************************************************************************************************/
 
-    // TODO: updateBorrowIndex
-    // TODO: updateStakingIndex
     // TODO: accruePenalties
     // TODO: mintRewardsToZeroHolders
 
-    function updateIndices() public {
+    function updateIndex()
+        public
+        override(IContinuousInterestIndexing, ContinuousInterestIndexing)
+        returns (uint256 index_)
+    {
+        // TODO: Order of these matter if their rate models depend on the same utilization ratio / total supplies.
+
         // Update M index
-        _updateMIndex();
+        index_ = super.updateIndex();
 
         // Update Primary staking rate index
-        _updateStakingIndex();
+        IMToken(mToken).updateIndex();
 
-        // mintRewardsToZeroHolders();
+        // TODO: mintRewardsToZeroHolders();
     }
-
-    function _updateMIndex() internal {
-        uint256 now_ = block.timestamp;
-        uint256 timeElapsed_ = now_ - lastAccrualTime;
-        if (timeElapsed_ > 0) {
-            mIndex = _getMIndex(timeElapsed_);
-            lastAccrualTime = now_;
-        }
-    }
-
-    function _updateStakingIndex() internal {}
 
     /******************************************************************************************************************\
     |                                          Internal Interactive Functions                                          |
     \******************************************************************************************************************/
+
+    function _accruePenalty(address minter_, uint256 penaltyBase_) internal {
+        uint256 penalty_ = _getPenalty(penaltyBase_);
+
+        uint256 penaltyPrincipal_ = _getPrincipalValue(penalty_);
+        normalizedPrincipalOf[minter_] += penaltyPrincipal_;
+        totalNormalizedPrincipal += penaltyPrincipal_;
+
+        emit PenaltyAccrued(minter_, penalty_, msg.sender);
+    }
+
+    function _accruePenaltyForExpiredCollateralValue(address minter_) internal {
+        (uint256 penaltyBase_, uint256 penalizedUntil_) = _getPenaltyBaseAndTimeForExpiredCollateralValue(minter_);
+
+        // Save penalization interval to not double charge for missed periods again
+        collateralOf[minter_].penalizedUntil = penalizedUntil_;
+
+        _accruePenalty(minter_, penaltyBase_);
+    }
+
+    function _accruePenaltyForExcessiveOutstandingValue(address minter_) internal {
+        uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
+        uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
+
+        if (allowedOutstandingValue_ >= currentOutstandingValue_) return;
+
+        _accruePenalty(minter_, currentOutstandingValue_ - allowedOutstandingValue_);
+    }
 
     function _cancel(address minter_, uint256 mintId_) internal {
         if (mintRequestOf[minter_].mintId != mintId_) revert InvalidMintRequest();
@@ -356,15 +367,6 @@ contract Protocol is IProtocol, StatelessERC712 {
         revert NotEnoughValidSignatures();
     }
 
-    function _getMIndex(uint256 timeElapsed_) internal view returns (uint256) {
-        // TODO: revert back to check if timeElapsed > 0
-        return
-            InterestMath.multiply(
-                mIndex,
-                InterestMath.getContinuousIndex(InterestMath.convertFromBasisPoints(_getMRate()), timeElapsed_)
-            );
-    }
-
     function _allowedOutstandingValueOf(address minter_) internal view returns (uint256) {
         CollateralBasic storage minterCollateral_ = collateralOf[minter_];
 
@@ -382,11 +384,11 @@ contract Protocol is IProtocol, StatelessERC712 {
     }
 
     function _getOutstandingValue(uint256 principalValue_) internal view returns (uint256) {
-        return InterestMath.multiply(principalValue_, _getMIndex(block.timestamp - lastAccrualTime));
+        return _getPresentAmount(principalValue_, currentIndex());
     }
 
     function _getPrincipalValue(uint256 amount_) internal view returns (uint256) {
-        return InterestMath.divide(amount_, _getMIndex(block.timestamp - lastAccrualTime));
+        return _getPrincipalAmount(amount_, currentIndex());
     }
 
     function _getPenalty(uint256 penaltyBase_) internal view returns (uint256) {
@@ -406,34 +408,6 @@ contract Protocol is IProtocol, StatelessERC712 {
         penalizedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);
     }
 
-    function _accruePenaltyForExpiredCollateralValue(address minter_) internal {
-        (uint256 penaltyBase_, uint256 penalizedUntil_) = _getPenaltyBaseAndTimeForExpiredCollateralValue(minter_);
-
-        // Save penalization interval to not double charge for missed periods again
-        collateralOf[minter_].penalizedUntil = penalizedUntil_;
-
-        _accruePenalty(minter_, penaltyBase_);
-    }
-
-    function _accruePenaltyForExcessiveOutstandingValue(address minter_) internal {
-        uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
-        uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
-
-        if (allowedOutstandingValue_ >= currentOutstandingValue_) return;
-
-        _accruePenalty(minter_, currentOutstandingValue_ - allowedOutstandingValue_);
-    }
-
-    function _accruePenalty(address minter_, uint256 penaltyBase_) internal {
-        uint256 penalty_ = _getPenalty(penaltyBase_);
-
-        uint256 penaltyPrincipal_ = _getPrincipalValue(penalty_);
-        normalizedPrincipalOf[minter_] += penaltyPrincipal_;
-        totalNormalizedPrincipal += penaltyPrincipal_;
-
-        emit PenaltyAccrued(minter_, penalty_, msg.sender);
-    }
-
     function _min(uint256 a_, uint256 b_) internal pure returns (uint256) {
         return a_ < b_ ? a_ : b_;
     }
@@ -442,8 +416,14 @@ contract Protocol is IProtocol, StatelessERC712 {
         return a_ > b_ ? a_ : b_;
     }
 
-    function _getMRate() internal view returns (uint256 rate_) {
-        return IInterestRateModel(SPOGRegistrarReader.getMinterRateModel(spogRegistrar)).rate();
+    function _rate() internal view override returns (uint256 rate_) {
+        address rateModel_ = SPOGRegistrarReader.getMinterRateModel(spogRegistrar);
+
+        (bool success_, bytes memory returnData_) = rateModel_.staticcall(
+            abi.encodeWithSelector(IInterestRateModel.rate.selector)
+        );
+
+        return success_ ? abi.decode(returnData_, (uint256)) : 0;
     }
 
     function _revertIfNotApprovedMinter(address minter_) internal view {
