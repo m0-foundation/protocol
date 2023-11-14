@@ -96,6 +96,10 @@ library SPOGRegistrarReader {
         return uint256(_get(registrar_, PENALTY));
     }
 
+    function getVault(address registrar_) internal view returns (address vault_) {
+        return ISPOGRegistrar(registrar_).vault();
+    }
+
     function toAddress(bytes32 input_) internal pure returns (address output_) {
         return address(uint160(uint256(input_)));
     }

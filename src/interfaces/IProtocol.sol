@@ -31,6 +31,12 @@ interface IProtocol is IContinuousInterestIndexing {
 
     error ExpiredMintRequest();
 
+    error ZeroSpogRegistrar();
+
+    error ZeroSpogVault();
+
+    error ZeroMToken();
+
     /******************************************************************************************************************\
     |                                                      Events                                                      |
     \******************************************************************************************************************/
