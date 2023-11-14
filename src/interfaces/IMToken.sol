@@ -35,7 +35,7 @@ interface IMToken is IContinuousInterestIndexing {
     |                                         External Interactive Functions                                           |
     \******************************************************************************************************************/
 
-    function earningRate() external view returns (uint256 rate_);
+    function earningRate() external view returns (uint256 rate);
 
     function hasOptedOutOfEarning(address account) external view returns (bool hasOpted);
 
