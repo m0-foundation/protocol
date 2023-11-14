@@ -156,5 +156,5 @@ interface IProtocol {
      * @dev Minter is penalized on current oustanding value per every missed interval.
      * @dev Penalized only once per missed interval.
      */
-    function getPenaltyForExpiredCollateralValue(address minter) external view returns (uint256);
+    function getUnaccruedPenaltyForExpiredCollateralValue(address minter) external view returns (uint256);
 }

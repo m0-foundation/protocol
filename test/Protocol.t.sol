@@ -600,7 +600,7 @@ contract ProtocolTests is Test {
 
         vm.warp(timestamp + 3 * _updateCollateralInterval);
 
-        uint256 penalty = _protocol.getPenaltyForExpiredCollateralValue(_minter1);
+        uint256 penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
         uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
         assertEq(penalty, (minterOutstandingValue * 3 * _penalty) / ONE);
 
@@ -640,7 +640,7 @@ contract ProtocolTests is Test {
 
         vm.warp(timestamp + _updateCollateralInterval - 1);
 
-        uint256 penalty = _protocol.getPenaltyForExpiredCollateralValue(_minter1);
+        uint256 penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
         assertEq(penalty, 0);
 
         // Step 2 - Update Collateral with excessive outstanding value
@@ -669,7 +669,7 @@ contract ProtocolTests is Test {
 
         vm.warp(timestamp + 2 * _updateCollateralInterval);
 
-        uint256 penalty = _protocol.getPenaltyForExpiredCollateralValue(_minter1);
+        uint256 penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
         uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
         assertEq(penalty, (minterOutstandingValue * 2 * _penalty) / ONE);
 
@@ -709,7 +709,7 @@ contract ProtocolTests is Test {
 
         vm.warp(timestamp + 3 * _updateCollateralInterval);
 
-        uint256 penalty = _protocol.getPenaltyForExpiredCollateralValue(_minter1);
+        uint256 penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
         uint256 minterOustandingValue = _protocol.outstandingValueOf(_minter1);
         assertEq(penalty, (minterOustandingValue * 3 * _penalty) / ONE);
 
@@ -735,12 +735,12 @@ contract ProtocolTests is Test {
 
         vm.warp(timestamp + _updateCollateralInterval - 10);
 
-        uint256 penalty = _protocol.getPenaltyForExpiredCollateralValue(_minter1);
+        uint256 penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
         assertEq(penalty, 0);
 
         vm.warp(timestamp + _updateCollateralInterval + 10);
 
-        penalty = _protocol.getPenaltyForExpiredCollateralValue(_minter1);
+        penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
         assertEq(penalty, (_protocol.outstandingValueOf(_minter1) * _penalty) / ONE);
 
         bytes memory signature = _getSignature(_minter1, collateral, block.timestamp, "", _validator1Pk);

@@ -25,7 +25,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     struct CollateralBasic {
         uint256 amount;
         uint256 lastUpdated;
-        uint256 penalizedUntil;
+        uint256 penalizedUntil; // for missed update collateral intervals only
     }
 
     // TODO: bit-packing
@@ -232,7 +232,7 @@ contract Protocol is IProtocol, StatelessERC712 {
         return _outstandingValueOf(minter_);
     }
 
-    function getPenaltyForExpiredCollateralValue(address minter_) external view returns (uint256) {
+    function getUnaccruedPenaltyForExpiredCollateralValue(address minter_) external view returns (uint256) {
         (uint256 penaltyBase_, ) = _getPenaltyBaseAndTimeForExpiredCollateralValue(minter_);
         return _getPenalty(penaltyBase_);
     }
