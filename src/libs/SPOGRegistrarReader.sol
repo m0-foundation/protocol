@@ -29,6 +29,9 @@ library SPOGRegistrarReader {
     /// @notice The minters list name in SPOG.
     bytes32 internal constant MINTERS_LIST = "minters";
 
+    /// @notice The name of parameter in SPOG that defines the penalty
+    bytes32 internal constant PENALTY = "penalty";
+
     /// @notice The name of parameter in SPOG that required interval to update collateral.
     bytes32 internal constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
 
@@ -80,6 +83,10 @@ library SPOGRegistrarReader {
 
     function getMintRatio(address registrar_) internal view returns (uint256 ratio_) {
         return uint256(_get(registrar_, MINT_RATIO));
+    }
+
+    function getPenalty(address registrar_) internal view returns (uint256 penalty_) {
+        return uint256(_get(registrar_, PENALTY));
     }
 
     function toAddress(bytes32 input_) internal pure returns (address output_) {
