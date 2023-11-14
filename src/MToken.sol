@@ -30,7 +30,7 @@ contract MToken is IMToken, ERC20Permit {
     mapping(address account => bool isEarning) internal _isEarning;
 
     // TODO: Consider replace with flag bit/byte in balance.
-    mapping(address account => bool hasOptedOut) internal _hasOptedOut;
+    mapping(address account => bool hasOptedOutOfEarning) internal _hasOptedOutOfEarning;
 
     modifier onlyProtocol() {
         if (msg.sender != protocol) revert NotProtocol();
@@ -61,6 +61,11 @@ contract MToken is IMToken, ERC20Permit {
         _mint(account_, amount_);
     }
 
+    function optOutOfEarning() public {
+        emit OptedOutOfEarning(msg.sender);
+        _hasOptedOutOfEarning[msg.sender] = true;
+    }
+
     function startEarning() external {
         _revertIfNotApprovedEarner(msg.sender);
 
@@ -70,13 +75,13 @@ contract MToken is IMToken, ERC20Permit {
     function startEarning(address account_) external {
         _revertIfNotApprovedEarner(account_);
 
-        if (_hasOptedOut[account_]) revert HasOptedOut();
+        if (_hasOptedOutOfEarning[account_]) revert HasOptedOut();
 
         _startEarning(account_);
     }
 
     function stopEarning() external {
-        _hasOptedOut[msg.sender] = true;
+        optOutOfEarning();
         _stopEarning(msg.sender);
     }
 
@@ -110,8 +115,8 @@ contract MToken is IMToken, ERC20Permit {
         return success_ ? abi.decode(returnData_, (uint256)) : 0;
     }
 
-    function hasOptedOut(address account_) external view returns (bool hasOpted_) {
-        return _hasOptedOut[account_];
+    function hasOptedOutOfEarning(address account_) external view returns (bool hasOpted_) {
+        return _hasOptedOutOfEarning[account_];
     }
 
     function isEarning(address account_) external view returns (bool isEarning_) {
