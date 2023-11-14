@@ -27,6 +27,8 @@ interface IProtocol is IContinuousInterestIndexing {
 
     error UndercollateralizedMint();
 
+    error UndercollateralizedRetrieve();
+
     error InvalidMintRequest();
 
     error PendingMintRequest();
@@ -43,7 +45,13 @@ interface IProtocol is IContinuousInterestIndexing {
     |                                                      Events                                                      |
     \******************************************************************************************************************/
 
-    event CollateralUpdated(address indexed minter, uint256 amount, uint256 timestamp, string metadata);
+    event CollateralUpdated(
+        address indexed minter,
+        uint256 amount,
+        uint256 amountWithoutRetrieves,
+        uint256 timestamp,
+        string metadata
+    );
 
     event MintRequestedCreated(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
 
@@ -58,6 +66,10 @@ interface IProtocol is IContinuousInterestIndexing {
     event Burn(address indexed minter, uint256 amount, address indexed payer);
 
     event PenaltyAccrued(address indexed minter, uint256 amount, address indexed caller);
+
+    event RetrieveRequestCreated(uint256 retrieveId, address indexed minter, uint256 amount);
+
+    event RetrieveRequestClosed(uint256 retrieveId, address indexed minter, uint256 amount);
 
     /// @notice The EIP-712 typehash for the `updateCollateral` method.
     function UPDATE_COLLATERAL_TYPEHASH() external view returns (bytes32 typehash);
@@ -96,6 +108,12 @@ interface IProtocol is IContinuousInterestIndexing {
     /// @notice The outstanding value of removed minter
     function removedOutstandingValueOf(address minter) external view returns (uint256 removedOutstandingValueOf);
 
+    /// @notice The total amount of active retrieve requests per minter
+    function totalRetrieveAmountOf(address minter) external view returns (uint256 amount);
+
+    /// @notice The minter's retrieve request amount
+    function retrieveRequestOf(address minter, uint256 retrieveId) external view returns (uint256 amount);
+
     /**
      * @notice Returns the amount of M tokens that minter owes to the protocol
      */
@@ -104,16 +122,18 @@ interface IProtocol is IContinuousInterestIndexing {
     /**
      * @notice Updates collateral for minters
      * @param amount The amount of collateral
-     * @param timestamp The timestamp of the update
      * @param metadata The metadata of the update, reserved for future informational use
+     * @param retrieveIds The list of active retrieve requests to close
+     * @param timestamps The list of timestamps of validators' signatures
      * @param validators The list of validators
      * @param signatures The list of signatures
      */
     function updateCollateral(
         uint256 amount,
-        uint256 timestamp,
         string memory metadata,
+        uint256[] calldata retrieveIds,
         address[] calldata validators,
+        uint256[] calldata timestamps,
         bytes[] calldata signatures
     ) external;
 

@@ -34,13 +34,23 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         uint256 createdAt;
     }
 
+    struct CollateralUpdateInfo {
+        uint256 amount;
+        string metadata;
+        uint256[] retrieveIds;
+        address[] validators;
+        uint256[] timestamps;
+        bytes[] signatures;
+    }
+
     /******************************************************************************************************************\
     |                                                Protocol variables                                                |
     \******************************************************************************************************************/
 
-    // keccak256("UpdateCollateral(address minter,uint256 amount,uint256 timestamp,string metadata)")
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
-        0x3b34d4b7e06822de00fa7c183f0ae7b84849881fa0e2bbf2790f8bf7702492a4;
+        keccak256(
+            "UpdateCollateral(address minter,uint256 amount,string metadata,uint256[] retrieveIds,uint256 timestamp,)"
+        ); // TODO: set constant when finalized
 
     uint256 public constant ONE = 10_000; // 100% in basis points.
 
@@ -61,6 +71,10 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
     mapping(address minter => uint256 amount) public normalizedPrincipalOf;
 
     mapping(address minter => uint256 amount) public removedOutstandingValueOf;
+
+    mapping(address minter => uint256 amount) public totalRetrieveAmountOf;
+
+    mapping(address minter => mapping(uint256 retrieveId => uint256 amount)) public retrieveRequestOf;
 
     modifier onlyApprovedMinter() {
         _revertIfNotApprovedMinter(msg.sender);
@@ -90,39 +104,41 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
 
     function updateCollateral(
         uint256 amount_,
-        uint256 timestamp_,
-        string memory metadata_,
+        string memory metadata_, // TODO: bytes32?
+        uint256[] calldata retrieveIds_,
         address[] calldata validators_,
+        uint256[] calldata timestamps_,
         bytes[] calldata signatures_
     ) external onlyApprovedMinter {
-        if (validators_.length != signatures_.length) revert InvalidSignaturesLength();
-
-        // Timestamp sanity checks
-        uint256 updateInterval_ = SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar);
-        if (block.timestamp >= timestamp_ + updateInterval_) revert ExpiredTimestamp();
+        if (validators_.length != signatures_.length || signatures_.length != timestamps_.length)
+            revert InvalidSignaturesLength();
 
         address minter_ = msg.sender;
 
-        CollateralBasic storage minterCollateral_ = collateralOf[minter_];
-        if (minterCollateral_.lastUpdated > timestamp_) revert StaleTimestamp();
+        _closeRetrieveRequests(minter_, retrieveIds_);
 
         // Validate that quorum of signatures was collected
-        bytes32 updateCollateralDigest_ = _getUpdateCollateralDigest(minter_, amount_, metadata_, timestamp_);
-        uint256 requiredQuorum_ = SPOGRegistrarReader.getUpdateCollateralQuorum(spogRegistrar);
-        _revertIfInsufficientValidSignatures(updateCollateralDigest_, validators_, signatures_, requiredQuorum_);
+        uint256 minTimestamp_ = _revertIfInsufficientValidSignatures(
+            CollateralUpdateInfo({
+                amount: amount_,
+                metadata: metadata_,
+                retrieveIds: retrieveIds_,
+                validators: validators_,
+                timestamps: timestamps_,
+                signatures: signatures_
+            })
+        );
 
         // If minter_ is penalized, total normalized M principal is changing
         updateIndex();
 
+        // Accrue penalty for expired collateral value
         _accruePenaltyForExpiredCollateralValue(minter_);
 
-        // Update collateral
-        minterCollateral_.amount = amount_;
-        minterCollateral_.lastUpdated = timestamp_;
+        _updateCollateralValue(minter_, amount_, minTimestamp_, metadata_);
 
+        // Accrue penalty for maintaining excessive outstanding value
         _accruePenaltyForExcessiveOutstandingValue(minter_);
-
-        emit CollateralUpdated(minter_, amount_, timestamp_, metadata_);
     }
 
     function proposeMint(uint256 amount_, address to_) external onlyApprovedMinter returns (uint256) {
@@ -202,6 +218,24 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         _cancel(msg.sender, mintId_);
     }
 
+    function retrieve(uint256 amount_) external onlyApprovedMinter returns (uint256) {
+        address minter_ = msg.sender;
+
+        uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
+        uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
+        if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedRetrieve();
+
+        uint256 retrieveId_ = uint256(keccak256(abi.encode(minter_, amount_, block.timestamp, gasleft())));
+
+        collateralOf[minter_].amount -= amount_;
+        totalRetrieveAmountOf[minter_] += amount_;
+        retrieveRequestOf[minter_][retrieveId_] = amount_;
+
+        emit RetrieveRequestCreated(retrieveId_, minter_, amount_);
+
+        return retrieveId_;
+    }
+
     function burn(address minter_, uint256 amount_) external {
         updateIndex();
 
@@ -258,9 +292,6 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         emit MinterFrozen(minter_, unfrozenTimeOf[minter_] = frozenUntil_);
     }
 
-    // TODO: proposeRedeem
-    // TODO: redeem
-
     /******************************************************************************************************************\
     |                                                Brains Functions                                                  |
     \******************************************************************************************************************/
@@ -286,7 +317,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
 
         updateIndex();
 
-        // Note: instead of accruing, calculate value and add it to removedOutstandingValueOf to save gas
+        // NOTE: Instead of accruing, calculate penalty and add it to `removedOutstandingValueOf` to save gas
         uint256 penalty_ = _getUnaccruedPenaltyForExpiredCollateralValue(minter_);
         uint256 outstandingValueWithPenalty_ = _outstandingValueOf(minter_) + penalty_;
 
@@ -346,6 +377,34 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         emit MintRequestCanceled(mintId_, minter_, msg.sender);
     }
 
+    function _closeRetrieveRequests(address minter_, uint256[] calldata retrieveIds_) internal {
+        for (uint256 index_ = 0; index_ < retrieveIds_.length; index_++) {
+            uint256 retrieveId_ = retrieveIds_[index_];
+            uint256 retrieveAmount_ = retrieveRequestOf[minter_][retrieveId_];
+
+            delete retrieveRequestOf[minter_][retrieveId_];
+            totalRetrieveAmountOf[minter_] -= retrieveAmount_;
+
+            emit RetrieveRequestClosed(retrieveId_, minter_, retrieveAmount_);
+        }
+    }
+
+    function _updateCollateralValue(
+        address minter_,
+        uint256 amount_,
+        uint256 lastUpdated_,
+        string memory metadata_
+    ) internal {
+        CollateralBasic storage minterCollateral_ = collateralOf[minter_];
+
+        uint256 amountWithoutRetrieves_ = amount_ - totalRetrieveAmountOf[minter_];
+
+        minterCollateral_.amount = amountWithoutRetrieves_;
+        minterCollateral_.lastUpdated = lastUpdated_;
+
+        emit CollateralUpdated(minter_, amount_, amountWithoutRetrieves_, lastUpdated_, metadata_);
+    }
+
     /******************************************************************************************************************\
     |                                           Internal View/Pure Functions                                           |
     \******************************************************************************************************************/
@@ -355,15 +414,20 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
      * @param minter_ The address of the minter
      * @param amount_ The amount of collateral
      * @param metadata_ The metadata of the collateral update, reserved for future informational use
+     * @param retrieveIds_ The list of retrieve request IDs to close
      * @param timestamp_ The timestamp of the collateral update
      */
     function _getUpdateCollateralDigest(
         address minter_,
         uint256 amount_,
         string memory metadata_,
+        uint256[] memory retrieveIds_,
         uint256 timestamp_
     ) internal view returns (bytes32) {
-        return _getDigest(keccak256(abi.encode(UPDATE_COLLATERAL_TYPEHASH, minter_, amount_, metadata_, timestamp_)));
+        return
+            _getDigest(
+                keccak256(abi.encode(UPDATE_COLLATERAL_TYPEHASH, minter_, amount_, metadata_, retrieveIds_, timestamp_))
+            );
     }
 
     function _getExcessMintedValue() internal view returns (uint256 excessMintedValue_) {
@@ -373,43 +437,84 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         if (totalOutstandingValue_ > totalSupply_) return totalOutstandingValue_ - totalSupply_;
     }
 
+    // /**
+    //  * @notice Checks that enough valid unique signatures were provided
+    //  * @param amount_ The amount of collateral
+    //  * @param metadata_ The metadata of the collateral update, reserved for future informational use
+    //  * @param retrieveIds_ The list of retrieve request IDs to close
+    //  * @param validators_ The list of validators
+    //  * @param timestamps_ The list of validator timestamps for the collateral update signatures
+    //  * @param signatures_ The list of signatures
+    //  * @return The minimum timestamp between all valid timestamps for valid signatures
+    //  */
     /**
      * @notice Checks that enough valid unique signatures were provided
-     * @param digest_ The message hash for signing
-     * @param validators_ The list of validators who signed digest
-     * @param signatures_ The list of digest signatures
-     * @param requiredQuorum_ The number of signatures required for action to be considered valid
+     * @param info_ The information about the collateral update
+     * @return The minimum of all timestamps for valid signatures
      */
-    function _revertIfInsufficientValidSignatures(
-        bytes32 digest_,
-        address[] calldata validators_,
-        bytes[] calldata signatures_,
-        uint256 requiredQuorum_
-    ) internal view {
-        if (validators_.length < requiredQuorum_) revert NotEnoughValidSignatures();
+    function _revertIfInsufficientValidSignatures(CollateralUpdateInfo memory info_) internal view returns (uint256) {
+        uint256 requiredQuorum_ = SPOGRegistrarReader.getUpdateCollateralQuorum(spogRegistrar);
+        if (info_.validators.length < requiredQuorum_) revert NotEnoughValidSignatures();
+
+        uint256 updateInterval_ = SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar);
+        uint256 lastUpdated_ = collateralOf[msg.sender].lastUpdated;
 
         uint256 validSignaturesNum_ = 0;
+        uint256 minTimestamp_ = info_.timestamps[0];
 
-        for (uint256 index_ = 0; index_ < signatures_.length; index_++) {
-            address validator_ = validators_[index_];
+        for (uint256 index_ = 0; index_ < info_.signatures.length; index_++) {
+            // Check that validator address is unique and is not already accounted for
+            address validator_ = info_.validators[index_];
+            uint256 timestamp_ = info_.timestamps[index_];
 
-            // Check that validator address is unique and not accounted for
-            bool duplicate_ = index_ > 0 && validator_ <= validators_[index_ - 1];
-            if (duplicate_) continue;
+            if (index_ > 0 && validator_ <= info_.validators[index_ - 1]) continue; // duplicate
 
-            // Check that validator is approved by SPOG
-            bool authorized_ = SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_);
-            if (!authorized_) continue;
+            if (!SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_)) continue; // not approved
+
+            // Timestamp time range sanity checks
+            if (block.timestamp > timestamp_ + updateInterval_) continue; // expired timestamp
+            if (lastUpdated_ > timestamp_) continue; // stale timestamp
 
             // Check that ECDSA or ERC1271 signatures for given digest are valid
-            bool valid_ = SignatureChecker.isValidSignature(validator_, digest_, signatures_[index_]);
-            if (!valid_) continue;
+            bytes32 digest_ = _getUpdateCollateralDigest(
+                msg.sender,
+                info_.amount,
+                info_.metadata,
+                info_.retrieveIds,
+                timestamp_
+            );
+            if (!SignatureChecker.isValidSignature(validator_, digest_, info_.signatures[index_])) continue;
+
+            // Find minimum timestamp for valid signatures
+            minTimestamp_ = _min(minTimestamp_, info_.timestamps[index_]);
 
             // Stop processing if quorum was reached
-            if (++validSignaturesNum_ == requiredQuorum_) return;
+            if (++validSignaturesNum_ == requiredQuorum_) return minTimestamp_;
         }
 
         revert NotEnoughValidSignatures();
+    }
+
+    function _isValidSignature(
+        uint256 amount_,
+        string memory metadata_,
+        uint256[] memory retrieveIds_,
+        address validator_,
+        uint256 timestamp_,
+        bytes memory signature_,
+        uint256 updateInterval_,
+        uint256 lastUpdated_
+    ) internal view returns (bool) {
+        // Check that validator is approved by SPOG
+        if (!SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_)) return false;
+
+        // Timestamp time range sanity checks
+        if (block.timestamp > timestamp_ + updateInterval_) return false; // expired timestamp
+        if (lastUpdated_ > timestamp_) return false; // stale timestamp
+
+        // Check that ECDSA or ERC1271 signatures for given digest are valid
+        bytes32 digest_ = _getUpdateCollateralDigest(msg.sender, amount_, metadata_, timestamp_, retrieveIds_);
+        return SignatureChecker.isValidSignature(validator_, digest_, signature_);
     }
 
     function _allowedOutstandingValueOf(address minter_) internal view returns (uint256) {
