@@ -7,12 +7,12 @@ import { MToken } from "../../src/MToken.sol";
 contract MTokenHarness is MToken {
     constructor(address protocol_, address spogRegistrar_) MToken(protocol_, spogRegistrar_) {}
 
-    function setIndex(uint256 index_) external {
-        _index = index_;
+    function setLatestIndex(uint256 index_) external {
+        _latestIndex = index_;
     }
 
-    function setLastUpdated(uint256 lastUpdated_) external {
-        _lastUpdated = lastUpdated_;
+    function setLatestUpdated(uint256 timestamp_) external {
+        _latestAccrualTime = timestamp_;
     }
 
     function setIsEarning(address account_, bool isEarning_) external {
@@ -33,18 +33,6 @@ contract MTokenHarness is MToken {
 
     function setInternalBalanceOf(address account_, uint256 balance_) external {
         _balances[account_] = balance_;
-    }
-
-    function index() external view returns (uint256 index_) {
-        return _index;
-    }
-
-    function currentIndex() external view returns (uint256 index_) {
-        return _currentIndex();
-    }
-
-    function lastUpdated() external view returns (uint256 lastUpdated_) {
-        return _lastUpdated;
     }
 
     function internalBalanceOf(address account_) external view returns (uint256 balance_) {
