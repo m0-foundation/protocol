@@ -14,6 +14,8 @@ import { DigestHelper } from "./utils/DigestHelper.sol";
 import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
 
 contract ProtocolTests is Test {
+    uint256 internal constant ONE = 10000;
+
     address internal _minter1;
     uint256 internal _minter1Pk;
 
@@ -28,7 +30,8 @@ contract ProtocolTests is Test {
     uint256 internal _mintDelay = 1000;
     uint256 internal _mintTTL = 500;
     uint256 internal _mRate = 400; // 4%, bps
-    uint256 internal _minRatio = 9000; // 90%, bps
+    uint256 internal _mintRatio = 9000; // 90%, bps
+    uint256 internal _penalty = 100; // 1%, bps
 
     MockSPOGRegistrar internal _spogRegistrar;
     MockMToken internal _mToken;
@@ -40,9 +43,12 @@ contract ProtocolTests is Test {
     event MintRequestedCreated(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
     event MintRequestExecuted(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
     event MintRequestCanceled(uint256 mintId, address indexed minter, address indexed canceller);
+
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
 
-    event Burn(address indexed minter, address indexed payer, uint256 amount);
+    event Burn(address indexed minter, uint256 amount, address indexed payer);
+
+    event PenaltyAccrued(address indexed minter, uint256 amount, address indexed caller);
 
     function setUp() external {
         (_minter1, _minter1Pk) = makeAddrAndKey("minter1");
@@ -63,11 +69,13 @@ contract ProtocolTests is Test {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_FREEZE_TIME, bytes32(_minterFreezeTime));
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_DELAY, bytes32(_mintDelay));
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_TTL, bytes32(_mintTTL));
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, bytes32(_minRatio));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, bytes32(_mintRatio));
 
         _mRateModel = new MockRateModel();
         _spogRegistrar.updateConfig(SPOGRegistrarReader.M_RATE_MODEL, _toBytes32(address(_mRateModel)));
         _mRateModel.setRate(_mRate);
+
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.PENALTY, bytes32(_penalty));
     }
 
     function test_updateCollateral() external {
@@ -86,7 +94,7 @@ contract ProtocolTests is Test {
         emit CollateralUpdated(_minter1, collateral, timestamp, "");
         _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
 
-        (uint256 amount, uint256 lastUpdated) = _protocol.collateralOf(_minter1);
+        (uint256 amount, uint256 lastUpdated, ) = _protocol.collateralOf(_minter1);
         assertEq(amount, collateral);
         assertEq(lastUpdated, timestamp);
     }
@@ -144,7 +152,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(100, block.timestamp, "", validators, signatures);
 
-        (, uint256 lastUpdated_) = _protocol.collateralOf(_minter1);
+        (, uint256 lastUpdated_, ) = _protocol.collateralOf(_minter1);
 
         uint256 timestamp = lastUpdated_ - 1;
         signature = _getSignature(_minter1, 100, timestamp, "", _validator1Pk);
@@ -524,7 +532,7 @@ contract ProtocolTests is Test {
         _protocol.mint(mintId);
 
         vm.expectEmit();
-        emit Burn(_minter1, to, mintAmount - 1);
+        emit Burn(_minter1, mintAmount - 1 wei, to);
 
         vm.prank(to);
         _protocol.burn(_minter1, mintAmount);
@@ -548,7 +556,7 @@ contract ProtocolTests is Test {
         address bob = makeAddr("bob");
 
         vm.expectEmit();
-        emit Burn(_minter1, alice, minterOutstandingValue / 2);
+        emit Burn(_minter1, minterOutstandingValue / 2, alice);
 
         vm.prank(alice);
         _protocol.burn(_minter1, minterOutstandingValue / 2);
@@ -558,7 +566,7 @@ contract ProtocolTests is Test {
         // TODO: check that burn has been called.
 
         vm.expectEmit();
-        emit Burn(_minter1, bob, minterOutstandingValue / 2);
+        emit Burn(_minter1, minterOutstandingValue / 2, bob);
 
         vm.prank(bob);
         _protocol.burn(_minter1, minterOutstandingValue / 2);
@@ -580,6 +588,188 @@ contract ProtocolTests is Test {
         vm.expectRevert();
         vm.prank(makeAddr("alice"));
         _protocol.burn(_minter1, minterOutstandingValue);
+    }
+
+    function test_updateCollateral_accruePenaltyForExpiredCollateralValue() external {
+        uint256 collateral = 100e18;
+        uint256 amount = 60e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral, timestamp);
+        _protocol.setNormalizedPrincipalOf(_minter1, amount);
+
+        vm.warp(timestamp + 3 * _updateCollateralInterval);
+
+        uint256 penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
+        uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
+        assertEq(penalty, (minterOutstandingValue * 3 * _penalty) / ONE);
+
+        bytes memory signature = _getSignature(_minter1, collateral, block.timestamp, "", _validator1Pk);
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = signature;
+
+        vm.prank(_minter1);
+        vm.expectEmit();
+        emit PenaltyAccrued(_minter1, penalty, _minter1);
+        _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
+
+        assertEq(_protocol.outstandingValueOf(_minter1), minterOutstandingValue + penalty);
+    }
+
+    function test_updateCollateral_accruePenaltyForExcessiveOustandingValue() external {
+        uint256 collateral = 100e18;
+        uint256 amount = 180e18;
+        uint256 timestamp = block.timestamp;
+
+        bytes memory signature = _getSignature(_minter1, collateral, timestamp, "", _validator1Pk);
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = signature;
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(collateral, timestamp, "", validators, signatures);
+
+        _protocol.setNormalizedPrincipalOf(_minter1, amount);
+
+        vm.warp(timestamp + _updateCollateralInterval - 1);
+
+        uint256 penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
+        assertEq(penalty, 0);
+
+        // Step 2 - Update Collateral with excessive outstanding value
+        signature = _getSignature(_minter1, collateral, block.timestamp, "", _validator1Pk);
+        signatures[0] = signature;
+
+        uint256 oustandingDebt = _protocol.outstandingValueOf(_minter1);
+        uint256 allowedOutstandingDebt = (collateral * _mintRatio) / ONE;
+        uint256 expectedPenalty = ((oustandingDebt - allowedOutstandingDebt) * _penalty) / ONE;
+        vm.prank(_minter1);
+        vm.expectEmit();
+        emit PenaltyAccrued(_minter1, expectedPenalty, _minter1);
+        _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
+
+        // 1 wei precision loss
+        assertEq(_protocol.outstandingValueOf(_minter1) + 1 wei, oustandingDebt + expectedPenalty);
+    }
+
+    function test_updateCollateral_accrueBothPenalties() external {
+        uint256 collateral = 100e18;
+        uint256 amount = 60e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral, timestamp);
+        _protocol.setNormalizedPrincipalOf(_minter1, amount);
+
+        vm.warp(timestamp + 2 * _updateCollateralInterval);
+
+        uint256 penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
+        uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
+        assertEq(penalty, (minterOutstandingValue * 2 * _penalty) / ONE);
+
+        uint256 newCollateral = 10e18;
+        uint256 newTimestamp = block.timestamp;
+        bytes memory signature = _getSignature(_minter1, newCollateral, newTimestamp, "", _validator1Pk);
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = signature;
+
+        vm.prank(_minter1);
+        vm.expectEmit();
+        emit PenaltyAccrued(_minter1, penalty, _minter1);
+        _protocol.updateCollateral(newCollateral, newTimestamp, "", validators, signatures);
+
+        uint256 expectedPenalty = (((minterOutstandingValue + penalty) - (newCollateral * _mintRatio) / ONE) *
+            _penalty) / ONE;
+
+        // precision loss of 2 wei-s - 1 per each penalty
+        assertEq(_protocol.outstandingValueOf(_minter1) + 2 wei, minterOutstandingValue + penalty + expectedPenalty);
+
+        (, uint256 lastUpdated_, uint256 penalizedUntil_) = _protocol.collateralOf(_minter1);
+
+        assertEq(lastUpdated_, newTimestamp);
+        assertEq(penalizedUntil_, newTimestamp);
+    }
+
+    function test_burn_accruePenaltyForExpiredCollateralValue() external {
+        uint256 collateral = 100e18;
+        uint256 amount = 60e18;
+        uint256 timestamp = block.timestamp;
+        address to = makeAddr("to");
+
+        _protocol.setCollateralOf(_minter1, collateral, timestamp);
+        _protocol.setNormalizedPrincipalOf(_minter1, amount);
+
+        vm.warp(timestamp + 3 * _updateCollateralInterval);
+
+        uint256 penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
+        uint256 minterOustandingValue = _protocol.outstandingValueOf(_minter1);
+        assertEq(penalty, (minterOustandingValue * 3 * _penalty) / ONE);
+
+        _mintTo(to, minterOustandingValue);
+
+        vm.prank(to);
+        vm.expectEmit();
+        emit PenaltyAccrued(_minter1, penalty, to);
+        _protocol.burn(_minter1, minterOustandingValue);
+
+        minterOustandingValue = _protocol.outstandingValueOf(_minter1);
+
+        assertEq(minterOustandingValue, penalty);
+    }
+
+    function test_accruePenalty_penalizedUntil() external {
+        uint256 collateral = 100e18;
+        uint256 amount = 60e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral, timestamp);
+        _protocol.setNormalizedPrincipalOf(_minter1, amount);
+
+        vm.warp(timestamp + _updateCollateralInterval - 10);
+
+        uint256 penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
+        assertEq(penalty, 0);
+
+        vm.warp(timestamp + _updateCollateralInterval + 10);
+
+        penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
+        assertEq(penalty, (_protocol.outstandingValueOf(_minter1) * _penalty) / ONE);
+
+        bytes memory signature = _getSignature(_minter1, collateral, block.timestamp, "", _validator1Pk);
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = signature;
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
+
+        (, uint256 lastUpdated, uint256 penalizedUntil) = _protocol.collateralOf(_minter1);
+        assertEq(lastUpdated, block.timestamp);
+        assertEq(penalizedUntil, timestamp + _updateCollateralInterval);
+
+        address to = makeAddr("to");
+        _mintTo(to, 10e18);
+
+        vm.prank(to);
+        _protocol.burn(_minter1, 10e18);
+
+        (, uint256 lastUpdatedAgain, uint256 penalizedUntilAgain) = _protocol.collateralOf(_minter1);
+        assertEq(lastUpdated, lastUpdatedAgain);
+        assertEq(penalizedUntilAgain, penalizedUntilAgain);
+    }
+
+    function _mintTo(address account, uint256 amount) internal {
+        vm.prank(address(_protocol));
+        _mToken.mint(account, amount);
     }
 
     function _getSignature(
