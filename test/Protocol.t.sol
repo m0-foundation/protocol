@@ -72,7 +72,7 @@ contract ProtocolTests is Test {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, bytes32(_mintRatio));
 
         _mRateModel = new MockRateModel();
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.M_RATE_MODEL, _toBytes32(address(_mRateModel)));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, _toBytes32(address(_mRateModel)));
         _mRateModel.setRate(_mRate);
 
         _spogRegistrar.updateConfig(SPOGRegistrarReader.PENALTY, bytes32(_penalty));

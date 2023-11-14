@@ -443,7 +443,7 @@ contract Protocol is IProtocol, StatelessERC712 {
     }
 
     function _getMRate() internal view returns (uint256 rate_) {
-        return IInterestRateModel(SPOGRegistrarReader.getMRateModel(spogRegistrar)).rate();
+        return IInterestRateModel(SPOGRegistrarReader.getMinterRateModel(spogRegistrar)).rate();
     }
 
     function _revertIfNotApprovedMinter(address minter_) internal view {

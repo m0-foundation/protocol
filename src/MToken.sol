@@ -10,26 +10,27 @@ import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { ERC20Permit } from "./ERC20Permit.sol";
 
-// TODO: Explicit opt in an opt out for earning interest trumps.
-// TODO: Anyone can opt an account in if they have not yet already explicitly opted out.
-// TODO: Globals whitelist on or off.
-// TODO: Better names for `startEarningInterest`, `stopEarningInterest`, and all other `interest` in general.
-// TODO: Handle variable/dynamic interest rates by `updateInterestIndex()` on all interest earning transfers.
-// TODO: Expose `interestEarningTotalSupply`.
-// TODO: Consider an optically safer `bur`n via `burn(uint amount_)` where the account is `msg.sender`.
+// TODO: Consider an socially/optically "safer" `burn` via `burn(uint amount_)` where the account is `msg.sender`.
+// TODO: Some mechanism that allows a UI/script to determine how much an account or the system stands to gain from
+//       calling `updateIndex()`.
+// TODO: Some increased/decreased earning supply event(s)? Might be useful for a UI/script, or useless in general.
+// TODO: Is an `indexUpdated` event useful?
 
 contract MToken is IMToken, ERC20Permit {
     address public immutable protocol;
     address public immutable spogRegistrar;
 
-    uint256 internal _interestEarningTotalSupply;
+    uint256 internal _totalEarningSupplyPrincipal;
 
     // TODO: Consider packing these into a single slot.
-    uint256 internal _interestIndex;
+    uint256 internal _index;
     uint256 internal _lastUpdated;
 
-    // TODO: Replace with flag bit in balance.
-    mapping(address account => bool isEarningInterest) internal _isEarningInterest;
+    // TODO: Consider replace with flag bit/byte in balance.
+    mapping(address account => bool isEarning) internal _isEarning;
+
+    // TODO: Consider replace with flag bit/byte in balance.
+    mapping(address account => bool hasOptedOutOfEarning) internal _hasOptedOutOfEarning;
 
     modifier onlyProtocol() {
         if (msg.sender != protocol) revert NotProtocol();
@@ -44,7 +45,7 @@ contract MToken is IMToken, ERC20Permit {
     constructor(address protocol_, address spogRegistrar_) ERC20Permit("M Token", "M", 18) {
         protocol = protocol_;
         spogRegistrar = spogRegistrar_;
-        _interestIndex = 1 * InterestMath.EXP_BASE_SCALE;
+        _index = 1 * InterestMath.EXP_BASE_SCALE;
         _lastUpdated = block.timestamp;
     }
 
@@ -52,35 +53,47 @@ contract MToken is IMToken, ERC20Permit {
     |                                      External/Public Interactive Functions                                       |
     \******************************************************************************************************************/
 
+    function burn(address account_, uint256 amount_) external onlyProtocol {
+        _burn(account_, amount_);
+    }
+
     function mint(address account_, uint256 amount_) external onlyProtocol {
         _mint(account_, amount_);
     }
 
-    function burn(address account_, uint amount_) external onlyProtocol {
-        _burn(account_, amount_);
+    function optOutOfEarning() public {
+        emit OptedOutOfEarning(msg.sender);
+        _hasOptedOutOfEarning[msg.sender] = true;
     }
 
-    function startEarningInterest() external {
-        if (!SPOGRegistrarReader.isApprovedInterestEarner(spogRegistrar, msg.sender)) {
-            revert NotApprovedInterestEarner();
-        }
+    function startEarning() external {
+        _revertIfNotApprovedEarner(msg.sender);
 
-        _startEarningInterest(msg.sender);
+        _startEarning(msg.sender);
     }
 
-    function stopEarningInterest() external {
-        _stopEarningInterest(msg.sender);
+    function startEarning(address account_) external {
+        _revertIfNotApprovedEarner(account_);
+
+        if (_hasOptedOutOfEarning[account_]) revert HasOptedOut();
+
+        _startEarning(account_);
     }
 
-    function stopEarningInterest(address account_) external {
-        if (SPOGRegistrarReader.isApprovedInterestEarner(spogRegistrar, account_)) revert IsApprovedInterestEarner();
-
-        _stopEarningInterest(account_);
+    function stopEarning() external {
+        optOutOfEarning();
+        _stopEarning(msg.sender);
     }
 
-    function updateInterestIndex() public returns (uint256 currentInterestIndex_) {
-        currentInterestIndex_ = _currentInterestIndex();
-        _interestIndex = currentInterestIndex_;
+    function stopEarning(address account_) external {
+        if (_isApprovedEarner(account_)) revert IsApprovedEarner();
+
+        _stopEarning(account_);
+    }
+
+    function updateIndex() public returns (uint256 currentIndex_) {
+        currentIndex_ = _currentIndex();
+        _index = currentIndex_;
         _lastUpdated = block.timestamp;
     }
 
@@ -89,14 +102,11 @@ contract MToken is IMToken, ERC20Permit {
     \******************************************************************************************************************/
 
     function balanceOf(address account_) external view override returns (uint256 balance_) {
-        return
-            _isEarningInterest[account_]
-                ? InterestMath.multiply(_balances[account_], _currentInterestIndex())
-                : _balances[account_];
+        return _isEarning[account_] ? InterestMath.multiply(_balances[account_], _currentIndex()) : _balances[account_];
     }
 
-    function interestRate() public view returns (uint256 rate_) {
-        address rateModel_ = SPOGRegistrarReader.getInterestRateModel(spogRegistrar);
+    function earningRate() public view returns (uint256 rate_) {
+        address rateModel_ = SPOGRegistrarReader.getEarningRateModel(spogRegistrar);
 
         (bool success_, bytes memory returnData_) = rateModel_.staticcall(
             abi.encodeWithSelector(IInterestRateModel.rate.selector)
@@ -105,54 +115,88 @@ contract MToken is IMToken, ERC20Permit {
         return success_ ? abi.decode(returnData_, (uint256)) : 0;
     }
 
-    function isEarningInterest(address account_) external view returns (bool isEarningInterest_) {
-        return _isEarningInterest[account_];
+    function hasOptedOutOfEarning(address account_) external view returns (bool hasOpted_) {
+        return _hasOptedOutOfEarning[account_];
+    }
+
+    function isEarning(address account_) external view returns (bool isEarning_) {
+        return _isEarning[account_];
+    }
+
+    function totalEarningSupply() public view returns (uint256 totalEarningSupply_) {
+        return InterestMath.multiply(_totalEarningSupplyPrincipal, _currentIndex());
     }
 
     function totalSupply() external view override returns (uint256 totalSupply_) {
-        return _totalSupply + InterestMath.multiply(_interestEarningTotalSupply, _currentInterestIndex());
+        return _totalSupply + totalEarningSupply();
     }
 
     /******************************************************************************************************************\
     |                                          Internal Interactive Functions                                          |
     \******************************************************************************************************************/
 
-    function _burn(address account_, uint256 amount_) internal override {
-        _decreaseBalance(account_, InterestMath.divide(amount_, _currentInterestIndex()), amount_);
+    function _addEarningAmount(address account_, uint256 principalAmount_) internal {
+        unchecked {
+            _balances[account_] += principalAmount_;
+            _totalEarningSupplyPrincipal += principalAmount_;
+        }
+    }
 
+    function _addNonEarningAmount(address account_, uint256 amount_) internal {
+        unchecked {
+            _balances[account_] += amount_;
+            _totalSupply += amount_;
+        }
+    }
+
+    function _burn(address account_, uint256 amount_) internal override {
         emit Transfer(account_, address(0), amount_);
+
+        _isEarning[account_]
+            ? _subtractEarningAmount(account_, _getPrincipalAmountAndUpdateIndex(amount_))
+            : _subtractNonEarningAmount(account_, amount_);
+    }
+
+    function _getPrincipalAmountAndUpdateIndex(uint256 presentAmount_) internal returns (uint256 principalAmount_) {
+        return InterestMath.divide(presentAmount_, updateIndex());
+    }
+
+    function _getPresentAmountAndUpdateIndex(uint256 principalAmount_) internal returns (uint256 presentAmount_) {
+        return InterestMath.multiply(principalAmount_, updateIndex());
     }
 
     function _mint(address recipient_, uint256 amount_) internal override {
-        _increaseBalance(recipient_, InterestMath.divide(amount_, _currentInterestIndex()), amount_);
-
         emit Transfer(address(0), recipient_, amount_);
+
+        _isEarning[recipient_]
+            ? _addEarningAmount(recipient_, _getPrincipalAmountAndUpdateIndex(amount_))
+            : _addNonEarningAmount(recipient_, amount_);
     }
 
-    function _startEarningInterest(address account_) internal {
-        if (_isEarningInterest[account_]) revert AlreadyEarningInterest();
+    function _startEarning(address account_) internal {
+        if (_isEarning[account_]) revert AlreadyEarning();
 
         uint256 presentAmount_ = _balances[account_];
-        uint256 principalAmount_ = InterestMath.divide(presentAmount_, _currentInterestIndex());
+        uint256 principalAmount_ = _getPrincipalAmountAndUpdateIndex(presentAmount_);
 
         _balances[account_] = principalAmount_;
 
         unchecked {
-            _interestEarningTotalSupply += principalAmount_;
+            _totalEarningSupplyPrincipal += principalAmount_;
         }
 
         _totalSupply -= presentAmount_;
 
-        _isEarningInterest[account_] = true;
+        _isEarning[account_] = true;
 
-        emit StartedEarningInterest(account_);
+        emit StartedEarning(account_);
     }
 
-    function _stopEarningInterest(address account_) internal {
-        if (!_isEarningInterest[account_]) revert AlreadyNotEarningInterest();
+    function _stopEarning(address account_) internal {
+        if (!_isEarning[account_]) revert AlreadyNotEarning();
 
         uint256 principalAmount_ = _balances[account_];
-        uint256 presentAmount_ = InterestMath.multiply(principalAmount_, _currentInterestIndex());
+        uint256 presentAmount_ = _getPresentAmountAndUpdateIndex(principalAmount_);
 
         _balances[account_] = presentAmount_;
 
@@ -160,41 +204,55 @@ contract MToken is IMToken, ERC20Permit {
             _totalSupply += presentAmount_;
         }
 
-        _interestEarningTotalSupply -= principalAmount_;
+        _totalEarningSupplyPrincipal -= principalAmount_;
 
-        _isEarningInterest[account_] = false;
+        _isEarning[account_] = false;
 
-        emit StoppedEarningInterest(account_);
+        emit StoppedEarning(account_);
+    }
+
+    function _subtractEarningAmount(address account_, uint256 principalAmount_) internal {
+        _balances[account_] -= principalAmount_;
+        _totalEarningSupplyPrincipal -= principalAmount_;
+    }
+
+    function _subtractNonEarningAmount(address account_, uint256 amount_) internal {
+        _balances[account_] -= amount_;
+        _totalSupply -= amount_;
     }
 
     function _transfer(address sender_, address recipient_, uint256 amount_) internal override {
-        uint256 principalAmount_ = InterestMath.divide(amount_, _currentInterestIndex());
-
-        _decreaseBalance(sender_, principalAmount_, amount_);
-        _increaseBalance(recipient_, principalAmount_, amount_);
-
         emit Transfer(sender_, recipient_, amount_);
-    }
 
-    function _decreaseBalance(address account_, uint256 principalAmount_, uint256 presentAmount_) internal {
-        if (_isEarningInterest[account_]) {
-            _balances[account_] -= principalAmount_;
-            _interestEarningTotalSupply -= principalAmount_;
+        bool senderIsEarning_ = _isEarning[sender_]; // Only using the sender's earning status more than once.
+
+        // If this is an in-kind transfer, then...
+        if (senderIsEarning_ == _isEarning[recipient_]) {
+            return
+                _transferAmountInKind( // perform an in-kind transfer with...
+                    sender_,
+                    recipient_,
+                    senderIsEarning_ ? _getPrincipalAmountAndUpdateIndex(amount_) : amount_ // the appropriate amount.
+                );
+        }
+
+        // If this is not an in-kind transfer, then...
+        if (senderIsEarning_) {
+            // either the sender is earning and the recipient is not, or...
+            _subtractEarningAmount(sender_, _getPrincipalAmountAndUpdateIndex(amount_));
+            _addNonEarningAmount(recipient_, amount_);
         } else {
-            _balances[account_] -= presentAmount_;
-            _totalSupply -= presentAmount_;
+            // the sender is not earning and the recipient is.
+            _subtractNonEarningAmount(sender_, amount_);
+            _addEarningAmount(recipient_, _getPrincipalAmountAndUpdateIndex(amount_));
         }
     }
 
-    function _increaseBalance(address account_, uint256 principalAmount_, uint256 presentAmount_) internal {
+    function _transferAmountInKind(address sender_, address recipient_, uint256 amount_) internal {
+        _balances[sender_] -= amount_;
+
         unchecked {
-            if (_isEarningInterest[account_]) {
-                _balances[account_] += principalAmount_;
-                _interestEarningTotalSupply += principalAmount_;
-            } else {
-                _balances[account_] += presentAmount_;
-                _totalSupply += presentAmount_;
-            }
+            _balances[recipient_] += amount_;
         }
     }
 
@@ -202,14 +260,24 @@ contract MToken is IMToken, ERC20Permit {
     |                                           Internal View/Pure Functions                                           |
     \******************************************************************************************************************/
 
-    function _currentInterestIndex() internal view returns (uint256 currentInterestIndex_) {
+    function _currentIndex() internal view returns (uint256 currentIndex_) {
         return
             InterestMath.multiply(
-                _interestIndex,
+                _index,
                 InterestMath.getContinuousIndex(
-                    InterestMath.convertFromBasisPoints(interestRate()),
+                    InterestMath.convertFromBasisPoints(earningRate()),
                     block.timestamp - _lastUpdated
                 )
             );
+    }
+
+    function _isApprovedEarner(address account_) internal view returns (bool isApproved_) {
+        return
+            SPOGRegistrarReader.isEarnersListIgnored(spogRegistrar) ||
+            SPOGRegistrarReader.isApprovedEarner(spogRegistrar, account_);
+    }
+
+    function _revertIfNotApprovedEarner(address account_) internal view {
+        if (!_isApprovedEarner(account_)) revert NotApprovedEarner();
     }
 }
