@@ -25,6 +25,10 @@ contract MockSPOGRegistrar is ISPOGRegistrar {
         delete _valueAt[_getKeyInSet(list_, account_)];
     }
 
+    function setVault(address vault_) external {
+        _vault = vault_;
+    }
+
     function updateConfig(bytes32 key_, bytes32 value_) external {
         _valueAt[key_] = value_;
     }
