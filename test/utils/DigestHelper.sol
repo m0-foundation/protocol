@@ -10,7 +10,8 @@ library DigestHelper {
         address protocol_,
         address minter_,
         uint256 amount_,
-        string memory metadata_,
+        bytes32 metadata_,
+        uint256[] calldata retrieveIds_,
         uint256 timestamp_
     ) external view returns (bytes32) {
         return
@@ -22,6 +23,7 @@ library DigestHelper {
                         minter_,
                         amount_,
                         metadata_,
+                        retrieveIds_,
                         timestamp_
                     )
                 )
