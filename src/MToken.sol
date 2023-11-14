@@ -2,12 +2,12 @@
 
 pragma solidity 0.8.21;
 
+import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
+
 import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 
-import { InterestMath } from "./libs/InterestMath.sol";
-import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
-
+import { ContinuousInterestIndexing } from "./ContinuousInterestIndexing.sol";
 import { ERC20Permit } from "./ERC20Permit.sol";
 
 // TODO: Consider an socially/optically "safer" `burn` via `burn(uint amount_)` where the account is `msg.sender`.
@@ -16,15 +16,11 @@ import { ERC20Permit } from "./ERC20Permit.sol";
 // TODO: Some increased/decreased earning supply event(s)? Might be useful for a UI/script, or useless in general.
 // TODO: Is an `indexUpdated` event useful?
 
-contract MToken is IMToken, ERC20Permit {
+contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
     address public immutable protocol;
     address public immutable spogRegistrar;
 
     uint256 internal _totalEarningSupplyPrincipal;
-
-    // TODO: Consider packing these into a single slot.
-    uint256 internal _index;
-    uint256 internal _lastUpdated;
 
     // TODO: Consider replace with flag bit/byte in balance.
     mapping(address account => bool isEarning) internal _isEarning;
@@ -42,11 +38,12 @@ contract MToken is IMToken, ERC20Permit {
      * @notice Constructor.
      * @param protocol_ The address of Protocol
      */
-    constructor(address protocol_, address spogRegistrar_) ERC20Permit("M Token", "M", 18) {
+    constructor(
+        address protocol_,
+        address spogRegistrar_
+    ) ContinuousInterestIndexing() ERC20Permit("M Token", "M", 18) {
         protocol = protocol_;
         spogRegistrar = spogRegistrar_;
-        _index = 1 * InterestMath.EXP_BASE_SCALE;
-        _lastUpdated = block.timestamp;
     }
 
     /******************************************************************************************************************\
@@ -91,28 +88,16 @@ contract MToken is IMToken, ERC20Permit {
         _stopEarning(account_);
     }
 
-    function updateIndex() public returns (uint256 currentIndex_) {
-        currentIndex_ = _currentIndex();
-        _index = currentIndex_;
-        _lastUpdated = block.timestamp;
-    }
-
     /******************************************************************************************************************\
     |                                       External/Public View/Pure Functions                                        |
     \******************************************************************************************************************/
 
     function balanceOf(address account_) external view override returns (uint256 balance_) {
-        return _isEarning[account_] ? InterestMath.multiply(_balances[account_], _currentIndex()) : _balances[account_];
+        return _isEarning[account_] ? _getPresentAmount(_balances[account_], currentIndex()) : _balances[account_];
     }
 
     function earningRate() public view returns (uint256 rate_) {
-        address rateModel_ = SPOGRegistrarReader.getEarningRateModel(spogRegistrar);
-
-        (bool success_, bytes memory returnData_) = rateModel_.staticcall(
-            abi.encodeWithSelector(IInterestRateModel.rate.selector)
-        );
-
-        return success_ ? abi.decode(returnData_, (uint256)) : 0;
+        return _rate();
     }
 
     function hasOptedOutOfEarning(address account_) external view returns (bool hasOpted_) {
@@ -124,7 +109,7 @@ contract MToken is IMToken, ERC20Permit {
     }
 
     function totalEarningSupply() public view returns (uint256 totalEarningSupply_) {
-        return InterestMath.multiply(_totalEarningSupplyPrincipal, _currentIndex());
+        return _getPresentAmount(_totalEarningSupplyPrincipal, currentIndex());
     }
 
     function totalSupply() external view override returns (uint256 totalSupply_) {
@@ -155,14 +140,6 @@ contract MToken is IMToken, ERC20Permit {
         _isEarning[account_]
             ? _subtractEarningAmount(account_, _getPrincipalAmountAndUpdateIndex(amount_))
             : _subtractNonEarningAmount(account_, amount_);
-    }
-
-    function _getPrincipalAmountAndUpdateIndex(uint256 presentAmount_) internal returns (uint256 principalAmount_) {
-        return InterestMath.divide(presentAmount_, updateIndex());
-    }
-
-    function _getPresentAmountAndUpdateIndex(uint256 principalAmount_) internal returns (uint256 presentAmount_) {
-        return InterestMath.multiply(principalAmount_, updateIndex());
     }
 
     function _mint(address recipient_, uint256 amount_) internal override {
@@ -260,15 +237,14 @@ contract MToken is IMToken, ERC20Permit {
     |                                           Internal View/Pure Functions                                           |
     \******************************************************************************************************************/
 
-    function _currentIndex() internal view returns (uint256 currentIndex_) {
-        return
-            InterestMath.multiply(
-                _index,
-                InterestMath.getContinuousIndex(
-                    InterestMath.convertFromBasisPoints(earningRate()),
-                    block.timestamp - _lastUpdated
-                )
-            );
+    function _rate() internal view override returns (uint256 rate_) {
+        address rateModel_ = SPOGRegistrarReader.getEarningRateModel(spogRegistrar);
+
+        (bool success_, bytes memory returnData_) = rateModel_.staticcall(
+            abi.encodeWithSelector(IInterestRateModel.rate.selector)
+        );
+
+        return success_ ? abi.decode(returnData_, (uint256)) : 0;
     }
 
     function _isApprovedEarner(address account_) internal view returns (bool isApproved_) {

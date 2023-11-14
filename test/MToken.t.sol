@@ -61,8 +61,8 @@ contract MTokenTests is Test {
         assertEq(_mToken.internalBalanceOf(_alice), 1_000);
         assertEq(_mToken.internalTotalSupply(), 1_000);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
-        assertEq(_mToken.index(), InterestMath.EXP_BASE_SCALE);
-        assertEq(_mToken.lastUpdated(), _start);
+        assertEq(_mToken.latestIndex(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestAccrualTime(), _start);
     }
 
     function test_mint_toEarner() external {
@@ -74,8 +74,8 @@ contract MTokenTests is Test {
         assertEq(_mToken.internalBalanceOf(_alice), 909);
         assertEq(_mToken.internalTotalSupply(), 0);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 909);
-        assertEq(_mToken.index(), _expectedCurrentIndex);
-        assertEq(_mToken.lastUpdated(), block.timestamp);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestAccrualTime(), block.timestamp);
     }
 
     function test_burn_notProtocol() external {
@@ -110,8 +110,8 @@ contract MTokenTests is Test {
         assertEq(_mToken.internalBalanceOf(_alice), 500);
         assertEq(_mToken.internalTotalSupply(), 500);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
-        assertEq(_mToken.index(), InterestMath.EXP_BASE_SCALE);
-        assertEq(_mToken.lastUpdated(), _start);
+        assertEq(_mToken.latestIndex(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestAccrualTime(), _start);
 
         vm.prank(address(_protocol));
         _mToken.burn(_alice, 500);
@@ -119,8 +119,8 @@ contract MTokenTests is Test {
         assertEq(_mToken.internalBalanceOf(_alice), 0);
         assertEq(_mToken.internalTotalSupply(), 0);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
-        assertEq(_mToken.index(), InterestMath.EXP_BASE_SCALE);
-        assertEq(_mToken.lastUpdated(), _start);
+        assertEq(_mToken.latestIndex(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestAccrualTime(), _start);
     }
 
     function test_burn_fromEarner() external {
@@ -134,8 +134,8 @@ contract MTokenTests is Test {
         assertEq(_mToken.internalBalanceOf(_alice), 455);
         assertEq(_mToken.internalTotalSupply(), 0);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 455);
-        assertEq(_mToken.index(), _expectedCurrentIndex);
-        assertEq(_mToken.lastUpdated(), block.timestamp);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestAccrualTime(), block.timestamp);
 
         vm.prank(address(_protocol));
         _mToken.burn(_alice, 500);
@@ -143,8 +143,8 @@ contract MTokenTests is Test {
         assertEq(_mToken.internalBalanceOf(_alice), 1);
         assertEq(_mToken.internalTotalSupply(), 0);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 1);
-        assertEq(_mToken.index(), _expectedCurrentIndex);
-        assertEq(_mToken.lastUpdated(), block.timestamp);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestAccrualTime(), block.timestamp);
     }
 
     function test_transfer_insufficientBalance_fromNonEarner_toNonEarner() external {
@@ -178,8 +178,8 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.internalTotalSupply(), 1_500);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
-        assertEq(_mToken.index(), InterestMath.EXP_BASE_SCALE);
-        assertEq(_mToken.lastUpdated(), _start);
+        assertEq(_mToken.latestIndex(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestAccrualTime(), _start);
     }
 
     function test_transfer_fromEarner_toNonEarner() external {
@@ -200,8 +200,8 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.internalTotalSupply(), 1_000);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 455);
-        assertEq(_mToken.index(), _expectedCurrentIndex);
-        assertEq(_mToken.lastUpdated(), block.timestamp);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestAccrualTime(), block.timestamp);
     }
 
     function test_transfer_fromNonEarner_toEarner() external {
@@ -222,8 +222,8 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.internalTotalSupply(), 500);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 909);
-        assertEq(_mToken.index(), _expectedCurrentIndex);
-        assertEq(_mToken.lastUpdated(), block.timestamp);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestAccrualTime(), block.timestamp);
     }
 
     function test_transfer_fromEarner_toEarner() external {
@@ -244,8 +244,8 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.internalTotalSupply(), 0);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 1364);
-        assertEq(_mToken.index(), _expectedCurrentIndex);
-        assertEq(_mToken.lastUpdated(), block.timestamp);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestAccrualTime(), block.timestamp);
     }
 
     function test_startEarning_onBehalfOf_notApprovedEarner() external {
@@ -283,8 +283,8 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.internalTotalSupply(), 0);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 909);
-        assertEq(_mToken.index(), _expectedCurrentIndex);
-        assertEq(_mToken.lastUpdated(), block.timestamp);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestAccrualTime(), block.timestamp);
     }
 
     function test_startEarning_notApprovedEarner() external {
@@ -316,8 +316,8 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.internalTotalSupply(), 0);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 909);
-        assertEq(_mToken.index(), _expectedCurrentIndex);
-        assertEq(_mToken.lastUpdated(), block.timestamp);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestAccrualTime(), block.timestamp);
     }
 
     function test_stopEarning_onBehalfOf_isApprovedEarner() external {
@@ -344,8 +344,8 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.internalTotalSupply(), 999);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
-        assertEq(_mToken.index(), _expectedCurrentIndex);
-        assertEq(_mToken.lastUpdated(), block.timestamp);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestAccrualTime(), block.timestamp);
     }
 
     function test_stopEarning_alreadyNotEarning() external {
@@ -368,13 +368,13 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.internalTotalSupply(), 999);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
-        assertEq(_mToken.index(), _expectedCurrentIndex);
-        assertEq(_mToken.lastUpdated(), block.timestamp);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestAccrualTime(), block.timestamp);
     }
 
     function test_updateIndex() external {
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.index(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestIndex(), InterestMath.EXP_BASE_SCALE);
 
         vm.warp(block.timestamp + 365 days);
 
@@ -387,8 +387,8 @@ contract MTokenTests is Test {
 
         _mToken.updateIndex();
 
-        assertEq(_mToken.index(), _expectedCurrentIndex);
-        assertEq(_mToken.lastUpdated(), block.timestamp);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestAccrualTime(), block.timestamp);
 
         _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
 
@@ -405,8 +405,8 @@ contract MTokenTests is Test {
 
         _mToken.updateIndex();
 
-        assertEq(_mToken.index(), _expectedCurrentIndex);
-        assertEq(_mToken.lastUpdated(), block.timestamp);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestAccrualTime(), block.timestamp);
     }
 
     function test_balanceOf_nonEarner() external {
