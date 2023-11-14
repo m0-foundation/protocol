@@ -755,6 +755,16 @@ contract ProtocolTests is Test {
         (, uint256 lastUpdated, uint256 penalizedUntil) = _protocol.collateralOf(_minter1);
         assertEq(lastUpdated, block.timestamp);
         assertEq(penalizedUntil, timestamp + _updateCollateralInterval);
+
+        address to = makeAddr("to");
+        _mintTo(to, 10e18);
+
+        vm.prank(to);
+        _protocol.burn(_minter1, 10e18);
+
+        (, uint256 lastUpdatedAgain, uint256 penalizedUntilAgain) = _protocol.collateralOf(_minter1);
+        assertEq(lastUpdated, lastUpdatedAgain);
+        assertEq(penalizedUntilAgain, penalizedUntilAgain);
     }
 
     function _mintTo(address account, uint256 amount) internal {
