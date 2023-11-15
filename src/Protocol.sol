@@ -50,6 +50,8 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
 
     uint256 public totalNormalizedPrincipal;
 
+    uint256 public totalRemovedOutstandingValue;
+
     mapping(address minter => CollateralBasic basic) public collateralOf;
 
     mapping(address minter => MintRequest request) public mintRequestOf;
@@ -58,9 +60,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
 
     mapping(address minter => uint256 amount) public normalizedPrincipalOf;
 
-    mapping(address minter => uint256 amount) public removedDebtOf;
-
-    uint256 public totalRemovedDebt;
+    mapping(address minter => uint256 amount) public removedOutstandingValueOf;
 
     modifier onlyApprovedMinter() {
         _revertIfNotApprovedMinter(msg.sender);
@@ -236,10 +236,10 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
     }
 
     function _repayForRemovedMinter(address minter_, uint256 amount_) internal returns (uint256) {
-        uint256 repayAmount_ = _min(removedDebtOf[minter_], amount_);
+        uint256 repayAmount_ = _min(removedOutstandingValueOf[minter_], amount_);
 
-        removedDebtOf[minter_] -= repayAmount_;
-        totalRemovedDebt -= repayAmount_;
+        removedOutstandingValueOf[minter_] -= repayAmount_;
+        totalRemovedOutstandingValue -= repayAmount_;
 
         return repayAmount_;
     }
@@ -297,10 +297,10 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
 
         _accruePenaltyForExpiredCollateralValue(minter_);
 
-        uint256 remainingDebt_ = _outstandingValueOf(minter_);
-        // NOTE: Do not allow setting removedDebtOf to 0 by calling this function multiple times
-        removedDebtOf[minter_] += remainingDebt_;
-        totalRemovedDebt += remainingDebt_;
+        uint256 outstandingValue_ = _outstandingValueOf(minter_);
+        // NOTE: Do not allow setting removedOutstandingValueOf to 0 by calling this function multiple times
+        removedOutstandingValueOf[minter_] += outstandingValue_;
+        totalRemovedOutstandingValue += outstandingValue_;
 
         // Reset minter's state
         delete collateralOf[minter_];
@@ -310,7 +310,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         totalNormalizedPrincipal -= normalizedPrincipalOf[minter_];
         delete normalizedPrincipalOf[minter_];
 
-        emit MinterRemoved(minter_, remainingDebt_, msg.sender);
+        emit MinterRemoved(minter_, outstandingValue_, msg.sender);
     }
 
     /******************************************************************************************************************\

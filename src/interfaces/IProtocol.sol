@@ -87,8 +87,14 @@ interface IProtocol is IContinuousInterestIndexing {
     /// @notice The total normalized principal (t0 principal value) for all minters
     function totalNormalizedPrincipal() external view returns (uint256 totalNormalizedPrincipal);
 
+    /// @notice The total outstanding value for all removed minters
+    function totalRemovedOutstandingValue() external view returns (uint256 totalRemovedOutstandingValue);
+
     /// @notice The normalized principal (t0 principal value) for each minter
     function normalizedPrincipalOf(address minter) external view returns (uint256 amount);
+
+    /// @notice The outstanding value of removed minter
+    function removedOutstandingValueOf(address minter) external view returns (uint256 removedOutstandingValueOf);
 
     /**
      * @notice Returns the amount of M tokens that minter owes to the protocol

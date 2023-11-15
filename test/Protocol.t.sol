@@ -788,7 +788,7 @@ contract ProtocolTests is Test {
 
         assertEq(_protocol.normalizedPrincipalOf(_minter1), 0);
         assertEq(_protocol.outstandingValueOf(_minter1), 0);
-        assertEq(_protocol.removedDebtOf(_minter1), minterOutstandingValue);
+        assertEq(_protocol.removedOutstandingValueOf(_minter1), minterOutstandingValue);
 
         _mintTo(alice, minterOutstandingValue);
 
