@@ -495,28 +495,6 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         revert NotEnoughValidSignatures();
     }
 
-    function _isValidSignature(
-        uint256 amount_,
-        string memory metadata_,
-        uint256[] memory retrieveIds_,
-        address validator_,
-        uint256 timestamp_,
-        bytes memory signature_,
-        uint256 updateInterval_,
-        uint256 lastUpdated_
-    ) internal view returns (bool) {
-        // Check that validator is approved by SPOG
-        if (!SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_)) return false;
-
-        // Timestamp time range sanity checks
-        if (block.timestamp > timestamp_ + updateInterval_) return false; // expired timestamp
-        if (lastUpdated_ > timestamp_) return false; // stale timestamp
-
-        // Check that ECDSA or ERC1271 signatures for given digest are valid
-        bytes32 digest_ = _getUpdateCollateralDigest(msg.sender, amount_, metadata_, timestamp_, retrieveIds_);
-        return SignatureChecker.isValidSignature(validator_, digest_, signature_);
-    }
-
     function _allowedOutstandingValueOf(address minter_) internal view returns (uint256) {
         CollateralBasic storage minterCollateral_ = collateralOf[minter_];
 
