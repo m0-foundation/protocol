@@ -3,31 +3,32 @@
 pragma solidity 0.8.21;
 
 import { SignatureChecker } from "./libs/SignatureChecker.sol";
-import { InterestMath } from "./libs/InterestMath.sol";
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
+import { IContinuousInterestIndexing } from "./interfaces/IContinuousInterestIndexing.sol";
 
+import { ContinuousInterestIndexing } from "./ContinuousInterestIndexing.sol";
 import { StatelessERC712 } from "./StatelessERC712.sol";
-import { MToken } from "./MToken.sol";
 
 /**
  * @title Protocol
  * @author M^ZERO LABS_
  * @notice Core protocol of M^ZERO ecosystem. TODO Add description.
  */
-contract Protocol is IProtocol, StatelessERC712 {
-    // TODO bit-packing
+contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
+    // TODO: bit-packing
     struct CollateralBasic {
         uint256 amount;
         uint256 lastUpdated;
+        uint256 penalizedUntil; // for missed update collateral intervals only
     }
 
-    // TODO bit-packing
+    // TODO: bit-packing
     struct MintRequest {
-        uint256 mintId; // TODO uint96 or uint48 if 2 additional fields
+        uint256 mintId; // TODO: uint96 or uint48 if 2 additional fields
         address to;
         uint256 amount;
         uint256 createdAt;
@@ -37,52 +38,29 @@ contract Protocol is IProtocol, StatelessERC712 {
     |                                                Protocol variables                                                |
     \******************************************************************************************************************/
 
-    /// @notice The EIP-712 typehash for updateCollateral method
+    // keccak256("UpdateCollateral(address minter,uint256 amount,uint256 timestamp,string metadata)")
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
-        keccak256("UpdateCollateral(address minter,uint256 amount,uint256 timestamp,string metadata)");
+        0x3b34d4b7e06822de00fa7c183f0ae7b84849881fa0e2bbf2790f8bf7702492a4;
 
-    /// @notice The scale for M index
-    uint256 public constant INDEX_BASE_SCALE = 1e18;
-
-    /// @notice TODO The scale for collateral, most likely will be passed in cents
-    uint256 public constant COLLATERAL_BASE_SCALE = 1e2;
-
-    /// @notice Descaler for variables in basis points
     uint256 public constant ONE = 10_000; // 100% in basis points.
 
-    /// @notice The address of SPOG Registrar Contract
     address public immutable spogRegistrar;
-
-    /// @notice The address of M token
+    address public immutable spogVault;
     address public immutable mToken;
 
-    /// @notice The collateral information of minters
-    mapping(address minter => CollateralBasic basic) public collateral;
-
-    /// @notice The mint requests of minters, only 1 request per minter
-    mapping(address minter => MintRequest request) public mintRequests;
-
-    /// @notice The mint requests of minters, only 1 request per minter
-    mapping(address minter => uint256 timestamp) public frozenUntil;
-
-    /// @notice The total normalized principal (t0 principal value) for all minters
     uint256 public totalNormalizedPrincipal;
 
-    /// @notice The removed debt of minters after they were removed from the protocol by SPOG
+    mapping(address minter => CollateralBasic basic) public collateralOf;
+
+    mapping(address minter => MintRequest request) public mintRequestOf;
+
+    mapping(address minter => uint256 timestamp) public unfrozenTimeOf;
+
+    mapping(address minter => uint256 amount) public normalizedPrincipalOf;
+
     mapping(address minter => uint256 amount) public removedDebtOf;
 
-    /// @notice The total removed debt of minters after they were removed from the protocol by SPOG
     uint256 public totalRemovedDebt;
-
-    /// @notice The normalized principal (t0 principal value) for each minter
-    mapping(address minter => uint256 amount) public normalizedPrincipal;
-
-    // TODO possibly bit-pack those 2 variables
-    /// @notice The current M index for the protocol tracked for the entire market
-    uint256 public mIndex;
-
-    /// @notice The timestamp of the last time the M index was updated
-    uint256 public lastAccrualTime;
 
     modifier onlyApprovedMinter() {
         _revertIfNotApprovedMinter(msg.sender);
@@ -98,28 +76,18 @@ contract Protocol is IProtocol, StatelessERC712 {
 
     /**
      * @notice Constructor.
-     * @param spogRegistrar_ The address of SPOG
+     * @param spogRegistrar_ The address of the SPOG Registrar contract.
      */
-    constructor(address spogRegistrar_, address mToken_) StatelessERC712("Protocol") {
-        spogRegistrar = spogRegistrar_;
-        mToken = mToken_;
-
-        mIndex = 1e18;
-        lastAccrualTime = block.timestamp;
+    constructor(address spogRegistrar_, address mToken_) ContinuousInterestIndexing() StatelessERC712("Protocol") {
+        if ((spogRegistrar = spogRegistrar_) == address(0)) revert ZeroSpogRegistrar();
+        if ((spogVault = SPOGRegistrarReader.getVault(spogRegistrar_)) == address(0)) revert ZeroSpogVault();
+        if ((mToken = mToken_) == address(0)) revert ZeroMToken();
     }
 
     /******************************************************************************************************************\
     |                                                Minter Functions                                                  |
     \******************************************************************************************************************/
 
-    /**
-     * @notice Updates collateral for minters
-     * @param amount_ The amount of collateral
-     * @param timestamp_ The timestamp of the update
-     * @param metadata_ The metadata of the update, reserved for future informational use
-     * @param validators_ The list of validators
-     * @param signatures_ The list of signatures
-     */
     function updateCollateral(
         uint256 amount_,
         uint256 timestamp_,
@@ -131,11 +99,11 @@ contract Protocol is IProtocol, StatelessERC712 {
 
         // Timestamp sanity checks
         uint256 updateInterval_ = SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar);
-        if (block.timestamp > timestamp_ + updateInterval_) revert ExpiredTimestamp();
+        if (block.timestamp >= timestamp_ + updateInterval_) revert ExpiredTimestamp();
 
         address minter_ = msg.sender;
 
-        CollateralBasic storage minterCollateral_ = collateral[minter_];
+        CollateralBasic storage minterCollateral_ = collateralOf[minter_];
         if (minterCollateral_.lastUpdated > timestamp_) revert StaleTimestamp();
 
         // Validate that quorum of signatures was collected
@@ -143,44 +111,40 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 requiredQuorum_ = SPOGRegistrarReader.getUpdateCollateralQuorum(spogRegistrar);
         _revertIfInsufficientValidSignatures(updateCollateralDigest_, validators_, signatures_, requiredQuorum_);
 
-        // accruePenalties(); // JIRA ticket https://mzerolabs.atlassian.net/jira/software/c/projects/WEB3/boards/10?selectedIssue=WEB3-396
+        // If minter_ is penalized, total normalized M principal is changing
+        updateIndex();
+
+        _accruePenaltyForExpiredCollateralValue(minter_);
 
         // Update collateral
         minterCollateral_.amount = amount_;
         minterCollateral_.lastUpdated = timestamp_;
 
-        // _accruePenalties(); // JIRA ticket
+        _accruePenaltyForExcessiveOutstandingValue(minter_);
 
         emit CollateralUpdated(minter_, amount_, timestamp_, metadata_);
     }
 
-    /**
-     * @notice Proposes minting of M tokens
-     * @param amount_ The amount of M tokens to mint
-     * @param to_ The address to mint to
-     */
     function proposeMint(uint256 amount_, address to_) external onlyApprovedMinter returns (uint256) {
         address minter_ = msg.sender;
         uint256 now_ = block.timestamp;
 
         // Check is minter is frozen
-        if (now_ < frozenUntil[msg.sender]) revert FrozenMinter();
+        if (now_ < unfrozenTimeOf[msg.sender]) revert FrozenMinter();
 
         // Check if there is a pending non-expired mint request
         // uint256 expiresAt_ = mintRequest_.createdAt + _getMintRequestTimeToLive();
         // if (mintRequest_.amount > 0 && now_ < expiresAt_) revert OnlyOneMintRequestAllowed();
 
-        // _accruePenalties(); // JIRA ticket
-
         // Check that mint is sufficiently collateralized
-        uint256 allowedDebt_ = _allowedDebtOf(minter_);
-        uint256 currentDebt_ = _debtOf(minter_);
-        if (currentDebt_ + amount_ > allowedDebt_) revert UndercollateralizedMint();
+        uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
+        uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
+        if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedMint();
 
         uint256 mintId_ = uint256(keccak256(abi.encode(minter_, amount_, to_, now_, gasleft())));
 
         // Save mint request info
-        MintRequest storage mintRequest_ = mintRequests[minter_];
+        MintRequest storage mintRequest_ = mintRequestOf[minter_];
         mintRequest_.mintId = mintId_;
         mintRequest_.to = to_;
         mintRequest_.amount = amount_;
@@ -191,19 +155,15 @@ contract Protocol is IProtocol, StatelessERC712 {
         return mintId_;
     }
 
-    /**
-     * @notice Executes minting of M tokens
-     * @param mintId_ The id of outstanding mint request for minter
-     */
     function mint(uint256 mintId_) external onlyApprovedMinter {
         address minter_ = msg.sender;
 
         uint256 now_ = block.timestamp;
 
         // Check is minter is frozen
-        if (now_ < frozenUntil[minter_]) revert FrozenMinter();
+        if (now_ < unfrozenTimeOf[minter_]) revert FrozenMinter();
 
-        MintRequest storage mintRequest_ = mintRequests[minter_];
+        MintRequest storage mintRequest_ = mintRequestOf[minter_];
 
         // Inconsistent mintId_
         if (mintRequest_.mintId != mintId_) revert InvalidMintRequest();
@@ -215,27 +175,25 @@ contract Protocol is IProtocol, StatelessERC712 {
             mintRequest_.to
         );
 
-        uint256 activeAt_ = createdAt_ + SPOGRegistrarReader.getMintRequestQueueTime(spogRegistrar);
+        uint256 activeAt_ = createdAt_ + SPOGRegistrarReader.getMintDelay(spogRegistrar);
         if (now_ < activeAt_) revert PendingMintRequest();
 
-        uint256 expiresAt_ = activeAt_ + SPOGRegistrarReader.getMintRequestTimeToLive(spogRegistrar);
+        uint256 expiresAt_ = activeAt_ + SPOGRegistrarReader.getMintTTL(spogRegistrar);
         if (now_ > expiresAt_) revert ExpiredMintRequest();
 
-        // _accruePenalties(); // JIRA ticket
-
         // Check that mint is sufficiently collateralized
-        uint256 allowedDebt_ = _allowedDebtOf(minter_);
-        uint256 currentDebt_ = _debtOf(minter_);
-        if (currentDebt_ + amount_ > allowedDebt_) revert UndercollateralizedMint();
+        uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
+        uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
+        if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedMint();
 
-        updateIndices();
+        updateIndex();
 
         // Delete mint request
-        delete mintRequests[minter_];
+        delete mintRequestOf[minter_];
 
         // Adjust normalized principal for minter
-        uint256 normalizedPrincipal_ = _principalValue(amount_);
-        normalizedPrincipal[minter_] += normalizedPrincipal_;
+        uint256 normalizedPrincipal_ = _getPrincipalValue(amount_);
+        normalizedPrincipalOf[minter_] += normalizedPrincipal_;
         totalNormalizedPrincipal += normalizedPrincipal_;
 
         // Mint actual M tokens
@@ -244,24 +202,14 @@ contract Protocol is IProtocol, StatelessERC712 {
         emit MintRequestExecuted(mintId_, minter_, amount_, to_);
     }
 
-    /**
-     * @notice Cancels minting request for minter
-     * @param mintId_ The id of outstanding mint request
-     */
     function cancel(uint256 mintId_) external onlyApprovedMinter {
         _cancel(msg.sender, mintId_);
     }
 
-    /**
-     * @notice Burns M tokens
-     * @param minter_ The address of the minter to burn M tokens for
-     * @param amount_ The max amount of M tokens to burn
-     * @dev If amount to burn is greater than minter's debt, burn all debt
-     */
     function burn(address minter_, uint256 amount_) external {
-        // _accruePenalties(); // JIRA ticket
+        updateIndex();
 
-        updateIndices();
+        _accruePenaltyForExpiredCollateralValue(minter_);
 
         uint256 repayAmount_;
 
@@ -274,14 +222,14 @@ contract Protocol is IProtocol, StatelessERC712 {
         // Burn actual M tokens
         IMToken(mToken).burn(msg.sender, repayAmount_);
 
-        emit Burn(minter_, msg.sender, repayAmount_);
+        emit Burn(minter_, repayAmount_, msg.sender);
     }
 
     function _repayForActiveMinter(address minter_, uint256 amount_) internal returns (uint256) {
-        uint256 repayAmount_ = _min(_debtOf(minter_), amount_);
-        uint256 repayPrincipal_ = _principalValue(repayAmount_);
+        uint256 repayAmount_ = _min(_outstandingValueOf(minter_), amount_);
+        uint256 repayPrincipal_ = _getPrincipalValue(repayAmount_);
 
-        normalizedPrincipal[minter_] -= repayPrincipal_;
+        normalizedPrincipalOf[minter_] -= repayPrincipal_;
         totalNormalizedPrincipal -= repayPrincipal_;
 
         return repayAmount_;
@@ -296,121 +244,111 @@ contract Protocol is IProtocol, StatelessERC712 {
         return repayAmount_;
     }
 
-    /**
-     * @notice Returns the amount of M tokens that minter owes to the protocol
-     */
-    function debtOf(address minter_) external view returns (uint256) {
-        return _debtOf(minter_);
+    function outstandingValueOf(address minter_) external view returns (uint256) {
+        return _outstandingValueOf(minter_);
+    }
+
+    function getUnaccruedPenaltyForExpiredCollateralValue(address minter_) external view returns (uint256) {
+        (uint256 penaltyBase_, ) = _getPenaltyBaseAndTimeForExpiredCollateralValue(minter_);
+        return _getPenalty(penaltyBase_);
     }
 
     /******************************************************************************************************************\
     |                                                Validator Functions                                               |
     \******************************************************************************************************************/
 
-    /**
-     * @notice Cancels minting request for selected minter by validator
-     * @param minter_ The address of the minter to cancel minting request for
-     * @param mintId_ The id of outstanding mint request
-     */
     function cancel(address minter_, uint256 mintId_) external onlyApprovedValidator {
         _cancel(minter_, mintId_);
     }
 
-    /**
-     * @notice Freezes minter
-     * @param minter_ The address of the minter to freeze
-     */
     function freeze(address minter_) external onlyApprovedValidator {
         uint256 frozenUntil_ = block.timestamp + SPOGRegistrarReader.getMinterFreezeTime(spogRegistrar);
 
-        emit MinterFrozen(minter_, frozenUntil[minter_] = frozenUntil_);
+        emit MinterFrozen(minter_, unfrozenTimeOf[minter_] = frozenUntil_);
     }
 
-    //
-    //
-    // retrieve
-    //
-    //
-    /******************************************************************************************************************\
-    |                                                Primary Functions                                                 |
-    \******************************************************************************************************************/
-    //
-    //
-    // stake
-    // withdraw
-    //
-    //
+    // TODO: proposeRedeem
+    // TODO: redeem
+
     /******************************************************************************************************************\
     |                                                Brains Functions                                                  |
     \******************************************************************************************************************/
-    //
-    //
-    // updateIndices, updateBorrowIndex, updateStakingIndex
-    // accruePenalties
-    // mintRewardsToZeroHolders
-    //
-    //
 
-    /**
-     * @notice Updates indices
-     */
-    function updateIndices() public {
-        // update Minting borrow index
-        _updateBorrowIndex();
+    function updateIndex()
+        public
+        override(IContinuousInterestIndexing, ContinuousInterestIndexing)
+        returns (uint256 index_)
+    {
+        // TODO: Order of these matter if their rate models depend on the same utilization ratio / total supplies.
+        index_ = super.updateIndex(); // Update Minter index.
 
-        // update Primary staking rate index
-        _updateStakingIndex();
+        IMToken(mToken).updateIndex(); // Update Earning index.
 
-        // mintRewardsToZeroHolders();
+        // Mint M to Zero Vault
+        uint256 excessMintedValue_ = _getExcessMintedValue();
+
+        if (excessMintedValue_ > 0) IMToken(mToken).mint(spogVault, excessMintedValue_);
     }
 
     function remove(address minter_) external {
         if (SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_)) revert StillApprovedMinter();
 
-        updateIndices();
+        updateIndex();
 
-        // accruePenalties(); // JIRA ticket
+        _accruePenaltyForExpiredCollateralValue(minter_);
 
-        uint256 remainingDebt_ = _debtOf(minter_);
+        uint256 remainingDebt_ = _outstandingValueOf(minter_);
         // NOTE: Do not allow setting removedDebtOf to 0 by calling this function multiple times
         removedDebtOf[minter_] += remainingDebt_;
         totalRemovedDebt += remainingDebt_;
 
-        // Clean up minter's additional data, do we need it?
-        delete collateral[minter_];
-        delete mintRequests[minter_];
-        delete frozenUntil[minter_];
+        // Reset minter's state
+        delete collateralOf[minter_];
+        delete mintRequestOf[minter_];
+        delete unfrozenTimeOf[minter_];
 
-        totalNormalizedPrincipal -= normalizedPrincipal[minter_];
-        delete normalizedPrincipal[minter_];
+        totalNormalizedPrincipal -= normalizedPrincipalOf[minter_];
+        delete normalizedPrincipalOf[minter_];
 
-        emit MinterRemoved(minter_, msg.sender, remainingDebt_);
+        emit MinterRemoved(minter_, remainingDebt_, msg.sender);
     }
-
-    function _updateBorrowIndex() internal {
-        uint256 now_ = block.timestamp;
-        uint256 timeElapsed_ = now_ - lastAccrualTime;
-        if (timeElapsed_ > 0) {
-            mIndex = _getIndex(timeElapsed_);
-            lastAccrualTime = now_;
-        }
-    }
-
-    function _updateStakingIndex() internal {}
 
     /******************************************************************************************************************\
     |                                          Internal Interactive Functions                                          |
     \******************************************************************************************************************/
 
-    /**
-     * @notice Cancels minting request for minter
-     * @param minter_ The address of the minter to cancel minting request for
-     * @param mintId_ The id of outstanding mint request
-     */
-    function _cancel(address minter_, uint256 mintId_) internal {
-        if (mintRequests[minter_].mintId != mintId_) revert InvalidMintRequest();
+    function _accruePenalty(address minter_, uint256 penaltyBase_) internal {
+        uint256 penalty_ = _getPenalty(penaltyBase_);
 
-        delete mintRequests[minter_];
+        uint256 penaltyPrincipal_ = _getPrincipalValue(penalty_);
+        normalizedPrincipalOf[minter_] += penaltyPrincipal_;
+        totalNormalizedPrincipal += penaltyPrincipal_;
+
+        emit PenaltyAccrued(minter_, penalty_, msg.sender);
+    }
+
+    function _accruePenaltyForExpiredCollateralValue(address minter_) internal {
+        (uint256 penaltyBase_, uint256 penalizedUntil_) = _getPenaltyBaseAndTimeForExpiredCollateralValue(minter_);
+
+        // Save penalization interval to not double charge for missed periods again
+        collateralOf[minter_].penalizedUntil = penalizedUntil_;
+
+        _accruePenalty(minter_, penaltyBase_);
+    }
+
+    function _accruePenaltyForExcessiveOutstandingValue(address minter_) internal {
+        uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
+        uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
+
+        if (allowedOutstandingValue_ >= currentOutstandingValue_) return;
+
+        _accruePenalty(minter_, currentOutstandingValue_ - allowedOutstandingValue_);
+    }
+
+    function _cancel(address minter_, uint256 mintId_) internal {
+        if (mintRequestOf[minter_].mintId != mintId_) revert InvalidMintRequest();
+
+        delete mintRequestOf[minter_];
 
         emit MintRequestCanceled(mintId_, minter_, msg.sender);
     }
@@ -433,6 +371,13 @@ contract Protocol is IProtocol, StatelessERC712 {
         uint256 timestamp_
     ) internal view returns (bytes32) {
         return _getDigest(keccak256(abi.encode(UPDATE_COLLATERAL_TYPEHASH, minter_, amount_, metadata_, timestamp_)));
+    }
+
+    function _getExcessMintedValue() internal view returns (uint256 excessMintedValue_) {
+        uint256 totalSupply_ = IMToken(mToken).totalSupply();
+        uint256 totalOutstandingValue_ = _getOutstandingValue(totalNormalizedPrincipal);
+
+        if (totalOutstandingValue_ > totalSupply_) return totalOutstandingValue_ - totalSupply_;
     }
 
     /**
@@ -474,13 +419,8 @@ contract Protocol is IProtocol, StatelessERC712 {
         revert NotEnoughValidSignatures();
     }
 
-    function _getIndex(uint timeElapsed_) internal view returns (uint256) {
-        uint256 rate_ = _getBorrowRate();
-        return timeElapsed_ > 0 ? InterestMath.calculateIndex(mIndex, rate_, timeElapsed_) : mIndex;
-    }
-
-    function _allowedDebtOf(address minter_) internal view returns (uint256) {
-        CollateralBasic storage minterCollateral_ = collateral[minter_];
+    function _allowedOutstandingValueOf(address minter_) internal view returns (uint256) {
+        CollateralBasic storage minterCollateral_ = collateralOf[minter_];
 
         // if collateral was not updated on time, assume that minter_ CV is zero
         uint256 updateInterval_ = SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar);
@@ -490,28 +430,52 @@ contract Protocol is IProtocol, StatelessERC712 {
         return (minterCollateral_.amount * mintRatio_) / ONE;
     }
 
-    function _debtOf(address minter_) internal view returns (uint256) {
-        uint256 principalValue_ = normalizedPrincipal[minter_];
-        // return _presentValue(principalValue_) + penalties[minter];
-        return _presentValue(principalValue_);
+    function _outstandingValueOf(address minter_) internal view returns (uint256) {
+        uint256 principalValue_ = normalizedPrincipalOf[minter_];
+        return _getOutstandingValue(principalValue_);
     }
 
-    function _presentValue(uint256 principalValue_) internal view returns (uint256) {
-        uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
-        return (principalValue_ * _getIndex(timeElapsed_)) / INDEX_BASE_SCALE;
+    function _getOutstandingValue(uint256 principalValue_) internal view returns (uint256) {
+        return _getPresentAmount(principalValue_, currentIndex());
     }
 
-    function _principalValue(uint256 presentValue_) internal view returns (uint256) {
-        uint256 timeElapsed_ = block.timestamp - lastAccrualTime;
-        return (presentValue_ * INDEX_BASE_SCALE) / _getIndex(timeElapsed_);
+    function _getPrincipalValue(uint256 amount_) internal view returns (uint256) {
+        return _getPrincipalAmount(amount_, currentIndex());
     }
 
-    function _min(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a < b ? a : b;
+    function _getPenalty(uint256 penaltyBase_) internal view returns (uint256) {
+        return (penaltyBase_ * SPOGRegistrarReader.getPenalty(spogRegistrar)) / ONE;
     }
 
-    function _getBorrowRate() internal view returns (uint256 rate_) {
-        return IInterestRateModel(SPOGRegistrarReader.getBorrowRateModel(spogRegistrar)).getRate();
+    function _getPenaltyBaseAndTimeForExpiredCollateralValue(
+        address minter_
+    ) internal view returns (uint256 penaltyBase_, uint256 penalizedUntil_) {
+        uint256 updateInterval_ = SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar);
+        CollateralBasic storage minterCollateral_ = collateralOf[minter_];
+
+        uint256 penalizeFrom_ = _max(minterCollateral_.lastUpdated, minterCollateral_.penalizedUntil);
+        uint256 missedIntervals_ = (block.timestamp - penalizeFrom_) / updateInterval_;
+
+        penaltyBase_ = missedIntervals_ * _outstandingValueOf(minter_);
+        penalizedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);
+    }
+
+    function _min(uint256 a_, uint256 b_) internal pure returns (uint256) {
+        return a_ < b_ ? a_ : b_;
+    }
+
+    function _max(uint256 a_, uint256 b_) internal pure returns (uint256) {
+        return a_ > b_ ? a_ : b_;
+    }
+
+    function _rate() internal view override returns (uint256 rate_) {
+        address rateModel_ = SPOGRegistrarReader.getMinterRateModel(spogRegistrar);
+
+        (bool success_, bytes memory returnData_) = rateModel_.staticcall(
+            abi.encodeWithSelector(IInterestRateModel.rate.selector)
+        );
+
+        return success_ ? abi.decode(returnData_, (uint256)) : 0;
     }
 
     function _revertIfNotApprovedMinter(address minter_) internal view {
