@@ -47,6 +47,7 @@ contract ProtocolTests is Test {
     event MintRequestCanceled(uint256 mintId, address indexed minter, address indexed canceller);
 
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
+    event MinterRemoved(address indexed minter, uint256 outstandingValue, address indexed remover);
 
     event Burn(address indexed minter, uint256 amount, address indexed payer);
 
@@ -535,16 +536,15 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.mint(mintId);
 
-        vm.expectEmit();
-        emit Burn(_minter1, mintAmount - 1 wei, to);
+        // 1 wei precision difference for the benefit of user
+        uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
 
         vm.prank(to);
-        _protocol.burn(_minter1, mintAmount);
+        emit Burn(_minter1, minterOutstandingValue, to);
+        _protocol.burn(_minter1, minterOutstandingValue);
 
-        // minter repaid all its outstandingValue
-        assertEq(_protocol.outstandingValueOf(_minter1), 0);
-        // 1 wei is left in the user `to`
-        assertEq(_protocol.normalizedPrincipalOf(_minter1), 0);
+        assertEq(_protocol.outstandingValueOf(_minter1), 1); // 1 wei leftover
+        assertEq(_protocol.normalizedPrincipalOf(_minter1), 1); // 1 wei leftover
     }
 
     function test_burn_repayHalfOfOutstandingValue() external {
@@ -769,6 +769,55 @@ contract ProtocolTests is Test {
         (, uint256 lastUpdatedAgain, uint256 penalizedUntilAgain) = _protocol.collateralOf(_minter1);
         assertEq(lastAccrualTime, lastUpdatedAgain);
         assertEq(penalizedUntilAgain, penalizedUntilAgain);
+    }
+
+    function test_remove() external {
+        uint256 mintAmount = 1000000e18;
+
+        _protocol.setCollateralOf(_minter1, mintAmount * 2, block.timestamp);
+        _protocol.setNormalizedPrincipalOf(_minter1, mintAmount);
+        uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
+
+        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+
+        address alice = makeAddr("alice");
+        vm.prank(alice);
+        vm.expectEmit();
+        emit MinterRemoved(_minter1, minterOutstandingValue, alice);
+        _protocol.remove(_minter1);
+
+        assertEq(_protocol.normalizedPrincipalOf(_minter1), 0);
+        assertEq(_protocol.outstandingValueOf(_minter1), 0);
+        assertEq(_protocol.removedOutstandingValueOf(_minter1), minterOutstandingValue);
+
+        _mintTo(alice, minterOutstandingValue);
+
+        vm.prank(alice);
+        vm.expectEmit();
+        emit Burn(_minter1, minterOutstandingValue, alice);
+        _protocol.burn(_minter1, minterOutstandingValue);
+    }
+
+    function test_remove_accruePenaltyForExpiredCollateralValue() external {
+        uint256 mintAmount = 1000000e18;
+
+        _protocol.setCollateralOf(_minter1, mintAmount * 2, block.timestamp - _updateCollateralInterval);
+        _protocol.setNormalizedPrincipalOf(_minter1, mintAmount);
+        uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
+        uint256 minterPenalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
+
+        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+
+        address alice = makeAddr("alice");
+        vm.prank(alice);
+        vm.expectEmit();
+        emit MinterRemoved(_minter1, minterOutstandingValue + minterPenalty, alice);
+        _protocol.remove(_minter1);
+    }
+
+    function test_remove_stillApprovedMinter() external {
+        vm.expectRevert(IProtocol.StillApprovedMinter.selector);
+        _protocol.remove(_minter1);
     }
 
     function _mintTo(address account, uint256 amount) internal {
