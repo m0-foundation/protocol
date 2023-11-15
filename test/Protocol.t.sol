@@ -96,7 +96,6 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         vm.expectEmit();
         emit CollateralUpdated(_minter1, collateral, timestamp, "");
-
         _protocol.updateCollateral(collateral, block.timestamp, "", validators, signatures);
 
         assertEq(_protocol.outstandingValueOf(_minter1), 0);
