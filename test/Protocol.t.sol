@@ -822,8 +822,8 @@ contract ProtocolTests is Test {
         _protocol.burn(_minter1, 10e18);
 
         (, uint256 lastUpdatedAgain, uint256 penalizedUntilAgain) = _protocol.collateralOf(_minter1);
-        assertEq(lastAccrualTime, lastUpdatedAgain);
-        assertEq(penalizedUntilAgain, penalizedUntilAgain); // TODO: Fix.
+        assertEq(lastUpdated, lastUpdatedAgain);
+        assertEq(penalizedUntil, penalizedUntilAgain); // TODO: Fix?
     }
 
     function test_remove() external {

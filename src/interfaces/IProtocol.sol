@@ -17,6 +17,8 @@ interface IProtocol is IContinuousInterestIndexing {
 
     error FrozenMinter();
 
+    error FutureTimestamp();
+
     error InvalidCollateralUpdate(uint256 lastUpdated, uint256 newTimestamp);
 
     error SignatureArrayLengthsMismatch();

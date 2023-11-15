@@ -280,10 +280,6 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         emit MinterFrozen(minter_, unfrozenTimeOf[minter_] = frozenUntil_);
     }
 
-    // TODO: proposeRedeem
-    // TODO: redeem
-    // TODO: removeMinter
-
     /******************************************************************************************************************\
     |                                                Brains Functions                                                  |
     \******************************************************************************************************************/
@@ -458,9 +454,11 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         // Stop processing if there ar eno more signatures or requiredQuorum_ is reached.
         for (uint256 index_; index_ < signatures_.length && requiredQuorum_ > 0; ++index_) {
             // Check that validator address is unique and not accounted for
-            // bool duplicate_ = index_ > 0 && validators_[index_] <= validators_[index_ - 1];
             // NOTE: We revert here because this failure is entirely within the minter's control.
             if (index_ > 0 && validators_[index_] <= validators_[index_ - 1]) revert InvalidSignatureOrder();
+
+            // Check that the timestamp is not in the future.
+            if (timestamps_[index_] > block.timestamp) revert FutureTimestamp();
 
             bytes32 digest_ = _getUpdateCollateralDigest(
                 minter_,
@@ -470,7 +468,11 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
                 timestamps_[index_]
             );
 
-            if (!_isValidValidatorSignature(digest_, validators_[index_], signatures_[index_])) continue;
+            // Check that validator is approved by SPOG.
+            if (!SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validators_[index_])) continue;
+
+            // Check that ECDSA or ERC1271 signatures for given digest are valid.
+            if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_])) continue;
 
             // Find minimum between all valid timestamps for valid signatures
             minTimestamp_ = _minIgnoreZero(minTimestamp_, timestamps_[index_]);
@@ -479,18 +481,6 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         }
 
         if (requiredQuorum_ > 0) revert NotEnoughValidSignatures();
-    }
-
-    function _isValidValidatorSignature(
-        bytes32 digest_,
-        address validator_,
-        bytes calldata signature_
-    ) internal view returns (bool) {
-        // Check that validator is approved by SPOG.
-        if (!SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_)) return false;
-
-        // Check that ECDSA or ERC1271 signatures for given digest are valid
-        return SignatureChecker.isValidSignature(validator_, digest_, signature_);
     }
 
     function _allowedOutstandingValueOf(address minter_) internal view returns (uint256) {
