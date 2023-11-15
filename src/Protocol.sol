@@ -295,6 +295,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
 
         updateIndex();
 
+        // TODO: consider instead of accruing, calculate value and add it to removedOutstandingValueOf to save gas
         _accruePenaltyForExpiredCollateralValue(minter_);
 
         uint256 outstandingValue_ = _outstandingValueOf(minter_);
