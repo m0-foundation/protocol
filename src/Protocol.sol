@@ -132,10 +132,6 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         // Check is minter is frozen
         if (now_ < unfrozenTimeOf[msg.sender]) revert FrozenMinter();
 
-        // Check if there is a pending non-expired mint request
-        // uint256 expiresAt_ = mintRequest_.createdAt + _getMintRequestTimeToLive();
-        // if (mintRequest_.amount > 0 && now_ < expiresAt_) revert OnlyOneMintRequestAllowed();
-
         // Check that mint is sufficiently collateralized
         uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
         uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
@@ -249,8 +245,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
     }
 
     function getUnaccruedPenaltyForExpiredCollateralValue(address minter_) external view returns (uint256) {
-        (uint256 penaltyBase_, ) = _getPenaltyBaseAndTimeForExpiredCollateralValue(minter_);
-        return _getPenalty(penaltyBase_);
+        return _getUnaccruedPenaltyForExpiredCollateralValue(minter_);
     }
 
     /******************************************************************************************************************\
@@ -295,14 +290,13 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
 
         updateIndex();
 
-        // TODO: consider instead of accruing, calculate value and add it to removedOutstandingValueOf to save gas
-        _accruePenaltyForExpiredCollateralValue(minter_);
-
-        uint256 outstandingValue_ = _outstandingValueOf(minter_);
+        // Note: instead of accruing, calculate value and add it to removedOutstandingValueOf to save gas
+        uint256 penalty_ = _getUnaccruedPenaltyForExpiredCollateralValue(minter_);
+        uint256 outstandingValueWithPenalty_ = _outstandingValueOf(minter_) + penalty_;
 
         // NOTE: Do not allow setting removedOutstandingValueOf to 0 by calling this function multiple times
-        removedOutstandingValueOf[minter_] += outstandingValue_;
-        totalRemovedOutstandingValue += outstandingValue_;
+        removedOutstandingValueOf[minter_] += outstandingValueWithPenalty_;
+        totalRemovedOutstandingValue += outstandingValueWithPenalty_;
 
         // Reset minter's state
         delete collateralOf[minter_];
@@ -313,7 +307,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         totalNormalizedPrincipal -= normalizedPrincipalOf[minter_];
         delete normalizedPrincipalOf[minter_];
 
-        emit MinterRemoved(minter_, outstandingValue_, msg.sender);
+        emit MinterRemoved(minter_, outstandingValueWithPenalty_, msg.sender);
     }
 
     /******************************************************************************************************************\
@@ -448,6 +442,11 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
 
     function _getPenalty(uint256 penaltyBase_) internal view returns (uint256) {
         return (penaltyBase_ * SPOGRegistrarReader.getPenalty(spogRegistrar)) / ONE;
+    }
+
+    function _getUnaccruedPenaltyForExpiredCollateralValue(address minter_) internal view returns (uint256) {
+        (uint256 penaltyBase_, ) = _getPenaltyBaseAndTimeForExpiredCollateralValue(minter_);
+        return _getPenalty(penaltyBase_);
     }
 
     function _getPenaltyBaseAndTimeForExpiredCollateralValue(
