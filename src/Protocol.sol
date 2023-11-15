@@ -45,6 +45,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
     uint256 public constant ONE = 10_000; // 100% in basis points.
 
     address public immutable spogRegistrar;
+    address public immutable spogVault;
     address public immutable mToken;
 
     uint256 public totalNormalizedPrincipal;
@@ -74,8 +75,9 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
      * @param spogRegistrar_ The address of the SPOG Registrar contract.
      */
     constructor(address spogRegistrar_, address mToken_) ContinuousInterestIndexing() StatelessERC712("Protocol") {
-        spogRegistrar = spogRegistrar_;
-        mToken = mToken_;
+        if ((spogRegistrar = spogRegistrar_) == address(0)) revert ZeroSpogRegistrar();
+        if ((spogVault = SPOGRegistrarReader.getVault(spogRegistrar_)) == address(0)) revert ZeroSpogVault();
+        if ((mToken = mToken_) == address(0)) revert ZeroMToken();
     }
 
     /******************************************************************************************************************\
@@ -250,7 +252,6 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
     \******************************************************************************************************************/
 
     // TODO: accruePenalties
-    // TODO: mintRewardsToZeroHolders
 
     function updateIndex()
         public
@@ -258,14 +259,14 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         returns (uint256 index_)
     {
         // TODO: Order of these matter if their rate models depend on the same utilization ratio / total supplies.
+        index_ = super.updateIndex(); // Update Minter index.
 
-        // Update M index
-        index_ = super.updateIndex();
+        IMToken(mToken).updateIndex(); // Update Earning index.
 
-        // Update Primary staking rate index
-        IMToken(mToken).updateIndex();
+        // Mint M to Zero Vault
+        uint256 excessMintedValue_ = _getExcessMintedValue();
 
-        // TODO: mintRewardsToZeroHolders();
+        if (excessMintedValue_ > 0) IMToken(mToken).mint(spogVault, excessMintedValue_);
     }
 
     /******************************************************************************************************************\
@@ -326,6 +327,13 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         uint256 timestamp_
     ) internal view returns (bytes32) {
         return _getDigest(keccak256(abi.encode(UPDATE_COLLATERAL_TYPEHASH, minter_, amount_, metadata_, timestamp_)));
+    }
+
+    function _getExcessMintedValue() internal view returns (uint256 excessMintedValue_) {
+        uint256 totalSupply_ = IMToken(mToken).totalSupply();
+        uint256 totalOutstandingValue_ = _getOutstandingValue(totalNormalizedPrincipal);
+
+        if (totalOutstandingValue_ > totalSupply_) return totalOutstandingValue_ - totalSupply_;
     }
 
     /**

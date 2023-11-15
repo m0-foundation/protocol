@@ -16,6 +16,8 @@ import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
 contract ProtocolTests is Test {
     uint256 internal constant ONE = 10000;
 
+    address internal _spogVault = makeAddr("spogVault");
+
     address internal _minter1;
     uint256 internal _minter1Pk;
 
@@ -55,10 +57,12 @@ contract ProtocolTests is Test {
         (_validator1, _validator1Pk) = makeAddrAndKey("validator1");
         (_validator2, _validator2Pk) = makeAddrAndKey("validator1");
 
-        _spogRegistrar = new MockSPOGRegistrar();
         _mToken = new MockMToken();
 
-        _protocol = new ProtocolHarness(address(_spogRegistrar), address(_mToken));
+        _mRateModel = new MockRateModel();
+        _mRateModel.setRate(_mRate);
+
+        _spogRegistrar = new MockSPOGRegistrar();
 
         _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
         _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validator1);
@@ -70,12 +74,12 @@ contract ProtocolTests is Test {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_DELAY, bytes32(_mintDelay));
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_TTL, bytes32(_mintTTL));
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, bytes32(_mintRatio));
-
-        _mRateModel = new MockRateModel();
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, _toBytes32(address(_mRateModel)));
-        _mRateModel.setRate(_mRate);
-
         _spogRegistrar.updateConfig(SPOGRegistrarReader.PENALTY, bytes32(_penalty));
+
+        _spogRegistrar.setVault(_spogVault);
+
+        _protocol = new ProtocolHarness(address(_spogRegistrar), address(_mToken));
     }
 
     function test_updateCollateral() external {

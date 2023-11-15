@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
+import { IERC20 } from "./interfaces/IERC20.sol";
 import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 
@@ -14,7 +15,6 @@ import { ERC20Permit } from "./ERC20Permit.sol";
 // TODO: Some mechanism that allows a UI/script to determine how much an account or the system stands to gain from
 //       calling `updateIndex()`.
 // TODO: Some increased/decreased earning supply event(s)? Might be useful for a UI/script, or useless in general.
-// TODO: Is an `indexUpdated` event useful?
 
 contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
     address public immutable protocol;
@@ -92,7 +92,7 @@ contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
     |                                       External/Public View/Pure Functions                                        |
     \******************************************************************************************************************/
 
-    function balanceOf(address account_) external view override returns (uint256 balance_) {
+    function balanceOf(address account_) external view override(ERC20Permit, IERC20) returns (uint256 balance_) {
         return _isEarning[account_] ? _getPresentAmount(_balances[account_], currentIndex()) : _balances[account_];
     }
 
@@ -112,7 +112,7 @@ contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
         return _getPresentAmount(_totalEarningSupplyPrincipal, currentIndex());
     }
 
-    function totalSupply() external view override returns (uint256 totalSupply_) {
+    function totalSupply() external view override(ERC20Permit, IERC20) returns (uint256 totalSupply_) {
         return _totalSupply + totalEarningSupply();
     }
 
