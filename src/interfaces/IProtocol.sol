@@ -17,13 +17,19 @@ interface IProtocol is IContinuousInterestIndexing {
 
     error FrozenMinter();
 
-    error InvalidSignaturesLength();
+    error FutureTimestamp();
+
+    error InvalidCollateralUpdate(uint256 lastUpdated, uint256 newTimestamp);
+
+    error SignatureArrayLengthsMismatch();
+
+    error InvalidSignatureOrder();
 
     error NotEnoughValidSignatures();
 
-    error ExpiredTimestamp();
+    // error ExpiredTimestamp();
 
-    error StaleTimestamp();
+    // error StaleTimestamp();
 
     error UndercollateralizedMint();
 
@@ -49,8 +55,8 @@ interface IProtocol is IContinuousInterestIndexing {
         address indexed minter,
         uint256 amount,
         uint256 amountWithoutRetrieves,
-        uint256 timestamp,
-        string metadata
+        bytes32 indexed metadata,
+        uint256 timestamp
     );
 
     event MintRequestedCreated(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
@@ -130,7 +136,7 @@ interface IProtocol is IContinuousInterestIndexing {
      */
     function updateCollateral(
         uint256 amount,
-        string memory metadata,
+        bytes32 metadata,
         uint256[] calldata retrieveIds,
         address[] calldata validators,
         uint256[] calldata timestamps,
