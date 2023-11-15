@@ -798,6 +798,23 @@ contract ProtocolTests is Test {
         _protocol.burn(_minter1, minterOutstandingValue);
     }
 
+    function test_remove_accruePenaltyForExpiredCollateralValue() external {
+        uint256 mintAmount = 1000000e18;
+
+        _protocol.setCollateralOf(_minter1, mintAmount * 2, block.timestamp - _updateCollateralInterval);
+        _protocol.setNormalizedPrincipalOf(_minter1, mintAmount);
+        uint256 minterOutstandingValue = _protocol.outstandingValueOf(_minter1);
+        uint256 minterPenalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
+
+        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+
+        address alice = makeAddr("alice");
+        vm.prank(alice);
+        vm.expectEmit();
+        emit MinterRemoved(_minter1, minterOutstandingValue + minterPenalty, alice);
+        _protocol.remove(_minter1);
+    }
+
     function test_remove_stillApprovedMinter() external {
         vm.expectRevert(IProtocol.StillApprovedMinter.selector);
         _protocol.remove(_minter1);

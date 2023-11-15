@@ -298,6 +298,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         _accruePenaltyForExpiredCollateralValue(minter_);
 
         uint256 outstandingValue_ = _outstandingValueOf(minter_);
+
         // NOTE: Do not allow setting removedOutstandingValueOf to 0 by calling this function multiple times
         removedOutstandingValueOf[minter_] += outstandingValue_;
         totalRemovedOutstandingValue += outstandingValue_;
@@ -306,6 +307,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         delete collateralOf[minter_];
         delete mintRequestOf[minter_];
         delete unfrozenTimeOf[minter_];
+        // TODO: delete retrieveRequestOf when this feature is merged
 
         totalNormalizedPrincipal -= normalizedPrincipalOf[minter_];
         delete normalizedPrincipalOf[minter_];
