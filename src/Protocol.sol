@@ -410,6 +410,10 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         CollateralBasic storage minterCollateral_ = collateralOf[minter_];
 
         uint256 penalizeFrom_ = _max(minterCollateral_.lastUpdated, minterCollateral_.penalizedUntil);
+
+        // Optional check for the first update of collateral
+        if (penalizeFrom_ == 0) return (0, 0);
+
         uint256 missedIntervals_ = (block.timestamp - penalizeFrom_) / updateInterval_;
 
         penaltyBase_ = missedIntervals_ * _outstandingValueOf(minter_);
