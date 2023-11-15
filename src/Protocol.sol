@@ -207,13 +207,9 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
 
         _accruePenaltyForExpiredCollateralValue(minter_);
 
-        uint256 repayAmount_;
-
-        if (SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_)) {
-            repayAmount_ = _repayForActiveMinter(minter_, amount_);
-        } else {
-            repayAmount_ = _repayForRemovedMinter(minter_, amount_);
-        }
+        uint256 repayAmount_ = SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_)
+            ? _repayForActiveMinter(minter_, amount_)
+            : _repayForRemovedMinter(minter_, amount_);
 
         // Burn actual M tokens
         IMToken(mToken).burn(msg.sender, repayAmount_);
