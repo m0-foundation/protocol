@@ -149,9 +149,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         if (now_ < unfrozenTimeOf[msg.sender]) revert FrozenMinter();
 
         // Check that mint is sufficiently collateralized
-        uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
-        uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
-        if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedMint();
+        _revertIfUndercollateralized(minter_, amount_);
 
         uint256 mintId_ = uint256(keccak256(abi.encode(minter_, amount_, to_, now_, gasleft())));
 
@@ -194,9 +192,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         if (now_ > expiresAt_) revert ExpiredMintRequest();
 
         // Check that mint is sufficiently collateralized
-        uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
-        uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
-        if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedMint();
+        _revertIfUndercollateralized(minter_, amount_);
 
         updateIndex();
 
@@ -221,11 +217,9 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
     function retrieve(uint256 amount_) external onlyApprovedMinter returns (uint256) {
         address minter_ = msg.sender;
 
-        uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
-        uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
         uint256 retrieveOutstandingValue_ = (amount_ * SPOGRegistrarReader.getMintRatio(spogRegistrar)) / ONE;
-        if (currentOutstandingValue_ > allowedOutstandingValue_ - retrieveOutstandingValue_)
-            revert UndercollateralizedRetrieve();
+
+        _revertIfUndercollateralized(minter_, retrieveOutstandingValue_);
 
         uint256 retrieveId_ = uint256(keccak256(abi.encode(minter_, amount_, block.timestamp, gasleft())));
 
@@ -465,11 +459,11 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         return repayAmount_;
     }
 
-    function revertIfUndecollateralized(address minter_, uint256 amount_) internal view {
+    function _revertIfUndercollateralized(address minter_, uint256 amount_) internal view {
         uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
         uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
 
-        if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedMint();
+        if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert Undercollateralized();
     }
 
     /******************************************************************************************************************\

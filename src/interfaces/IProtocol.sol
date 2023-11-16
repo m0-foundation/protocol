@@ -29,9 +29,7 @@ interface IProtocol is IContinuousInterestIndexing {
 
     error StaleCollateralUpdate();
 
-    error UndercollateralizedMint();
-
-    error UndercollateralizedRetrieve();
+    error Undercollateralized();
 
     error InvalidMintRequest();
 
