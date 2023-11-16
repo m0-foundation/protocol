@@ -2,27 +2,27 @@
 
 pragma solidity 0.8.21;
 
+import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
-import { IContinuousInterestIndexing } from "./interfaces/IContinuousInterestIndexing.sol";
 
 import { InterestMath } from "./libs/InterestMath.sol";
 
-abstract contract ContinuousInterestIndexing is IContinuousInterestIndexing {
+abstract contract ContinuousIndexing is IContinuousIndexing {
     // TODO: Consider packing these into a single slot.
     uint256 internal _latestIndex;
-    uint256 internal _latestAccrualTime;
+    uint256 internal _latestUpdateTimestamp;
 
     constructor() {
         _latestIndex = 1 * InterestMath.EXP_BASE_SCALE;
-        _latestAccrualTime = block.timestamp;
+        _latestUpdateTimestamp = block.timestamp;
     }
 
     function updateIndex() public virtual returns (uint256 currentIndex_) {
-        if (_latestAccrualTime == block.timestamp) return _latestIndex;
+        if (_latestUpdateTimestamp == block.timestamp) return _latestIndex;
 
         currentIndex_ = currentIndex();
         _latestIndex = currentIndex_;
-        _latestAccrualTime = block.timestamp;
+        _latestUpdateTimestamp = block.timestamp;
 
         emit IndexUpdated(currentIndex_);
     }
@@ -31,8 +31,8 @@ abstract contract ContinuousInterestIndexing is IContinuousInterestIndexing {
         return _latestIndex;
     }
 
-    function latestAccrualTime() public view virtual returns (uint256 latestAccrualTime_) {
-        return _latestAccrualTime;
+    function latestUpdateTimestamp() public view virtual returns (uint256 latestAccrualTime_) {
+        return _latestUpdateTimestamp;
     }
 
     function currentIndex() public view virtual returns (uint256 currentIndex_) {
@@ -41,7 +41,7 @@ abstract contract ContinuousInterestIndexing is IContinuousInterestIndexing {
                 _latestIndex,
                 InterestMath.getContinuousIndex(
                     InterestMath.convertFromBasisPoints(_rate()),
-                    block.timestamp - _latestAccrualTime
+                    block.timestamp - _latestUpdateTimestamp
                 )
             );
     }

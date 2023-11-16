@@ -5,12 +5,12 @@ pragma solidity 0.8.21;
 import { SignatureChecker } from "./libs/SignatureChecker.sol";
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
+import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
-import { IContinuousInterestIndexing } from "./interfaces/IContinuousInterestIndexing.sol";
 
-import { ContinuousInterestIndexing } from "./ContinuousInterestIndexing.sol";
+import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 import { StatelessERC712 } from "./StatelessERC712.sol";
 
 /**
@@ -18,7 +18,7 @@ import { StatelessERC712 } from "./StatelessERC712.sol";
  * @author M^ZERO LABS_
  * @notice Core protocol of M^ZERO ecosystem. TODO Add description.
  */
-contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
+contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     // TODO: bit-packing
     struct CollateralBasic {
         uint256 amount;
@@ -91,7 +91,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
      * @notice Constructor.
      * @param spogRegistrar_ The address of the SPOG Registrar contract.
      */
-    constructor(address spogRegistrar_, address mToken_) ContinuousInterestIndexing() StatelessERC712("Protocol") {
+    constructor(address spogRegistrar_, address mToken_) ContinuousIndexing() StatelessERC712("Protocol") {
         if ((spogRegistrar = spogRegistrar_) == address(0)) revert ZeroSpogRegistrar();
         if ((spogVault = SPOGRegistrarReader.getVault(spogRegistrar_)) == address(0)) revert ZeroSpogVault();
         if ((mToken = mToken_) == address(0)) revert ZeroMToken();
@@ -301,11 +301,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
     |                                                Brains Functions                                                  |
     \******************************************************************************************************************/
 
-    function updateIndex()
-        public
-        override(IContinuousInterestIndexing, ContinuousInterestIndexing)
-        returns (uint256 index_)
-    {
+    function updateIndex() public override(IContinuousIndexing, ContinuousIndexing) returns (uint256 index_) {
         // TODO: Order of these matter if their rate models depend on the same utilization ratio / total supplies.
         index_ = super.updateIndex(); // Update Minter index.
 

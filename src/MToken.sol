@@ -8,7 +8,7 @@ import { IERC20 } from "./interfaces/IERC20.sol";
 import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 
-import { ContinuousInterestIndexing } from "./ContinuousInterestIndexing.sol";
+import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 import { ERC20Permit } from "./ERC20Permit.sol";
 
 // TODO: Consider an socially/optically "safer" `burn` via `burn(uint amount_)` where the account is `msg.sender`.
@@ -38,12 +38,9 @@ contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
      * @notice Constructor.
      * @param protocol_ The address of Protocol
      */
-    constructor(
-        address protocol_,
-        address spogRegistrar_
-    ) ContinuousInterestIndexing() ERC20Permit("M Token", "M", 18) {
-        protocol = protocol_;
-        spogRegistrar = spogRegistrar_;
+    constructor(address protocol_, address spogRegistrar_) ContinuousIndexing() ERC20Permit("M Token", "M", 18) {
+        _protocol = protocol_;
+        _spogRegistrar = spogRegistrar_;
     }
 
     /******************************************************************************************************************\

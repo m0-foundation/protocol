@@ -12,7 +12,7 @@ contract MTokenHarness is MToken {
     }
 
     function setLatestUpdated(uint256 timestamp_) external {
-        _latestAccrualTime = timestamp_;
+        _latestUpdateTimestamp = timestamp_;
     }
 
     function setIsEarning(address account_, bool isEarning_) external {

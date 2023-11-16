@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.21;
 
-interface IContinuousInterestIndexing {
+interface IContinuousIndexing {
     event IndexUpdated(uint256 indexed index);
 
     /**
@@ -13,7 +13,7 @@ interface IContinuousInterestIndexing {
     /**
      * @notice The latest timestamp when the index was updated.
      */
-    function latestAccrualTime() external view returns (uint256 latestAccrualTime);
+    function latestUpdateTimestamp() external view returns (uint256 latestUpdateTimestamp);
 
     /**
      * @notice The latest updated index.

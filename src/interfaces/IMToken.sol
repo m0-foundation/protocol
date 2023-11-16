@@ -2,10 +2,10 @@
 
 pragma solidity 0.8.21;
 
-import { IContinuousInterestIndexing } from "./IContinuousInterestIndexing.sol";
+import { IContinuousIndexing } from "./IContinuousIndexing.sol";
 import { IERC20Permit } from "./IERC20Permit.sol";
 
-interface IMToken is IContinuousInterestIndexing, IERC20Permit {
+interface IMToken is IContinuousIndexing, IERC20Permit {
     /******************************************************************************************************************\
     |                                                     Errors                                                       |
     \******************************************************************************************************************/

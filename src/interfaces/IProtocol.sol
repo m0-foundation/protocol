@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.21;
 
-import { IContinuousInterestIndexing } from "./IContinuousInterestIndexing.sol";
+import { IContinuousIndexing } from "./IContinuousIndexing.sol";
 
-interface IProtocol is IContinuousInterestIndexing {
+interface IProtocol is IContinuousIndexing {
     /******************************************************************************************************************\
     |                                                      Errors                                                      |
     \******************************************************************************************************************/
