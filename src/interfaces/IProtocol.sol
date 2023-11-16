@@ -31,11 +31,11 @@ interface IProtocol is IContinuousIndexing {
 
     error Undercollateralized();
 
-    error InvalidMintRequest();
+    error InvalidMintProposal();
 
-    error PendingMintRequest();
+    error PendingMintProposal();
 
-    error ExpiredMintRequest();
+    error ExpiredMintProposal();
 
     error ZeroSpogRegistrar();
 
@@ -47,25 +47,25 @@ interface IProtocol is IContinuousIndexing {
     |                                                      Events                                                      |
     \******************************************************************************************************************/
 
-    event CollateralUpdated(address indexed minter, uint256 amount, bytes32 indexed metadata, uint256 timestamp);
+    event CollateralUpdated(address indexed minter, uint256 collateral, bytes32 indexed metadata, uint256 timestamp);
 
-    event MintRequestedCreated(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
+    event MintProposed(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
 
-    event MintRequestExecuted(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
+    event MintExecuted(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
 
-    event MintRequestCanceled(uint256 mintId, address indexed minter, address indexed canceller);
+    event MintCanceled(uint256 mintId, address indexed minter, address indexed canceller);
 
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
 
-    event MinterRemoved(address indexed minter, uint256 outstandingValue, address indexed remover);
+    event MinterDeactivated(address indexed minter, uint256 owedM, address indexed caller);
 
-    event Burn(address indexed minter, uint256 amount, address indexed payer);
+    event BurnExecuted(address indexed minter, uint256 amount, address indexed payer);
 
-    event PenaltyAccrued(address indexed minter, uint256 amount, address indexed caller);
+    event PenaltyImposed(address indexed minter, uint256 amount, address indexed caller);
 
-    event RetrieveRequestCreated(uint256 retrieveId, address indexed minter, uint256 amount);
+    event RetrievalCreated(uint256 retrievalId, address indexed minter, uint256 amount);
 
-    event RetrieveRequestClosed(uint256 retrieveId, address indexed minter, uint256 amount);
+    event RetrievalClosed(uint256 retrievalId, address indexed minter, uint256 amount);
 
     /// @notice The EIP-712 typehash for the `updateCollateral` method.
     function UPDATE_COLLATERAL_TYPEHASH() external view returns (bytes32 typehash);
@@ -82,50 +82,50 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The collateral information of minters
     function collateralOf(
         address minter
-    ) external view returns (uint256 amount, uint256 lastUpdated, uint256 penalizedUntil);
+    ) external view returns (uint256 collateral, uint256 lastUpdated, uint256 penalizedUntil);
 
-    /// @notice The mint requests of minters, only 1 request per minter
-    function mintRequestOf(
+    /// @notice The mint proposal of minters, only 1 request per minter
+    function mintProposalOf(
         address minter
-    ) external view returns (uint256 mintId, address to, uint256 amount, uint256 createdAt);
+    ) external view returns (uint256 mintId, address destination, uint256 amount, uint256 createdAt);
 
     /// @notice The mint requests of minters, only 1 request per minter
     function unfrozenTimeOf(address minter) external view returns (uint256 timestamp);
 
-    /// @notice The total normalized principal (t0 principal value) for all minters
-    function totalNormalizedPrincipal() external view returns (uint256 totalNormalizedPrincipal);
+    /// @notice The total principal (t0 principal value) of owed M for all active minters
+    function totalPrincipalOfActiveOwedM() external view returns (uint256 totalPrincipalOfActiveOwedM);
 
-    /// @notice The total outstanding value for all removed minters
-    function totalRemovedOutstandingValue() external view returns (uint256 totalRemovedOutstandingValue);
+    /// @notice The total of owed M for all inactive minters
+    function totalInactiveOwedM() external view returns (uint256 totalInactiveOwedM);
 
-    /// @notice The normalized principal (t0 principal value) for each minter
-    function normalizedPrincipalOf(address minter) external view returns (uint256 amount);
+    /// @notice The principal (t0 principal value) of owed M for each active minters
+    function principalOfActiveOwedMOf(address minter) external view returns (uint256 principalOfActiveOwedM);
 
-    /// @notice The outstanding value of removed minter
-    function removedOutstandingValueOf(address minter) external view returns (uint256 removedOutstandingValueOf);
+    /// @notice The owed M for each inactive minters
+    function inactiveOwedMOf(address minter) external view returns (uint256 inactiveOwedM);
 
-    /// @notice The total amount of active retrieve requests per minter
-    function totalRetrieveAmountOf(address minter) external view returns (uint256 amount);
+    /// @notice The total amount of active proposeRetrieval requests per minter
+    function totalCollateralPendingRetrievalOf(address minter) external view returns (uint256 collateral);
 
-    /// @notice The minter's retrieve request amount
-    function retrieveRequestOf(address minter, uint256 retrieveId) external view returns (uint256 amount);
+    /// @notice The minter's proposeRetrieval request amount
+    function pendingRetrievalsOf(address minter, uint256 retrievalId) external view returns (uint256 collateral);
 
     /**
      * @notice Returns the amount of M tokens that minter owes to the protocol
      */
-    function outstandingValueOf(address minter) external view returns (uint256 outstandingValue);
+    function activeOwedMOf(address minter) external view returns (uint256 outstandingValue);
 
     /**
      * @notice Updates collateral for minters
-     * @param amount The amount of collateral
+     * @param collateral The amount of collateral
      * @param metadata The metadata of the update, reserved for future informational use
-     * @param retrieveIds The list of active retrieve requests to close
+     * @param retrieveIds The list of active proposeRetrieval requests to close
      * @param timestamps The list of timestamps of validators' signatures
      * @param validators The list of validators
      * @param signatures The list of signatures
      */
     function updateCollateral(
-        uint256 amount,
+        uint256 collateral,
         bytes32 metadata,
         uint256[] calldata retrieveIds,
         address[] calldata validators,
@@ -136,34 +136,34 @@ interface IProtocol is IContinuousIndexing {
     /**
      * @notice Proposes minting of M tokens
      * @param amount The amount of M tokens to mint
-     * @param to The address to mint to
+     * @param destination The address to mint to
      */
-    function proposeMint(uint256 amount, address to) external returns (uint256 mintId);
+    function proposeMint(uint256 amount, address destination) external returns (uint256 mintId);
 
     /**
      * @notice Executes minting of M tokens
      * @param mintId The id of outstanding mint request for minter
      */
-    function mint(uint256 mintId) external;
+    function mintM(uint256 mintId) external;
 
     /**
      * @notice Cancels minting request for minter
      * @param mintId The id of outstanding mint request
      */
-    function cancel(uint256 mintId) external;
+    function cancelMint(uint256 mintId) external;
 
     /**
      * @notice Cancels minting request for selected minter by validator
-     * @param minter The address of the minter to cancel minting request for
+     * @param minter The address of the minter to cancelMint minting request for
      * @param mintId The id of outstanding mint request
      */
-    function cancel(address minter, uint256 mintId) external;
+    function cancelMint(address minter, uint256 mintId) external;
 
     /**
      * @notice Freezes minter
-     * @param minter The address of the minter to freeze
+     * @param minter The address of the minter to freezeMinter
      */
-    function freeze(address minter) external;
+    function freezeMinter(address minter) external;
 
     /**
      * @notice Burns M tokens
@@ -171,7 +171,7 @@ interface IProtocol is IContinuousIndexing {
      * @param amount The max amount of M tokens to burn
      * @dev If amount to burn is greater than minter's outstandingValue including penalties, burn all outstandingValue
      */
-    function burn(address minter, uint256 amount) external;
+    function burnM(address minter, uint256 amount) external;
 
     /**
      * @notice Returns the penalty for expired collateral value
@@ -179,5 +179,5 @@ interface IProtocol is IContinuousIndexing {
      * @dev Minter is penalized on current outstanding value per every missed interval.
      * @dev Penalized only once per missed interval.
      */
-    function getUnaccruedPenaltyForExpiredCollateralValue(address minter) external view returns (uint256);
+    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint256);
 }
