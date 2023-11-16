@@ -44,7 +44,7 @@ library SPOGRegistrarReader {
     /// @notice The validators list name in SPOG.
     bytes32 internal constant VALIDATORS_LIST = "validators";
 
-    function getEarningRateModel(address registrar_) internal view returns (address rateModel_) {
+    function getEarnerRateModel(address registrar_) internal view returns (address rateModel_) {
         return toAddress(_get(registrar_, EARNER_RATE_MODEL));
     }
 
