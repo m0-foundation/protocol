@@ -135,7 +135,7 @@ contract ProtocolTests is Test {
         );
     }
 
-    function test_updateCollateral_invalidSignaturesLength() external {
+    function test_updateCollateral_signatureArrayLengthsMismatch() external {
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.SignatureArrayLengthsMismatch.selector);
         _protocol.updateCollateral(
@@ -157,6 +157,35 @@ contract ProtocolTests is Test {
             new address[](1),
             new bytes[](1)
         );
+    }
+
+    function test_updateCollateral_futureTimestamp() external {
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM, bytes32(uint256(2)));
+
+        uint256 collateral = 100;
+        bytes32 metadata_ = keccak256(abi.encode("metadata"));
+        uint256[] memory retrieveIds_ = new uint256[](0);
+        uint256 signatureTimestamp_ = block.timestamp + 1;
+
+        uint256[] memory timestamps_ = new uint256[](1);
+        timestamps_[0] = signatureTimestamp_;
+
+        address[] memory validators_ = new address[](1);
+        validators_[0] = _validator1;
+
+        bytes[] memory signatures_ = new bytes[](1);
+        signatures_[0] = _getSignature(
+            _minter1,
+            collateral,
+            metadata_,
+            retrieveIds_,
+            signatureTimestamp_,
+            _validator1Pk
+        );
+
+        vm.expectRevert(IProtocol.FutureTimestamp.selector);
+        vm.prank(_minter1);
+        _protocol.updateCollateral(collateral, metadata_, retrieveIds_, timestamps_, validators_, signatures_);
     }
 
     function test_updateCollateral_notEnoughValidSignatures() external {
@@ -592,13 +621,10 @@ contract ProtocolTests is Test {
     }
 
     function test_updateCollateral_accruePenaltyForExpiredCollateralValue() external {
-        vm.skip(true); // TODO: This test needs to be fixed.
-
         uint256 collateral_ = 100e18;
         uint256 amount_ = 60e18;
         bytes32 metadata_ = keccak256(abi.encode("metadata"));
         uint256[] memory retrieveIds_ = new uint256[](0);
-        uint256 signatureTimestamp_ = block.timestamp;
 
         _protocol.setCollateralOf(_minter1, collateral_, block.timestamp);
         _protocol.setNormalizedPrincipalOf(_minter1, amount_);
@@ -609,6 +635,8 @@ contract ProtocolTests is Test {
         uint256 minterOutstandingValue_ = _protocol.outstandingValueOf(_minter1);
 
         assertEq(penalty_, (minterOutstandingValue_ * 3 * _penalty) / ONE);
+
+        uint256 signatureTimestamp_ = block.timestamp;
 
         uint256[] memory timestamps_ = new uint256[](1);
         timestamps_[0] = signatureTimestamp_;
@@ -636,8 +664,6 @@ contract ProtocolTests is Test {
     }
 
     function test_updateCollateral_accruePenaltyForExcessiveOutstandingValue() external {
-        vm.skip(true); // TODO: This test needs to be fixed.
-
         uint256 collateral_ = 100e18;
         uint256 amount_ = 180e18;
         bytes32 metadata_ = keccak256(abi.encode("metadata"));
@@ -670,8 +696,19 @@ contract ProtocolTests is Test {
         uint256 penalty = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
         assertEq(penalty, 0);
 
+        signatureTimestamp_ = block.timestamp;
+
+        timestamps_[0] = signatureTimestamp_;
+
         // Step 2 - Update Collateral with excessive outstanding value
-        signatures_[0] = _getSignature(_minter1, collateral_, metadata_, retrieveIds_, block.timestamp, _validator1Pk);
+        signatures_[0] = _getSignature(
+            _minter1,
+            collateral_,
+            metadata_,
+            retrieveIds_,
+            signatureTimestamp_,
+            _validator1Pk
+        );
 
         uint256 outstandingDebt_ = _protocol.outstandingValueOf(_minter1);
         uint256 allowedOutstandingDebt_ = (collateral_ * _mintRatio) / ONE;
@@ -698,13 +735,13 @@ contract ProtocolTests is Test {
 
         vm.warp(block.timestamp + 2 * _updateCollateralInterval);
 
-        uint256 signatureTimestamp_ = block.timestamp;
-
         uint256 penalty_ = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
         uint256 minterOutstandingValue_ = _protocol.outstandingValueOf(_minter1);
         assertEq(penalty_, (minterOutstandingValue_ * 2 * _penalty) / ONE);
 
         uint256 newCollateral_ = 10e18;
+
+        uint256 signatureTimestamp_ = block.timestamp;
 
         uint256[] memory timestamps_ = new uint256[](1);
         timestamps_[0] = signatureTimestamp_;
@@ -755,12 +792,11 @@ contract ProtocolTests is Test {
         uint256 minterOustandingValue = _protocol.outstandingValueOf(_minter1);
         assertEq(penalty, (minterOustandingValue * 3 * _penalty) / ONE);
 
-        // TODO: Fix. Token is mocked so minting here does nothing. Might not even need this line at all.
-        // _mintTo(to, minterOustandingValue);
+        address alice = makeAddr("alice");
 
-        vm.prank(to);
+        vm.prank(alice);
         vm.expectEmit();
-        emit PenaltyAccrued(_minter1, penalty, to);
+        emit PenaltyAccrued(_minter1, penalty, alice);
         _protocol.burn(_minter1, minterOustandingValue);
 
         minterOustandingValue = _protocol.outstandingValueOf(_minter1);
@@ -769,27 +805,26 @@ contract ProtocolTests is Test {
     }
 
     function test_accruePenalty_penalizedUntil() external {
-        vm.skip(true); // TODO: This test needs to be fixed.
-
         uint256 collateral_ = 100e18;
         uint256 amount_ = 60e18;
         bytes32 metadata_ = keccak256(abi.encode("metadata"));
         uint256[] memory retrieveIds_ = new uint256[](0);
+        uint256 timestamp_ = block.timestamp;
 
-        _protocol.setCollateralOf(_minter1, collateral_, block.timestamp);
+        _protocol.setCollateralOf(_minter1, collateral_, timestamp_);
         _protocol.setNormalizedPrincipalOf(_minter1, amount_);
 
-        vm.warp(block.timestamp + _updateCollateralInterval - 10);
+        vm.warp(timestamp_ + _updateCollateralInterval - 10);
 
         uint256 penalty_ = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
         assertEq(penalty_, 0);
 
-        vm.warp(block.timestamp + _updateCollateralInterval + 10);
-
-        uint256 signatureTimestamp_ = block.timestamp;
+        vm.warp(timestamp_ + _updateCollateralInterval + 10);
 
         penalty_ = _protocol.getUnaccruedPenaltyForExpiredCollateralValue(_minter1);
         assertEq(penalty_, (_protocol.outstandingValueOf(_minter1) * _penalty) / ONE);
+
+        uint256 signatureTimestamp_ = block.timestamp;
 
         uint256[] memory timestamps_ = new uint256[](1);
         timestamps_[0] = signatureTimestamp_;
@@ -810,20 +845,18 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral_, metadata_, retrieveIds_, timestamps_, validators, signatures);
 
-        (, uint256 lastUpdated, uint256 penalizedUntil) = _protocol.collateralOf(_minter1);
-        assertEq(lastUpdated, signatureTimestamp_);
-        assertEq(penalizedUntil, signatureTimestamp_ + _updateCollateralInterval);
+        (, uint256 latestAccrualTime_, uint256 penalizedUntil_) = _protocol.collateralOf(_minter1);
+        assertEq(latestAccrualTime_, signatureTimestamp_);
+        assertEq(penalizedUntil_, timestamp_ + _updateCollateralInterval);
 
-        address to = makeAddr("to");
-        // TODO: Fix. Token is mocked so minting here does nothing. Might not even need this line at all.
-        // _mintTo(to, 10e18);
+        address alice = makeAddr("alice");
 
-        vm.prank(to);
+        vm.prank(alice);
         _protocol.burn(_minter1, 10e18);
 
-        (, uint256 lastUpdatedAgain, uint256 penalizedUntilAgain) = _protocol.collateralOf(_minter1);
-        assertEq(lastUpdated, lastUpdatedAgain);
-        assertEq(penalizedUntil, penalizedUntilAgain); // TODO: Fix?
+        (, uint256 newLatestAccrualTime_, uint256 newPenalizedUntil_) = _protocol.collateralOf(_minter1);
+        assertEq(latestAccrualTime_, newLatestAccrualTime_);
+        assertEq(penalizedUntil_ + 10, newPenalizedUntil_);
     }
 
     function test_remove() external {
@@ -836,6 +869,7 @@ contract ProtocolTests is Test {
         _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
 
         address alice = makeAddr("alice");
+
         vm.prank(alice);
         vm.expectEmit();
         emit MinterRemoved(_minter1, minterOutstandingValue, alice);
@@ -844,9 +878,6 @@ contract ProtocolTests is Test {
         assertEq(_protocol.normalizedPrincipalOf(_minter1), 0);
         assertEq(_protocol.outstandingValueOf(_minter1), 0);
         assertEq(_protocol.removedOutstandingValueOf(_minter1), minterOutstandingValue);
-
-        // TODO: Fix. Token is mocked so minting here does nothing. Might not even need this line at all.
-        // _mintTo(alice, minterOutstandingValue);
 
         vm.prank(alice);
         vm.expectEmit();
