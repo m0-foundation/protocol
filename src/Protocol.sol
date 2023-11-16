@@ -114,7 +114,8 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         }
 
         // Validate that quorum of signatures was collected
-        uint256 minTimestamp_ = _revertIfInsufficientValidValidatorSignatures(
+        // TODO: correctly handle zero quorum timestamp
+        uint256 minTimestamp_ = _validateSignaturesAndReturnMinTimestamp(
             msg.sender,
             amount_,
             metadata_,
@@ -222,11 +223,12 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
 
         uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
         uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
-        if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedRetrieve();
+        uint256 retrieveOutstandingValue_ = (amount_ * SPOGRegistrarReader.getMintRatio(spogRegistrar)) / ONE;
+        if (currentOutstandingValue_ > allowedOutstandingValue_ - retrieveOutstandingValue_)
+            revert UndercollateralizedRetrieve();
 
         uint256 retrieveId_ = uint256(keccak256(abi.encode(minter_, amount_, block.timestamp, gasleft())));
 
-        collateralOf[minter_].amount -= amount_;
         totalRetrieveAmountOf[minter_] += amount_;
         retrieveRequestOf[minter_][retrieveId_] = amount_;
 
@@ -250,23 +252,30 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         emit Burn(minter_, repayAmount_, msg.sender);
     }
 
-    function _repayForActiveMinter(address minter_, uint256 amount_) internal returns (uint256) {
-        uint256 repayAmount_ = _min(_outstandingValueOf(minter_), amount_);
-        uint256 repayPrincipal_ = _getPrincipalValue(repayAmount_);
+    function remove(address minter_) external {
+        if (SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_)) revert StillApprovedMinter();
 
-        normalizedPrincipalOf[minter_] -= repayPrincipal_;
-        totalNormalizedPrincipal -= repayPrincipal_;
+        updateIndex();
 
-        return repayAmount_;
-    }
+        // NOTE: Instead of accruing, calculate penalty and add it to `removedOutstandingValueOf` to save gas
+        uint256 penalty_ = _getUnaccruedPenaltyForExpiredCollateralValue(minter_);
+        uint256 outstandingValueWithPenalty_ = _outstandingValueOf(minter_) + penalty_;
 
-    function _repayForRemovedMinter(address minter_, uint256 amount_) internal returns (uint256) {
-        uint256 repayAmount_ = _min(removedOutstandingValueOf[minter_], amount_);
+        // NOTE: Do not allow setting removedOutstandingValueOf to 0 by calling this function multiple times
+        removedOutstandingValueOf[minter_] += outstandingValueWithPenalty_;
+        totalRemovedOutstandingValue += outstandingValueWithPenalty_;
 
-        removedOutstandingValueOf[minter_] -= repayAmount_;
-        totalRemovedOutstandingValue -= repayAmount_;
+        // Adjust total normalized accruing interest principal
+        totalNormalizedPrincipal -= normalizedPrincipalOf[minter_];
 
-        return repayAmount_;
+        // Reset minter's state
+        delete normalizedPrincipalOf[minter_];
+        delete collateralOf[minter_];
+        delete mintRequestOf[minter_];
+        delete unfrozenTimeOf[minter_];
+        delete totalRetrieveAmountOf[minter_];
+
+        emit MinterRemoved(minter_, outstandingValueWithPenalty_, msg.sender);
     }
 
     function outstandingValueOf(address minter_) external view returns (uint256) {
@@ -309,31 +318,6 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         uint256 excessMintedValue_ = _getExcessMintedValue();
 
         if (excessMintedValue_ > 0) IMToken(mToken).mint(spogVault, excessMintedValue_);
-    }
-
-    function remove(address minter_) external {
-        if (SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_)) revert StillApprovedMinter();
-
-        updateIndex();
-
-        // NOTE: Instead of accruing, calculate penalty and add it to `removedOutstandingValueOf` to save gas
-        uint256 penalty_ = _getUnaccruedPenaltyForExpiredCollateralValue(minter_);
-        uint256 outstandingValueWithPenalty_ = _outstandingValueOf(minter_) + penalty_;
-
-        // NOTE: Do not allow setting removedOutstandingValueOf to 0 by calling this function multiple times
-        removedOutstandingValueOf[minter_] += outstandingValueWithPenalty_;
-        totalRemovedOutstandingValue += outstandingValueWithPenalty_;
-
-        // Reset minter's state
-        delete collateralOf[minter_];
-        delete mintRequestOf[minter_];
-        delete unfrozenTimeOf[minter_];
-        // TODO: delete retrieveRequestOf when this feature is merged
-
-        totalNormalizedPrincipal -= normalizedPrincipalOf[minter_];
-        delete normalizedPrincipalOf[minter_];
-
-        emit MinterRemoved(minter_, outstandingValueWithPenalty_, msg.sender);
     }
 
     /******************************************************************************************************************\
@@ -397,47 +381,15 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         CollateralBasic storage minterCollateral_ = collateralOf[minter_];
 
         uint256 currentLastUpdated_ = minterCollateral_.lastUpdated;
+        uint256 updateInterval_ = SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar);
 
-        if (newTimestamp_ < currentLastUpdated_) revert InvalidCollateralUpdate(currentLastUpdated_, newTimestamp_);
+        if (newTimestamp_ < currentLastUpdated_) revert StaleCollateralUpdate();
+        if (newTimestamp_ + updateInterval_ <= block.timestamp) revert ExpiredCollateralUpdate();
 
-        uint256 amountWithoutRetrieves_ = amount_ - totalRetrieveAmountOf[minter_];
-
-        minterCollateral_.amount = amountWithoutRetrieves_;
+        minterCollateral_.amount = amount_;
         minterCollateral_.lastUpdated = newTimestamp_;
 
-        emit CollateralUpdated(minter_, amount_, amountWithoutRetrieves_, metadata_, newTimestamp_);
-    }
-
-    /******************************************************************************************************************\
-    |                                           Internal View/Pure Functions                                           |
-    \******************************************************************************************************************/
-
-    /**
-     * @notice Returns the EIP-712 digest for updateCollateral method
-     * @param minter_ The address of the minter
-     * @param amount_ The amount of collateral
-     * @param metadata_ The metadata of the collateral update, reserved for future informational use
-     * @param retrieveIds_ The list of retrieve request IDs to close
-     * @param timestamp_ The timestamp of the collateral update
-     */
-    function _getUpdateCollateralDigest(
-        address minter_,
-        uint256 amount_,
-        bytes32 metadata_,
-        uint256[] calldata retrieveIds_,
-        uint256 timestamp_
-    ) internal view returns (bytes32) {
-        return
-            _getDigest(
-                keccak256(abi.encode(UPDATE_COLLATERAL_TYPEHASH, minter_, amount_, metadata_, retrieveIds_, timestamp_))
-            );
-    }
-
-    function _getExcessMintedValue() internal view returns (uint256 excessMintedValue_) {
-        uint256 totalSupply_ = IMToken(mToken).totalSupply();
-        uint256 totalOutstandingValue_ = _getOutstandingValue(totalNormalizedPrincipal);
-
-        if (totalOutstandingValue_ > totalSupply_) return totalOutstandingValue_ - totalSupply_;
+        emit CollateralUpdated(minter_, amount_, metadata_, newTimestamp_);
     }
 
     /**
@@ -451,7 +403,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
      * @param signatures_ The list of signatures
      * @return minTimestamp_ The minimum timestamp between all valid timestamps for valid signatures
      */
-    function _revertIfInsufficientValidValidatorSignatures(
+    function _validateSignaturesAndReturnMinTimestamp(
         address minter_,
         uint256 amount_,
         bytes32 metadata_,
@@ -494,15 +446,74 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         if (requiredQuorum_ > 0) revert NotEnoughValidSignatures();
     }
 
+    function _repayForActiveMinter(address minter_, uint256 amount_) internal returns (uint256) {
+        uint256 repayAmount_ = _min(_outstandingValueOf(minter_), amount_);
+        uint256 repayPrincipal_ = _getPrincipalValue(repayAmount_);
+
+        normalizedPrincipalOf[minter_] -= repayPrincipal_;
+        totalNormalizedPrincipal -= repayPrincipal_;
+
+        return repayAmount_;
+    }
+
+    function _repayForRemovedMinter(address minter_, uint256 amount_) internal returns (uint256) {
+        uint256 repayAmount_ = _min(removedOutstandingValueOf[minter_], amount_);
+
+        removedOutstandingValueOf[minter_] -= repayAmount_;
+        totalRemovedOutstandingValue -= repayAmount_;
+
+        return repayAmount_;
+    }
+
+    function revertIfUndecollateralized(address minter_, uint256 amount_) internal view {
+        uint256 allowedOutstandingValue_ = _allowedOutstandingValueOf(minter_);
+        uint256 currentOutstandingValue_ = _outstandingValueOf(minter_);
+
+        if (currentOutstandingValue_ + amount_ > allowedOutstandingValue_) revert UndercollateralizedMint();
+    }
+
+    /******************************************************************************************************************\
+    |                                           Internal View/Pure Functions                                           |
+    \******************************************************************************************************************/
+
+    /**
+     * @notice Returns the EIP-712 digest for updateCollateral method
+     * @param minter_ The address of the minter
+     * @param amount_ The amount of collateral
+     * @param metadata_ The metadata of the collateral update, reserved for future informational use
+     * @param retrieveIds_ The list of retrieve request IDs to close
+     * @param timestamp_ The timestamp of the collateral update
+     */
+    function _getUpdateCollateralDigest(
+        address minter_,
+        uint256 amount_,
+        bytes32 metadata_,
+        uint256[] calldata retrieveIds_,
+        uint256 timestamp_
+    ) internal view returns (bytes32) {
+        return
+            _getDigest(
+                keccak256(abi.encode(UPDATE_COLLATERAL_TYPEHASH, minter_, amount_, metadata_, retrieveIds_, timestamp_))
+            );
+    }
+
+    function _getExcessMintedValue() internal view returns (uint256 excessMintedValue_) {
+        uint256 totalSupply_ = IMToken(mToken).totalSupply();
+        uint256 totalOutstandingValue_ = _getOutstandingValue(totalNormalizedPrincipal);
+
+        if (totalOutstandingValue_ > totalSupply_) return totalOutstandingValue_ - totalSupply_;
+    }
+
     function _allowedOutstandingValueOf(address minter_) internal view returns (uint256) {
         CollateralBasic storage minterCollateral_ = collateralOf[minter_];
+        uint256 amountWithoutRetrieves_ = minterCollateral_.amount - totalRetrieveAmountOf[minter_];
 
-        // if collateral was not updated on time, assume that minter_ CV is zero
+        // If collateral was not updated on time, assume that minter_ CV is zero
         uint256 updateInterval_ = SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar);
         if (minterCollateral_.lastUpdated + updateInterval_ < block.timestamp) return 0;
 
         uint256 mintRatio_ = SPOGRegistrarReader.getMintRatio(spogRegistrar);
-        return (minterCollateral_.amount * mintRatio_) / ONE;
+        return (amountWithoutRetrieves_ * mintRatio_) / ONE;
     }
 
     function _outstandingValueOf(address minter_) internal view returns (uint256) {

@@ -19,17 +19,15 @@ interface IProtocol is IContinuousInterestIndexing {
 
     error FutureTimestamp();
 
-    error InvalidCollateralUpdate(uint256 lastUpdated, uint256 newTimestamp);
-
     error SignatureArrayLengthsMismatch();
 
     error InvalidSignatureOrder();
 
     error NotEnoughValidSignatures();
 
-    // error ExpiredTimestamp();
+    error ExpiredCollateralUpdate();
 
-    // error StaleTimestamp();
+    error StaleCollateralUpdate();
 
     error UndercollateralizedMint();
 
@@ -51,13 +49,7 @@ interface IProtocol is IContinuousInterestIndexing {
     |                                                      Events                                                      |
     \******************************************************************************************************************/
 
-    event CollateralUpdated(
-        address indexed minter,
-        uint256 amount,
-        uint256 amountWithoutRetrieves,
-        bytes32 indexed metadata,
-        uint256 timestamp
-    );
+    event CollateralUpdated(address indexed minter, uint256 amount, bytes32 indexed metadata, uint256 timestamp);
 
     event MintRequestedCreated(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
 
