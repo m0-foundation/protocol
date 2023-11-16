@@ -7,7 +7,7 @@ import { console2, stdError, Test } from "../lib/forge-std/src/Test.sol";
 import { IMToken } from "../src/interfaces/IMToken.sol";
 
 import { SPOGRegistrarReader } from "../src/libs/SPOGRegistrarReader.sol";
-import { InterestMath } from "../src/libs/InterestMath.sol";
+import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
 
 import { MockSPOGRegistrar, MockRateModel } from "./utils/Mocks.sol";
 import { MTokenHarness } from "./utils/MTokenHarness.sol";
@@ -23,7 +23,7 @@ contract MTokenTests is Test {
 
     address[] internal _accounts = [_alice, _bob, _charlie, _david];
 
-    uint256 internal _rate = InterestMath.BPS_BASE_SCALE / 10; // 10% APY
+    uint256 internal _rate = ContinuousIndexingMath.BPS_BASE_SCALE / 10; // 10% APY
     uint256 internal _start = block.timestamp;
 
     uint256 internal _expectedCurrentIndex;
@@ -61,7 +61,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.internalBalanceOf(_alice), 1_000);
         assertEq(_mToken.internalTotalSupply(), 1_000);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
-        assertEq(_mToken.latestIndex(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
@@ -110,7 +110,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.internalBalanceOf(_alice), 500);
         assertEq(_mToken.internalTotalSupply(), 500);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
-        assertEq(_mToken.latestIndex(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
         vm.prank(address(_protocol));
@@ -119,7 +119,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.internalBalanceOf(_alice), 0);
         assertEq(_mToken.internalTotalSupply(), 0);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
-        assertEq(_mToken.latestIndex(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
@@ -178,7 +178,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.internalTotalSupply(), 1_500);
         assertEq(_mToken.totalEarningSupplyPrincipal(), 0);
-        assertEq(_mToken.latestIndex(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
@@ -374,13 +374,16 @@ contract MTokenTests is Test {
 
     function test_updateIndex() external {
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestIndex(), InterestMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
 
         vm.warp(block.timestamp + 365 days);
 
-        _expectedCurrentIndex = InterestMath.multiply(
-            InterestMath.EXP_BASE_SCALE,
-            InterestMath.getContinuousIndex(InterestMath.convertFromBasisPoints(_rate), block.timestamp - _start)
+        _expectedCurrentIndex = ContinuousIndexingMath.multiply(
+            ContinuousIndexingMath.EXP_BASE_SCALE,
+            ContinuousIndexingMath.getContinuousIndex(
+                ContinuousIndexingMath.convertFromBasisPoints(_rate),
+                block.timestamp - _start
+            )
         );
 
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
@@ -390,15 +393,15 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
 
-        _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
+        _rateModel.setRate(_rate = ContinuousIndexingMath.BPS_BASE_SCALE / 20); // 5% APY
 
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex); // Has not changed yet.
 
         vm.warp(block.timestamp + 365 days);
 
-        _expectedCurrentIndex = InterestMath.multiply(
+        _expectedCurrentIndex = ContinuousIndexingMath.multiply(
             _expectedCurrentIndex,
-            InterestMath.getContinuousIndex(InterestMath.convertFromBasisPoints(_rate), 365 days)
+            ContinuousIndexingMath.getContinuousIndex(ContinuousIndexingMath.convertFromBasisPoints(_rate), 365 days)
         );
 
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
@@ -429,7 +432,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.balanceOf(_alice), 1_105);
 
-        _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
+        _rateModel.setRate(_rate = ContinuousIndexingMath.BPS_BASE_SCALE / 20); // 5% APY
 
         // Note that unrealized earnings are subject to change for any period before the last index update.
         assertEq(_mToken.balanceOf(_alice), 1_002);
@@ -444,7 +447,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalEarningSupply(), 1_105);
 
-        _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
+        _rateModel.setRate(_rate = ContinuousIndexingMath.BPS_BASE_SCALE / 20); // 5% APY
 
         // Note that unrealized earnings are subject to change for any period before the last index update.
         assertEq(_mToken.totalEarningSupply(), 1_002);
@@ -469,7 +472,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalSupply(), 1_105);
 
-        _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
+        _rateModel.setRate(_rate = ContinuousIndexingMath.BPS_BASE_SCALE / 20); // 5% APY
 
         // Note that unrealized earnings are subject to change for any period before the last index update.
         assertEq(_mToken.totalSupply(), 1_002);
@@ -485,7 +488,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalSupply(), 2_105);
 
-        _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
+        _rateModel.setRate(_rate = ContinuousIndexingMath.BPS_BASE_SCALE / 20); // 5% APY
 
         // Note that unrealized earnings are subject to change for any period before the last index update.
         assertEq(_mToken.totalSupply(), 2_002);
@@ -494,7 +497,7 @@ contract MTokenTests is Test {
     function test_earningRate() external {
         assertEq(_mToken.earningRate(), _rate);
 
-        _rateModel.setRate(_rate = InterestMath.BPS_BASE_SCALE / 20); // 5% APY
+        _rateModel.setRate(_rate = ContinuousIndexingMath.BPS_BASE_SCALE / 20); // 5% APY
 
         assertEq(_mToken.earningRate(), _rate);
     }

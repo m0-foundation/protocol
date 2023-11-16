@@ -5,7 +5,7 @@ pragma solidity 0.8.21;
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
 
-import { InterestMath } from "./libs/InterestMath.sol";
+import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
 abstract contract ContinuousIndexing is IContinuousIndexing {
     // TODO: Consider packing these into a single slot.
@@ -13,7 +13,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     uint256 internal _latestUpdateTimestamp;
 
     constructor() {
-        _latestIndex = 1 * InterestMath.EXP_BASE_SCALE;
+        _latestIndex = 1 * ContinuousIndexingMath.EXP_BASE_SCALE;
         _latestUpdateTimestamp = block.timestamp;
     }
 
@@ -37,10 +37,10 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
 
     function currentIndex() public view virtual returns (uint256 currentIndex_) {
         return
-            InterestMath.multiply(
+            ContinuousIndexingMath.multiply(
                 _latestIndex,
-                InterestMath.getContinuousIndex(
-                    InterestMath.convertFromBasisPoints(_rate()),
+                ContinuousIndexingMath.getContinuousIndex(
+                    ContinuousIndexingMath.convertFromBasisPoints(_rate()),
                     block.timestamp - _latestUpdateTimestamp
                 )
             );
@@ -60,13 +60,13 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
         uint256 principalAmount_,
         uint256 index_
     ) internal pure returns (uint256 presentAmount_) {
-        return InterestMath.multiply(principalAmount_, index_);
+        return ContinuousIndexingMath.multiply(principalAmount_, index_);
     }
 
     function _getPrincipalAmount(
         uint256 presentAmount_,
         uint256 index_
     ) internal pure returns (uint256 principalAmount_) {
-        return InterestMath.divide(presentAmount_, index_);
+        return ContinuousIndexingMath.divide(presentAmount_, index_);
     }
 }

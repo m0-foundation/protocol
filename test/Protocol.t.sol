@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 
 import { console2, stdError, Test } from "../lib/forge-std/src/Test.sol";
 
-import { InterestMath } from "../src/libs/InterestMath.sol";
+import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
 import { SPOGRegistrarReader } from "../src/libs/SPOGRegistrarReader.sol";
 
 import { IProtocol } from "../src/interfaces/IProtocol.sol";
@@ -329,22 +329,25 @@ contract ProtocolTests is Test {
 
         vm.warp(timestamp + _mintDelay + 1);
 
-        uint256 indexAfter1Second = InterestMath.multiply(
-            InterestMath.getContinuousIndex(InterestMath.convertFromBasisPoints(_mRate), 1),
+        uint256 indexAfter1Second = ContinuousIndexingMath.multiply(
+            ContinuousIndexingMath.getContinuousIndex(ContinuousIndexingMath.convertFromBasisPoints(_mRate), 1),
             initialIndex
         );
 
-        uint256 expectedResult = InterestMath.multiply(minterNormalizedPrincipal, indexAfter1Second);
+        uint256 expectedResult = ContinuousIndexingMath.multiply(minterNormalizedPrincipal, indexAfter1Second);
         assertEq(_protocol.outstandingValueOf(_minter1), expectedResult);
 
         vm.warp(timestamp + _mintDelay + 31_536_000);
 
-        uint256 indexAfter1Year = InterestMath.multiply(
-            InterestMath.getContinuousIndex(InterestMath.convertFromBasisPoints(_mRate), 31_536_000),
+        uint256 indexAfter1Year = ContinuousIndexingMath.multiply(
+            ContinuousIndexingMath.getContinuousIndex(
+                ContinuousIndexingMath.convertFromBasisPoints(_mRate),
+                31_536_000
+            ),
             initialIndex
         );
 
-        expectedResult = InterestMath.multiply(minterNormalizedPrincipal, indexAfter1Year);
+        expectedResult = ContinuousIndexingMath.multiply(minterNormalizedPrincipal, indexAfter1Year);
         assertEq(_protocol.outstandingValueOf(_minter1), expectedResult);
     }
 
