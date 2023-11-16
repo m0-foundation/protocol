@@ -267,7 +267,7 @@ contract ProtocolTests is Test {
         vm.warp(timestamp + _mintDelay);
 
         vm.prank(_minter1);
-        vm.expectRevert(IProtocol.UndercollateralizedMint.selector);
+        vm.expectRevert(IProtocol.Undercollateralized.selector);
         // mint ratio * collateral is not satisfied
         _protocol.proposeMint(100e18, to);
     }
@@ -396,7 +396,7 @@ contract ProtocolTests is Test {
         vm.warp(timestamp + _mintDelay + 1);
 
         vm.prank(_minter1);
-        vm.expectRevert(IProtocol.UndercollateralizedMint.selector);
+        vm.expectRevert(IProtocol.Undercollateralized.selector);
         _protocol.mint(mintId);
     }
 
@@ -412,7 +412,7 @@ contract ProtocolTests is Test {
         vm.warp(timestamp + _mintDelay + 1);
 
         vm.prank(_minter1);
-        vm.expectRevert(IProtocol.UndercollateralizedMint.selector);
+        vm.expectRevert(IProtocol.Undercollateralized.selector);
         _protocol.mint(mintId);
     }
 
