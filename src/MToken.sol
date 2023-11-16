@@ -5,7 +5,7 @@ pragma solidity 0.8.21;
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { IERC20 } from "./interfaces/IERC20.sol";
-import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
+import { IRateModel } from "./interfaces/IRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 
 import { ContinuousIndexing } from "./ContinuousIndexing.sol";
@@ -258,7 +258,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         address rateModel_ = SPOGRegistrarReader.getEarnerRateModel(_spogRegistrar);
 
         (bool success_, bytes memory returnData_) = rateModel_.staticcall(
-            abi.encodeWithSelector(IInterestRateModel.rate.selector)
+            abi.encodeWithSelector(IRateModel.rate.selector)
         );
 
         return success_ ? abi.decode(returnData_, (uint256)) : 0;

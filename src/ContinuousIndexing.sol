@@ -3,7 +3,7 @@
 pragma solidity 0.8.21;
 
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
-import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
+import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 

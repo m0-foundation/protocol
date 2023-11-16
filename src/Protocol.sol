@@ -6,7 +6,7 @@ import { SignatureChecker } from "./libs/SignatureChecker.sol";
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
-import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
+import { IRateModel } from "./interfaces/IRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
 
@@ -561,7 +561,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         address rateModel_ = SPOGRegistrarReader.getMinterRateModel(spogRegistrar);
 
         (bool success_, bytes memory returnData_) = rateModel_.staticcall(
-            abi.encodeWithSelector(IInterestRateModel.rate.selector)
+            abi.encodeWithSelector(IRateModel.rate.selector)
         );
 
         return success_ ? abi.decode(returnData_, (uint256)) : 0;
