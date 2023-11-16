@@ -114,8 +114,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         }
 
         // Validate that quorum of signatures was collected
-        // TODO: correctly handle zero quorum timestamp
-        uint256 minTimestamp_ = _validateSignaturesAndReturnMinTimestamp(
+        uint256 minTimestamp_ = _verifyValidatorSignaturesAndFindMinTimestamp(
             msg.sender,
             amount_,
             metadata_,
@@ -124,6 +123,8 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
             validators_,
             signatures_
         );
+        // If quorum is 0, no signatures are required and current timestamp is used
+        uint256 updateTimestamp_ = minTimestamp_ == 0 ? block.timestamp : minTimestamp_;
 
         // If minter_ is penalized, total normalized M principal is changing
         updateIndex();
@@ -135,7 +136,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         _accruePenaltyForExpiredCollateralValue(msg.sender);
 
         // Update collateral value
-        _updateCollateralValue(msg.sender, amount_, minTimestamp_, metadata_);
+        _updateCollateralValue(msg.sender, amount_, updateTimestamp_, metadata_);
 
         // Accrue penalty for maintaining excessive outstanding value
         _accruePenaltyForExcessiveOutstandingValue(msg.sender);
@@ -217,9 +218,11 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
     function retrieve(uint256 amount_) external onlyApprovedMinter returns (uint256) {
         address minter_ = msg.sender;
 
-        uint256 retrieveOutstandingValue_ = (amount_ * SPOGRegistrarReader.getMintRatio(spogRegistrar)) / ONE;
+        uint256 outstandingValueSurplus_ = (amount_ * SPOGRegistrarReader.getMintRatio(spogRegistrar)) / ONE;
+        // TODO: consider if we need it for small amounts because of rounding
+        // if (retrieveOutstandingValue_ == 0) revert RetrieveAmountTooSmall();
 
-        _revertIfUndercollateralized(minter_, retrieveOutstandingValue_);
+        _revertIfUndercollateralized(minter_, outstandingValueSurplus_);
 
         uint256 retrieveId_ = uint256(keccak256(abi.encode(minter_, amount_, block.timestamp, gasleft())));
 
@@ -375,10 +378,11 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
         CollateralBasic storage minterCollateral_ = collateralOf[minter_];
 
         uint256 currentLastUpdated_ = minterCollateral_.lastUpdated;
-        uint256 updateInterval_ = SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar);
 
         if (newTimestamp_ < currentLastUpdated_) revert StaleCollateralUpdate();
-        if (newTimestamp_ + updateInterval_ <= block.timestamp) revert ExpiredCollateralUpdate();
+        // TODO: product decision
+        // uint256 updateInterval_ = SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar);
+        // if (newTimestamp_ + updateInterval_ <= block.timestamp) revert ExpiredCollateralUpdate();
 
         minterCollateral_.amount = amount_;
         minterCollateral_.lastUpdated = newTimestamp_;
@@ -397,7 +401,7 @@ contract Protocol is IProtocol, ContinuousInterestIndexing, StatelessERC712 {
      * @param signatures_ The list of signatures
      * @return minTimestamp_ The minimum timestamp between all valid timestamps for valid signatures
      */
-    function _validateSignaturesAndReturnMinTimestamp(
+    function _verifyValidatorSignaturesAndFindMinTimestamp(
         address minter_,
         uint256 amount_,
         bytes32 metadata_,

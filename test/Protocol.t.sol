@@ -120,7 +120,7 @@ contract ProtocolTests is Test {
     }
 
     function test_updateCollateral_signatureArrayLengthsMismatch() external {
-        address[] memory validators = new address[](2);
+        address[] memory validators = new address[](3);
         validators[0] = _validator1;
         validators[1] = _validator1;
 
@@ -138,26 +138,31 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         vm.expectRevert(IProtocol.SignatureArrayLengthsMismatch.selector);
         _protocol.updateCollateral(100, "", retrieveIds, validators, timestamps, signatures);
-    }
 
-    function test_updateCollateral_expiredCollateralUpdate() external {
-        uint256 timestamp = block.timestamp - _updateCollateralInterval - 1;
-        uint256[] memory retrieveIds = new uint256[](0);
-        bytes memory signature = _getSignature(_minter1, 100, "", retrieveIds, timestamp, _validator1Pk);
-
-        address[] memory validators = new address[](1);
-        validators[0] = _validator1;
-
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0] = signature;
-
-        uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = timestamp;
-
+        validators[2] = _validator1;
         vm.prank(_minter1);
-        vm.expectRevert(IProtocol.ExpiredCollateralUpdate.selector);
+        vm.expectRevert(IProtocol.SignatureArrayLengthsMismatch.selector);
         _protocol.updateCollateral(100, "", retrieveIds, validators, timestamps, signatures);
     }
+
+    // function test_updateCollateral_expiredCollateralUpdate() external {
+    //     uint256 timestamp = block.timestamp - _updateCollateralInterval - 1;
+    //     uint256[] memory retrieveIds = new uint256[](0);
+    //     bytes memory signature = _getSignature(_minter1, 100, "", retrieveIds, timestamp, _validator1Pk);
+
+    //     address[] memory validators = new address[](1);
+    //     validators[0] = _validator1;
+
+    //     bytes[] memory signatures = new bytes[](1);
+    //     signatures[0] = signature;
+
+    //     uint256[] memory timestamps = new uint256[](1);
+    //     timestamps[0] = timestamp;
+
+    //     vm.prank(_minter1);
+    //     vm.expectRevert(IProtocol.ExpiredCollateralUpdate.selector);
+    //     _protocol.updateCollateral(100, "", retrieveIds, validators, timestamps, signatures);
+    // }
 
     function test_updateCollateral_staleCollateralUpdate() external {
         uint256[] memory retrieveIds = new uint256[](0);
@@ -865,6 +870,56 @@ contract ProtocolTests is Test {
     function test_remove_stillApprovedMinter() external {
         vm.expectRevert(IProtocol.StillApprovedMinter.selector);
         _protocol.remove(_minter1);
+    }
+
+    function test_retrieve() external {
+        uint256 collateral = 100;
+        uint256 timestamp1 = block.timestamp;
+        uint256 timestamp2 = timestamp1 - 10;
+        uint256[] memory retrieveIds = new uint256[](0);
+        bytes memory signature1 = _getSignature(_minter1, collateral, "", retrieveIds, timestamp1, _validator1Pk);
+        bytes memory signature2 = _getSignature(_minter1, collateral, "", retrieveIds, timestamp2, _validator2Pk);
+
+        address[] memory validators = new address[](2);
+        validators[1] = _validator1;
+        validators[0] = _validator2;
+
+        bytes[] memory signatures = new bytes[](2);
+        signatures[1] = signature1;
+        signatures[0] = signature2;
+
+        uint256[] memory timestamps = new uint256[](2);
+        timestamps[1] = timestamp1;
+        timestamps[0] = timestamp2;
+
+        vm.prank(_minter1);
+        vm.expectEmit();
+        emit CollateralUpdated(_minter1, collateral, "", timestamp2);
+        _protocol.updateCollateral(collateral, "", retrieveIds, validators, timestamps, signatures);
+
+        vm.prank(_minter1);
+        uint256 retrieveId = _protocol.retrieve(100);
+
+        assertEq(_protocol.totalRetrieveAmountOf(_minter1), 100);
+        assertEq(_protocol.retrieveRequestOf(_minter1, retrieveId), 100);
+    }
+
+    function test_retrieve_notApprovedMinter() external {
+        vm.prank(makeAddr("alice"));
+        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+        _protocol.retrieve(100);
+    }
+
+    function test_retrieve_notEnoughCollateral() external {
+        uint256 collateral = 100e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral, timestamp);
+        _protocol.setNormalizedPrincipalOf(_minter1, (collateral * _mintRatio) / ONE);
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.Undercollateralized.selector);
+        _protocol.retrieve(10e18);
     }
 
     function _mintTo(address account, uint256 amount) internal {
