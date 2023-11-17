@@ -1094,12 +1094,11 @@ contract ProtocolTests is Test {
 
         uint256[] memory retrieveIds = new uint256[](1);
         retrieveIds[0] = retrieveIdNew;
-        bytes memory signature = _getSignature(_minter1, collateral, retrieveIds, bytes32(0), timestamp, _validator1Pk);
 
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
         bytes[] memory signatures = new bytes[](1);
-        signatures[0] = signature;
+        signatures[0] = _getSignature(_minter1, collateral, retrieveIds, bytes32(0), timestamp, _validator1Pk);
         uint256[] memory timestamps = new uint256[](1);
         timestamps[0] = timestamp;
 
@@ -1111,9 +1110,8 @@ contract ProtocolTests is Test {
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrieveIdNew), 0);
 
         retrieveIds[0] = retrieveId;
-        signature = _getSignature(_minter1, collateral, retrieveIds, bytes32(0), timestamp, _validator1Pk);
         validators[0] = _validator1;
-        signatures[0] = signature;
+        signatures[0] = _getSignature(_minter1, collateral, retrieveIds, bytes32(0), timestamp, _validator1Pk);
         timestamps[0] = timestamp;
 
         // Close second retrieve request
@@ -1125,18 +1123,10 @@ contract ProtocolTests is Test {
 
     function test_updateCollateral_futureTimestamp() external {
         uint256[] memory retrieveIds = new uint256[](0);
-        bytes memory signature = _getSignature(
-            _minter1,
-            100,
-            retrieveIds,
-            bytes32(0),
-            block.timestamp + 100,
-            _validator1Pk
-        );
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
         bytes[] memory signatures = new bytes[](1);
-        signatures[0] = signature;
+        signatures[0] = _getSignature(_minter1, 100, retrieveIds, bytes32(0), block.timestamp + 100, _validator1Pk);
         uint256[] memory timestamps = new uint256[](1);
         timestamps[0] = block.timestamp + 100;
 
@@ -1178,12 +1168,9 @@ contract ProtocolTests is Test {
         validators[2] = validator3;
 
         bytes[] memory signatures = new bytes[](3);
-        bytes memory signature1 = _getSignature(_minter1, 100, retrieveIds, bytes32(0), block.timestamp, _validator1Pk); // valid signature
-        bytes memory signature2 = _getSignature(_minter1, 200, retrieveIds, bytes32(0), block.timestamp, _validator2Pk);
-        bytes memory signature3 = _getSignature(_minter1, 100, retrieveIds, bytes32(0), block.timestamp, validator3Pk);
-        signatures[0] = signature1;
-        signatures[1] = signature2;
-        signatures[2] = signature3;
+        signatures[0] = _getSignature(_minter1, 100, retrieveIds, bytes32(0), block.timestamp, _validator1Pk); // valid signature
+        signatures[1] = _getSignature(_minter1, 200, retrieveIds, bytes32(0), block.timestamp, _validator2Pk);
+        signatures[2] = _getSignature(_minter1, 100, retrieveIds, bytes32(0), block.timestamp, validator3Pk);
 
         uint256[] memory timestamps = new uint256[](3);
         timestamps[0] = block.timestamp;
