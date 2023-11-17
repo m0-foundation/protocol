@@ -16,6 +16,8 @@ import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
 contract ProtocolTests is Test {
     uint256 internal constant ONE = 10000;
 
+    address internal _alice = makeAddr("alice");
+    address internal _bob = makeAddr("bob");
     address internal _spogVault = makeAddr("spogVault");
 
     address internal _minter1;
@@ -40,18 +42,24 @@ contract ProtocolTests is Test {
     ProtocolHarness internal _protocol;
     MockRateModel internal _minterRateModel;
 
-    event CollateralUpdated(address indexed minter, uint256 collateral, bytes32 indexed metadata, uint256 timestamp);
+    event CollateralUpdated(
+        address indexed minter,
+        uint256 collateral,
+        uint256[] indexed retrieveIds,
+        bytes32 indexed metadata,
+        uint256 timestamp
+    );
 
-    event MintProposed(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
-    event MintExecuted(uint256 mintId, address indexed minter, uint256 amount, address indexed to);
-    event MintCanceled(uint256 mintId, address indexed minter, address indexed canceller);
+    event MintProposed(uint256 indexed mintId, address indexed minter, uint256 amount, address indexed destination);
+    event MintExecuted(uint256 indexed mintId);
+    event MintCanceled(uint256 indexed mintId, address indexed canceller);
 
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
-    event MinterDeactivated(address indexed minter, uint256 owedM, address indexed caller);
+    event MinterDeactivated(address indexed minter, uint256 owedM);
 
     event BurnExecuted(address indexed minter, uint256 amount, address indexed payer);
 
-    event PenaltyImposed(address indexed minter, uint256 amount, address indexed caller);
+    event PenaltyImposed(address indexed minter, uint256 amount);
 
     function setUp() external {
         (_minter1, _minter1Pk) = makeAddrAndKey("minter1");
@@ -88,111 +96,112 @@ contract ProtocolTests is Test {
 
     function test_updateCollateral() external {
         uint256 collateral = 100;
-        uint256 timestamp = block.timestamp;
         uint256[] memory retrievalIds = new uint256[](0);
-        bytes memory signature = _getSignature(_minter1, collateral, "", retrievalIds, timestamp, _validator1Pk);
+        uint256 signatureTimestamp = block.timestamp;
 
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
 
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0] = signature;
-
         uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = timestamp;
+        timestamps[0] = signatureTimestamp;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp,
+            _validator1Pk
+        );
+
+        vm.expectEmit();
+        emit CollateralUpdated(_minter1, collateral, retrievalIds, bytes32(0), signatureTimestamp);
 
         vm.prank(_minter1);
-        vm.expectEmit();
-        emit CollateralUpdated(_minter1, collateral, "", timestamp);
-        _protocol.updateCollateral(collateral, "", retrievalIds, validators, timestamps, signatures);
+        _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         (uint256 collateral_, uint256 lastUpdated_, ) = _protocol.collateralOf(_minter1);
+
         assertEq(collateral_, collateral);
-        assertEq(lastUpdated_, timestamp);
+        assertEq(lastUpdated_, signatureTimestamp);
     }
 
     function test_updateCollateral_notApprovedMinter() external {
-        address[] memory validators = new address[](0);
-        bytes[] memory signatures = new bytes[](0);
         uint256[] memory retrievalIds = new uint256[](0);
+        address[] memory validators = new address[](0);
         uint256[] memory timestamps = new uint256[](0);
+        bytes[] memory signatures = new bytes[](0);
 
         vm.prank(_validator1);
         vm.expectRevert(IProtocol.NotApprovedMinter.selector);
-        _protocol.updateCollateral(100e18, "", retrievalIds, validators, timestamps, signatures);
+        _protocol.updateCollateral(100e18, retrievalIds, bytes32(0), validators, timestamps, signatures);
     }
 
     function test_updateCollateral_signatureArrayLengthsMismatch() external {
-        address[] memory validators = new address[](3);
-        validators[0] = _validator1;
-        validators[1] = _validator1;
-
-        uint256[] memory retrievalIds = new uint256[](0);
-        bytes memory signature = _getSignature(_minter1, 100, "", retrievalIds, block.timestamp, _validator1Pk);
-
-        bytes[] memory signatures = new bytes[](3);
-        signatures[0] = signature;
-        signatures[1] = signature;
-        signatures[2] = signature;
-
-        uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = block.timestamp;
+        vm.expectRevert(IProtocol.SignatureArrayLengthsMismatch.selector);
 
         vm.prank(_minter1);
-        vm.expectRevert(IProtocol.SignatureArrayLengthsMismatch.selector);
-        _protocol.updateCollateral(100, "", retrievalIds, validators, timestamps, signatures);
+        _protocol.updateCollateral(
+            100,
+            new uint256[](0),
+            bytes32(0),
+            new address[](2),
+            new uint256[](1),
+            new bytes[](1)
+        );
 
-        validators[2] = _validator1;
-        vm.prank(_minter1);
         vm.expectRevert(IProtocol.SignatureArrayLengthsMismatch.selector);
-        _protocol.updateCollateral(100, "", retrievalIds, validators, timestamps, signatures);
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(
+            100,
+            new uint256[](0),
+            bytes32(0),
+            new address[](1),
+            new uint256[](2),
+            new bytes[](1)
+        );
+
+        vm.expectRevert(IProtocol.SignatureArrayLengthsMismatch.selector);
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(
+            100,
+            new uint256[](0),
+            bytes32(0),
+            new address[](1),
+            new uint256[](1),
+            new bytes[](2)
+        );
     }
-
-    // function test_updateCollateral_expiredCollateralUpdate() external {
-    //     uint256 timestamp = block.timestamp - _updateCollateralInterval - 1;
-    //     uint256[] memory retrievalIds = new uint256[](0);
-    //     bytes memory signature = _getSignature(_minter1, 100, "", retrievalIds, timestamp, _validator1Pk);
-
-    //     address[] memory validators = new address[](1);
-    //     validators[0] = _validator1;
-
-    //     bytes[] memory signatures = new bytes[](1);
-    //     signatures[0] = signature;
-
-    //     uint256[] memory timestamps = new uint256[](1);
-    //     timestamps[0] = timestamp;
-
-    //     vm.prank(_minter1);
-    //     vm.expectRevert(IProtocol.ExpiredCollateralUpdate.selector);
-    //     _protocol.updateCollateral(100, "", retrievalIds, validators, timestamps, signatures);
-    // }
 
     function test_updateCollateral_staleCollateralUpdate() external {
         uint256[] memory retrievalIds = new uint256[](0);
-        bytes memory signature = _getSignature(_minter1, 100, "", retrievalIds, block.timestamp, _validator1Pk);
 
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
 
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0] = signature;
-
         uint256[] memory timestamps = new uint256[](1);
         timestamps[0] = block.timestamp;
 
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getSignature(_minter1, 100, retrievalIds, bytes32(0), block.timestamp, _validator1Pk);
+
         vm.prank(_minter1);
-        _protocol.updateCollateral(100, "", retrievalIds, validators, timestamps, signatures);
+        _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         (, uint256 lastUpdated_, ) = _protocol.collateralOf(_minter1);
 
         uint256 timestamp = lastUpdated_ - 1;
-        signature = _getSignature(_minter1, 100, "", retrievalIds, timestamp, _validator1Pk);
-        signatures[0] = signature;
+
         timestamps[0] = timestamp;
+        signatures[0] = _getSignature(_minter1, 100, retrievalIds, bytes32(0), timestamp, _validator1Pk);
+
+        vm.expectRevert(IProtocol.StaleCollateralUpdate.selector);
 
         vm.prank(_minter1);
-        vm.expectRevert(IProtocol.StaleCollateralUpdate.selector);
-        _protocol.updateCollateral(100, "", retrievalIds, validators, timestamps, signatures);
+        _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
     }
 
     function test_updateCollateral_notEnoughValidSignatures() external {
@@ -200,12 +209,27 @@ contract ProtocolTests is Test {
             SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD,
             bytes32(uint256(3))
         );
+
         uint256 collateral = 100;
+        uint256[] memory retrievalIds = new uint256[](0);
         uint256 timestamp = block.timestamp;
 
-        uint256[] memory retrievalIds = new uint256[](0);
-        bytes memory signature1_ = _getSignature(_minter1, collateral, "", retrievalIds, timestamp, _validator1Pk);
-        bytes memory signature2_ = _getSignature(_minter1, collateral, "", retrievalIds, timestamp, _validator2Pk);
+        bytes memory signature1_ = _getSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            timestamp,
+            _validator1Pk
+        );
+        bytes memory signature2_ = _getSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            timestamp,
+            _validator2Pk
+        );
 
         address[] memory validators = new address[](3);
         validators[0] = _validator1;
@@ -222,34 +246,36 @@ contract ProtocolTests is Test {
         timestamps[1] = timestamp;
         timestamps[2] = timestamp;
 
-        vm.prank(_minter1);
         vm.expectRevert(IProtocol.InvalidSignatureOrder.selector);
-        _protocol.updateCollateral(collateral, "", retrievalIds, validators, timestamps, signatures);
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
     }
 
     function test_proposeMint() external {
         uint256 collateral = 100e18;
         uint256 amount = 60e18;
         uint256 timestamp = block.timestamp;
-        address destination_ = makeAddr("alice");
 
         _protocol.setCollateralOf(_minter1, collateral, timestamp);
 
-        vm.pauseGasMetering();
-        uint256 expectedMintId = uint256(keccak256(abi.encode(_minter1, amount, destination_, timestamp, gasleft())));
+        uint256 expectedMintId = uint256(keccak256(abi.encode(_minter1, amount, _alice, timestamp)));
+
+        vm.expectEmit();
+        emit MintProposed(expectedMintId, _minter1, amount, _alice);
 
         vm.prank(_minter1);
-        vm.expectEmit();
-        emit MintProposed(expectedMintId, _minter1, amount, destination_);
-        uint256 mintId = _protocol.proposeMint(amount, destination_);
+        uint256 mintId = _protocol.proposeMint(amount, _alice);
+
         assertEq(mintId, expectedMintId);
 
-        vm.resumeGasMetering();
+        (uint256 mintId_, address destination_, uint256 amount_, uint256 timestamp_) = _protocol.mintProposalOf(
+            _minter1
+        );
 
-        (uint256 mintId_, address to_, uint256 amount_, uint256 timestamp_) = _protocol.mintProposalOf(_minter1);
         assertEq(mintId_, mintId);
         assertEq(amount_, amount);
-        assertEq(to_, destination_);
+        assertEq(destination_, _alice);
         assertEq(timestamp_, timestamp);
     }
 
@@ -257,52 +283,54 @@ contract ProtocolTests is Test {
         vm.prank(_validator1);
         _protocol.freezeMinter(_minter1);
 
-        vm.prank(_minter1);
         vm.expectRevert(IProtocol.FrozenMinter.selector);
+
+        vm.prank(_minter1);
         _protocol.proposeMint(100e18, makeAddr("to"));
     }
 
     function test_proposeMint_notApprovedMinter() external {
-        vm.prank(makeAddr("alice"));
         vm.expectRevert(IProtocol.NotApprovedMinter.selector);
-        _protocol.proposeMint(100e18, makeAddr("to"));
+        vm.prank(_alice);
+        _protocol.proposeMint(100e18, _alice);
     }
 
     function test_proposeMint_undercollateralizedMint() external {
         uint256 collateral = 100e18;
         uint256 timestamp = block.timestamp;
-        address destination = makeAddr("alice");
 
         _protocol.setCollateralOf(_minter1, collateral, timestamp);
 
         vm.warp(timestamp + _mintDelay);
 
-        vm.prank(_minter1);
         vm.expectRevert(IProtocol.Undercollateralized.selector);
-        // mint ratio * collateral is not satisfied
-        _protocol.proposeMint(100e18, destination);
+
+        vm.prank(_minter1);
+        _protocol.proposeMint(100e18, _alice);
     }
 
     function test_mint() external {
         uint256 collateral = 100e18;
         uint256 amount = 80e18;
         uint256 timestamp = block.timestamp;
-        address destination = makeAddr("alice");
 
         _protocol.setCollateralOf(_minter1, collateral, timestamp);
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, amount, timestamp, destination, 1);
+
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, amount, timestamp, _alice);
 
         vm.warp(timestamp + _mintDelay);
 
-        vm.prank(_minter1);
         vm.expectEmit();
-        emit MintExecuted(mintId, _minter1, amount, destination);
+        emit MintExecuted(mintId);
+
+        vm.prank(_minter1);
         _protocol.mintM(mintId);
 
         // check that mint request has been deleted
         (uint256 mintId_, address destination_, uint256 amount_, uint256 timestamp_) = _protocol.mintProposalOf(
             _minter1
         );
+
         assertEq(mintId_, 0);
         assertEq(destination_, address(0));
         assertEq(amount_, 0);
@@ -318,11 +346,11 @@ contract ProtocolTests is Test {
         uint256 collateralAmount = 10000e18;
         uint256 mintAmount = 1000000e6;
         uint256 timestamp = block.timestamp;
-        address to = makeAddr("to");
 
         // initiate harness functions
         _protocol.setCollateralOf(_minter1, collateralAmount, timestamp);
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, mintAmount, timestamp, to, 1);
+
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, mintAmount, timestamp, _alice);
 
         vm.warp(timestamp + _mintDelay);
 
@@ -343,6 +371,7 @@ contract ProtocolTests is Test {
         );
 
         uint256 expectedResult = ContinuousIndexingMath.multiply(principalOfActiveOwedM, indexAfter1Second);
+
         assertEq(_protocol.activeOwedMOf(_minter1), expectedResult);
 
         vm.warp(timestamp + _mintDelay + 31_536_000);
@@ -356,14 +385,16 @@ contract ProtocolTests is Test {
         );
 
         expectedResult = ContinuousIndexingMath.multiply(principalOfActiveOwedM, indexAfter1Year);
+
         assertEq(_protocol.activeOwedMOf(_minter1), expectedResult);
     }
 
     function test_mint_notApprovedMinter() external {
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100e18, block.timestamp, makeAddr("alice"), 1);
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100e18, block.timestamp, _alice);
 
-        vm.prank(makeAddr("alice"));
         vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+
+        vm.prank(_bob);
         _protocol.mintM(mintId);
     }
 
@@ -371,32 +402,35 @@ contract ProtocolTests is Test {
         vm.prank(_validator1);
         _protocol.freezeMinter(_minter1);
 
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100e18, block.timestamp, _minter1, 1);
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100e18, block.timestamp, _minter1);
+
+        vm.expectRevert(IProtocol.FrozenMinter.selector);
 
         vm.prank(_minter1);
-        vm.expectRevert(IProtocol.FrozenMinter.selector);
         _protocol.mintM(mintId);
     }
 
     function test_mint_pendingMintRequest() external {
         uint256 timestamp = block.timestamp;
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, timestamp, makeAddr("alice"), 1);
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, timestamp, _alice);
 
         vm.warp(timestamp + _mintDelay / 2);
 
-        vm.prank(_minter1);
         vm.expectRevert(IProtocol.PendingMintProposal.selector);
+
+        vm.prank(_minter1);
         _protocol.mintM(mintId);
     }
 
     function test_mint_expiredMintRequest() external {
         uint256 timestamp = block.timestamp;
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, timestamp, makeAddr("alice"), 1);
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, timestamp, _alice);
 
         vm.warp(timestamp + _mintDelay + _mintTTL + 1);
 
-        vm.prank(_minter1);
         vm.expectRevert(IProtocol.ExpiredMintProposal.selector);
+
+        vm.prank(_minter1);
         _protocol.mintM(mintId);
     }
 
@@ -404,15 +438,16 @@ contract ProtocolTests is Test {
         uint256 collateral = 100e18;
         uint256 amount = 95e18;
         uint256 timestamp = block.timestamp;
-        address destination = makeAddr("alice");
 
         _protocol.setCollateralOf(_minter1, collateral, timestamp);
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, amount, timestamp, destination, 1);
+
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, amount, timestamp, _alice);
 
         vm.warp(timestamp + _mintDelay + 1);
 
-        vm.prank(_minter1);
         vm.expectRevert(IProtocol.Undercollateralized.selector);
+
+        vm.prank(_minter1);
         _protocol.mintM(mintId);
     }
 
@@ -420,48 +455,50 @@ contract ProtocolTests is Test {
         uint256 collateral = 100e18;
         uint256 amount = 95e18;
         uint256 timestamp = block.timestamp;
-        address destination = makeAddr("alice");
 
         _protocol.setCollateralOf(_minter1, collateral, timestamp - _updateCollateralInterval);
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, amount, timestamp, destination, 1);
+
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, amount, timestamp, _alice);
 
         vm.warp(timestamp + _mintDelay + 1);
 
-        vm.prank(_minter1);
         vm.expectRevert(IProtocol.Undercollateralized.selector);
+
+        vm.prank(_minter1);
         _protocol.mintM(mintId);
     }
 
     function test_mint_invalidMintRequest() external {
-        vm.prank(_minter1);
         vm.expectRevert(IProtocol.InvalidMintProposal.selector);
+        vm.prank(_minter1);
         _protocol.mintM(1);
     }
 
     function test_mint_invalidMintRequest_mismatchOfIds() external {
         uint256 amount = 95e18;
         uint256 timestamp = block.timestamp;
-        address destination = makeAddr("alice");
-        uint256 gasLeft = 1;
 
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, amount, timestamp, destination, gasLeft);
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, amount, timestamp, _alice);
+
+        vm.expectRevert(IProtocol.InvalidMintProposal.selector);
 
         vm.prank(_minter1);
-        vm.expectRevert(IProtocol.InvalidMintProposal.selector);
         _protocol.mintM(mintId - 1);
     }
 
     function test_cancel_byValidator() external {
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, makeAddr("alice"), 1);
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, _alice);
+
+        vm.expectEmit();
+        emit MintCanceled(mintId, _validator1);
 
         vm.prank(_validator1);
-        vm.expectEmit();
-        emit MintCanceled(mintId, _minter1, _validator1);
         _protocol.cancelMint(_minter1, mintId);
 
         (uint256 mintId_, address destination_, uint256 amount_, uint256 timestamp) = _protocol.mintProposalOf(
             _minter1
         );
+
         assertEq(mintId_, 0);
         assertEq(destination_, address(0));
         assertEq(amount_, 0);
@@ -469,16 +506,18 @@ contract ProtocolTests is Test {
     }
 
     function test_cancel_byMinter() external {
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, makeAddr("alice"), 1);
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, _alice);
+
+        vm.expectEmit();
+        emit MintCanceled(mintId, _minter1);
 
         vm.prank(_minter1);
-        vm.expectEmit();
-        emit MintCanceled(mintId, _minter1, _minter1);
         _protocol.cancelMint(mintId);
 
         (uint256 mintId_, address destination_, uint256 amount_, uint256 timestamp) = _protocol.mintProposalOf(
             _minter1
         );
+
         assertEq(mintId_, 0);
         assertEq(destination_, address(0));
         assertEq(amount_, 0);
@@ -486,97 +525,93 @@ contract ProtocolTests is Test {
     }
 
     function test_cancel_notApprovedValidator() external {
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, makeAddr("alice"), 1);
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, _alice);
 
-        vm.prank(makeAddr("alice"));
         vm.expectRevert(IProtocol.NotApprovedValidator.selector);
+        vm.prank(_alice);
         _protocol.cancelMint(_minter1, mintId);
     }
 
     function test_cancel_invalidMintRequest() external {
-        vm.prank(_minter1);
         vm.expectRevert(IProtocol.InvalidMintProposal.selector);
+        vm.prank(_minter1);
         _protocol.cancelMint(1);
 
-        vm.prank(_validator1);
         vm.expectRevert(IProtocol.InvalidMintProposal.selector);
+        vm.prank(_validator1);
         _protocol.cancelMint(_minter1, 1);
     }
 
     function test_freeze() external {
         uint256 collateral = 100e18;
         uint256 amount = 60e18;
-        uint256 timestamp = block.timestamp;
-        address destination = makeAddr("alice");
 
-        _protocol.setCollateralOf(_minter1, collateral, timestamp);
+        _protocol.setCollateralOf(_minter1, collateral, block.timestamp);
 
-        uint256 frozenUntil = timestamp + _minterFreezeTime;
+        uint256 frozenUntil = block.timestamp + _minterFreezeTime;
 
-        vm.prank(_validator1);
         vm.expectEmit();
         emit MinterFrozen(_minter1, frozenUntil);
+
+        vm.prank(_validator1);
         _protocol.freezeMinter(_minter1);
 
         assertEq(_protocol.unfrozenTimeOf(_minter1), frozenUntil);
 
-        vm.prank(_minter1);
         vm.expectRevert(IProtocol.FrozenMinter.selector);
-        _protocol.proposeMint(amount, destination);
 
-        // fast-worward to the time when minter is unfrozen
+        vm.prank(_minter1);
+        _protocol.proposeMint(amount, _alice);
+
+        // fast-forward to the time when minter is unfrozen
         vm.warp(frozenUntil);
 
-        vm.pauseGasMetering();
-        uint256 expectedMintId = uint256(
-            keccak256(abi.encode(_minter1, amount, destination, block.timestamp, gasleft()))
-        );
+        uint256 expectedMintId = uint256(keccak256(abi.encode(_minter1, amount, _alice, block.timestamp)));
+
+        vm.expectEmit();
+        emit MintProposed(expectedMintId, _minter1, amount, _alice);
 
         vm.prank(_minter1);
-        vm.expectEmit();
-        emit MintProposed(expectedMintId, _minter1, amount, destination);
-        uint mintId = _protocol.proposeMint(amount, destination);
-
-        vm.resumeGasMetering();
+        uint mintId = _protocol.proposeMint(amount, _alice);
 
         assertEq(mintId, expectedMintId);
     }
 
     function test_freeze_sequence() external {
         uint256 timestamp = block.timestamp;
-
         uint256 frozenUntil = timestamp + _minterFreezeTime;
+
+        vm.expectEmit();
+        emit MinterFrozen(_minter1, frozenUntil);
 
         // first freezeMinter
         vm.prank(_validator1);
-        vm.expectEmit();
-        emit MinterFrozen(_minter1, frozenUntil);
         _protocol.freezeMinter(_minter1);
 
-        uint256 newFreezeTimestamp = timestamp + _minterFreezeTime / 2;
-        vm.warp(newFreezeTimestamp);
+        vm.warp(timestamp + _minterFreezeTime / 2);
 
-        vm.prank(_validator1);
         vm.expectEmit();
         emit MinterFrozen(_minter1, frozenUntil + _minterFreezeTime / 2);
+
+        vm.prank(_validator1);
         _protocol.freezeMinter(_minter1);
     }
 
     function test_freeze_notApprovedValidator() external {
-        vm.prank(makeAddr("alice"));
         vm.expectRevert(IProtocol.NotApprovedValidator.selector);
+        vm.prank(_alice);
         _protocol.freezeMinter(_minter1);
     }
 
-    function test_xxx_burn() external {
+    function test_burn() external {
         uint256 collateralAmount = 10000000e18;
         uint256 mintAmount = 1000000e18;
         uint256 timestamp = block.timestamp;
-        address destination = makeAddr("alice");
 
         // initiate harness functions
         _protocol.setCollateralOf(_minter1, collateralAmount, timestamp);
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, mintAmount, timestamp, destination, 1);
+
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, mintAmount, timestamp, _alice);
 
         vm.warp(timestamp + _mintDelay);
 
@@ -586,8 +621,10 @@ contract ProtocolTests is Test {
         // 1 wei precision difference for the benefit of user
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
 
-        vm.prank(destination);
-        emit BurnExecuted(_minter1, activeOwedM, destination);
+        vm.expectEmit();
+        emit BurnExecuted(_minter1, activeOwedM, _alice);
+
+        vm.prank(_alice);
         _protocol.burnM(_minter1, activeOwedM);
 
         assertEq(_protocol.activeOwedMOf(_minter1), 1); // 1 wei leftover
@@ -598,18 +635,16 @@ contract ProtocolTests is Test {
         _protocol.setCollateralOf(_minter1, 1000e18, block.timestamp);
 
         uint256 principalOfActiveOwedM = 100e18;
+
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, principalOfActiveOwedM);
         _protocol.setIndex(1e18);
 
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
 
-        address alice = makeAddr("alice");
-        address bob = makeAddr("bob");
-
         vm.expectEmit();
-        emit BurnExecuted(_minter1, activeOwedM / 2, alice);
+        emit BurnExecuted(_minter1, activeOwedM / 2, _alice);
 
-        vm.prank(alice);
+        vm.prank(_alice);
         _protocol.burnM(_minter1, activeOwedM / 2);
 
         assertEq(_protocol.activeOwedMOf(_minter1), activeOwedM / 2);
@@ -617,9 +652,9 @@ contract ProtocolTests is Test {
         // TODO: check that burn has been called.
 
         vm.expectEmit();
-        emit BurnExecuted(_minter1, activeOwedM / 2, bob);
+        emit BurnExecuted(_minter1, activeOwedM / 2, _bob);
 
-        vm.prank(bob);
+        vm.prank(_bob);
         _protocol.burnM(_minter1, activeOwedM / 2);
 
         assertEq(_protocol.activeOwedMOf(_minter1), 0);
@@ -629,6 +664,7 @@ contract ProtocolTests is Test {
 
     function test_burn_notEnoughBalanceToRepay() external {
         uint256 principalOfActiveOwedM = 100e18;
+
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, principalOfActiveOwedM);
         _protocol.setIndex(1e18);
 
@@ -637,40 +673,50 @@ contract ProtocolTests is Test {
         _mToken.setBurnFail(true);
 
         vm.expectRevert();
-        vm.prank(makeAddr("alice"));
+
+        vm.prank(_alice);
         _protocol.burnM(_minter1, activeOwedM);
     }
 
     function test_updateCollateral_accruePenaltyForExpiredCollateralValue() external {
         uint256 collateral = 100e18;
         uint256 amount = 60e18;
-        uint256 timestamp = block.timestamp;
 
-        _protocol.setCollateralOf(_minter1, collateral, timestamp);
+        _protocol.setCollateralOf(_minter1, collateral, block.timestamp);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, amount);
 
-        vm.warp(timestamp + 3 * _updateCollateralInterval);
+        vm.warp(block.timestamp + 3 * _updateCollateralInterval);
 
         uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
+
         assertEq(penalty, (activeOwedM * 3 * _penalty) / ONE);
 
         uint256[] memory retrievalIds = new uint256[](0);
-        bytes memory signature = _getSignature(_minter1, collateral, "", retrievalIds, block.timestamp, _validator1Pk);
 
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
 
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0] = signature;
+        uint256 signatureTimestamp = block.timestamp;
 
         uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = block.timestamp;
+        timestamps[0] = signatureTimestamp;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp,
+            _validator1Pk
+        );
+
+        vm.expectEmit();
+        emit PenaltyImposed(_minter1, penalty);
 
         vm.prank(_minter1);
-        vm.expectEmit();
-        emit PenaltyImposed(_minter1, penalty, _minter1);
-        _protocol.updateCollateral(collateral, "", retrievalIds, validators, timestamps, signatures);
+        _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         assertEq(_protocol.activeOwedMOf(_minter1), activeOwedM + penalty);
     }
@@ -678,42 +724,59 @@ contract ProtocolTests is Test {
     function test_updateCollateral_accruePenaltyForMissedCollateralUpdates() external {
         uint256 collateral = 100e18;
         uint256 amount = 180e18;
-        uint256 timestamp = block.timestamp;
 
         uint256[] memory retrievalIds = new uint256[](0);
-        bytes memory signature = _getSignature(_minter1, collateral, "", retrievalIds, timestamp, _validator1Pk);
 
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
 
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0] = signature;
+        uint256 signatureTimestamp = block.timestamp;
 
         uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = timestamp;
+        timestamps[0] = signatureTimestamp;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp,
+            _validator1Pk
+        );
 
         vm.prank(_minter1);
-        _protocol.updateCollateral(collateral, "", retrievalIds, validators, timestamps, signatures);
+        _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, amount);
 
-        vm.warp(timestamp + _updateCollateralInterval - 1);
+        vm.warp(block.timestamp + _updateCollateralInterval - 1);
 
         uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
         assertEq(penalty, 0);
 
         // Step 2 - Update Collateral with excessive outstanding value
-        signature = _getSignature(_minter1, collateral, "", retrievalIds, block.timestamp, _validator1Pk);
-        signatures[0] = signature;
-        timestamps[0] = block.timestamp;
+        signatureTimestamp = block.timestamp;
+        timestamps[0] = signatureTimestamp;
+
+        signatures[0] = _getSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp,
+            _validator1Pk
+        );
 
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
         uint256 maxOwedM = (collateral * _mintRatio) / ONE;
         uint256 expectedPenalty = ((activeOwedM - maxOwedM) * _penalty) / ONE;
-        vm.prank(_minter1);
+
         vm.expectEmit();
-        emit PenaltyImposed(_minter1, expectedPenalty, _minter1);
-        _protocol.updateCollateral(collateral, "", retrievalIds, validators, timestamps, signatures);
+        emit PenaltyImposed(_minter1, expectedPenalty);
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         // 1 wei precision loss
         assertEq(_protocol.activeOwedMOf(_minter1) + 1 wei, activeOwedM + expectedPenalty);
@@ -722,36 +785,43 @@ contract ProtocolTests is Test {
     function test_updateCollateral_accrueBothPenalties() external {
         uint256 collateral = 100e18;
         uint256 amount = 60e18;
-        uint256 timestamp = block.timestamp;
 
-        _protocol.setCollateralOf(_minter1, collateral, timestamp);
+        _protocol.setCollateralOf(_minter1, collateral, block.timestamp);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, amount);
 
-        vm.warp(timestamp + 2 * _updateCollateralInterval);
+        vm.warp(block.timestamp + 2 * _updateCollateralInterval);
 
         uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
         assertEq(penalty, (activeOwedM * 2 * _penalty) / ONE);
 
         uint256 newCollateral = 10e18;
-        uint256 newTimestamp = block.timestamp;
 
         uint256[] memory retrievalIds = new uint256[](0);
-        bytes memory signature = _getSignature(_minter1, newCollateral, "", retrievalIds, newTimestamp, _validator1Pk);
 
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
 
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0] = signature;
+        uint256 signatureTimestamp = block.timestamp;
 
         uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = newTimestamp;
+        timestamps[0] = signatureTimestamp;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getSignature(
+            _minter1,
+            newCollateral,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp,
+            _validator1Pk
+        );
+
+        vm.expectEmit();
+        emit PenaltyImposed(_minter1, penalty);
 
         vm.prank(_minter1);
-        vm.expectEmit();
-        emit PenaltyImposed(_minter1, penalty, _minter1);
-        _protocol.updateCollateral(newCollateral, "", retrievalIds, validators, timestamps, signatures);
+        _protocol.updateCollateral(newCollateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         uint256 expectedPenalty = (((activeOwedM + penalty) - (newCollateral * _mintRatio) / ONE) * _penalty) / ONE;
 
@@ -760,30 +830,28 @@ contract ProtocolTests is Test {
 
         (, uint256 lastUpdated_, uint256 penalizedUntil_) = _protocol.collateralOf(_minter1);
 
-        assertEq(lastUpdated_, newTimestamp);
-        assertEq(penalizedUntil_, newTimestamp);
+        assertEq(lastUpdated_, signatureTimestamp);
+        assertEq(penalizedUntil_, signatureTimestamp);
     }
 
     function test_burn_accruePenaltyForExpiredCollateralValue() external {
         uint256 collateral = 100e18;
         uint256 amount = 60e18;
-        uint256 timestamp = block.timestamp;
-        address destination = makeAddr("alice");
 
-        _protocol.setCollateralOf(_minter1, collateral, timestamp);
+        _protocol.setCollateralOf(_minter1, collateral, block.timestamp);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, amount);
 
-        vm.warp(timestamp + 3 * _updateCollateralInterval);
+        vm.warp(block.timestamp + 3 * _updateCollateralInterval);
 
         uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
+
         assertEq(penalty, (activeOwedM * 3 * _penalty) / ONE);
 
-        _mintTo(destination, activeOwedM);
-
-        vm.prank(destination);
         vm.expectEmit();
-        emit PenaltyImposed(_minter1, penalty, destination);
+        emit PenaltyImposed(_minter1, penalty);
+
+        vm.prank(_alice);
         _protocol.burnM(_minter1, activeOwedM);
 
         activeOwedM = _protocol.activeOwedMOf(_minter1);
@@ -809,32 +877,39 @@ contract ProtocolTests is Test {
         penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
         assertEq(penalty, (_protocol.activeOwedMOf(_minter1) * _penalty) / ONE);
 
-        uint256[] memory retrievalIds = new uint256[](1);
-        bytes memory signature = _getSignature(_minter1, collateral, "", retrievalIds, block.timestamp, _validator1Pk);
+        uint256[] memory retrievalIds = new uint256[](0);
 
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
 
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0] = signature;
+        uint256 signatureTimestamp = block.timestamp;
 
         uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = block.timestamp;
+        timestamps[0] = signatureTimestamp;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp,
+            _validator1Pk
+        );
 
         vm.prank(_minter1);
-        _protocol.updateCollateral(collateral, "", retrievalIds, validators, timestamps, signatures);
+        _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         (, uint256 lastUpdated, uint256 penalizedUntil) = _protocol.collateralOf(_minter1);
-        assertEq(lastUpdated, block.timestamp);
+
+        assertEq(lastUpdated, signatureTimestamp);
         assertEq(penalizedUntil, timestamp + _updateCollateralInterval);
 
-        address alice = makeAddr("alice");
-        _mintTo(alice, 10e18);
-
-        vm.prank(alice);
+        vm.prank(_alice);
         _protocol.burnM(_minter1, 10e18);
 
         (, uint256 lastUpdated_, uint256 penalizedUntil_) = _protocol.collateralOf(_minter1);
+
         assertEq(lastUpdated_, lastUpdated);
         assertEq(penalizedUntil, penalizedUntil_ - 10);
     }
@@ -844,25 +919,25 @@ contract ProtocolTests is Test {
 
         _protocol.setCollateralOf(_minter1, mintAmount * 2, block.timestamp);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, mintAmount);
+
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
 
         _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
 
-        address alice = makeAddr("alice");
-        vm.prank(alice);
         vm.expectEmit();
-        emit MinterDeactivated(_minter1, activeOwedM, alice);
+        emit MinterDeactivated(_minter1, activeOwedM);
+
+        vm.prank(_alice);
         _protocol.deactivateMinter(_minter1);
 
         assertEq(_protocol.principalOfActiveOwedMOf(_minter1), 0);
         assertEq(_protocol.activeOwedMOf(_minter1), 0);
         assertEq(_protocol.inactiveOwedMOf(_minter1), activeOwedM);
 
-        _mintTo(alice, activeOwedM);
-
-        vm.prank(alice);
         vm.expectEmit();
-        emit BurnExecuted(_minter1, activeOwedM, alice);
+        emit BurnExecuted(_minter1, activeOwedM, _alice);
+
+        vm.prank(_alice);
         _protocol.burnM(_minter1, activeOwedM);
     }
 
@@ -871,15 +946,16 @@ contract ProtocolTests is Test {
 
         _protocol.setCollateralOf(_minter1, mintAmount * 2, block.timestamp - _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, mintAmount);
+
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
         uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
 
         _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
 
-        address alice = makeAddr("alice");
-        vm.prank(alice);
         vm.expectEmit();
-        emit MinterDeactivated(_minter1, activeOwedM + penalty, alice);
+        emit MinterDeactivated(_minter1, activeOwedM + penalty);
+
+        vm.prank(_alice);
         _protocol.deactivateMinter(_minter1);
     }
 
@@ -890,28 +966,41 @@ contract ProtocolTests is Test {
 
     function test_retrieve() external {
         uint256 collateral = 100;
-        uint256 timestamp1 = block.timestamp;
-        uint256 timestamp2 = timestamp1 - 10;
+        uint256 signatureTimestamp1 = block.timestamp;
+        uint256 signatureTimestamp2 = signatureTimestamp1 - 10;
         uint256[] memory retrievalIds = new uint256[](0);
-        bytes memory signature1_ = _getSignature(_minter1, collateral, "", retrievalIds, timestamp1, _validator1Pk);
-        bytes memory signature2_ = _getSignature(_minter1, collateral, "", retrievalIds, timestamp2, _validator2Pk);
 
         address[] memory validators = new address[](2);
         validators[1] = _validator1;
         validators[0] = _validator2;
 
-        bytes[] memory signatures = new bytes[](2);
-        signatures[1] = signature1_;
-        signatures[0] = signature2_;
-
         uint256[] memory timestamps = new uint256[](2);
-        timestamps[1] = timestamp1;
-        timestamps[0] = timestamp2;
+        timestamps[1] = signatureTimestamp1;
+        timestamps[0] = signatureTimestamp2;
+
+        bytes[] memory signatures = new bytes[](2);
+        signatures[1] = _getSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp1,
+            _validator1Pk
+        );
+        signatures[0] = _getSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp2,
+            _validator2Pk
+        );
+
+        vm.expectEmit();
+        emit CollateralUpdated(_minter1, collateral, retrievalIds, bytes32(0), signatureTimestamp2);
 
         vm.prank(_minter1);
-        vm.expectEmit();
-        emit CollateralUpdated(_minter1, collateral, "", timestamp2);
-        _protocol.updateCollateral(collateral, "", retrievalIds, validators, timestamps, signatures);
+        _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         vm.prank(_minter1);
         uint256 retrievalId = _protocol.proposeRetrieval(100);
@@ -921,8 +1010,8 @@ contract ProtocolTests is Test {
     }
 
     function test_retrieve_notApprovedMinter() external {
-        vm.prank(makeAddr("alice"));
         vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+        vm.prank(_alice);
         _protocol.proposeRetrieval(100);
     }
 
@@ -933,21 +1022,16 @@ contract ProtocolTests is Test {
         _protocol.setCollateralOf(_minter1, collateral, timestamp);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, (collateral * _mintRatio) / ONE);
 
-        vm.prank(_minter1);
         vm.expectRevert(IProtocol.Undercollateralized.selector);
+        vm.prank(_minter1);
         _protocol.proposeRetrieval(10e18);
-    }
-
-    function _mintTo(address account, uint256 amount) internal {
-        vm.prank(address(_protocol));
-        _mToken.mint(account, amount);
     }
 
     function _getSignature(
         address minter,
         uint256 collateral,
-        bytes32 metadata,
         uint256[] memory retrievalIds,
+        bytes32 metadata,
         uint256 timestamp,
         uint256 privateKey
     ) internal view returns (bytes memory) {
@@ -955,11 +1039,13 @@ contract ProtocolTests is Test {
             address(_protocol),
             minter,
             collateral,
-            metadata,
             retrievalIds,
+            metadata,
             timestamp
         );
+
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+
         return abi.encodePacked(r, s, v);
     }
 

@@ -9,9 +9,9 @@ library DigestHelper {
     function getUpdateCollateralDigest(
         address protocol_,
         address minter_,
-        uint256 amount_,
-        bytes32 metadata_,
+        uint256 collateral_,
         uint256[] calldata retrieveIds,
+        bytes32 metadata_,
         uint256 timestamp_
     ) external view returns (bytes32) {
         return
@@ -21,16 +21,16 @@ library DigestHelper {
                     abi.encode(
                         IProtocol(protocol_).UPDATE_COLLATERAL_TYPEHASH(),
                         minter_,
-                        amount_,
-                        metadata_,
+                        collateral_,
                         retrieveIds,
+                        metadata_,
                         timestamp_
                     )
                 )
             );
     }
 
-    function _getDigest(address protocol_, bytes32 internalDigest_) internal view returns (bytes32) {
+    function _getDigest(address protocol_, bytes32 internalDigest_) internal view returns (bytes32 digest_) {
         return keccak256(abi.encodePacked("\x19\x01", IStatelessERC712(protocol_).DOMAIN_SEPARATOR(), internalDigest_));
     }
 }
