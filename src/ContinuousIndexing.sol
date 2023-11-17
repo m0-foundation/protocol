@@ -2,27 +2,27 @@
 
 pragma solidity 0.8.21;
 
-import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
-import { IContinuousInterestIndexing } from "./interfaces/IContinuousInterestIndexing.sol";
+import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
+import { IRateModel } from "./interfaces/IRateModel.sol";
 
-import { InterestMath } from "./libs/InterestMath.sol";
+import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
-abstract contract ContinuousInterestIndexing is IContinuousInterestIndexing {
+abstract contract ContinuousIndexing is IContinuousIndexing {
     // TODO: Consider packing these into a single slot.
     uint256 internal _latestIndex;
-    uint256 internal _latestAccrualTime;
+    uint256 internal _latestUpdateTimestamp;
 
     constructor() {
-        _latestIndex = 1 * InterestMath.EXP_BASE_SCALE;
-        _latestAccrualTime = block.timestamp;
+        _latestIndex = 1 * ContinuousIndexingMath.EXP_BASE_SCALE;
+        _latestUpdateTimestamp = block.timestamp;
     }
 
     function updateIndex() public virtual returns (uint256 currentIndex_) {
-        if (_latestAccrualTime == block.timestamp) return _latestIndex;
+        if (_latestUpdateTimestamp == block.timestamp) return _latestIndex;
 
         currentIndex_ = currentIndex();
         _latestIndex = currentIndex_;
-        _latestAccrualTime = block.timestamp;
+        _latestUpdateTimestamp = block.timestamp;
 
         emit IndexUpdated(currentIndex_);
     }
@@ -31,17 +31,17 @@ abstract contract ContinuousInterestIndexing is IContinuousInterestIndexing {
         return _latestIndex;
     }
 
-    function latestAccrualTime() public view virtual returns (uint256 latestAccrualTime_) {
-        return _latestAccrualTime;
+    function latestUpdateTimestamp() public view virtual returns (uint256 latestAccrualTime_) {
+        return _latestUpdateTimestamp;
     }
 
     function currentIndex() public view virtual returns (uint256 currentIndex_) {
         return
-            InterestMath.multiply(
+            ContinuousIndexingMath.multiply(
                 _latestIndex,
-                InterestMath.getContinuousIndex(
-                    InterestMath.convertFromBasisPoints(_rate()),
-                    block.timestamp - _latestAccrualTime
+                ContinuousIndexingMath.getContinuousIndex(
+                    ContinuousIndexingMath.convertFromBasisPoints(_rate()),
+                    block.timestamp - _latestUpdateTimestamp
                 )
             );
     }
@@ -60,13 +60,13 @@ abstract contract ContinuousInterestIndexing is IContinuousInterestIndexing {
         uint256 principalAmount_,
         uint256 index_
     ) internal pure returns (uint256 presentAmount_) {
-        return InterestMath.multiply(principalAmount_, index_);
+        return ContinuousIndexingMath.multiply(principalAmount_, index_);
     }
 
     function _getPrincipalAmount(
         uint256 presentAmount_,
         uint256 index_
     ) internal pure returns (uint256 principalAmount_) {
-        return InterestMath.divide(presentAmount_, index_);
+        return ContinuousIndexingMath.divide(presentAmount_, index_);
     }
 }

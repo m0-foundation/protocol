@@ -5,10 +5,10 @@ pragma solidity 0.8.21;
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { IERC20 } from "./interfaces/IERC20.sol";
-import { IInterestRateModel } from "./interfaces/IInterestRateModel.sol";
+import { IRateModel } from "./interfaces/IRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 
-import { ContinuousInterestIndexing } from "./ContinuousInterestIndexing.sol";
+import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 import { ERC20Permit } from "./ERC20Permit.sol";
 
 // TODO: Consider an socially/optically "safer" `burn` via `burn(uint amount_)` where the account is `msg.sender`.
@@ -16,11 +16,13 @@ import { ERC20Permit } from "./ERC20Permit.sol";
 //       calling `updateIndex()`.
 // TODO: Some increased/decreased earning supply event(s)? Might be useful for a UI/script, or useless in general.
 
-contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
+contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     address public immutable protocol;
     address public immutable spogRegistrar;
 
-    uint256 internal _totalEarningSupplyPrincipal;
+    // TODO: Consider each being uin128.
+    uint256 internal _totalNonEarningSupply;
+    uint256 internal _totalPrincipalOfEarningSupply;
 
     // TODO: Consider replace with flag bit/byte in balance.
     mapping(address account => bool isEarning) internal _isEarning;
@@ -36,14 +38,12 @@ contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
 
     /**
      * @notice Constructor.
-     * @param protocol_ The address of Protocol
+     * @param spogRegistrar_ The address of the SPOG Registrar contract.
+     * @param protocol_ The address of Protocol.
      */
-    constructor(
-        address protocol_,
-        address spogRegistrar_
-    ) ContinuousInterestIndexing() ERC20Permit("M Token", "M", 18) {
-        protocol = protocol_;
+    constructor(address spogRegistrar_, address protocol_) ContinuousIndexing() ERC20Permit("M Token", "M", 6) {
         spogRegistrar = spogRegistrar_;
+        protocol = protocol_;
     }
 
     /******************************************************************************************************************\
@@ -96,7 +96,7 @@ contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
         return _isEarning[account_] ? _getPresentAmount(_balances[account_], currentIndex()) : _balances[account_];
     }
 
-    function earningRate() public view returns (uint256 rate_) {
+    function earnerRate() public view returns (uint256 rate_) {
         return _rate();
     }
 
@@ -109,11 +109,15 @@ contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
     }
 
     function totalEarningSupply() public view returns (uint256 totalEarningSupply_) {
-        return _getPresentAmount(_totalEarningSupplyPrincipal, currentIndex());
+        return _getPresentAmount(_totalPrincipalOfEarningSupply, currentIndex());
+    }
+
+    function totalNonEarningSupply() external view returns (uint256 totalNonEarningSupply_) {
+        return _totalNonEarningSupply;
     }
 
     function totalSupply() external view override(ERC20Permit, IERC20) returns (uint256 totalSupply_) {
-        return _totalSupply + totalEarningSupply();
+        return _totalNonEarningSupply + totalEarningSupply();
     }
 
     /******************************************************************************************************************\
@@ -123,14 +127,14 @@ contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
     function _addEarningAmount(address account_, uint256 principalAmount_) internal {
         unchecked {
             _balances[account_] += principalAmount_;
-            _totalEarningSupplyPrincipal += principalAmount_;
+            _totalPrincipalOfEarningSupply += principalAmount_;
         }
     }
 
     function _addNonEarningAmount(address account_, uint256 amount_) internal {
         unchecked {
             _balances[account_] += amount_;
-            _totalSupply += amount_;
+            _totalNonEarningSupply += amount_;
         }
     }
 
@@ -159,10 +163,10 @@ contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
         _balances[account_] = principalAmount_;
 
         unchecked {
-            _totalEarningSupplyPrincipal += principalAmount_;
+            _totalPrincipalOfEarningSupply += principalAmount_;
         }
 
-        _totalSupply -= presentAmount_;
+        _totalNonEarningSupply -= presentAmount_;
 
         _isEarning[account_] = true;
 
@@ -178,10 +182,10 @@ contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
         _balances[account_] = presentAmount_;
 
         unchecked {
-            _totalSupply += presentAmount_;
+            _totalNonEarningSupply += presentAmount_;
         }
 
-        _totalEarningSupplyPrincipal -= principalAmount_;
+        _totalPrincipalOfEarningSupply -= principalAmount_;
 
         _isEarning[account_] = false;
 
@@ -190,12 +194,12 @@ contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
 
     function _subtractEarningAmount(address account_, uint256 principalAmount_) internal {
         _balances[account_] -= principalAmount_;
-        _totalEarningSupplyPrincipal -= principalAmount_;
+        _totalPrincipalOfEarningSupply -= principalAmount_;
     }
 
     function _subtractNonEarningAmount(address account_, uint256 amount_) internal {
         _balances[account_] -= amount_;
-        _totalSupply -= amount_;
+        _totalNonEarningSupply -= amount_;
     }
 
     function _transfer(address sender_, address recipient_, uint256 amount_) internal override {
@@ -237,20 +241,20 @@ contract MToken is IMToken, ContinuousInterestIndexing, ERC20Permit {
     |                                           Internal View/Pure Functions                                           |
     \******************************************************************************************************************/
 
-    function _rate() internal view override returns (uint256 rate_) {
-        address rateModel_ = SPOGRegistrarReader.getEarningRateModel(spogRegistrar);
-
-        (bool success_, bytes memory returnData_) = rateModel_.staticcall(
-            abi.encodeWithSelector(IInterestRateModel.rate.selector)
-        );
-
-        return success_ ? abi.decode(returnData_, (uint256)) : 0;
-    }
-
     function _isApprovedEarner(address account_) internal view returns (bool isApproved_) {
         return
             SPOGRegistrarReader.isEarnersListIgnored(spogRegistrar) ||
             SPOGRegistrarReader.isApprovedEarner(spogRegistrar, account_);
+    }
+
+    function _rate() internal view override returns (uint256 rate_) {
+        address rateModel_ = SPOGRegistrarReader.getEarnerRateModel(spogRegistrar);
+
+        (bool success_, bytes memory returnData_) = rateModel_.staticcall(
+            abi.encodeWithSelector(IRateModel.rate.selector)
+        );
+
+        return success_ ? abi.decode(returnData_, (uint256)) : 0;
     }
 
     function _revertIfNotApprovedEarner(address account_) internal view {

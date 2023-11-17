@@ -2,10 +2,10 @@
 
 pragma solidity 0.8.21;
 
-import { IContinuousInterestIndexing } from "./IContinuousInterestIndexing.sol";
+import { IContinuousIndexing } from "./IContinuousIndexing.sol";
 import { IERC20Permit } from "./IERC20Permit.sol";
 
-interface IMToken is IContinuousInterestIndexing, IERC20Permit {
+interface IMToken is IContinuousIndexing, IERC20Permit {
     /******************************************************************************************************************\
     |                                                     Errors                                                       |
     \******************************************************************************************************************/
@@ -36,23 +36,21 @@ interface IMToken is IContinuousInterestIndexing, IERC20Permit {
     |                                         External Interactive Functions                                           |
     \******************************************************************************************************************/
 
-    function earningRate() external view returns (uint256 rate);
+    function earnerRate() external view returns (uint256 rate);
 
     function hasOptedOutOfEarning(address account) external view returns (bool hasOpted);
 
     function isEarning(address account) external view returns (bool isEarning);
 
-    /**
-     * @notice The address of the Protocol contract.
-     */
+    /// @notice The address of the Protocol contract.
     function protocol() external view returns (address protocol);
 
-    /**
-     * @notice The address of the SPOG Registrar contract.
-     */
+    /// @notice The address of the SPOG Registrar contract.
     function spogRegistrar() external view returns (address spogRegistrar);
 
     function totalEarningSupply() external view returns (uint256 totalEarningSupply);
+
+    function totalNonEarningSupply() external view returns (uint256 totalNonEarningSupply);
 
     /******************************************************************************************************************\
     |                                          External View/Pure Functions                                            |

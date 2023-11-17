@@ -16,8 +16,6 @@ abstract contract ERC20Permit is IERC20Permit, ERC712 {
 
     uint8 internal immutable _decimals;
 
-    uint256 internal _totalSupply;
-
     mapping(address account => uint256 balance) internal _balances;
 
     mapping(address account => mapping(address spender => uint256 allowance)) internal _allowance;
@@ -107,9 +105,7 @@ abstract contract ERC20Permit is IERC20Permit, ERC712 {
         symbol_ = _symbol;
     }
 
-    function totalSupply() external view virtual returns (uint256 totalSupply_) {
-        totalSupply_ = _totalSupply;
-    }
+    function totalSupply() external view virtual returns (uint256 totalSupply_);
 
     /******************************************************************************************************************\
     |                                          Internal Interactive Functions                                          |

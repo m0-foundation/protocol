@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.21;
 
-interface IInterestRateModel {
+interface IRateModel {
     /**
      * @notice Returns the current value of interest rate
      * @dev APY in BPS
