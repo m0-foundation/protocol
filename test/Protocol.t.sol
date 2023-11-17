@@ -61,10 +61,12 @@ contract ProtocolTests is Test {
 
     event PenaltyImposed(address indexed minter, uint256 amount);
 
+    event RetrievalCreated(uint256 indexed retrieveId, address indexed minter, uint256 amount);
+
     function setUp() external {
         (_minter1, _minter1Pk) = makeAddrAndKey("minter1");
         (_validator1, _validator1Pk) = makeAddrAndKey("validator1");
-        (_validator2, _validator2Pk) = makeAddrAndKey("validator1");
+        (_validator2, _validator2Pk) = makeAddrAndKey("validator2");
 
         _mToken = new MockMToken();
 
@@ -75,6 +77,7 @@ contract ProtocolTests is Test {
 
         _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
         _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validator1);
+        _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validator2);
 
         _spogRegistrar.updateConfig(
             SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD,
@@ -958,14 +961,20 @@ contract ProtocolTests is Test {
     }
 
     function test_retrieve() external {
+        _spogRegistrar.updateConfig(
+            SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD,
+            bytes32(uint256(2))
+        );
+
         uint256 collateral = 100;
+        uint256[] memory retrievalIds = new uint256[](0);
         uint256 signatureTimestamp1 = block.timestamp;
         uint256 signatureTimestamp2 = signatureTimestamp1 - 10;
-        uint256[] memory retrievalIds = new uint256[](0);
+        uint256[] memory retrieveIds = new uint256[](1);
 
         address[] memory validators = new address[](2);
-        validators[1] = _validator1;
         validators[0] = _validator2;
+        validators[1] = _validator1;
 
         uint256[] memory timestamps = new uint256[](2);
         timestamps[1] = signatureTimestamp1;
@@ -989,17 +998,46 @@ contract ProtocolTests is Test {
             _validator2Pk
         );
 
+        vm.prank(_minter1);
         vm.expectEmit();
         emit CollateralUpdated(_minter1, collateral, retrievalIds, bytes32(0), signatureTimestamp2);
-
-        vm.prank(_minter1);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         vm.prank(_minter1);
-        uint256 retrievalId = _protocol.proposeRetrieval(100);
+        uint256 retrieveId = _protocol.proposeRetrieval(100);
 
         assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), 100);
-        assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), 100);
+        assertEq(_protocol.pendingRetrievalsOf(_minter1, retrieveId), 100);
+
+        signatureTimestamp1 = signatureTimestamp1 + 100;
+        signatureTimestamp2 = signatureTimestamp2 + 50;
+        vm.warp(signatureTimestamp1);
+
+        retrieveIds[0] = retrieveId;
+
+        signatures[0] = _getSignature(
+            _minter1,
+            collateral / 2,
+            retrieveIds,
+            bytes32(0),
+            signatureTimestamp2,
+            _validator2Pk
+        );
+        signatures[1] = _getSignature(
+            _minter1,
+            collateral / 2,
+            retrieveIds,
+            bytes32(0),
+            signatureTimestamp1,
+            _validator1Pk
+        );
+        timestamps[0] = signatureTimestamp2;
+        timestamps[1] = signatureTimestamp1;
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(collateral / 2, retrieveIds, bytes32(0), validators, timestamps, signatures);
+        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), 0);
+        assertEq(_protocol.pendingRetrievalsOf(_minter1, retrieveId), 0);
     }
 
     function test_retrieve_notApprovedMinter() external {
@@ -1018,6 +1056,132 @@ contract ProtocolTests is Test {
         vm.expectRevert(IProtocol.Undercollateralized.selector);
         vm.prank(_minter1);
         _protocol.proposeRetrieval(10e18);
+    }
+
+    function test_retrieve_multipleRequests() external {
+        uint256 collateral = 100e18;
+        uint256 amount = 60e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral);
+        _protocol.setLastCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
+
+        _protocol.setPrincipalOfActiveOwedMOf(_minter1, amount);
+
+        vm.pauseGasMetering();
+        uint256 retrieveAmount = 10e18;
+        uint256 expectedRetrivedId = uint256(keccak256(abi.encode(_minter1, retrieveAmount, timestamp, gasleft())));
+
+        // First retrieve request
+        vm.prank(_minter1);
+        vm.expectEmit();
+        emit RetrievalCreated(expectedRetrivedId, _minter1, retrieveAmount);
+        uint256 retrieveId = _protocol.proposeRetrieval(retrieveAmount);
+        assertEq(retrieveId, expectedRetrivedId);
+
+        vm.resumeGasMetering();
+
+        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), retrieveAmount);
+        assertEq(_protocol.pendingRetrievalsOf(_minter1, retrieveId), retrieveAmount);
+
+        // Second retrieve request
+        vm.prank(_minter1);
+        uint256 retrieveIdNew = _protocol.proposeRetrieval(retrieveAmount);
+
+        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), retrieveAmount * 2);
+        assertEq(_protocol.pendingRetrievalsOf(_minter1, retrieveIdNew), retrieveAmount);
+
+        uint256[] memory retrieveIds = new uint256[](1);
+        retrieveIds[0] = retrieveIdNew;
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getSignature(_minter1, collateral, retrieveIds, bytes32(0), timestamp, _validator1Pk);
+        uint256[] memory timestamps = new uint256[](1);
+        timestamps[0] = timestamp;
+
+        // Close first retrieve request
+        vm.prank(_minter1);
+        _protocol.updateCollateral(collateral, retrieveIds, bytes32(0), validators, timestamps, signatures);
+
+        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), retrieveAmount);
+        assertEq(_protocol.pendingRetrievalsOf(_minter1, retrieveIdNew), 0);
+
+        retrieveIds[0] = retrieveId;
+        validators[0] = _validator1;
+        signatures[0] = _getSignature(_minter1, collateral, retrieveIds, bytes32(0), timestamp, _validator1Pk);
+        timestamps[0] = timestamp;
+
+        // Close second retrieve request
+        vm.prank(_minter1);
+        _protocol.updateCollateral(collateral, retrieveIds, bytes32(0), validators, timestamps, signatures);
+        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), 0);
+        assertEq(_protocol.pendingRetrievalsOf(_minter1, retrieveId), 0);
+    }
+
+    function test_updateCollateral_futureTimestamp() external {
+        uint256[] memory retrieveIds = new uint256[](0);
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getSignature(_minter1, 100, retrieveIds, bytes32(0), block.timestamp + 100, _validator1Pk);
+        uint256[] memory timestamps = new uint256[](1);
+        timestamps[0] = block.timestamp + 100;
+
+        vm.prank(_minter1);
+        vm.expectRevert(IProtocol.FutureTimestamp.selector);
+        _protocol.updateCollateral(100, retrieveIds, bytes32(0), validators, timestamps, signatures);
+    }
+
+    function test_updateCollateral_zeroThreshold() external {
+        _spogRegistrar.updateConfig(
+            SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD,
+            bytes32(uint256(0))
+        );
+
+        uint256[] memory retrieveIds = new uint256[](0);
+        address[] memory validators = new address[](0);
+        bytes[] memory signatures = new bytes[](0);
+        uint256[] memory timestamps = new uint256[](0);
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(100, retrieveIds, bytes32(0), validators, timestamps, signatures);
+
+        assertEq(_protocol.collateralOf(_minter1), 100);
+        assertEq(_protocol.lastUpdateOf(_minter1), block.timestamp);
+    }
+
+    function test_updateCollateral_someSignaturesAreInvalid() external {
+        _spogRegistrar.updateConfig(
+            SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD,
+            bytes32(uint256(1))
+        );
+
+        uint256[] memory retrieveIds = new uint256[](0);
+
+        (address validator3, uint256 validator3Pk) = makeAddrAndKey("validator3");
+        address[] memory validators = new address[](3);
+        validators[0] = _validator1;
+        validators[1] = _validator2;
+        validators[2] = validator3;
+
+        bytes[] memory signatures = new bytes[](3);
+        signatures[0] = _getSignature(_minter1, 100, retrieveIds, bytes32(0), block.timestamp, _validator1Pk); // valid signature
+        signatures[1] = _getSignature(_minter1, 200, retrieveIds, bytes32(0), block.timestamp, _validator2Pk);
+        signatures[2] = _getSignature(_minter1, 100, retrieveIds, bytes32(0), block.timestamp, validator3Pk);
+
+        uint256[] memory timestamps = new uint256[](3);
+        timestamps[0] = block.timestamp;
+        timestamps[1] = block.timestamp;
+        timestamps[2] = block.timestamp;
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(100, retrieveIds, bytes32(0), validators, timestamps, signatures);
+
+        assertEq(_protocol.collateralOf(_minter1), 100);
+        assertEq(_protocol.lastUpdateOf(_minter1), block.timestamp);
     }
 
     function _getSignature(
