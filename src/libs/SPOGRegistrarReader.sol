@@ -5,7 +5,13 @@ pragma solidity 0.8.21;
 import { ISPOGRegistrar } from "../interfaces/ISPOGRegistrar.sol";
 
 library SPOGRegistrarReader {
-    /// @notice The name of parameter in SPOG that defines the earning rate model contract.
+    /// @notice The name of parameter in SPOG that defines the base earner rate.
+    bytes32 internal constant BASE_EARNER_RATE = "base_earner_rate";
+
+    /// @notice The name of parameter in SPOG that defines the base minter rate.
+    bytes32 internal constant BASE_MINTER_RATE = "base_minter_rate";
+
+    /// @notice The name of parameter in SPOG that defines the earner rate model contract.
     bytes32 internal constant EARNER_RATE_MODEL = "earner_rate_model";
 
     /// @notice The earners list name in SPOG.
@@ -26,7 +32,7 @@ library SPOGRegistrarReader {
     /// @notice The name of parameter in SPOG that defines the time to freeze minter
     bytes32 internal constant MINTER_FREEZE_TIME = "minter_freeze_time";
 
-    /// @notice The name of parameter in SPOG that defines the M rate
+    /// @notice The name of parameter in SPOG that defines the minter rate model contract.
     bytes32 internal constant MINTER_RATE_MODEL = "minter_rate_model";
 
     /// @notice The minters list name in SPOG.
@@ -43,6 +49,14 @@ library SPOGRegistrarReader {
 
     /// @notice The validators list name in SPOG.
     bytes32 internal constant VALIDATORS_LIST = "validators";
+
+    function getBaseEarnerRate(address registrar_) internal view returns (uint256 rate_) {
+        return uint256(_get(registrar_, BASE_EARNER_RATE));
+    }
+
+    function getBaseMinterRate(address registrar_) internal view returns (uint256 rate_) {
+        return uint256(_get(registrar_, BASE_MINTER_RATE));
+    }
 
     function getEarnerRateModel(address registrar_) internal view returns (address rateModel_) {
         return toAddress(_get(registrar_, EARNER_RATE_MODEL));

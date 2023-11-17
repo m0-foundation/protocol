@@ -96,8 +96,6 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     \******************************************************************************************************************/
 
     function burnM(address minter_, uint256 maxAmount_) external {
-        updateIndex();
-
         // NOTE: Penalize only for missed collateral updates, not for undercollateralization.
         // Undercollateralization within one update interval is forgiven.
         _imposePenaltyIfMissedCollateralUpdates(minter_);
@@ -110,6 +108,8 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
         // Burn actual M tokens
         IMToken(mToken).burn(msg.sender, amount_);
+
+        updateIndex();
     }
 
     function cancelMint(uint256 mintId_) external onlyApprovedMinter {
@@ -122,8 +122,6 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     function deactivateMinter(address minter_) external returns (uint256 inactiveOwedM_) {
         if (_isApprovedMinter(minter_)) revert StillApprovedMinter();
-
-        updateIndex();
 
         // NOTE: Instead of imposing, calculate penalty and add it to `_inactiveOwedM` to save gas.
         // TODO: And for undercollateralization?
@@ -146,6 +144,8 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         delete _penalizedUntilTimestamps[minter_];
         delete _principalOfActiveOwedM[minter_];
         delete _unfrozenTimestamps[minter_];
+
+        updateIndex();
     }
 
     function freezeMinter(address minter_) external onlyApprovedValidator returns (uint256 frozenUntil_) {
@@ -180,14 +180,14 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
         emit MintExecuted(mintId_);
 
-        updateIndex();
-
         // Adjust principal of active owed M for minter.
         uint256 principalAmount_ = _getPrincipalValue(amount_);
         _principalOfActiveOwedM[msg.sender] += principalAmount_;
         _totalPrincipalOfActiveOwedM += principalAmount_;
 
         IMToken(mToken).mint(destination_, amount_);
+
+        updateIndex();
     }
 
     function proposeMint(
@@ -239,8 +239,6 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
         emit CollateralUpdated(msg.sender, collateral_, retrievalIds_, metadata_, minTimestamp_);
 
-        updateIndex(); // If minter is penalized, total active owed M is changing.
-
         _resolvePendingRetrievals(msg.sender, retrievalIds_);
 
         _imposePenaltyIfMissedCollateralUpdates(msg.sender);
@@ -248,10 +246,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         _updateCollateral(msg.sender, collateral_, minTimestamp_);
 
         _imposePenaltyIfUndercollateralized(msg.sender);
+
+        updateIndex();
     }
 
     function updateIndex() public override(IContinuousIndexing, ContinuousIndexing) returns (uint256 index_) {
-        // NOTE: Order of these matter if their rate models depend on the same utilization ratio / total supplies.
+        // NOTE: Order of these calls matter if there are any cross-dependencies of post-update calculations.
         index_ = super.updateIndex(); // Update Minter index.
 
         IMToken(mToken).updateIndex(); // Update Earning index.
@@ -260,6 +260,11 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         uint256 excessOwedM_ = _getExcessOwedM();
 
         if (excessOwedM_ > 0) IMToken(mToken).mint(spogVault, excessOwedM_);
+
+        // NOTE: Order of these calls matter if there are any cross-dependencies of post-update calculations.
+        _updateRate(); // Update minter rate.
+
+        IMToken(mToken).updateRate(); // Update earning rate.
     }
 
     /******************************************************************************************************************\
@@ -267,6 +272,9 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     \******************************************************************************************************************/
 
     function activeOwedMOf(address minter_) public view returns (uint256 activeOwedM_) {
+        // TODO: This should also include the present value of unavoidable penalities. But then it would be very, if not
+        //       impossible, to determine the `totalActiveOwedM` to them same standards. Perhaps we need a `penaltiesOf`
+        //       external function to provide the present value of unavoidable penalities
         return _getPresentValue(_principalOfActiveOwedM[minter_]);
     }
 
@@ -301,7 +309,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function minterRate() external view returns (uint256 minterRate_) {
-        return _rate();
+        return _latestRate;
     }
 
     function mintProposalOf(
@@ -429,6 +437,16 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         _lastUpdateIntervals[minter_] = updateCollateralInterval();
     }
 
+    function _updateRate() internal returns (uint256 rate_) {
+        address rateModel_ = SPOGRegistrarReader.getMinterRateModel(spogRegistrar);
+
+        (bool success_, bytes memory returnData_) = rateModel_.staticcall(
+            abi.encodeWithSelector(IRateModel.rate.selector)
+        );
+
+        _latestRate = rate_ = success_ ? abi.decode(returnData_, (uint256)) : 0;
+    }
+
     /******************************************************************************************************************\
     |                                           Internal View/Pure Functions                                           |
     \******************************************************************************************************************/
@@ -504,16 +522,6 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     function _minIgnoreZero(uint256 a_, uint256 b_) internal pure returns (uint256 min_) {
         return a_ == 0 ? b_ : _min(a_, b_);
-    }
-
-    function _rate() internal view override returns (uint256 rate_) {
-        address rateModel_ = SPOGRegistrarReader.getMinterRateModel(spogRegistrar);
-
-        (bool success_, bytes memory returnData_) = rateModel_.staticcall(
-            abi.encodeWithSelector(IRateModel.rate.selector)
-        );
-
-        return success_ ? abi.decode(returnData_, (uint256)) : 0;
     }
 
     function _revertIfMinterFrozen(address minter_) internal view {

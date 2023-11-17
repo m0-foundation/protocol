@@ -88,6 +88,18 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         _stopEarning(account_);
     }
 
+    function updateRate() public returns (uint256 rate_) {
+        updateIndex();
+
+        address rateModel_ = SPOGRegistrarReader.getEarnerRateModel(spogRegistrar);
+
+        (bool success_, bytes memory returnData_) = rateModel_.staticcall(
+            abi.encodeWithSelector(IRateModel.rate.selector)
+        );
+
+        _latestRate = rate_ = success_ ? abi.decode(returnData_, (uint256)) : 0;
+    }
+
     /******************************************************************************************************************\
     |                                       External/Public View/Pure Functions                                        |
     \******************************************************************************************************************/
@@ -97,7 +109,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     }
 
     function earnerRate() public view returns (uint256 rate_) {
-        return _rate();
+        return _latestRate;
     }
 
     function hasOptedOutOfEarning(address account_) external view returns (bool hasOpted_) {
@@ -245,16 +257,6 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         return
             SPOGRegistrarReader.isEarnersListIgnored(spogRegistrar) ||
             SPOGRegistrarReader.isApprovedEarner(spogRegistrar, account_);
-    }
-
-    function _rate() internal view override returns (uint256 rate_) {
-        address rateModel_ = SPOGRegistrarReader.getEarnerRateModel(spogRegistrar);
-
-        (bool success_, bytes memory returnData_) = rateModel_.staticcall(
-            abi.encodeWithSelector(IRateModel.rate.selector)
-        );
-
-        return success_ ? abi.decode(returnData_, (uint256)) : 0;
     }
 
     function _revertIfNotApprovedEarner(address account_) internal view {
