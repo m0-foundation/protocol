@@ -18,17 +18,16 @@ contract ProtocolHarness is Protocol {
         _mintProposals[minter_] = MintProposal(mintId_, destination_, amount_, createdAt_);
     }
 
-    function setCollateralOf(
-        address minter_,
-        uint256 collateral_,
-        uint256 lastUpdated_,
-        uint256 penalizedUntil_
-    ) external {
-        _collaterals[minter_] = MinterCollateral(collateral_, lastUpdated_, penalizedUntil_);
+    function setCollateralOf(address minter_, uint256 collateral_) external {
+        _collaterals[minter_] = collateral_;
     }
 
-    function setCollateralOf(address minter_, uint256 collateral_, uint256 lastUpdated_) external {
-        _collaterals[minter_] = MinterCollateral(collateral_, lastUpdated_, 0);
+    function setLastUpdateOf(address minter_, uint256 lastUpdated_) external {
+        _lastUpdates[minter_] = lastUpdated_;
+    }
+
+    function setPenalizedUntilOf(address minter_, uint256 penalizedUntil_) external {
+        _penalizedUntilTimestamps[minter_] = penalizedUntil_;
     }
 
     function setPrincipalOfActiveOwedMOf(address minter_, uint256 amount_) external {

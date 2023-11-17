@@ -148,10 +148,8 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The active owed M for a given active minter
     function activeOwedMOf(address minter) external view returns (uint256 activeOwedM_);
 
-    /// @notice The collateral information of minters
-    function collateralOf(
-        address minter
-    ) external view returns (uint256 collateral, uint256 lastUpdated, uint256 penalizedUntil);
+    /// @notice The collateral of a given minter.
+    function collateralOf(address minter) external view returns (uint256 collateral);
 
     /**
      * @notice Returns the penalty for expired collateral value
@@ -164,6 +162,8 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The inactive owed M for a given active minter
     function inactiveOwedMOf(address minter) external view returns (uint256 inactiveOwedM);
 
+    function lastUpdateOf(address minter) external view returns (uint256 lastUpdate);
+
     /// @notice The mint proposal of minters, only 1 request per minter
     function mintProposalOf(
         address minter
@@ -173,6 +173,8 @@ interface IProtocol is IContinuousIndexing {
 
     /// @notice The address of M token
     function mToken() external view returns (address mToken);
+
+    function penalizedUntilOf(address minter) external view returns (uint256 penalizedUntil);
 
     function penaltyRate() external view returns (uint256 penaltyRate);
 
