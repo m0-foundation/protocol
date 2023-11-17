@@ -35,7 +35,7 @@ contract ProtocolTests is Test {
     uint256 internal _mintTTL = 500;
     uint256 internal _minterRate = 400; // 4%, bps
     uint256 internal _mintRatio = 9000; // 90%, bps
-    uint256 internal _penalty = 100; // 1%, bps
+    uint256 internal _penaltyRate = 100; // 1%, bps
 
     MockSPOGRegistrar internal _spogRegistrar;
     MockMToken internal _mToken;
@@ -87,7 +87,7 @@ contract ProtocolTests is Test {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_TTL, bytes32(_mintTTL));
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, bytes32(_mintRatio));
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, _toBytes32(address(_minterRateModel)));
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.PENALTY, bytes32(_penalty));
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.PENALTY_RATE, bytes32(_penaltyRate));
 
         _spogRegistrar.setVault(_spogVault);
 
@@ -690,7 +690,7 @@ contract ProtocolTests is Test {
         uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
 
-        assertEq(penalty, (activeOwedM * 3 * _penalty) / ONE);
+        assertEq(penalty, (activeOwedM * 3 * _penaltyRate) / ONE);
 
         uint256[] memory retrievalIds = new uint256[](0);
 
@@ -770,7 +770,7 @@ contract ProtocolTests is Test {
 
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
         uint256 maxOwedM = (collateral * _mintRatio) / ONE;
-        uint256 expectedPenalty = ((activeOwedM - maxOwedM) * _penalty) / ONE;
+        uint256 expectedPenalty = ((activeOwedM - maxOwedM) * _penaltyRate) / ONE;
 
         vm.expectEmit();
         emit PenaltyImposed(_minter1, expectedPenalty);
@@ -793,7 +793,7 @@ contract ProtocolTests is Test {
 
         uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
-        assertEq(penalty, (activeOwedM * 2 * _penalty) / ONE);
+        assertEq(penalty, (activeOwedM * 2 * _penaltyRate) / ONE);
 
         uint256 newCollateral = 10e18;
 
@@ -823,7 +823,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(newCollateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        uint256 expectedPenalty = (((activeOwedM + penalty) - (newCollateral * _mintRatio) / ONE) * _penalty) / ONE;
+        uint256 expectedPenalty = (((activeOwedM + penalty) - (newCollateral * _mintRatio) / ONE) * _penaltyRate) / ONE;
 
         // precision loss of 2 wei-s - 1 per each penalty
         assertEq(_protocol.activeOwedMOf(_minter1) + 2 wei, activeOwedM + penalty + expectedPenalty);
@@ -846,7 +846,7 @@ contract ProtocolTests is Test {
         uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
 
-        assertEq(penalty, (activeOwedM * 3 * _penalty) / ONE);
+        assertEq(penalty, (activeOwedM * 3 * _penaltyRate) / ONE);
 
         vm.expectEmit();
         emit PenaltyImposed(_minter1, penalty);
@@ -875,7 +875,7 @@ contract ProtocolTests is Test {
         vm.warp(timestamp + _updateCollateralInterval + 10);
 
         penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
-        assertEq(penalty, (_protocol.activeOwedMOf(_minter1) * _penalty) / ONE);
+        assertEq(penalty, (_protocol.activeOwedMOf(_minter1) * _penaltyRate) / ONE);
 
         uint256[] memory retrievalIds = new uint256[](0);
 
