@@ -151,6 +151,8 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The collateral of a given minter.
     function collateralOf(address minter) external view returns (uint256 collateral);
 
+    function collateralUpdateDeadlineOf(address minter) external view returns (uint256 lastUpdate);
+
     /**
      * @notice Returns the penalty for expired collateral value
      * @param minter The address of the minter to get penalty for
@@ -161,6 +163,8 @@ interface IProtocol is IContinuousIndexing {
 
     /// @notice The inactive owed M for a given active minter
     function inactiveOwedMOf(address minter) external view returns (uint256 inactiveOwedM);
+
+    function lastUpdateIntervalOf(address minter) external view returns (uint256 lastUpdateInterval);
 
     function lastUpdateOf(address minter) external view returns (uint256 lastUpdate);
 

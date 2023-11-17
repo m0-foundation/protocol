@@ -14,7 +14,6 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 import { StatelessERC712 } from "./StatelessERC712.sol";
 
 // TODO: Penalties are awkwardly and inconsistently defined and implemented.
-// TODO: Collateral should be valid until the interval specified at the time of update.
 
 /**
  * @title Protocol
@@ -52,9 +51,10 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     mapping(address minter => uint256 activeOwedM) internal _principalOfActiveOwedM;
     mapping(address minter => uint256 totalCollateralPendingRetrieval) internal _totalCollateralPendingRetrieval;
 
-    mapping(address minter => uint256 lastUpdate) internal _lastUpdates;
+    mapping(address minter => uint256 updateInterval) internal _lastUpdateIntervals;
+    mapping(address minter => uint256 lastUpdate) internal _lastCollateralUpdates;
     mapping(address minter => uint256 penalizedUntil) internal _penalizedUntilTimestamps;
-    mapping(address minter => uint256 timestamp) internal _unfrozenTimestamps;
+    mapping(address minter => uint256 unfrozenTime) internal _unfrozenTimestamps;
 
     mapping(address minter => MintProposal proposal) internal _mintProposals;
 
@@ -139,7 +139,8 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
         // Reset reasonable aspects of minter's state.
         delete _collaterals[minter_];
-        delete _lastUpdates[minter_];
+        delete _lastUpdateIntervals[minter_];
+        delete _lastCollateralUpdates[minter_];
         delete _mintProposals[minter_];
         delete _penalizedUntilTimestamps[minter_];
         delete _principalOfActiveOwedM[minter_];
@@ -272,8 +273,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function collateralOf(address minter_) public view returns (uint256 collateral_) {
-        // If collateral was not updated within the last interval, assume that minter's collateral is zero.
-        return block.timestamp < _lastUpdates[minter_] + updateCollateralInterval() ? _collaterals[minter_] : 0;
+        // If collateral was not updated before deadline, assume that minter's collateral is zero.
+        return block.timestamp < collateralUpdateDeadlineOf(minter_) ? _collaterals[minter_] : 0;
+    }
+
+    function collateralUpdateDeadlineOf(address minter_) public view returns (uint256 updateDeadline_) {
+        return _lastCollateralUpdates[minter_] + _lastUpdateIntervals[minter_];
     }
 
     function getPenaltyForMissedCollateralUpdates(address minter_) public view returns (uint256 penalty_) {
@@ -286,8 +291,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         return _inactiveOwedM[minter_];
     }
 
+    function lastUpdateIntervalOf(address minter_) external view returns (uint256 lastUpdateInterval_) {
+        return _lastUpdateIntervals[minter_];
+    }
+
     function lastUpdateOf(address minter_) external view returns (uint256 lastUpdate_) {
-        return _lastUpdates[minter_];
+        return _lastCollateralUpdates[minter_];
     }
 
     function mintProposalOf(
@@ -408,10 +417,11 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function _updateCollateral(address minter_, uint256 amount_, uint256 newTimestamp_) internal {
-        if (newTimestamp_ < _lastUpdates[minter_]) revert StaleCollateralUpdate();
+        if (newTimestamp_ < _lastCollateralUpdates[minter_]) revert StaleCollateralUpdate();
 
         _collaterals[minter_] = amount_;
-        _lastUpdates[minter_] = newTimestamp_;
+        _lastCollateralUpdates[minter_] = newTimestamp_;
+        _lastUpdateIntervals[minter_] = updateCollateralInterval();
     }
 
     /******************************************************************************************************************\
@@ -432,8 +442,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     function _getPenaltyBaseAndTimeForMissedCollateralUpdates(
         address minter_
     ) internal view returns (uint256 penaltyBase_, uint256 penalizedUntil_) {
-        uint256 updateInterval_ = updateCollateralInterval();
-        uint256 penalizeFrom_ = _max(_lastUpdates[minter_], _penalizedUntilTimestamps[minter_]);
+        uint256 updateInterval_ = _lastUpdateIntervals[minter_];
+        uint256 lastUpdate_ = _lastCollateralUpdates[minter_];
+        uint256 penalizeFrom_ = _max(lastUpdate_, _penalizedUntilTimestamps[minter_]);
+
+        if (updateInterval_ == 0) return (0, penalizeFrom_);
+
         uint256 missedIntervals_ = (block.timestamp - penalizeFrom_) / updateInterval_;
 
         penaltyBase_ = missedIntervals_ * activeOwedMOf(minter_);
