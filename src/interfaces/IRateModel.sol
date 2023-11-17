@@ -4,8 +4,8 @@ pragma solidity 0.8.21;
 
 interface IRateModel {
     /**
-     * @notice Returns the current value of interest rate
+     * @notice Returns the current value of the yearly rate
      * @dev APY in BPS
      */
-    function rate() external view returns (uint256);
+    function rate() external view returns (uint256 rate);
 }

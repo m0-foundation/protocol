@@ -29,6 +29,14 @@ contract MockSPOGRegistrar is ISPOGRegistrar {
         _vault = vault_;
     }
 
+    function updateConfig(bytes32 key_, address value_) external {
+        _valueAt[key_] = bytes32(uint256(uint160(value_)));
+    }
+
+    function updateConfig(bytes32 key_, uint256 value_) external {
+        _valueAt[key_] = bytes32(value_);
+    }
+
     function updateConfig(bytes32 key_, bytes32 value_) external {
         _valueAt[key_] = value_;
     }
@@ -80,6 +88,10 @@ contract MockMToken {
 
     function updateIndex() public virtual returns (uint256 currentIndex_) {
         return _currentIndex;
+    }
+
+    function updateRate() public virtual returns (uint256 rate_) {
+        return rate_;
     }
 
     function totalSupply() external view returns (uint256 totalSupply_) {

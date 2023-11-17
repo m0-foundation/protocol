@@ -10,12 +10,17 @@ import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 abstract contract ContinuousIndexing is IContinuousIndexing {
     // TODO: Consider packing these into a single slot.
     uint256 internal _latestIndex;
+    uint256 internal _latestRate;
     uint256 internal _latestUpdateTimestamp;
 
     constructor() {
         _latestIndex = 1 * ContinuousIndexingMath.EXP_BASE_SCALE;
         _latestUpdateTimestamp = block.timestamp;
     }
+
+    /******************************************************************************************************************\
+    |                                      External/Public Interactive Functions                                       |
+    \******************************************************************************************************************/
 
     function updateIndex() public virtual returns (uint256 currentIndex_) {
         if (_latestUpdateTimestamp == block.timestamp) return _latestIndex;
@@ -27,6 +32,21 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
         emit IndexUpdated(currentIndex_);
     }
 
+    /******************************************************************************************************************\
+    |                                       External/Public View/Pure Functions                                        |
+    \******************************************************************************************************************/
+
+    function currentIndex() public view virtual returns (uint256 currentIndex_) {
+        return
+            ContinuousIndexingMath.multiply(
+                _latestIndex,
+                ContinuousIndexingMath.getContinuousIndex(
+                    ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
+                    block.timestamp - _latestUpdateTimestamp
+                )
+            );
+    }
+
     function latestIndex() public view virtual returns (uint256 index_) {
         return _latestIndex;
     }
@@ -35,16 +55,9 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
         return _latestUpdateTimestamp;
     }
 
-    function currentIndex() public view virtual returns (uint256 currentIndex_) {
-        return
-            ContinuousIndexingMath.multiply(
-                _latestIndex,
-                ContinuousIndexingMath.getContinuousIndex(
-                    ContinuousIndexingMath.convertFromBasisPoints(_rate()),
-                    block.timestamp - _latestUpdateTimestamp
-                )
-            );
-    }
+    /******************************************************************************************************************\
+    |                                          Internal Interactive Functions                                          |
+    \******************************************************************************************************************/
 
     function _getPresentAmountAndUpdateIndex(uint256 principalAmount_) internal returns (uint256 presentAmount_) {
         return _getPresentAmount(principalAmount_, updateIndex());
@@ -54,7 +67,9 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
         return _getPrincipalAmount(presentAmount_, updateIndex());
     }
 
-    function _rate() internal view virtual returns (uint256 rate_);
+    /******************************************************************************************************************\
+    |                                           Internal View/Pure Functions                                           |
+    \******************************************************************************************************************/
 
     function _getPresentAmount(
         uint256 principalAmount_,
