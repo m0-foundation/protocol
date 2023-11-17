@@ -11,6 +11,10 @@ contract MTokenHarness is MToken {
         _latestIndex = index_;
     }
 
+    function setLatestRate(uint256 rate_) external {
+        _latestRate = rate_;
+    }
+
     function setLatestUpdated(uint256 timestamp_) external {
         _latestUpdateTimestamp = timestamp_;
     }
@@ -19,7 +23,7 @@ contract MTokenHarness is MToken {
         _isEarning[account_] = isEarning_;
     }
 
-    function setHasOptedOut(address account_, bool hasOptedOut_) external {
+    function setHasOptedOutOfEarning(address account_, bool hasOptedOut_) external {
         _hasOptedOutOfEarning[account_] = hasOptedOut_;
     }
 

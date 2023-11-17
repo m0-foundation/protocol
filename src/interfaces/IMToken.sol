@@ -36,26 +36,6 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     |                                         External Interactive Functions                                           |
     \******************************************************************************************************************/
 
-    function earnerRate() external view returns (uint256 rate);
-
-    function hasOptedOutOfEarning(address account) external view returns (bool hasOpted);
-
-    function isEarning(address account) external view returns (bool isEarning);
-
-    /// @notice The address of the Protocol contract.
-    function protocol() external view returns (address protocol);
-
-    /// @notice The address of the SPOG Registrar contract.
-    function spogRegistrar() external view returns (address spogRegistrar);
-
-    function totalEarningSupply() external view returns (uint256 totalEarningSupply);
-
-    function totalNonEarningSupply() external view returns (uint256 totalNonEarningSupply);
-
-    /******************************************************************************************************************\
-    |                                          External View/Pure Functions                                            |
-    \******************************************************************************************************************/
-
     /**
      * @notice Burns M Token by protocol.
      * @param account The address of account to burn from.
@@ -77,4 +57,26 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     function stopEarning() external;
 
     function stopEarning(address account) external;
+
+    /******************************************************************************************************************\
+    |                                          External View/Pure Functions                                            |
+    \******************************************************************************************************************/
+
+    function earnerRate() external view returns (uint256 earnerRate);
+
+    function hasOptedOutOfEarning(address account) external view returns (bool hasOpted);
+
+    function isEarning(address account) external view returns (bool isEarning);
+
+    function latestEarnerRate() external view returns (uint256 latestEarnerRate);
+
+    /// @notice The address of the Protocol contract.
+    function protocol() external view returns (address protocol);
+
+    /// @notice The address of the SPOG Registrar contract.
+    function spogRegistrar() external view returns (address spogRegistrar);
+
+    function totalEarningSupply() external view returns (uint256 totalEarningSupply);
+
+    function totalNonEarningSupply() external view returns (uint256 totalNonEarningSupply);
 }
