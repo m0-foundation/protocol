@@ -61,7 +61,7 @@ contract ProtocolTests is Test {
 
     event PenaltyImposed(address indexed minter, uint256 amount);
 
-    event RetrieveRequestCreated(uint256 retrieveId, address indexed minter, uint256 amount);
+    event RetrievalCreated(uint256 indexed retrieveId, address indexed minter, uint256 amount);
 
     function setUp() external {
         (_minter1, _minter1Pk) = makeAddrAndKey("minter1");
@@ -998,10 +998,9 @@ contract ProtocolTests is Test {
             _validator2Pk
         );
 
+        vm.prank(_minter1);
         vm.expectEmit();
         emit CollateralUpdated(_minter1, collateral, retrievalIds, bytes32(0), signatureTimestamp2);
-
-        vm.prank(_minter1);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         vm.prank(_minter1);
@@ -1036,8 +1035,6 @@ contract ProtocolTests is Test {
         timestamps[1] = signatureTimestamp1;
 
         vm.prank(_minter1);
-        vm.expectEmit();
-        emit CollateralUpdated(_minter1, collateral / 2, retrievalIds, bytes32(0), signatureTimestamp2);
         _protocol.updateCollateral(collateral / 2, retrieveIds, bytes32(0), validators, timestamps, signatures);
         assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), 0);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrieveId), 0);
@@ -1067,6 +1064,9 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         _protocol.setCollateralOf(_minter1, collateral);
+        _protocol.setLastCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
+
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, amount);
 
         vm.pauseGasMetering();
@@ -1076,10 +1076,11 @@ contract ProtocolTests is Test {
         // First retrieve request
         vm.prank(_minter1);
         vm.expectEmit();
-        emit RetrieveRequestCreated(expectedRetrivedId, _minter1, retrieveAmount);
+        emit RetrievalCreated(expectedRetrivedId, _minter1, retrieveAmount);
         uint256 retrieveId = _protocol.proposeRetrieval(retrieveAmount);
-        vm.resumeGasMetering();
         assertEq(retrieveId, expectedRetrivedId);
+
+        vm.resumeGasMetering();
 
         assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), retrieveAmount);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrieveId), retrieveAmount);

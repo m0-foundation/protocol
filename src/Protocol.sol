@@ -13,8 +13,6 @@ import { IProtocol } from "./interfaces/IProtocol.sol";
 import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 import { StatelessERC712 } from "./StatelessERC712.sol";
 
-// TODO: Penalties are awkwardly and inconsistently defined and implemented.
-
 /**
  * @title Protocol
  * @author M^ZERO LABS_
@@ -100,7 +98,9 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     function burnM(address minter_, uint256 maxAmount_) external {
         updateIndex();
 
-        _imposePenaltyIfMissedCollateralUpdates(minter_); // TODO: Only? What about undercollateralization?
+        // NOTE: Penalize only for missed collateral updates, not for undercollateralization.
+        // Undercollateralization within one update interval is forgiven.
+        _imposePenaltyIfMissedCollateralUpdates(minter_);
 
         uint256 amount_ = _isApprovedMinter(minter_) // TODO: `isActiveMinter`.
             ? _repayForActiveMinter(minter_, maxAmount_)
@@ -204,7 +204,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function proposeRetrieval(uint256 collateral_) external onlyApprovedMinter returns (uint256 retrievalId_) {
-        retrievalId_ = uint256(keccak256(abi.encode(msg.sender, collateral_, block.timestamp)));
+        retrievalId_ = uint256(keccak256(abi.encode(msg.sender, collateral_, block.timestamp, gasleft())));
 
         _totalCollateralPendingRetrieval[msg.sender] += collateral_;
         _pendingRetrievals[msg.sender][retrievalId_] = collateral_;
