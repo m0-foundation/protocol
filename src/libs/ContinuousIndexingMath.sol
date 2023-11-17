@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 
 // TODO: Can optimize with base-2 scales instead of base-10 (so we can shift instead of divide)
 
-library InterestMath {
+library ContinuousIndexingMath {
     uint256 internal constant SECONDS_PER_YEAR = 31_536_000;
 
     /// @notice The scaling of rates in basis points.
@@ -26,9 +26,9 @@ library InterestMath {
         return (x * y) / EXP_BASE_SCALE;
     }
 
-    /// @notice Helper function to calculate e^rt (continuos compounding interest formula).
-    function getContinuousIndex(uint256 apy, uint256 time) internal pure returns (uint256 rate) {
-        return exponent((apy * time) / SECONDS_PER_YEAR);
+    /// @notice Helper function to calculate e^rt (continuous compounding formula).
+    function getContinuousIndex(uint256 yearlyRate, uint256 time) internal pure returns (uint256 rate) {
+        return exponent((yearlyRate * time) / SECONDS_PER_YEAR);
     }
 
     /// @notice Helper function to calculate y = e^x using fourth degree approximation of Taylor Series:

@@ -5,14 +5,14 @@ pragma solidity 0.8.21;
 import { MToken } from "../../src/MToken.sol";
 
 contract MTokenHarness is MToken {
-    constructor(address protocol_, address spogRegistrar_) MToken(protocol_, spogRegistrar_) {}
+    constructor(address spogRegistrar_, address protocol_) MToken(spogRegistrar_, protocol_) {}
 
     function setLatestIndex(uint256 index_) external {
         _latestIndex = index_;
     }
 
     function setLatestUpdated(uint256 timestamp_) external {
-        _latestAccrualTime = timestamp_;
+        _latestUpdateTimestamp = timestamp_;
     }
 
     function setIsEarning(address account_, bool isEarning_) external {
@@ -23,12 +23,12 @@ contract MTokenHarness is MToken {
         _hasOptedOutOfEarning[account_] = hasOptedOut_;
     }
 
-    function setInternalTotalSupply(uint256 totalSupply_) external {
-        _totalSupply = totalSupply_;
+    function setTotalNonEarningSupply(uint256 totalNonEarningSupply_) external {
+        _totalNonEarningSupply = totalNonEarningSupply_;
     }
 
-    function setTotalEarningSupplyPrincipal(uint256 totalEarningSupplyPrincipal_) external {
-        _totalEarningSupplyPrincipal = totalEarningSupplyPrincipal_;
+    function setTotalPrincipalOfEarningSupply(uint256 totalPrincipalOfEarningSupply_) external {
+        _totalPrincipalOfEarningSupply = totalPrincipalOfEarningSupply_;
     }
 
     function setInternalBalanceOf(address account_, uint256 balance_) external {
@@ -39,11 +39,7 @@ contract MTokenHarness is MToken {
         return _balances[account_];
     }
 
-    function totalEarningSupplyPrincipal() external view returns (uint256 totalSupply_) {
-        return _totalEarningSupplyPrincipal;
-    }
-
-    function internalTotalSupply() external view returns (uint256 totalSupply_) {
-        return _totalSupply;
+    function totalPrincipalOfEarningSupply() external view returns (uint256 totalPrincipalOfEarningSupply_) {
+        return _totalPrincipalOfEarningSupply;
     }
 }

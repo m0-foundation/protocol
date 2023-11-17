@@ -5,35 +5,45 @@ pragma solidity 0.8.21;
 import { Protocol } from "../../src/Protocol.sol";
 
 contract ProtocolHarness is Protocol {
-    constructor(address spog_, address mToken_) Protocol(spog_, mToken_) {}
+    constructor(address spogRegistrar_, address mToken_) Protocol(spogRegistrar_, mToken_) {}
 
-    function setMintRequestOf(
+    function setMintProposalOf(
         address minter_,
         uint256 amount_,
         uint256 createdAt_,
-        address to_,
-        uint256 gasLeft_
-    ) external returns (uint256) {
-        uint256 mintId_ = uint256(keccak256(abi.encodePacked(minter_, amount_, to_, createdAt_, gasLeft_)));
-        mintRequestOf[minter_] = MintRequest(mintId_, to_, amount_, createdAt_);
+        address destination_
+    ) external returns (uint256 mintId_) {
+        mintId_ = uint256(keccak256(abi.encodePacked(minter_, amount_, destination_, createdAt_)));
 
-        return mintId_;
+        _mintProposals[minter_] = MintProposal(mintId_, destination_, amount_, createdAt_);
     }
 
-    function setCollateralOf(address minter_, uint256 amount_, uint256 lastUpdated_, uint256 penalizedUntil_) external {
-        collateralOf[minter_] = CollateralBasic(amount_, lastUpdated_, penalizedUntil_);
+    function setCollateralOf(address minter_, uint256 collateral_) external {
+        _collaterals[minter_] = collateral_;
     }
 
-    function setCollateralOf(address minter_, uint256 amount_, uint256 lastUpdated_) external {
-        collateralOf[minter_] = CollateralBasic(amount_, lastUpdated_, 0);
+    function setLastCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
+        _lastCollateralUpdates[minter_] = lastUpdated_;
     }
 
-    function setNormalizedPrincipalOf(address minter_, uint256 amount_) external {
-        normalizedPrincipalOf[minter_] = amount_;
-        totalNormalizedPrincipal += amount_;
+    function setLastUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
+        _lastUpdateIntervals[minter_] = updateInterval_;
+    }
+
+    function setPenalizedUntilOf(address minter_, uint256 penalizedUntil_) external {
+        _penalizedUntilTimestamps[minter_] = penalizedUntil_;
+    }
+
+    function setPrincipalOfActiveOwedMOf(address minter_, uint256 amount_) external {
+        _principalOfActiveOwedM[minter_] = amount_;
+        _totalPrincipalOfActiveOwedM += amount_; // TODO: fix this side effect.
     }
 
     function setIndex(uint256 index_) external {
         _latestIndex = index_;
+    }
+
+    function principalOfActiveOwedMOf(address minter_) external view returns (uint256 principalOfActiveOwedM_) {
+        return _principalOfActiveOwedM[minter_];
     }
 }

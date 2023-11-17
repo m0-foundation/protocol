@@ -32,19 +32,19 @@ library SPOGRegistrarReader {
     /// @notice The minters list name in SPOG.
     bytes32 internal constant MINTERS_LIST = "minters";
 
-    /// @notice The name of parameter in SPOG that defines the penalty
-    bytes32 internal constant PENALTY = "penalty";
+    /// @notice The name of parameter in SPOG that defines the penalty rate.
+    bytes32 internal constant PENALTY_RATE = "penalty_rate";
 
     /// @notice The name of parameter in SPOG that required interval to update collateral.
     bytes32 internal constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
 
     /// @notice The name of parameter that defines number of signatures required for successful collateral update
-    bytes32 internal constant UPDATE_COLLATERAL_QUORUM = "updateCollateral_quorum";
+    bytes32 internal constant UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD = "updateCollateral_threshold";
 
     /// @notice The validators list name in SPOG.
     bytes32 internal constant VALIDATORS_LIST = "validators";
 
-    function getEarningRateModel(address registrar_) internal view returns (address rateModel_) {
+    function getEarnerRateModel(address registrar_) internal view returns (address rateModel_) {
         return toAddress(_get(registrar_, EARNER_RATE_MODEL));
     }
 
@@ -72,8 +72,8 @@ library SPOGRegistrarReader {
         return uint256(_get(registrar_, UPDATE_COLLATERAL_INTERVAL));
     }
 
-    function getUpdateCollateralQuorum(address registrar_) internal view returns (uint256 quorum_) {
-        return uint256(_get(registrar_, UPDATE_COLLATERAL_QUORUM));
+    function getUpdateCollateralValidatorThreshold(address registrar_) internal view returns (uint256 quorum_) {
+        return uint256(_get(registrar_, UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD));
     }
 
     function isApprovedEarner(address registrar_, address earner_) internal view returns (bool isApproved_) {
@@ -92,8 +92,8 @@ library SPOGRegistrarReader {
         return _contains(registrar_, VALIDATORS_LIST, validator_);
     }
 
-    function getPenalty(address registrar_) internal view returns (uint256 penalty_) {
-        return uint256(_get(registrar_, PENALTY));
+    function getPenaltyRate(address registrar_) internal view returns (uint256 penalty_) {
+        return uint256(_get(registrar_, PENALTY_RATE));
     }
 
     function getVault(address registrar_) internal view returns (address vault_) {
