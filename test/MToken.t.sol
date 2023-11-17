@@ -9,7 +9,7 @@ import { IMToken } from "../src/interfaces/IMToken.sol";
 import { SPOGRegistrarReader } from "../src/libs/SPOGRegistrarReader.sol";
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
 
-import { MockProtocol, MockSPOGRegistrar } from "./utils/Mocks.sol";
+import { MockProtocol, MockRateModel, MockSPOGRegistrar } from "./utils/Mocks.sol";
 import { MTokenHarness } from "./utils/MTokenHarness.sol";
 
 // TODO: Fuzz and/or invariant tests.
@@ -19,30 +19,29 @@ contract MTokenTests is Test {
     address internal _bob = makeAddr("bob");
     address internal _charlie = makeAddr("charlie");
     address internal _david = makeAddr("david");
+    address internal _protocol = makeAddr("protocol");
 
     address[] internal _accounts = [_alice, _bob, _charlie, _david];
 
-    uint256 internal _baseEarnerRate = ContinuousIndexingMath.BPS_BASE_SCALE / 10; // 10% APY
-    uint256 internal _minterRate = ContinuousIndexingMath.BPS_BASE_SCALE / 10; // 10% APY
     uint256 internal _earnerRate = ContinuousIndexingMath.BPS_BASE_SCALE / 10; // 10% APY
     uint256 internal _start = block.timestamp;
 
     uint256 internal _expectedCurrentIndex;
 
-    MockProtocol internal _protocol;
+    MockRateModel internal _earnerRateModel;
     MockSPOGRegistrar internal _registrar;
     MTokenHarness internal _mToken;
 
     function setUp() external {
-        _protocol = new MockProtocol();
+        _earnerRateModel = new MockRateModel();
 
-        _protocol.setMinterRate(_minterRate);
+        _earnerRateModel.setRate(_earnerRate);
 
         _registrar = new MockSPOGRegistrar();
 
-        _registrar.updateConfig(SPOGRegistrarReader.BASE_EARNER_RATE, _baseEarnerRate);
+        _registrar.updateConfig(SPOGRegistrarReader.EARNER_RATE_MODEL, address(_earnerRateModel));
 
-        _mToken = new MTokenHarness(address(_registrar), address(_protocol));
+        _mToken = new MTokenHarness(address(_registrar), _protocol);
 
         _mToken.setLatestRate(_earnerRate);
 
@@ -57,29 +56,28 @@ contract MTokenTests is Test {
     }
 
     function test_mint_toNonEarner() external {
-        vm.prank(address(_protocol));
+        vm.prank(_protocol);
         _mToken.mint(_alice, 1_000);
 
         assertEq(_mToken.internalBalanceOf(_alice), 1_000);
         assertEq(_mToken.totalNonEarningSupply(), 1_000);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
     function test_mint_toEarner() external {
-        _protocol.setTotalActiveOwedM(1_000);
-
+        _mToken.setLatestRate(_earnerRate);
         _mToken.setIsEarning(_alice, true);
 
-        vm.prank(address(_protocol));
+        vm.prank(_protocol);
         _mToken.mint(_alice, 1_000);
 
         assertEq(_mToken.internalBalanceOf(_alice), 909);
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 909);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
@@ -93,16 +91,18 @@ contract MTokenTests is Test {
         _mToken.setInternalBalanceOf(_alice, 999);
 
         vm.expectRevert(stdError.arithmeticError);
-        vm.prank(address(_protocol));
+        vm.prank(_protocol);
         _mToken.burn(_alice, 1_000);
     }
 
     function test_burn_insufficientBalance_fromEarner() external {
+        _mToken.setLatestRate(_earnerRate);
+
         _mToken.setIsEarning(_alice, true);
         _mToken.setInternalBalanceOf(_alice, 908);
 
         vm.expectRevert(stdError.arithmeticError);
-        vm.prank(address(_protocol));
+        vm.prank(_protocol);
         _mToken.burn(_alice, 1_000);
     }
 
@@ -111,52 +111,51 @@ contract MTokenTests is Test {
 
         _mToken.setInternalBalanceOf(_alice, 1_000);
 
-        vm.prank(address(_protocol));
+        vm.prank(_protocol);
         _mToken.burn(_alice, 500);
 
         assertEq(_mToken.internalBalanceOf(_alice), 500);
         assertEq(_mToken.totalNonEarningSupply(), 500);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
         assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
-        vm.prank(address(_protocol));
+        vm.prank(_protocol);
         _mToken.burn(_alice, 500);
 
         assertEq(_mToken.internalBalanceOf(_alice), 0);
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
     function test_burn_fromEarner() external {
-        _protocol.setTotalActiveOwedM(1_000);
-
+        _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalPrincipalOfEarningSupply(909);
 
         _mToken.setIsEarning(_alice, true);
         _mToken.setInternalBalanceOf(_alice, 909);
 
-        vm.prank(address(_protocol));
+        vm.prank(_protocol);
         _mToken.burn(_alice, 500);
 
         assertEq(_mToken.internalBalanceOf(_alice), 455);
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 455);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
 
-        vm.prank(address(_protocol));
+        vm.prank(_protocol);
         _mToken.burn(_alice, 500);
 
         assertEq(_mToken.internalBalanceOf(_alice), 1);
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 1);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
@@ -170,6 +169,8 @@ contract MTokenTests is Test {
     }
 
     function test_transfer_insufficientBalance_fromEarner_toNonEarner() external {
+        _mToken.setLatestRate(_earnerRate);
+
         _mToken.setIsEarning(_alice, true);
         _mToken.setInternalBalanceOf(_alice, 908);
 
@@ -193,14 +194,13 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalNonEarningSupply(), 1_500);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
     function test_transfer_fromEarner_toNonEarner() external {
-        _protocol.setTotalActiveOwedM(1_500);
-
+        _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalPrincipalOfEarningSupply(909);
         _mToken.setTotalNonEarningSupply(500);
 
@@ -218,14 +218,13 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalNonEarningSupply(), 1_000);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 455);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
     function test_transfer_fromNonEarner_toEarner() external {
-        _protocol.setTotalActiveOwedM(1_500);
-
+        _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalPrincipalOfEarningSupply(455);
         _mToken.setTotalNonEarningSupply(1_000);
 
@@ -243,15 +242,15 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalNonEarningSupply(), 500);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 909);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
     function test_transfer_fromEarner_toEarner() external {
-        _protocol.setTotalActiveOwedM(1_500);
-
         _mToken.setTotalPrincipalOfEarningSupply(1_364);
+        _mToken.setLatestRate(_earnerRate);
+        _mToken.setTotalPrincipalOfEarningSupply(1364);
 
         _mToken.setIsEarning(_alice, true);
         _mToken.setInternalBalanceOf(_alice, 909);
@@ -268,7 +267,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 1_364);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
@@ -296,8 +295,7 @@ contract MTokenTests is Test {
     }
 
     function test_startEarning_onBehalfOf() external {
-        _protocol.setTotalActiveOwedM(1_000);
-
+        _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalNonEarningSupply(1_000);
 
         _mToken.setInternalBalanceOf(_alice, 1_000);
@@ -311,7 +309,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 909);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
@@ -332,8 +330,7 @@ contract MTokenTests is Test {
     }
 
     function test_startEarning() external {
-        _protocol.setTotalActiveOwedM(1_000);
-
+        _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalNonEarningSupply(1_000);
 
         _mToken.setInternalBalanceOf(_alice, 1_000);
@@ -348,7 +345,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 909);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
@@ -366,8 +363,7 @@ contract MTokenTests is Test {
     }
 
     function test_stopEarning_onBehalfOf() external {
-        _protocol.setTotalActiveOwedM(1_000);
-
+        _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalPrincipalOfEarningSupply(909);
 
         _mToken.setIsEarning(_alice, true);
@@ -380,7 +376,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalNonEarningSupply(), 999);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
@@ -392,8 +388,7 @@ contract MTokenTests is Test {
     }
 
     function test_stopEarning() external {
-        _protocol.setTotalActiveOwedM(1_000);
-
+        _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalPrincipalOfEarningSupply(909);
 
         _mToken.setIsEarning(_alice, true);
@@ -408,19 +403,19 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalNonEarningSupply(), 999);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
     function test_updateIndex() external {
-        _protocol.setTotalActiveOwedM(1_000);
+        _mToken.setLatestRate(_earnerRate);
 
         uint256 expectedLatestIndex_ = ContinuousIndexingMath.EXP_BASE_SCALE;
         uint256 expectedLatestUpdateTimestamp_ = _start;
 
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), expectedLatestIndex_);
         assertEq(_mToken.latestUpdateTimestamp(), expectedLatestUpdateTimestamp_);
 
@@ -434,8 +429,9 @@ contract MTokenTests is Test {
             )
         );
 
+        assertEq(_mToken.latestIndex(), expectedLatestIndex_);
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), expectedLatestIndex_);
         assertEq(_mToken.latestUpdateTimestamp(), expectedLatestUpdateTimestamp_);
 
@@ -445,21 +441,21 @@ contract MTokenTests is Test {
         expectedLatestUpdateTimestamp_ = block.timestamp;
 
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), expectedLatestIndex_);
         assertEq(_mToken.latestUpdateTimestamp(), expectedLatestUpdateTimestamp_);
 
-        _registrar.updateConfig(SPOGRegistrarReader.BASE_EARNER_RATE, _baseEarnerRate / 2);
+        _earnerRateModel.setRate(_earnerRate / 2);
 
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate); // Has not changed yet.
+        assertEq(_mToken.earnerRate(), _earnerRate); // Has not changed yet.
         assertEq(_mToken.latestIndex(), expectedLatestIndex_);
         assertEq(_mToken.latestUpdateTimestamp(), expectedLatestUpdateTimestamp_);
 
         _mToken.updateIndex();
 
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate / 2);
+        assertEq(_mToken.earnerRate(), _earnerRate / 2);
         assertEq(_mToken.latestIndex(), expectedLatestIndex_);
         assertEq(_mToken.latestUpdateTimestamp(), expectedLatestUpdateTimestamp_);
 
@@ -473,8 +469,9 @@ contract MTokenTests is Test {
             )
         );
 
+        assertEq(_mToken.latestIndex(), expectedLatestIndex_);
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate / 2);
+        assertEq(_mToken.earnerRate(), _earnerRate / 2);
         assertEq(_mToken.latestIndex(), expectedLatestIndex_);
         assertEq(_mToken.latestUpdateTimestamp(), expectedLatestUpdateTimestamp_);
 
@@ -484,7 +481,7 @@ contract MTokenTests is Test {
         expectedLatestUpdateTimestamp_ = block.timestamp;
 
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestEarnerRate(), _earnerRate / 2);
+        assertEq(_mToken.earnerRate(), _earnerRate / 2);
         assertEq(_mToken.latestIndex(), expectedLatestIndex_);
         assertEq(_mToken.latestUpdateTimestamp(), expectedLatestUpdateTimestamp_);
     }
@@ -508,6 +505,8 @@ contract MTokenTests is Test {
     }
 
     function test_balanceOf_earner() external {
+        _mToken.setLatestRate(_earnerRate);
+
         _mToken.setIsEarning(_alice, true);
         _mToken.setInternalBalanceOf(_alice, 909);
 
@@ -527,6 +526,7 @@ contract MTokenTests is Test {
     }
 
     function test_totalEarningSupply() external {
+        _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalPrincipalOfEarningSupply(909);
 
         assertEq(_mToken.totalEarningSupply(), 999);
@@ -581,6 +581,7 @@ contract MTokenTests is Test {
     }
 
     function test_totalSupply_onlyTotalEarningSupply() external {
+        _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalPrincipalOfEarningSupply(909);
 
         assertEq(_mToken.totalSupply(), 999);
@@ -599,6 +600,7 @@ contract MTokenTests is Test {
     }
 
     function test_totalSupply() external {
+        _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalNonEarningSupply(1_000);
         _mToken.setTotalPrincipalOfEarningSupply(909);
 
@@ -620,19 +622,21 @@ contract MTokenTests is Test {
     function test_earnerRate() external {
         assertEq(_mToken.earnerRate(), _earnerRate);
 
-        // Set to arrive at an utilization of 200% (inverse utilization of 50%).
-        _protocol.setTotalActiveOwedM(500);
-        _mToken.setTotalPrincipalOfEarningSupply(909);
+        _earnerRateModel.setRate(_earnerRate / 2);
+
+        assertEq(_mToken.earnerRate(), _earnerRate);
+
+        _mToken.updateIndex();
 
         assertEq(_mToken.earnerRate(), _earnerRate / 2);
     }
 
     function test_latestEarnerRate() external {
-        assertEq(_mToken.latestEarnerRate(), _earnerRate);
+        assertEq(_mToken.earnerRate(), _earnerRate);
 
         _mToken.setLatestRate(_earnerRate / 2);
 
-        assertEq(_mToken.latestEarnerRate(), _earnerRate / 2);
+        assertEq(_mToken.earnerRate(), _earnerRate / 2);
     }
 
     function test_optOutOfEarning() external {

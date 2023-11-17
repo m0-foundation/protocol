@@ -107,3 +107,11 @@ contract MockProtocol {
         return _totalActiveOwedM;
     }
 }
+
+contract MockRateModel {
+    uint256 public rate;
+
+    function setRate(uint256 rate_) external {
+        rate = rate_;
+    }
+}

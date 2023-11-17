@@ -22,10 +22,10 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     \******************************************************************************************************************/
 
     function updateIndex() public virtual returns (uint256 currentIndex_) {
-        // NOTE: `currentIndex()` depends on `_latestRate`, so only update it after this line.
+        // NOTE: `currentIndex()` depends on `_latestRate`, so only update it after this.
         currentIndex_ = currentIndex();
 
-        // NOTE: `_rate()` depends on `_latestIndex` and `_latestUpdateTimestamp`, so only update them after this line.
+        // NOTE: `_rate()` can depend on `_latestIndex` and `_latestUpdateTimestamp`, so only update them after this.
         uint256 rate_ = _rate();
 
         if (_latestUpdateTimestamp == block.timestamp && _latestRate == rate_) return currentIndex_;

@@ -10,7 +10,7 @@ import { SPOGRegistrarReader } from "../src/libs/SPOGRegistrarReader.sol";
 import { IProtocol } from "../src/interfaces/IProtocol.sol";
 
 import { DigestHelper } from "./utils/DigestHelper.sol";
-import { MockSPOGRegistrar, MockMToken } from "./utils/Mocks.sol";
+import { MockMToken, MockRateModel, MockSPOGRegistrar } from "./utils/Mocks.sol";
 import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
 
 contract ProtocolTests is Test {
@@ -37,8 +37,9 @@ contract ProtocolTests is Test {
     uint256 internal _mintRatio = 9000; // 90%, bps
     uint256 internal _penaltyRate = 100; // 1%, bps
 
-    MockSPOGRegistrar internal _spogRegistrar;
     MockMToken internal _mToken;
+    MockRateModel internal _minterRateModel;
+    MockSPOGRegistrar internal _spogRegistrar;
     ProtocolHarness internal _protocol;
 
     event CollateralUpdated(
@@ -67,6 +68,10 @@ contract ProtocolTests is Test {
         (_validator1, _validator1Pk) = makeAddrAndKey("validator1");
         (_validator2, _validator2Pk) = makeAddrAndKey("validator2");
 
+        _minterRateModel = new MockRateModel();
+
+        _minterRateModel.setRate(_minterRate);
+
         _mToken = new MockMToken();
 
         _spogRegistrar = new MockSPOGRegistrar();
@@ -84,10 +89,10 @@ contract ProtocolTests is Test {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval);
 
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_FREEZE_TIME, _minterFreezeTime);
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE, _minterRate);
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_DELAY, _mintDelay);
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_TTL, _mintTTL);
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, _mintRatio);
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, address(_minterRateModel));
         _spogRegistrar.updateConfig(SPOGRegistrarReader.PENALTY_RATE, _penaltyRate);
 
         _protocol = new ProtocolHarness(address(_spogRegistrar), address(_mToken));
