@@ -203,15 +203,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function proposeRetrieval(uint256 collateral_) external onlyApprovedMinter returns (uint256 retrievalId_) {
-        uint256 outstandingValueSurplus_ = (collateral_ * mintRatio()) / ONE;
-
-        // TODO: Fix `outstandingValueSurplus_` name and try to improve this function for use and readability.
-        _revertIfUndercollateralized(msg.sender, outstandingValueSurplus_);
-
         retrievalId_ = uint256(keccak256(abi.encode(msg.sender, collateral_, block.timestamp)));
 
         _totalCollateralPendingRetrieval[msg.sender] += collateral_;
         _pendingRetrievals[msg.sender][retrievalId_] = collateral_;
+
+        _revertIfUndercollateralized(msg.sender, 0);
 
         emit RetrievalCreated(retrievalId_, msg.sender, collateral_);
     }
@@ -253,7 +250,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function updateIndex() public override(IContinuousIndexing, ContinuousIndexing) returns (uint256 index_) {
-        // TODO: Order of these matter if their rate models depend on the same utilization ratio / total supplies.
+        // NOTE: Order of these matter if their rate models depend on the same utilization ratio / total supplies.
         index_ = super.updateIndex(); // Update Minter index.
 
         IMToken(mToken).updateIndex(); // Update Earning index.
@@ -274,7 +271,10 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     function collateralOf(address minter_) public view returns (uint256 collateral_) {
         // If collateral was not updated before deadline, assume that minter's collateral is zero.
-        return block.timestamp < collateralUpdateDeadlineOf(minter_) ? _collaterals[minter_] : 0;
+        return
+            block.timestamp < collateralUpdateDeadlineOf(minter_)
+                ? _collaterals[minter_] - _totalCollateralPendingRetrieval[minter_]
+                : 0;
     }
 
     function collateralUpdateDeadlineOf(address minter_) public view returns (uint256 updateDeadline_) {
@@ -524,7 +524,6 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function _revertIfUndercollateralized(address minter_, uint256 additionalOwedM_) internal view {
-        // TODO: fix.
         uint256 maxOwedM_ = _getMaxOwedM(minter_);
         uint256 activeOwedM_ = activeOwedMOf(minter_);
 
