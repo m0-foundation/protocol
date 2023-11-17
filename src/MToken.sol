@@ -17,8 +17,8 @@ import { ERC20Permit } from "./ERC20Permit.sol";
 // TODO: Some increased/decreased earning supply event(s)? Might be useful for a UI/script, or useless in general.
 
 contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
-    address internal immutable _protocol;
-    address internal immutable _spogRegistrar;
+    address public immutable protocol;
+    address public immutable spogRegistrar;
 
     // TODO: Consider each being uin128.
     uint256 internal _totalNonEarningSupply;
@@ -31,7 +31,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     mapping(address account => bool hasOptedOutOfEarning) internal _hasOptedOutOfEarning;
 
     modifier onlyProtocol() {
-        if (msg.sender != _protocol) revert NotProtocol();
+        if (msg.sender != protocol) revert NotProtocol();
 
         _;
     }
@@ -41,8 +41,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
      * @param protocol_ The address of Protocol
      */
     constructor(address protocol_, address spogRegistrar_) ContinuousIndexing() ERC20Permit("M Token", "M", 6) {
-        _protocol = protocol_;
-        _spogRegistrar = spogRegistrar_;
+        protocol = protocol_;
+        spogRegistrar = spogRegistrar_;
     }
 
     /******************************************************************************************************************\
@@ -105,14 +105,6 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     function isEarning(address account_) external view returns (bool isEarning_) {
         return _isEarning[account_];
-    }
-
-    function protocol() external view returns (address protocol_) {
-        return _protocol;
-    }
-
-    function spogRegistrar() external view returns (address spogRegistrar_) {
-        return _spogRegistrar;
     }
 
     function totalEarningSupply() public view returns (uint256 totalEarningSupply_) {
@@ -250,12 +242,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     function _isApprovedEarner(address account_) internal view returns (bool isApproved_) {
         return
-            SPOGRegistrarReader.isEarnersListIgnored(_spogRegistrar) ||
-            SPOGRegistrarReader.isApprovedEarner(_spogRegistrar, account_);
+            SPOGRegistrarReader.isEarnersListIgnored(spogRegistrar) ||
+            SPOGRegistrarReader.isApprovedEarner(spogRegistrar, account_);
     }
 
     function _rate() internal view override returns (uint256 rate_) {
-        address rateModel_ = SPOGRegistrarReader.getEarnerRateModel(_spogRegistrar);
+        address rateModel_ = SPOGRegistrarReader.getEarnerRateModel(spogRegistrar);
 
         (bool success_, bytes memory returnData_) = rateModel_.staticcall(
             abi.encodeWithSelector(IRateModel.rate.selector)
