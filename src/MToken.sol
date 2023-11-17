@@ -38,11 +38,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     /**
      * @notice Constructor.
-     * @param protocol_ The address of Protocol
+     * @param spogRegistrar_ The address of the SPOG Registrar contract.
+     * @param protocol_ The address of Protocol.
      */
-    constructor(address protocol_, address spogRegistrar_) ContinuousIndexing() ERC20Permit("M Token", "M", 6) {
-        protocol = protocol_;
+    constructor(address spogRegistrar_, address protocol_) ContinuousIndexing() ERC20Permit("M Token", "M", 6) {
         spogRegistrar = spogRegistrar_;
+        protocol = protocol_;
     }
 
     /******************************************************************************************************************\

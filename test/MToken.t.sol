@@ -35,7 +35,7 @@ contract MTokenTests is Test {
     function setUp() external {
         _registrar = new MockSPOGRegistrar();
         _rateModel = new MockRateModel();
-        _mToken = new MTokenHarness(address(_protocol), address(_registrar));
+        _mToken = new MTokenHarness(address(_registrar), address(_protocol));
 
         _registrar.updateConfig(
             SPOGRegistrarReader.EARNER_RATE_MODEL,

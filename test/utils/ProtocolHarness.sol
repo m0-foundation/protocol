@@ -5,7 +5,7 @@ pragma solidity 0.8.21;
 import { Protocol } from "../../src/Protocol.sol";
 
 contract ProtocolHarness is Protocol {
-    constructor(address spog_, address mToken_) Protocol(spog_, mToken_) {}
+    constructor(address spogRegistrar_, address mToken_) Protocol(spogRegistrar_, mToken_) {}
 
     function setMintProposalOf(
         address minter_,

@@ -23,8 +23,8 @@ contract DeployBase is Script {
         // Protocol needs M token address.
 
         address expectedProtocol_ = ContractHelper.getContractFrom(deployer_, deployerNonce_ + 1);
-        address mToken_ = address(new MToken(expectedProtocol_, spogRegistrar_));
-        protocol_ = address(new Protocol(mToken_, spogRegistrar_));
+        address mToken_ = address(new MToken(spogRegistrar_, expectedProtocol_));
+        protocol_ = address(new Protocol(spogRegistrar_, mToken_));
 
         console.log("Protocol address: ", protocol_);
         console.log("M Token address: ", mToken_);

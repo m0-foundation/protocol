@@ -5,7 +5,7 @@ pragma solidity 0.8.21;
 import { MToken } from "../../src/MToken.sol";
 
 contract MTokenHarness is MToken {
-    constructor(address protocol_, address spogRegistrar_) MToken(protocol_, spogRegistrar_) {}
+    constructor(address spogRegistrar_, address protocol_) MToken(spogRegistrar_, protocol_) {}
 
     function setLatestIndex(uint256 index_) external {
         _latestIndex = index_;

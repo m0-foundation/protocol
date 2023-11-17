@@ -85,6 +85,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     /**
      * @notice Constructor.
      * @param spogRegistrar_ The address of the SPOG Registrar contract.
+     * @param mToken_ The address of the M Token.
      */
     constructor(address spogRegistrar_, address mToken_) ContinuousIndexing() StatelessERC712("Protocol") {
         if ((spogRegistrar = spogRegistrar_) == address(0)) revert ZeroSpogRegistrar();
