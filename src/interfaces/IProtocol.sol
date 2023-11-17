@@ -168,6 +168,8 @@ interface IProtocol is IContinuousIndexing {
 
     function lastUpdateOf(address minter) external view returns (uint256 lastUpdate);
 
+    function minterRate() external view returns (uint256 minterRate);
+
     /// @notice The mint proposal of minters, only 1 request per minter
     function mintProposalOf(
         address minter

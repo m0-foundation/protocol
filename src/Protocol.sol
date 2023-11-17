@@ -299,6 +299,10 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         return _lastCollateralUpdates[minter_];
     }
 
+    function minterRate() external view returns (uint256 minterRate_) {
+        return _rate();
+    }
+
     function mintProposalOf(
         address minter_
     ) external view returns (uint256 mintId_, address destination_, uint256 amount_, uint256 createdAt_) {
