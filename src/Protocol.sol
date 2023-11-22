@@ -105,9 +105,10 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
         emit BurnExecuted(minter_, amount_, msg.sender);
 
-        // Burn actual M tokens
-        IMToken(mToken).burn(msg.sender, amount_);
+        IMToken(mToken).burn(msg.sender, amount_); // Burn actual M tokens
 
+        // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the burn
+        //       can result in a new rate, we should update the index here to lock in that rate.
         updateIndex();
     }
 
@@ -144,6 +145,8 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         delete _principalOfActiveOwedM[minter_];
         delete _unfrozenTimestamps[minter_];
 
+        // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the
+        //       deactivation can result in a new rate, we should update the index here to lock in that rate.
         updateIndex();
     }
 
@@ -174,8 +177,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
         _revertIfUndercollateralized(msg.sender, amount_); // Check that minter will remain sufficiently collateralized.
 
-        // Delete mint request
-        delete _mintProposals[msg.sender];
+        delete _mintProposals[msg.sender]; // Delete mint request.
 
         emit MintExecuted(mintId_);
 
@@ -186,6 +188,8 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
         IMToken(mToken).mint(destination_, amount_);
 
+        // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the mint
+        //       can result in a new rate, we should update the index here to lock in that rate.
         updateIndex();
     }
 
@@ -246,17 +250,25 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
         _imposePenaltyIfUndercollateralized(msg.sender);
 
+        // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the collateral
+        //       update can result in a new rate, we should update the index here to lock in that rate.
         updateIndex();
     }
 
     function updateIndex() public override(IContinuousIndexing, ContinuousIndexing) returns (uint256 index_) {
+        // NOTE: With the current rate models, the minter rate does not depend on anything in the protocol or mToken, so
+        //       we can update the minter rate and index here.
         index_ = super.updateIndex(); // Update minter index and rate.
 
-        // Mint M to Zero Vault
+        // NOTE: Since the currentIndex of the protocol and mToken are constant thought this context's execution (since
+        //       the block.timestamp is not changing) we can compute excessOwedM without updating the mToken index.
         uint256 excessOwedM_ = _getExcessOwedM();
 
-        if (excessOwedM_ > 0) IMToken(mToken).mint(spogVault, excessOwedM_);
+        if (excessOwedM_ > 0) IMToken(mToken).mint(spogVault, excessOwedM_); // Mint M to SPOG Vault.
 
+        // NOTE: Given the current implementation of the mToken transfers and its rate model, while it is possible for
+        //       the above mint to already have updated the mToken index if M was minted to an earning account, we want
+        //       to ensure the rate provided by the mToken's rate model is locked in.
         IMToken(mToken).updateIndex(); // Update earning index and rate.
     }
 
