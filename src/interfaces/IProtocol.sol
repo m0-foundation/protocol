@@ -164,6 +164,8 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The inactive owed M for a given active minter
     function inactiveOwedMOf(address minter) external view returns (uint256 inactiveOwedM);
 
+    function latestMinterRate() external view returns (uint256 latestMinterRate);
+
     function lastUpdateIntervalOf(address minter) external view returns (uint256 lastUpdateInterval);
 
     function lastUpdateOf(address minter) external view returns (uint256 lastUpdate);

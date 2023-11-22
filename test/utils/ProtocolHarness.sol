@@ -39,8 +39,12 @@ contract ProtocolHarness is Protocol {
         _totalPrincipalOfActiveOwedM += amount_; // TODO: fix this side effect.
     }
 
-    function setIndex(uint256 index_) external {
+    function setLatestIndex(uint256 index_) external {
         _latestIndex = index_;
+    }
+
+    function setLatestRate(uint256 rate_) external {
+        _latestRate = rate_;
     }
 
     function principalOfActiveOwedMOf(address minter_) external view returns (uint256 principalOfActiveOwedM_) {

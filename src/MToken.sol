@@ -5,8 +5,8 @@ pragma solidity 0.8.21;
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { IERC20 } from "./interfaces/IERC20.sol";
-import { IRateModel } from "./interfaces/IRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
+import { IProtocol } from "./interfaces/IProtocol.sol";
 
 import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 import { ERC20Permit } from "./ERC20Permit.sol";
@@ -17,6 +17,8 @@ import { ERC20Permit } from "./ERC20Permit.sol";
 // TODO: Some increased/decreased earning supply event(s)? Might be useful for a UI/script, or useless in general.
 
 contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
+    uint256 internal constant _ONE_HUNDRED_PERCENT = 10_000; // Basis points.
+
     address public immutable protocol;
     address public immutable spogRegistrar;
 
@@ -96,7 +98,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         return _isEarning[account_] ? _getPresentAmount(_balances[account_], currentIndex()) : _balances[account_];
     }
 
-    function earnerRate() public view returns (uint256 rate_) {
+    function earnerRate() public view returns (uint256 earnerRate_) {
         return _rate();
     }
 
@@ -106,6 +108,10 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     function isEarning(address account_) external view returns (bool isEarning_) {
         return _isEarning[account_];
+    }
+
+    function latestEarnerRate() public view returns (uint256 latestEarnerRate_) {
+        return _latestRate;
     }
 
     function totalEarningSupply() public view returns (uint256 totalEarningSupply_) {
@@ -213,7 +219,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
                 _transferAmountInKind( // perform an in-kind transfer with...
                     sender_,
                     recipient_,
-                    senderIsEarning_ ? _getPrincipalAmountAndUpdateIndex(amount_) : amount_ // the appropriate amount.
+                    senderIsEarning_ ? _getPrincipalAmount(amount_, currentIndex()) : amount_ // the appropriate amount.
                 );
         }
 
@@ -247,17 +253,29 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
             SPOGRegistrarReader.isApprovedEarner(spogRegistrar, account_);
     }
 
-    function _rate() internal view override returns (uint256 rate_) {
-        address rateModel_ = SPOGRegistrarReader.getEarnerRateModel(spogRegistrar);
-
-        (bool success_, bytes memory returnData_) = rateModel_.staticcall(
-            abi.encodeWithSelector(IRateModel.rate.selector)
-        );
-
-        return success_ ? abi.decode(returnData_, (uint256)) : 0;
+    function _min(uint256 a_, uint256 b_) internal pure returns (uint256 min_) {
+        return a_ > b_ ? b_ : a_;
     }
 
     function _revertIfNotApprovedEarner(address account_) internal view {
         if (!_isApprovedEarner(account_)) revert NotApprovedEarner();
+    }
+
+    function _rate() internal view override returns (uint256 rate_) {
+        uint256 baseRate_ = SPOGRegistrarReader.getBaseEarnerRate(spogRegistrar);
+
+        // TODO: Should this probably be totalSupply?
+        uint256 totalEarningSupply_ = totalEarningSupply();
+
+        if (totalEarningSupply_ == 0) return baseRate_;
+
+        uint256 inverseOfUtilization_ = (IProtocol(protocol).totalActiveOwedM() * _ONE_HUNDRED_PERCENT) /
+            totalEarningSupply_;
+
+        return
+            _min(
+                baseRate_ * _min(_ONE_HUNDRED_PERCENT, inverseOfUtilization_),
+                IProtocol(protocol).minterRate() * inverseOfUtilization_
+            ) / _ONE_HUNDRED_PERCENT;
     }
 }

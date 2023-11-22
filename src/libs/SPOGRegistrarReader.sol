@@ -5,8 +5,8 @@ pragma solidity 0.8.21;
 import { ISPOGRegistrar } from "../interfaces/ISPOGRegistrar.sol";
 
 library SPOGRegistrarReader {
-    /// @notice The name of parameter in SPOG that defines the earning rate model contract.
-    bytes32 internal constant EARNER_RATE_MODEL = "earner_rate_model";
+    /// @notice The name of parameter in SPOG that defines the base earner rate.
+    bytes32 internal constant BASE_EARNER_RATE = "base_earner_rate";
 
     /// @notice The earners list name in SPOG.
     bytes32 internal constant EARNERS_LIST = "earners";
@@ -26,11 +26,11 @@ library SPOGRegistrarReader {
     /// @notice The name of parameter in SPOG that defines the time to freeze minter
     bytes32 internal constant MINTER_FREEZE_TIME = "minter_freeze_time";
 
-    /// @notice The name of parameter in SPOG that defines the M rate
-    bytes32 internal constant MINTER_RATE_MODEL = "minter_rate_model";
-
     /// @notice The minters list name in SPOG.
     bytes32 internal constant MINTERS_LIST = "minters";
+
+    /// @notice The name of parameter in SPOG that defines the minter rate.
+    bytes32 internal constant MINTER_RATE = "minter_rate";
 
     /// @notice The name of parameter in SPOG that defines the penalty rate.
     bytes32 internal constant PENALTY_RATE = "penalty_rate";
@@ -44,8 +44,8 @@ library SPOGRegistrarReader {
     /// @notice The validators list name in SPOG.
     bytes32 internal constant VALIDATORS_LIST = "validators";
 
-    function getEarnerRateModel(address registrar_) internal view returns (address rateModel_) {
-        return toAddress(_get(registrar_, EARNER_RATE_MODEL));
+    function getBaseEarnerRate(address registrar_) internal view returns (uint256 rate_) {
+        return uint256(_get(registrar_, BASE_EARNER_RATE));
     }
 
     function getMintDelay(address registrar_) internal view returns (uint256 queueTime_) {
@@ -56,8 +56,8 @@ library SPOGRegistrarReader {
         return uint256(_get(registrar_, MINTER_FREEZE_TIME));
     }
 
-    function getMinterRateModel(address registrar_) internal view returns (address rateModel_) {
-        return _toAddress(_get(registrar_, MINTER_RATE_MODEL));
+    function getMinterRate(address registrar_) internal view returns (uint256 rate_) {
+        return uint256(_get(registrar_, MINTER_RATE));
     }
 
     function getMintTTL(address registrar_) internal view returns (uint256 timeToLive_) {
