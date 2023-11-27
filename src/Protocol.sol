@@ -40,6 +40,9 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     address public immutable spogVault;
     address public immutable mToken;
 
+    /// @notice Nonce used to generate unique mint and retrieval proposal IDs.
+    uint256 internal _nonce;
+
     uint256 internal _totalPrincipalOfActiveOwedM;
     uint256 internal _totalInactiveOwedM;
 
@@ -199,7 +202,8 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     ) external onlyApprovedMinter onlyUnfrozenMinter returns (uint256 mintId_) {
         _revertIfUndercollateralized(msg.sender, amount_); // Check that minter will remain sufficiently collateralized.
 
-        mintId_ = uint256(keccak256(abi.encode(msg.sender, amount_, destination_, block.timestamp)));
+        uint256 nonce_ = _incrementNonce();
+        mintId_ = uint256(keccak256(abi.encode(msg.sender, amount_, destination_, nonce_)));
 
         _mintProposals[msg.sender] = MintProposal(mintId_, destination_, amount_, block.timestamp);
 
@@ -207,7 +211,8 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function proposeRetrieval(uint256 collateral_) external onlyApprovedMinter returns (uint256 retrievalId_) {
-        retrievalId_ = uint256(keccak256(abi.encode(msg.sender, collateral_, block.timestamp, gasleft())));
+        uint256 nonce_ = _incrementNonce();
+        retrievalId_ = uint256(keccak256(abi.encode(msg.sender, collateral_, nonce_)));
 
         _totalCollateralPendingRetrieval[msg.sender] += collateral_;
         _pendingRetrievals[msg.sender][retrievalId_] = collateral_;
@@ -413,6 +418,18 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         _imposePenalty(minter_, activeOwedM_ - maxOwedM_);
     }
 
+    /**
+     * @notice Helper to increment nonce.
+     * @return uint256 Incremented nonce
+     */
+    function _incrementNonce() internal returns (uint256) {
+        unchecked {
+            _nonce++;
+        }
+
+        return _nonce;
+    }
+
     function _repayForActiveMinter(address minter_, uint256 maxAmount_) internal returns (uint256 amount_) {
         amount_ = _min(activeOwedMOf(minter_), maxAmount_);
         uint256 principalAmount_ = _getPrincipalValue(amount_);
@@ -570,7 +587,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
         minTimestamp_ = block.timestamp;
 
-        // Stop processing if there ar eno more signatures or `threshold_` is reached.
+        // Stop processing if there are no more signatures or `threshold_` is reached.
         for (uint256 index_; index_ < signatures_.length && threshold_ > 0; ++index_) {
             // Check that validator address is unique and not accounted for
             // NOTE: We revert here because this failure is entirely within the minter's control.

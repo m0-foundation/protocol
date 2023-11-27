@@ -269,7 +269,7 @@ contract ProtocolTests is Test {
         _protocol.setLastCollateralUpdateOf(_minter1, block.timestamp);
         _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint256 expectedMintId = uint256(keccak256(abi.encode(_minter1, amount, _alice, block.timestamp)));
+        uint256 expectedMintId = _protocol.getMintId(_minter1, amount, _alice, _protocol.nonce() + 1);
 
         vm.expectEmit();
         emit MintProposed(expectedMintId, _minter1, amount, _alice);
@@ -570,7 +570,7 @@ contract ProtocolTests is Test {
         // fast-forward to the time when minter is unfrozen
         vm.warp(frozenUntil);
 
-        uint256 expectedMintId = uint256(keccak256(abi.encode(_minter1, amount, _alice, block.timestamp)));
+        uint256 expectedMintId = _protocol.getMintId(_minter1, amount, _alice, _protocol.nonce() + 1);
 
         vm.expectEmit();
         emit MintProposed(expectedMintId, _minter1, amount, _alice);
@@ -1013,11 +1013,17 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        vm.prank(_minter1);
-        uint256 retrievalId = _protocol.proposeRetrieval(100);
+        uint256 expectedRetrievalId = _protocol.getRetrievalId(_minter1, collateral, _protocol.nonce() + 1);
 
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), 100);
-        assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), 100);
+        vm.expectEmit();
+        emit RetrievalCreated(expectedRetrievalId, _minter1, collateral);
+
+        vm.prank(_minter1);
+        uint256 retrievalId = _protocol.proposeRetrieval(collateral);
+
+        assertEq(expectedRetrievalId, retrievalId);
+        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), collateral);
+        assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), collateral);
 
         vm.warp(block.timestamp + 200);
 
@@ -1089,7 +1095,7 @@ contract ProtocolTests is Test {
         vm.pauseGasMetering();
 
         uint256 retrieveAmount = 10e18;
-        uint256 expectedRetrievalId = uint256(keccak256(abi.encode(_minter1, retrieveAmount, timestamp, gasleft())));
+        uint256 expectedRetrievalId = _protocol.getRetrievalId(_minter1, retrieveAmount, _protocol.nonce() + 1);
 
         // First retrieve request
         vm.expectEmit();
