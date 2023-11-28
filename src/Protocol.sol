@@ -40,6 +40,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     address public immutable spogVault;
     address public immutable mToken;
 
+    /// @notice Nonce used to generate unique mint proposal IDs.
+    uint256 internal _mintNonce;
+
+    /// @notice Nonce used to generate unique retrieval proposal IDs.
+    uint256 internal _retrievalNonce;
+
     uint256 internal _totalPrincipalOfActiveOwedM;
     uint256 internal _totalInactiveOwedM;
 
@@ -199,7 +205,11 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     ) external onlyApprovedMinter onlyUnfrozenMinter returns (uint256 mintId_) {
         _revertIfUndercollateralized(msg.sender, amount_); // Check that minter will remain sufficiently collateralized.
 
-        mintId_ = uint256(keccak256(abi.encode(msg.sender, amount_, destination_, block.timestamp)));
+        unchecked {
+            _mintNonce++;
+        }
+
+        mintId_ = uint256(keccak256(abi.encode(msg.sender, amount_, destination_, _mintNonce)));
 
         _mintProposals[msg.sender] = MintProposal(mintId_, destination_, amount_, block.timestamp);
 
@@ -207,7 +217,11 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function proposeRetrieval(uint256 collateral_) external onlyApprovedMinter returns (uint256 retrievalId_) {
-        retrievalId_ = uint256(keccak256(abi.encode(msg.sender, collateral_, block.timestamp, gasleft())));
+        unchecked {
+            _retrievalNonce++;
+        }
+
+        retrievalId_ = uint256(keccak256(abi.encode(msg.sender, collateral_, _retrievalNonce)));
 
         _totalCollateralPendingRetrieval[msg.sender] += collateral_;
         _pendingRetrievals[msg.sender][retrievalId_] = collateral_;
@@ -570,7 +584,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
         minTimestamp_ = block.timestamp;
 
-        // Stop processing if there ar eno more signatures or `threshold_` is reached.
+        // Stop processing if there are no more signatures or `threshold_` is reached.
         for (uint256 index_; index_ < signatures_.length && threshold_ > 0; ++index_) {
             // Check that validator address is unique and not accounted for
             // NOTE: We revert here because this failure is entirely within the minter's control.

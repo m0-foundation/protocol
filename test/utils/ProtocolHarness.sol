@@ -7,6 +7,27 @@ import { Protocol } from "../../src/Protocol.sol";
 contract ProtocolHarness is Protocol {
     constructor(address spogRegistrar_, address mToken_) Protocol(spogRegistrar_, mToken_) {}
 
+    function mintNonce() external view returns (uint256) {
+        return _mintNonce;
+    }
+
+    function retrievalNonce() external view returns (uint256) {
+        return _retrievalNonce;
+    }
+
+    function getMintId(
+        address minter_,
+        uint256 amount_,
+        address destination_,
+        uint256 nonce_
+    ) external pure returns (uint256) {
+        return uint256(keccak256(abi.encode(minter_, amount_, destination_, nonce_)));
+    }
+
+    function getRetrievalId(address minter_, uint256 collateral_, uint256 nonce_) external pure returns (uint256) {
+        return uint256(keccak256(abi.encode(minter_, collateral_, nonce_)));
+    }
+
     function setMintProposalOf(
         address minter_,
         uint256 amount_,
