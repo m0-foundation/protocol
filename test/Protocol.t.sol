@@ -269,7 +269,7 @@ contract ProtocolTests is Test {
         _protocol.setLastCollateralUpdateOf(_minter1, block.timestamp);
         _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint256 expectedMintId = _protocol.getMintId(_minter1, amount, _alice, _protocol.nonce() + 1);
+        uint256 expectedMintId = _protocol.getMintId(_minter1, amount, _alice, _protocol.mintNonce() + 1);
 
         vm.expectEmit();
         emit MintProposed(expectedMintId, _minter1, amount, _alice);
@@ -570,7 +570,7 @@ contract ProtocolTests is Test {
         // fast-forward to the time when minter is unfrozen
         vm.warp(frozenUntil);
 
-        uint256 expectedMintId = _protocol.getMintId(_minter1, amount, _alice, _protocol.nonce() + 1);
+        uint256 expectedMintId = _protocol.getMintId(_minter1, amount, _alice, _protocol.mintNonce() + 1);
 
         vm.expectEmit();
         emit MintProposed(expectedMintId, _minter1, amount, _alice);
@@ -1013,7 +1013,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        uint256 expectedRetrievalId = _protocol.getRetrievalId(_minter1, collateral, _protocol.nonce() + 1);
+        uint256 expectedRetrievalId = _protocol.getRetrievalId(_minter1, collateral, _protocol.retrievalNonce() + 1);
 
         vm.expectEmit();
         emit RetrievalCreated(expectedRetrievalId, _minter1, collateral);
@@ -1021,7 +1021,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         uint256 retrievalId = _protocol.proposeRetrieval(collateral);
 
-        assertEq(expectedRetrievalId, retrievalId);
+        assertEq(retrievalId, expectedRetrievalId);
         assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), collateral);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), collateral);
 
@@ -1092,10 +1092,12 @@ contract ProtocolTests is Test {
 
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, amount);
 
-        vm.pauseGasMetering();
-
         uint256 retrieveAmount = 10e18;
-        uint256 expectedRetrievalId = _protocol.getRetrievalId(_minter1, retrieveAmount, _protocol.nonce() + 1);
+        uint256 expectedRetrievalId = _protocol.getRetrievalId(
+            _minter1,
+            retrieveAmount,
+            _protocol.retrievalNonce() + 1
+        );
 
         // First retrieve request
         vm.expectEmit();
@@ -1105,9 +1107,6 @@ contract ProtocolTests is Test {
         uint256 retrievalId = _protocol.proposeRetrieval(retrieveAmount);
 
         assertEq(retrievalId, expectedRetrievalId);
-
-        vm.resumeGasMetering();
-
         assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), retrieveAmount);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), retrieveAmount);
 
