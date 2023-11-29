@@ -50,6 +50,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     uint256 internal _totalPrincipalOfActiveOwedM;
     uint256 internal _totalInactiveOwedM;
 
+    mapping(address minter => bool isActiveMinter) internal _activeMinter;
     mapping(address minter => uint256 collateral) internal _collaterals;
     mapping(address minter => uint256 owedM) internal _inactiveOwedM;
     mapping(address minter => uint256 activeOwedM) internal _principalOfActiveOwedM;
@@ -68,18 +69,21 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     |                                            Modifiers and Constructor                                             |
     \******************************************************************************************************************/
 
-    modifier onlyApprovedMinter() {
-        _revertIfNotApprovedMinter(msg.sender);
+    /// @notice Only allow active minter to call function.
+    modifier onlyActiveMinter() {
+        _revertIfInactiveMinter(msg.sender);
 
         _;
     }
 
+    /// @notice Only allow approved validator in SPOG to call function.
     modifier onlyApprovedValidator() {
         _revertIfNotApprovedValidator(msg.sender);
 
         _;
     }
 
+    /// @notice Only allow unfrozen minter to call function.
     modifier onlyUnfrozenMinter() {
         _revertIfMinterFrozen(msg.sender);
 
@@ -101,12 +105,22 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     |                                          External Interactive Functions                                          |
     \******************************************************************************************************************/
 
+    /// @inheritdoc IProtocol
+    function activateMinter(address minter_) external {
+        if (!_isApprovedMinter(minter_)) revert NotApprovedMinter();
+        if (_activeMinter[minter_]) revert AlreadyActiveMinter();
+
+        _activeMinter[minter_] = true;
+
+        emit MinterActivated(minter_, msg.sender);
+    }
+
     function burnM(address minter_, uint256 maxAmount_) external {
         // NOTE: Penalize only for missed collateral updates, not for undercollateralization.
         // Undercollateralization within one update interval is forgiven.
         _imposePenaltyIfMissedCollateralUpdates(minter_);
 
-        uint256 amount_ = _isApprovedMinter(minter_) // TODO: `isActiveMinter`.
+        uint256 amount_ = _activeMinter[minter_]
             ? _repayForActiveMinter(minter_, maxAmount_)
             : _repayForInactiveMinter(minter_, maxAmount_);
 
@@ -119,7 +133,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         updateIndex();
     }
 
-    function cancelMint(uint256 mintId_) external onlyApprovedMinter {
+    function cancelMint(uint256 mintId_) external onlyActiveMinter {
         _cancelMint(msg.sender, mintId_);
     }
 
@@ -129,14 +143,14 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     function deactivateMinter(address minter_) external returns (uint256 inactiveOwedM_) {
         if (_isApprovedMinter(minter_)) revert StillApprovedMinter();
+        _revertIfInactiveMinter(minter_);
 
         // NOTE: Instead of imposing, calculate penalty and add it to `_inactiveOwedM` to save gas.
         // TODO: And for undercollateralization?
         inactiveOwedM_ = activeOwedMOf(minter_) + getPenaltyForMissedCollateralUpdates(minter_);
 
-        emit MinterDeactivated(minter_, inactiveOwedM_);
+        emit MinterDeactivated(minter_, inactiveOwedM_, msg.sender);
 
-        // TODO: Do not allow setting `_inactiveOwedM` to 0 by calling this function multiple times.
         _inactiveOwedM[minter_] += inactiveOwedM_;
         _totalInactiveOwedM += inactiveOwedM_;
 
@@ -144,6 +158,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         _totalPrincipalOfActiveOwedM -= _principalOfActiveOwedM[minter_];
 
         // Reset reasonable aspects of minter's state.
+        delete _activeMinter[minter_];
         delete _collaterals[minter_];
         delete _lastUpdateIntervals[minter_];
         delete _lastCollateralUpdates[minter_];
@@ -158,12 +173,14 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function freezeMinter(address minter_) external onlyApprovedValidator returns (uint256 frozenUntil_) {
+        _revertIfInactiveMinter(minter_);
+
         frozenUntil_ = block.timestamp + SPOGRegistrarReader.getMinterFreezeTime(spogRegistrar);
 
         emit MinterFrozen(minter_, _unfrozenTimestamps[minter_] = frozenUntil_);
     }
 
-    function mintM(uint256 mintId_) external onlyApprovedMinter onlyUnfrozenMinter {
+    function mintM(uint256 mintId_) external onlyActiveMinter onlyUnfrozenMinter {
         MintProposal storage mintProposal_ = _mintProposals[msg.sender];
 
         (uint256 id_, uint256 amount_, uint256 createdAt_, address destination_) = (
@@ -203,7 +220,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     function proposeMint(
         uint256 amount_,
         address destination_
-    ) external onlyApprovedMinter onlyUnfrozenMinter returns (uint256 mintId_) {
+    ) external onlyActiveMinter onlyUnfrozenMinter returns (uint256 mintId_) {
         _revertIfUndercollateralized(msg.sender, amount_); // Check that minter will remain sufficiently collateralized.
 
         unchecked {
@@ -217,7 +234,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         emit MintProposed(mintId_, msg.sender, amount_, destination_);
     }
 
-    function proposeRetrieval(uint256 collateral_) external onlyApprovedMinter returns (uint256 retrievalId_) {
+    function proposeRetrieval(uint256 collateral_) external onlyActiveMinter returns (uint256 retrievalId_) {
         unchecked {
             _retrievalNonce++;
         }
@@ -239,7 +256,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         address[] calldata validators_,
         uint256[] calldata timestamps_,
         bytes[] calldata signatures_
-    ) external onlyApprovedMinter returns (uint256 minTimestamp_) {
+    ) external onlyActiveMinter returns (uint256 minTimestamp_) {
         if (validators_.length != signatures_.length || signatures_.length != timestamps_.length) {
             revert SignatureArrayLengthsMismatch();
         }
@@ -293,7 +310,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     function activeOwedMOf(address minter_) public view returns (uint256 activeOwedM_) {
         // TODO: This should also include the present value of unavoidable penalities. But then it would be very, if not
-        //       impossible, to determine the `totalActiveOwedM` to them same standards. Perhaps we need a `penaltiesOf`
+        //       impossible, to determine the `totalActiveOwedM` to the same standards. Perhaps we need a `penaltiesOf`
         //       external function to provide the present value of unavoidable penalities
         return _getPresentValue(_principalOfActiveOwedM[minter_]);
     }
@@ -318,6 +335,11 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     function inactiveOwedMOf(address minter_) external view returns (uint256 inactiveOwedM_) {
         return _inactiveOwedM[minter_];
+    }
+
+    /// @inheritdoc IProtocol
+    function isActiveMinter(address minter_) external view returns (bool) {
+        return _activeMinter[minter_];
     }
 
     function latestMinterRate() external view returns (uint256 latestMinterRate_) {
@@ -522,8 +544,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
             );
     }
 
-    function _isApprovedMinter(address minter_) internal view returns (bool isApproved_) {
+    function _isApprovedMinter(address minter_) internal view returns (bool) {
         return SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_);
+    }
+
+    function _isApprovedValidator(address validator_) internal view returns (bool) {
+        return SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_);
     }
 
     function _max(uint256 a_, uint256 b_) internal pure returns (uint256 max_) {
@@ -546,12 +572,20 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         if (block.timestamp < _unfrozenTimestamps[minter_]) revert FrozenMinter();
     }
 
-    function _revertIfNotApprovedMinter(address minter_) internal view {
-        if (!_isApprovedMinter(minter_)) revert NotApprovedMinter();
+    /**
+     * @notice Reverts if minter is inactive.
+     * @param minter_ The address of the minter
+     */
+    function _revertIfInactiveMinter(address minter_) internal view {
+        if (!_activeMinter[minter_]) revert InactiveMinter();
     }
 
+    /**
+     * @notice Reverts if validator is not approved.
+     * @param validator_ The address of the validator
+     */
     function _revertIfNotApprovedValidator(address validator_) internal view {
-        if (!SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_)) revert NotApprovedValidator();
+        if (!_isApprovedValidator(validator_)) revert NotApprovedValidator();
     }
 
     function _revertIfUndercollateralized(address minter_, uint256 additionalOwedM_) internal view {
@@ -603,7 +637,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
             );
 
             // Check that validator is approved by SPOG.
-            if (!SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validators_[index_])) continue;
+            if (!_isApprovedValidator(validators_[index_])) continue;
 
             // Check that ECDSA or ERC1271 signatures for given digest are valid.
             if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_])) continue;
