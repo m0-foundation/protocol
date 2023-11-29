@@ -2,14 +2,16 @@
 
 pragma solidity 0.8.21;
 
+import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
+
+import { ERC20Permit } from "../lib/common/src/ERC20Permit.sol";
+
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
-import { IERC20 } from "./interfaces/IERC20.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
 
 import { ContinuousIndexing } from "./ContinuousIndexing.sol";
-import { ERC20Permit } from "./ERC20Permit.sol";
 
 // TODO: Consider an socially/optically "safer" `burn` via `burn(uint amount_)` where the account is `msg.sender`.
 // TODO: Some mechanism that allows a UI/script to determine how much an account or the system stands to gain from
@@ -25,6 +27,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     // TODO: Consider each being uin128.
     uint256 internal _totalNonEarningSupply;
     uint256 internal _totalPrincipalOfEarningSupply;
+
+    mapping(address account => uint256 balance) internal _balances;
 
     // TODO: Consider replace with flag bit/byte in balance.
     mapping(address account => bool isEarning) internal _isEarning;
@@ -144,7 +148,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         }
     }
 
-    function _burn(address account_, uint256 amount_) internal override {
+    function _burn(address account_, uint256 amount_) internal {
         emit Transfer(account_, address(0), amount_);
 
         _isEarning[account_]
@@ -152,7 +156,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
             : _subtractNonEarningAmount(account_, amount_);
     }
 
-    function _mint(address recipient_, uint256 amount_) internal override {
+    function _mint(address recipient_, uint256 amount_) internal {
         emit Transfer(address(0), recipient_, amount_);
 
         _isEarning[recipient_]
