@@ -2,7 +2,9 @@
 
 pragma solidity 0.8.21;
 
-import { SignatureChecker } from "./libs/SignatureChecker.sol";
+import { SignatureChecker } from "../lib/common/src/SignatureChecker.sol";
+import { StatelessERC712 } from "../lib/common/src/StatelessERC712.sol";
+
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
@@ -10,7 +12,6 @@ import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
 
 import { ContinuousIndexing } from "./ContinuousIndexing.sol";
-import { StatelessERC712 } from "./StatelessERC712.sol";
 
 /**
  * @title Protocol
