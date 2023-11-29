@@ -440,6 +440,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     function _updateCollateral(address minter_, uint256 amount_, uint256 newTimestamp_) internal {
         if (newTimestamp_ < _lastCollateralUpdates[minter_]) revert StaleCollateralUpdate();
+        if (newTimestamp_ + updateCollateralInterval() <= block.timestamp) revert ExpiredCollateralUpdate();
 
         _collaterals[minter_] = amount_;
         _lastCollateralUpdates[minter_] = newTimestamp_;
@@ -568,12 +569,13 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     ) internal view returns (uint256 minTimestamp_) {
         uint256 threshold_ = SPOGRegistrarReader.getUpdateCollateralValidatorThreshold(spogRegistrar);
 
+        if (signatures_.length != threshold_) revert InvalidSignaturesThreshold();
+
         minTimestamp_ = block.timestamp;
 
-        // Stop processing if there ar eno more signatures or `threshold_` is reached.
-        for (uint256 index_; index_ < signatures_.length && threshold_ > 0; ++index_) {
+        // Verify validaty of each signature
+        for (uint256 index_; index_ < signatures_.length; ++index_) {
             // Check that validator address is unique and not accounted for
-            // NOTE: We revert here because this failure is entirely within the minter's control.
             if (index_ > 0 && validators_[index_] <= validators_[index_ - 1]) revert InvalidSignatureOrder();
 
             // Check that the timestamp is not in the future.
@@ -588,17 +590,15 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
             );
 
             // Check that validator is approved by SPOG.
-            if (!SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validators_[index_])) continue;
+            if (!SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validators_[index_]))
+                revert InvalidSignatureValidator();
 
             // Check that ECDSA or ERC1271 signatures for given digest are valid.
-            if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_])) continue;
+            if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_]))
+                revert InvalidSignature();
 
             // Find minimum between all valid timestamps for valid signatures
             minTimestamp_ = _minIgnoreZero(minTimestamp_, timestamps_[index_]);
-
-            --threshold_;
         }
-
-        if (threshold_ > 0) revert NotEnoughValidSignatures();
     }
 }

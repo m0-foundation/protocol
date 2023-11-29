@@ -216,7 +216,32 @@ contract ProtocolTests is Test {
         _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
     }
 
-    function test_updateCollateral_notEnoughValidSignatures() external {
+    function test_updateCollateral_expiredCollateralUpdate() external {
+        uint256[] memory retrievalIds = new uint256[](0);
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+
+        uint256[] memory timestamps = new uint256[](1);
+        timestamps[0] = block.timestamp - _updateCollateralInterval;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getCollateralUpdateSignature(
+            _minter1,
+            100,
+            retrievalIds,
+            bytes32(0),
+            block.timestamp - _updateCollateralInterval,
+            _validator1Pk
+        );
+
+        vm.expectRevert(IProtocol.ExpiredCollateralUpdate.selector);
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
+    }
+
+    function test_updateCollateral_invalidSignatureOrder() external {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD, 3);
 
         uint256 collateral = 100;
@@ -1204,33 +1229,30 @@ contract ProtocolTests is Test {
         assertEq(_protocol.lastUpdateOf(_minter1), block.timestamp);
     }
 
-    function test_updateCollateral_someSignaturesAreInvalid() external {
+    function test_updateCollateral_invalidSignature() external {
         _spogRegistrar.updateConfig(
             SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD,
-            bytes32(uint256(1))
+            bytes32(uint256(2))
         );
 
         uint256[] memory retrievalIds = new uint256[](0);
 
-        (address validator3, uint256 validator3Pk) = makeAddrAndKey("validator3");
-        address[] memory validators = new address[](3);
-        validators[0] = _validator1;
-        validators[1] = _validator2;
-        validators[2] = validator3;
+        address[] memory validators = new address[](2);
+        validators[0] = _validator2;
+        validators[1] = _validator1;
 
-        uint256[] memory timestamps = new uint256[](3);
+        uint256[] memory timestamps = new uint256[](2);
         timestamps[0] = block.timestamp;
         timestamps[1] = block.timestamp;
-        timestamps[2] = block.timestamp;
 
-        bytes[] memory signatures = new bytes[](3);
+        bytes[] memory signatures = new bytes[](2);
         signatures[0] = _getCollateralUpdateSignature(
             _minter1,
             100,
             retrievalIds,
             bytes32(0),
             block.timestamp,
-            _validator1Pk
+            _validator2Pk
         ); // valid signature
 
         signatures[1] = _getCollateralUpdateSignature(
@@ -1239,10 +1261,35 @@ contract ProtocolTests is Test {
             retrievalIds,
             bytes32(0),
             block.timestamp,
-            _validator2Pk
+            _validator1Pk
         );
 
-        signatures[2] = _getCollateralUpdateSignature(
+        vm.expectRevert(IProtocol.InvalidSignature.selector);
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
+    }
+
+    function test_updateCollateral_invalidSignatureValidator() external {
+        _spogRegistrar.updateConfig(
+            SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD,
+            bytes32(uint256(2))
+        );
+
+        uint256[] memory retrievalIds = new uint256[](0);
+
+        (address validator3, uint256 validator3Pk) = makeAddrAndKey("validator3");
+
+        address[] memory validators = new address[](2);
+        validators[0] = validator3;
+        validators[1] = _validator1;
+
+        uint256[] memory timestamps = new uint256[](2);
+        timestamps[0] = block.timestamp;
+        timestamps[1] = block.timestamp;
+
+        bytes[] memory signatures = new bytes[](2);
+        signatures[0] = _getCollateralUpdateSignature(
             _minter1,
             100,
             retrievalIds,
@@ -1251,11 +1298,62 @@ contract ProtocolTests is Test {
             validator3Pk
         );
 
+        signatures[1] = _getCollateralUpdateSignature(
+            _minter1,
+            100,
+            retrievalIds,
+            bytes32(0),
+            block.timestamp,
+            _validator1Pk
+        );
+
+        vm.expectRevert(IProtocol.InvalidSignatureValidator.selector);
+
         vm.prank(_minter1);
         _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
+    }
 
-        assertEq(_protocol.collateralOf(_minter1), 100);
-        assertEq(_protocol.lastUpdateOf(_minter1), block.timestamp);
+    function test_updateCollateral_invalidSignaturesThreshold() external {
+        _spogRegistrar.updateConfig(
+            SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD,
+            bytes32(uint256(1))
+        );
+
+        uint256[] memory retrievalIds = new uint256[](0);
+
+        (address validator3, uint256 validator3Pk) = makeAddrAndKey("validator3");
+
+        address[] memory validators = new address[](2);
+        validators[0] = validator3;
+        validators[1] = _validator1;
+
+        uint256[] memory timestamps = new uint256[](2);
+        timestamps[0] = block.timestamp;
+        timestamps[1] = block.timestamp;
+
+        bytes[] memory signatures = new bytes[](2);
+        signatures[0] = _getCollateralUpdateSignature(
+            _minter1,
+            100,
+            retrievalIds,
+            bytes32(0),
+            block.timestamp,
+            validator3Pk
+        );
+
+        signatures[1] = _getCollateralUpdateSignature(
+            _minter1,
+            100,
+            retrievalIds,
+            bytes32(0),
+            block.timestamp,
+            _validator1Pk
+        );
+
+        vm.expectRevert(IProtocol.InvalidSignaturesThreshold.selector);
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
     }
 
     function _getCollateralUpdateSignature(

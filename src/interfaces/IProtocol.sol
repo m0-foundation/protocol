@@ -11,6 +11,8 @@ interface IProtocol is IContinuousIndexing {
 
     error ExpiredMintProposal();
 
+    error ExpiredCollateralUpdate();
+
     error FrozenMinter();
 
     error FutureTimestamp();
@@ -19,11 +21,15 @@ interface IProtocol is IContinuousIndexing {
 
     error InvalidSignatureOrder();
 
+    error InvalidSignaturesThreshold();
+
+    error InvalidSignatureValidator();
+
+    error InvalidSignature();
+
     error NotApprovedMinter();
 
     error NotApprovedValidator();
-
-    error NotEnoughValidSignatures();
 
     error PendingMintProposal();
 
