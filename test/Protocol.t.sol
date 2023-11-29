@@ -20,8 +20,7 @@ contract ProtocolTests is Test {
     address internal _bob = makeAddr("bob");
     address internal _spogVault = makeAddr("spogVault");
 
-    address internal _minter1;
-    uint256 internal _minter1Pk;
+    address internal _minter1 = makeAddr("minter1");
 
     address internal _validator1;
     uint256 internal _validator1Pk;
@@ -54,8 +53,9 @@ contract ProtocolTests is Test {
     event MintExecuted(uint256 indexed mintId);
     event MintCanceled(uint256 indexed mintId, address indexed canceller);
 
+    event MinterActivated(address indexed minter, address indexed caller);
+    event MinterDeactivated(address indexed minter, uint256 owedM, address indexed caller);
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
-    event MinterDeactivated(address indexed minter, uint256 owedM);
 
     event BurnExecuted(address indexed minter, uint256 amount, address indexed payer);
 
@@ -63,8 +63,10 @@ contract ProtocolTests is Test {
 
     event RetrievalCreated(uint256 indexed retrieveId, address indexed minter, uint256 amount);
 
+    // IERC20 events
+    event Transfer(address indexed account, address indexed recipient, uint256 amount);
+
     function setUp() external {
-        (_minter1, _minter1Pk) = makeAddrAndKey("minter1");
         (_validator1, _validator1Pk) = makeAddrAndKey("validator1");
         (_validator2, _validator2Pk) = makeAddrAndKey("validator2");
 
@@ -97,6 +99,7 @@ contract ProtocolTests is Test {
 
         _protocol = new ProtocolHarness(address(_spogRegistrar), address(_mToken));
 
+        _protocol.activateMinter(_minter1);
         _protocol.setLatestRate(_minterRate); // This can be `protocol.updateIndex()`, but is not necessary.
     }
 
@@ -132,14 +135,16 @@ contract ProtocolTests is Test {
         assertEq(_protocol.lastUpdateOf(_minter1), signatureTimestamp);
     }
 
-    function test_updateCollateral_notApprovedMinter() external {
+    function test_updateCollateral_InactiveMinter() external {
         uint256[] memory retrievalIds = new uint256[](0);
         address[] memory validators = new address[](0);
         uint256[] memory timestamps = new uint256[](0);
         bytes[] memory signatures = new bytes[](0);
 
+        _protocol.setActiveMinter(_minter1, false);
+
         vm.prank(_validator1);
-        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+        vm.expectRevert(IProtocol.InactiveMinter.selector);
         _protocol.updateCollateral(100e18, retrievalIds, bytes32(0), validators, timestamps, signatures);
     }
 
@@ -304,8 +309,10 @@ contract ProtocolTests is Test {
         _protocol.proposeMint(100e18, makeAddr("to"));
     }
 
-    function test_proposeMint_notApprovedMinter() external {
-        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+    function test_proposeMint_InactiveMinter() external {
+        _protocol.setActiveMinter(_minter1, false);
+
+        vm.expectRevert(IProtocol.InactiveMinter.selector);
         vm.prank(_alice);
         _protocol.proposeMint(100e18, _alice);
     }
@@ -403,10 +410,11 @@ contract ProtocolTests is Test {
         assertEq(_protocol.activeOwedMOf(_minter1), expectedResult, "c");
     }
 
-    function test_mintM_notApprovedMinter() external {
+    function test_mintM_InactiveMinter() external {
+        _protocol.setActiveMinter(_minter1, false);
         uint256 mintId = _protocol.setMintProposalOf(_minter1, 100e18, block.timestamp, _alice);
 
-        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+        vm.expectRevert(IProtocol.InactiveMinter.selector);
 
         vm.prank(_bob);
         _protocol.mintM(mintId);
@@ -532,12 +540,35 @@ contract ProtocolTests is Test {
         assertEq(timestamp, 0);
     }
 
-    function test_cancelMint_notApprovedValidator() external {
+    function test_cancelMint_notApprovedMinter() external {
+        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+
         uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, _alice);
 
-        vm.expectRevert(IProtocol.NotApprovedValidator.selector);
-        vm.prank(_alice);
-        _protocol.cancelMint(_minter1, mintId);
+        vm.expectEmit();
+        emit MintCanceled(mintId, _minter1);
+
+        vm.prank(_minter1);
+        _protocol.cancelMint(mintId);
+
+        (uint256 mintId_, address destination_, uint256 amount_, uint256 timestamp) = _protocol.mintProposalOf(
+            _minter1
+        );
+
+        assertEq(mintId_, 0);
+        assertEq(destination_, address(0));
+        assertEq(amount_, 0);
+        assertEq(timestamp, 0);
+    }
+
+    function test_cancelMint_InactiveMinter() external {
+        _protocol.setActiveMinter(_minter1, false);
+        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, _alice);
+
+        vm.expectRevert(IProtocol.InactiveMinter.selector);
+
+        vm.prank(_minter1);
+        _protocol.cancelMint(mintId);
     }
 
     function test_cancelMint_invalidMintRequest() external {
@@ -612,6 +643,15 @@ contract ProtocolTests is Test {
         _protocol.freezeMinter(_minter1);
     }
 
+    function test_freezeMinter_InactiveMinter() external {
+        _protocol.setActiveMinter(_minter1, false);
+
+        vm.expectRevert(IProtocol.InactiveMinter.selector);
+
+        vm.prank(_validator1);
+        _protocol.freezeMinter(_minter1);
+    }
+
     function test_burnM() external {
         uint256 mintAmount = 1000000e18;
 
@@ -623,6 +663,9 @@ contract ProtocolTests is Test {
         uint256 mintId = _protocol.setMintProposalOf(_minter1, mintAmount, block.timestamp, _alice);
 
         vm.warp(block.timestamp + _mintDelay);
+
+        vm.expectEmit();
+        emit MintExecuted(mintId);
 
         vm.prank(_minter1);
         _protocol.mintM(mintId);
@@ -1058,6 +1101,20 @@ contract ProtocolTests is Test {
         assertEq(penalty, (3 * _protocol.activeOwedMOf(_minter1) * _penaltyRate) / ONE);
     }
 
+    function test_isActiveMinter() external {
+        _protocol.setActiveMinter(_minter1, false);
+        assertEq(_protocol.isActiveMinter(_minter1), false);
+
+        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+
+        vm.expectEmit();
+        emit MinterActivated(_minter1, address(this));
+
+        _protocol.activateMinter(_minter1);
+
+        assertEq(_protocol.isActiveMinter(_minter1), true);
+    }
+
     function test_deactivateMinter() external {
         uint256 mintAmount = 1000000e18;
 
@@ -1070,7 +1127,7 @@ contract ProtocolTests is Test {
         _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
 
         vm.expectEmit();
-        emit MinterDeactivated(_minter1, activeOwedM);
+        emit MinterDeactivated(_minter1, activeOwedM, _alice);
 
         vm.prank(_alice);
         _protocol.deactivateMinter(_minter1);
@@ -1099,7 +1156,7 @@ contract ProtocolTests is Test {
         _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
 
         vm.expectEmit();
-        emit MinterDeactivated(_minter1, activeOwedM + penalty);
+        emit MinterDeactivated(_minter1, activeOwedM + penalty, _alice);
 
         vm.prank(_alice);
         _protocol.deactivateMinter(_minter1);
@@ -1107,6 +1164,14 @@ contract ProtocolTests is Test {
 
     function test_deactivateMinter_stillApprovedMinter() external {
         vm.expectRevert(IProtocol.StillApprovedMinter.selector);
+        _protocol.deactivateMinter(_minter1);
+    }
+
+    function test_deactivateMinter_InactiveMinter() external {
+        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+        _protocol.deactivateMinter(_minter1);
+
+        vm.expectRevert(IProtocol.InactiveMinter.selector);
         _protocol.deactivateMinter(_minter1);
     }
 
@@ -1204,8 +1269,11 @@ contract ProtocolTests is Test {
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), 0);
     }
 
-    function test_proposeRetrieval_notApprovedMinter() external {
-        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+    function test_proposeRetrieval_InactiveMinter() external {
+        _protocol.setActiveMinter(_minter1, false);
+
+        vm.expectRevert(IProtocol.InactiveMinter.selector);
+
         vm.prank(_alice);
         _protocol.proposeRetrieval(100);
     }

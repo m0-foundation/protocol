@@ -28,6 +28,10 @@ contract ProtocolHarness is Protocol {
         return uint256(keccak256(abi.encode(minter_, collateral_, nonce_)));
     }
 
+    function setActiveMinter(address minter_, bool isActive_) external {
+        _activeMinter[minter_] = isActive_;
+    }
+
     function setMintProposalOf(
         address minter_,
         uint256 amount_,
