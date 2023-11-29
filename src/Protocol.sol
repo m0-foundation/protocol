@@ -440,7 +440,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     function _updateCollateral(address minter_, uint256 amount_, uint256 newTimestamp_) internal {
         if (newTimestamp_ < _lastCollateralUpdates[minter_]) revert StaleCollateralUpdate();
-        if (newTimestamp_ + updateCollateralInterval() <= block.timestamp) revert ExpiredCollateralUpdate();
+        if (newTimestamp_ + updateCollateralInterval() < block.timestamp) revert ExpiredCollateralUpdate();
 
         _collaterals[minter_] = amount_;
         _lastCollateralUpdates[minter_] = newTimestamp_;

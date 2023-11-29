@@ -223,7 +223,7 @@ contract ProtocolTests is Test {
         validators[0] = _validator1;
 
         uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = block.timestamp - _updateCollateralInterval;
+        timestamps[0] = block.timestamp - _updateCollateralInterval - 1;
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
@@ -231,7 +231,7 @@ contract ProtocolTests is Test {
             100,
             retrievalIds,
             bytes32(0),
-            block.timestamp - _updateCollateralInterval,
+            block.timestamp - _updateCollateralInterval - 1,
             _validator1Pk
         );
 
