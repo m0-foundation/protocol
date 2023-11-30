@@ -2,8 +2,9 @@
 
 pragma solidity 0.8.21;
 
+import { IStatelessERC712 } from "../../lib/common/src/interfaces/IStatelessERC712.sol";
+
 import { IProtocol } from "../../src/interfaces/IProtocol.sol";
-import { IStatelessERC712 } from "../../src/interfaces/IStatelessERC712.sol";
 
 library DigestHelper {
     function getUpdateCollateralDigest(

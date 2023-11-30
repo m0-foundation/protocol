@@ -3,11 +3,10 @@
 pragma solidity 0.8.21;
 
 import { Script, console } from "../lib/forge-std/src/Script.sol";
+import { ContractHelper } from "../lib/common/src/ContractHelper.sol";
 
 import { Protocol } from "../src/Protocol.sol";
 import { MToken } from "../src/MToken.sol";
-
-import { ContractHelper } from "../src/libs/ContractHelper.sol";
 
 contract DeployBase is Script {
     function deploy(
