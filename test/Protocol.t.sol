@@ -862,7 +862,7 @@ contract ProtocolTests is Test {
         assertEq(activeOwedM, penalty);
     }
 
-    function test_accruePenalty_penalizedUntil() external {
+    function test_imposePenalty_penalizedUntil() external {
         uint256 collateral = 100e18;
         uint256 timestamp = block.timestamp;
 
@@ -914,6 +914,36 @@ contract ProtocolTests is Test {
 
         assertEq(_protocol.lastUpdateOf(_minter1), signatureTimestamp);
         assertEq(_protocol.penalizedUntilOf(_minter1), penalizedUntil);
+    }
+
+    function test_imposePenalty_penalizedUntil_intervalHasChanged() external {
+        uint256 collateral = 100e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral);
+        _protocol.setLastCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
+        _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+
+        vm.warp(timestamp + _updateCollateralInterval - 10);
+
+        uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
+        assertEq(penalty, 0);
+
+        // Change update collateral interval, more frequent updates are required
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 2);
+
+        vm.warp(timestamp + _updateCollateralInterval + 10);
+
+        // Penalized for first `_updateCollateralInterval` interval
+        penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
+        assertEq(penalty, (_protocol.activeOwedMOf(_minter1) * _penaltyRate) / ONE);
+
+        vm.warp(block.timestamp + _updateCollateralInterval + 10);
+
+        // Penalized for 2 new `_updateCollateralInterval` interval = 3 penalty intervals
+        penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
+        assertEq(penalty, (3 * _protocol.activeOwedMOf(_minter1) * _penaltyRate) / ONE);
     }
 
     function test_deactivateMinter() external {
