@@ -63,16 +63,16 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     |                                          External View/Pure Functions                                            |
     \******************************************************************************************************************/
 
-    function earnerRate() external view returns (uint256 earnerRate);
+    function earnerRate() external view returns (uint256 rate);
 
     function hasOptedOutOfEarning(address account) external view returns (bool hasOpted);
 
     function isEarning(address account) external view returns (bool isEarning);
 
-    function latestEarnerRate() external view returns (uint256 latestEarnerRate);
-
     /// @notice The address of the Protocol contract.
     function protocol() external view returns (address protocol);
+
+    function rateModel() external view returns (address rateModel);
 
     /// @notice The address of the SPOG Registrar contract.
     function spogRegistrar() external view returns (address spogRegistrar);

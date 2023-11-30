@@ -10,6 +10,7 @@ import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
+import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 
@@ -271,15 +272,17 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function updateIndex() public override(IContinuousIndexing, ContinuousIndexing) returns (uint256 index_) {
+        // NOTE: Since the currentIndex of the protocol and mToken are constant thought this context's execution (since
+        //       the block.timestamp is not changing) we can compute excessOwedM without updating the mToken index.
+        uint256 excessOwedM_ = _getExcessActiveOwedM();
+
+        if (excessOwedM_ > 0) IMToken(mToken).mint(spogVault, excessOwedM_); // Mint M to SPOG Vault.
+
+        // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the collateral
+        //       update can result in a new rate, we should update the index here to lock in that rate.
         // NOTE: With the current rate models, the minter rate does not depend on anything in the protocol or mToken, so
         //       we can update the minter rate and index here.
         index_ = super.updateIndex(); // Update minter index and rate.
-
-        // NOTE: Since the currentIndex of the protocol and mToken are constant thought this context's execution (since
-        //       the block.timestamp is not changing) we can compute excessOwedM without updating the mToken index.
-        uint256 excessOwedM_ = _getExcessOwedM();
-
-        if (excessOwedM_ > 0) IMToken(mToken).mint(spogVault, excessOwedM_); // Mint M to SPOG Vault.
 
         // NOTE: Given the current implementation of the mToken transfers and its rate model, while it is possible for
         //       the above mint to already have updated the mToken index if M was minted to an earning account, we want
@@ -333,7 +336,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function minterRate() external view returns (uint256 minterRate_) {
-        return _rate();
+        return _latestRate;
     }
 
     function mintProposalOf(
@@ -359,6 +362,10 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     function pendingRetrievalsOf(address minter_, uint256 retrievalId_) external view returns (uint256 collateral) {
         return _pendingRetrievals[minter_][retrievalId_];
+    }
+
+    function rateModel() public view returns (address rateModel_) {
+        return SPOGRegistrarReader.getMinterRateModel(spogRegistrar);
     }
 
     function totalActiveOwedM() public view returns (uint256 totalActiveOwedM_) {
@@ -469,7 +476,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     |                                           Internal View/Pure Functions                                           |
     \******************************************************************************************************************/
 
-    function _getExcessOwedM() internal view returns (uint256 getExcessOwedM_) {
+    function _getExcessActiveOwedM() internal view returns (uint256 getExcessOwedM_) {
         uint256 totalMSupply_ = IMToken(mToken).totalSupply();
         uint256 totalActiveOwedM_ = _getPresentValue(_totalPrincipalOfActiveOwedM);
 
@@ -545,7 +552,11 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function _rate() internal view override returns (uint256 rate_) {
-        rate_ = SPOGRegistrarReader.getMinterRate(spogRegistrar);
+        (bool success_, bytes memory returnData_) = rateModel().staticcall(
+            abi.encodeWithSelector(IRateModel.rate.selector)
+        );
+
+        rate_ = success_ ? abi.decode(returnData_, (uint256)) : 0;
     }
 
     function _revertIfMinterFrozen(address minter_) internal view {

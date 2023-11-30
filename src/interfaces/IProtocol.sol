@@ -189,6 +189,8 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The minter's proposeRetrieval request amount
     function pendingRetrievalsOf(address minter, uint256 retrievalId) external view returns (uint256 collateral);
 
+    function rateModel() external view returns (address rateModel);
+
     /// @notice The address of SPOG Registrar contract.
     function spogRegistrar() external view returns (address spogRegistrar);
 
