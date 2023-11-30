@@ -916,6 +916,113 @@ contract ProtocolTests is Test {
         assertEq(_protocol.penalizedUntilOf(_minter1), penalizedUntil);
     }
 
+    function test_getPenaltyForMissedCollateralUpdates_noMissedIntervals() external {
+        uint256 collateral = 100e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral);
+        _protocol.setLastCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
+        _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+
+        vm.warp(timestamp + _updateCollateralInterval - 10);
+
+        uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
+        assertEq(penalty, 0);
+    }
+
+    function test_getPenaltyForMissedCollateralUpdates_noMissedIntervalsDespiteReducedInterval() external {
+        uint256 collateral = 100e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral);
+        _protocol.setLastCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
+        _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+
+        vm.warp(timestamp + _updateCollateralInterval - 10);
+
+        // Change update collateral interval, more frequent updates are required
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
+
+        uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
+
+        // Minter only expected to update within the previous interval.
+        assertEq(penalty, 0);
+    }
+
+    function test_getPenaltyForMissedCollateralUpdates_oneMissedInterval() external {
+        uint256 collateral = 100e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral);
+        _protocol.setLastCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
+        _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+
+        vm.warp(timestamp + _updateCollateralInterval + 10);
+
+        uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
+        assertEq(penalty, (_protocol.activeOwedMOf(_minter1) * _penaltyRate) / ONE);
+    }
+
+    function test_getPenaltyForMissedCollateralUpdates_oneMissedIntervalDespiteReducedInterval() external {
+        uint256 collateral = 100e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral);
+        _protocol.setLastCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
+        _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+
+        vm.warp(timestamp + _updateCollateralInterval + 10);
+
+        // Change update collateral interval, more frequent updates are required
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
+
+        uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
+
+        // Minter only expected to update within the previous interval.
+        assertEq(penalty, (_protocol.activeOwedMOf(_minter1) * _penaltyRate) / ONE);
+    }
+
+    function test_getPenaltyForMissedCollateralUpdates_threeMissedInterval() external {
+        uint256 collateral = 100e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral);
+        _protocol.setLastCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
+        _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+
+        vm.warp(timestamp + (3 * _updateCollateralInterval) + 10);
+
+        uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
+        assertEq(penalty, (3 * (_protocol.activeOwedMOf(_minter1) * _penaltyRate)) / ONE);
+    }
+
+    function test_getPenaltyForMissedCollateralUpdates_moreMissedIntervalDueToReducedInterval() external {
+        uint256 collateral = 100e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral);
+        _protocol.setLastCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
+        _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+
+        // Change update collateral interval, more frequent updates are required
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
+
+        vm.warp(timestamp + (3 * _updateCollateralInterval) + 10);
+
+        uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
+
+        // Minter was expected to update within the previous interval. After that deadline, the new interval is imposed,
+        // so instead of 2 more missed intervals, since the interval was divided by 4, each of those 2 missed intervals
+        // is actually 4 missed intervals. Therefore, 9 missed intervals in total is expected.
+        assertEq(penalty, (9 * (_protocol.activeOwedMOf(_minter1) * _penaltyRate)) / ONE);
+    }
+
     function test_getPenaltyForMissedCollateralUpdates_updateCollateralIntervalHasChanged() external {
         uint256 collateral = 100e18;
         uint256 timestamp = block.timestamp;
