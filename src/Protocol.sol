@@ -413,8 +413,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     function _imposePenaltyIfMissedCollateralUpdates(address minter_) internal {
         (uint256 penaltyBase_, uint256 penalizedUntil_) = _getPenaltyBaseAndTimeForMissedCollateralUpdates(minter_);
 
+        if (penaltyBase_ == 0) return;
+
         // Save penalization interval to not double charge for missed periods again
         _penalizedUntilTimestamps[minter_] = penalizedUntil_;
+        // We charged for the first missed interval based on previous collateral interval length only once
+        _lastUpdateIntervals[minter_] = updateCollateralInterval();
 
         _imposePenalty(minter_, penaltyBase_);
     }
@@ -482,10 +486,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         uint256 updateInterval_ = _lastUpdateIntervals[minter_];
         uint256 lastUpdate_ = _lastCollateralUpdates[minter_];
         uint256 penalizeFrom_ = _max(lastUpdate_, _penalizedUntilTimestamps[minter_]);
+        uint256 penalizationDeadline_ = penalizeFrom_ + updateInterval_;
 
-        if (updateInterval_ == 0) return (0, penalizeFrom_);
+        // Return if it is first update collateral ever or deadline for new penalization was not reached yet
+        if (updateInterval_ == 0 || penalizationDeadline_ > block.timestamp) return (0, penalizeFrom_);
 
-        uint256 missedIntervals_ = (block.timestamp - penalizeFrom_) / updateInterval_;
+        uint256 missedIntervals_ = 1 + (block.timestamp - penalizationDeadline_) / updateCollateralInterval();
 
         penaltyBase_ = missedIntervals_ * activeOwedMOf(minter_);
         penalizedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);

@@ -913,7 +913,7 @@ contract ProtocolTests is Test {
         _protocol.burnM(_minter1, 10e18);
 
         assertEq(_protocol.lastUpdateOf(_minter1), signatureTimestamp);
-        assertEq(_protocol.penalizedUntilOf(_minter1), penalizedUntil + 10); // TODO: Why?
+        assertEq(_protocol.penalizedUntilOf(_minter1), penalizedUntil);
     }
 
     function test_deactivateMinter() external {
