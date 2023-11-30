@@ -683,7 +683,7 @@ contract ProtocolTests is Test {
         _protocol.burnM(_minter1, activeOwedM);
     }
 
-    function test_updateCollateral_accruePenaltyForExpiredCollateralValue() external {
+    function test_updateCollateral_imposePenaltyForExpiredCollateralValue() external {
         uint256 collateral = 100e18;
 
         _protocol.setCollateralOf(_minter1, collateral);
@@ -727,7 +727,7 @@ contract ProtocolTests is Test {
         assertEq(_protocol.activeOwedMOf(_minter1), activeOwedM + penalty);
     }
 
-    function test_updateCollateral_accruePenaltyForMissedCollateralUpdates() external {
+    function test_updateCollateral_imposePenaltyForMissedCollateralUpdates() external {
         uint256 collateral = 100e18;
         uint256 amount = 180e18;
 
@@ -838,7 +838,7 @@ contract ProtocolTests is Test {
         assertEq(_protocol.penalizedUntilOf(_minter1), signatureTimestamp);
     }
 
-    function test_burnM_accruePenaltyForExpiredCollateralValue() external {
+    function test_burnM_imposePenaltyForExpiredCollateralValue() external {
         _protocol.setCollateralOf(_minter1, 100e18);
         _protocol.setLastCollateralUpdateOf(_minter1, block.timestamp);
         _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
@@ -916,7 +916,7 @@ contract ProtocolTests is Test {
         assertEq(_protocol.penalizedUntilOf(_minter1), penalizedUntil);
     }
 
-    function test_imposePenalty_penalizedUntil_intervalHasChanged() external {
+    function test_getPenaltyForMissedCollateralUpdates_updateCollateralIntervalHasChanged() external {
         uint256 collateral = 100e18;
         uint256 timestamp = block.timestamp;
 
@@ -974,7 +974,7 @@ contract ProtocolTests is Test {
         _protocol.burnM(_minter1, activeOwedM);
     }
 
-    function test_deactivateMinter_accruePenaltyForExpiredCollateralValue() external {
+    function test_deactivateMinter_imposePenaltyForExpiredCollateralValue() external {
         uint256 mintAmount = 1000000e18;
 
         _protocol.setCollateralOf(_minter1, mintAmount * 2);
