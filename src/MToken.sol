@@ -10,6 +10,7 @@ import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
+import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 
@@ -103,7 +104,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     }
 
     function earnerRate() public view returns (uint256 earnerRate_) {
-        return _rate();
+        return _latestRate;
     }
 
     function hasOptedOutOfEarning(address account_) external view returns (bool hasOpted_) {
@@ -114,8 +115,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         return _isEarning[account_];
     }
 
-    function latestEarnerRate() public view returns (uint256 latestEarnerRate_) {
-        return _latestRate;
+    function rateModel() public view returns (address rateModel_) {
+        return SPOGRegistrarReader.getEarnerRateModel(spogRegistrar);
     }
 
     function totalEarningSupply() public view returns (uint256 totalEarningSupply_) {
@@ -257,29 +258,15 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
             SPOGRegistrarReader.isApprovedEarner(spogRegistrar, account_);
     }
 
-    function _min(uint256 a_, uint256 b_) internal pure returns (uint256 min_) {
-        return a_ > b_ ? b_ : a_;
+    function _rate() internal view override returns (uint256 rate_) {
+        (bool success_, bytes memory returnData_) = rateModel().staticcall(
+            abi.encodeWithSelector(IRateModel.rate.selector)
+        );
+
+        rate_ = success_ ? abi.decode(returnData_, (uint256)) : 0;
     }
 
     function _revertIfNotApprovedEarner(address account_) internal view {
         if (!_isApprovedEarner(account_)) revert NotApprovedEarner();
-    }
-
-    function _rate() internal view override returns (uint256 rate_) {
-        uint256 baseRate_ = SPOGRegistrarReader.getBaseEarnerRate(spogRegistrar);
-
-        // TODO: Should this probably be totalSupply?
-        uint256 totalEarningSupply_ = totalEarningSupply();
-
-        if (totalEarningSupply_ == 0) return baseRate_;
-
-        uint256 inverseOfUtilization_ = (IProtocol(protocol).totalActiveOwedM() * _ONE_HUNDRED_PERCENT) /
-            totalEarningSupply_;
-
-        return
-            _min(
-                baseRate_ * _min(_ONE_HUNDRED_PERCENT, inverseOfUtilization_),
-                IProtocol(protocol).minterRate() * inverseOfUtilization_
-            ) / _ONE_HUNDRED_PERCENT;
     }
 }
