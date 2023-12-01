@@ -263,8 +263,6 @@ contract IntegrationTests is Test {
         assertEq(_mToken.balanceOf(_alice), 551_170_800163); // ~500k with 10% APY compounded continuously.
         assertEq(_mToken.balanceOf(_vault), 0); // Still 0 since no call to `_protocol.updateIndex()`.
 
-        vm.stopPrank();
-
         uint256 transferAmount_ = _mToken.balanceOf(_alice);
 
         vm.prank(_alice);
