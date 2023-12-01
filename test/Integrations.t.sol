@@ -142,9 +142,12 @@ contract IntegrationTests is Test {
         assertEq(_mToken.currentIndex(), 1_000034247161763120);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        vm.startPrank(_minters[0]);
-
+        vm.prank(_minters[0]);
         _protocol.activateMinter(_minters[0]);
+
+        assertEq(_protocol.isActiveMinter(_minters[0]), true);
+
+        vm.prank(_minters[0]);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         // Both timestamps are updated since updateIndex gets called on the protocol, and thus on the mToken.
@@ -160,8 +163,6 @@ contract IntegrationTests is Test {
         assertEq(_mToken.latestIndex(), 1_000034247161763120);
         assertEq(_mToken.currentIndex(), 1_000034247161763120);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
-
-        vm.stopPrank();
 
         vm.warp(block.timestamp + 1 hours); // 1 hour later, minter proposes a mint.
 
@@ -181,10 +182,7 @@ contract IntegrationTests is Test {
         assertEq(_mToken.currentIndex(), 1_000045663142986194);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        vm.startPrank(_minters[0]);
-
-        assertEq(_protocol.isActiveMinter(_minters[0]), true);
-
+        vm.prank(_minters[0]);
         uint256 mintId = _protocol.proposeMint(mintAmount, _alice);
 
         assertEq(_protocol.minterRate(), 1_000);
@@ -212,6 +210,7 @@ contract IntegrationTests is Test {
         assertEq(_mToken.currentIndex(), 1_000194082758562663);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
+        vm.prank(_minters[0]);
         _protocol.mintM(mintId);
 
         // Both timestamps are updated since updateIndex gets called on the protocol, and thus on the mToken.
