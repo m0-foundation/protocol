@@ -120,14 +120,6 @@ interface IProtocol is IContinuousIndexing {
     function burnM(address minter, uint256 amount) external;
 
     /**
-     * @notice Cancels minting request for minter
-     * @dev MUST only be callable by an active minter
-     * @dev An active minter that is not approved by SPOG Registrar anymore can still call cancelMint
-     * @param mintId The id of outstanding mint request
-     */
-    function cancelMint(uint256 mintId) external;
-
-    /**
      * @notice Cancels minting request for selected minter by validator
      * @param minter The address of the minter to cancelMint minting request for
      * @param mintId The id of outstanding mint request
