@@ -195,10 +195,10 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
         // Check that mint proposal is executable.
         uint256 activeAt_ = createdAt_ + SPOGRegistrarReader.getMintDelay(spogRegistrar);
-        if (block.timestamp < activeAt_) revert PendingMintProposal();
+        if (block.timestamp < activeAt_) revert PendingMintProposal(activeAt_);
 
         uint256 expiresAt_ = activeAt_ + SPOGRegistrarReader.getMintTTL(spogRegistrar);
-        if (block.timestamp > expiresAt_) revert ExpiredMintProposal();
+        if (block.timestamp > expiresAt_) revert ExpiredMintProposal(expiresAt_);
 
         _revertIfUndercollateralized(msg.sender, amount_); // Check that minter will remain sufficiently collateralized.
 
@@ -291,7 +291,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     function updateIndex() public override(IContinuousIndexing, ContinuousIndexing) returns (uint256 index_) {
         // NOTE: Since the currentIndex of the protocol and mToken are constant thought this context's execution (since
         //       the block.timestamp is not changing) we can compute excessOwedM without updating the mToken index.
-        uint256 excessOwedM_ = _getExcessActiveOwedM();
+        uint256 excessOwedM_ = excessActiveOwedM();
 
         if (excessOwedM_ > 0) IMToken(mToken).mint(spogVault, excessOwedM_); // Mint M to SPOG Vault.
 
@@ -328,6 +328,17 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     function collateralUpdateDeadlineOf(address minter_) public view returns (uint256 updateDeadline_) {
         return _lastCollateralUpdates[minter_] + _lastUpdateIntervals[minter_];
+    }
+
+    function excessActiveOwedM() public view returns (uint256 getExcessOwedM_) {
+        uint256 totalMSupply_ = IMToken(mToken).totalSupply();
+        uint256 totalActiveOwedM_ = _getPresentValue(_totalPrincipalOfActiveOwedM);
+
+        if (totalActiveOwedM_ > totalMSupply_) return totalActiveOwedM_ - totalMSupply_;
+    }
+
+    function getMaxOwedM(address minter_) public view returns (uint256 maxOwedM_) {
+        return (collateralOf(minter_) * mintRatio()) / ONE;
     }
 
     function getPenaltyForMissedCollateralUpdates(address minter_) public view returns (uint256 penalty_) {
@@ -453,7 +464,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function _imposePenaltyIfUndercollateralized(address minter_) internal {
-        uint256 maxOwedM_ = _getMaxOwedM(minter_);
+        uint256 maxOwedM_ = getMaxOwedM(minter_);
         uint256 activeOwedM_ = activeOwedMOf(minter_);
 
         if (maxOwedM_ >= activeOwedM_) return;
@@ -487,7 +498,9 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function _updateCollateral(address minter_, uint256 amount_, uint256 newTimestamp_) internal {
-        if (newTimestamp_ < _lastCollateralUpdates[minter_]) revert StaleCollateralUpdate();
+        uint256 lastCollateralUpdate_ = _lastCollateralUpdates[minter_];
+
+        if (newTimestamp_ < lastCollateralUpdate_) revert StaleCollateralUpdate(newTimestamp_, lastCollateralUpdate_);
 
         _collaterals[minter_] = amount_;
         _lastCollateralUpdates[minter_] = newTimestamp_;
@@ -497,17 +510,6 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     /******************************************************************************************************************\
     |                                           Internal View/Pure Functions                                           |
     \******************************************************************************************************************/
-
-    function _getExcessActiveOwedM() internal view returns (uint256 getExcessOwedM_) {
-        uint256 totalMSupply_ = IMToken(mToken).totalSupply();
-        uint256 totalActiveOwedM_ = _getPresentValue(_totalPrincipalOfActiveOwedM);
-
-        if (totalActiveOwedM_ > totalMSupply_) return totalActiveOwedM_ - totalMSupply_;
-    }
-
-    function _getMaxOwedM(address minter_) internal view returns (uint256 maxOwedM_) {
-        return (collateralOf(minter_) * mintRatio()) / ONE;
-    }
 
     function _getPenaltyBaseAndTimeForMissedCollateralUpdates(
         address minter_
@@ -606,10 +608,11 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function _revertIfUndercollateralized(address minter_, uint256 additionalOwedM_) internal view {
-        uint256 maxOwedM_ = _getMaxOwedM(minter_);
+        uint256 maxOwedM_ = getMaxOwedM(minter_);
         uint256 activeOwedM_ = activeOwedMOf(minter_);
+        uint256 finalActiveOwedM_ = activeOwedM_ + additionalOwedM_;
 
-        if (activeOwedM_ + additionalOwedM_ > maxOwedM_) revert Undercollateralized();
+        if (finalActiveOwedM_ > maxOwedM_) revert Undercollateralized(finalActiveOwedM_, maxOwedM_);
     }
 
     /**
@@ -665,6 +668,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
             --threshold_;
         }
 
-        if (threshold_ > 0) revert NotEnoughValidSignatures();
+        // NOTE: Due to STACK_TOO_DEEP issues, we need to refetch `requiredThreshold_` and compute the number of valid
+        //       signatures here, in order to emit the correct error message. However, the code will only reach this
+        //       point to inevitably revert, so the gas cost is not much of a concern.
+        uint256 requiredThreshold_ = SPOGRegistrarReader.getUpdateCollateralValidatorThreshold(spogRegistrar);
+        uint256 validSignatures_ = requiredThreshold_ - threshold_;
+
+        if (threshold_ > 0) revert NotEnoughValidSignatures(validSignatures_, requiredThreshold_);
     }
 }
