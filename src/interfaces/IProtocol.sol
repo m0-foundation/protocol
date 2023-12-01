@@ -40,7 +40,7 @@ interface IProtocol is IContinuousIndexing {
     /// @notice Emitted when calling `deactivateMinter` with a minter still approved in SPOG Registrar.
     error StillApprovedMinter();
 
-    error Undercollateralized(uint256 activeOwedM, uint256 maxOwedM);
+    error Undercollateralized(uint256 activeOwedM, uint256 maxAllowedOwedM);
 
     error ZeroMToken();
 
@@ -206,23 +206,27 @@ interface IProtocol is IContinuousIndexing {
 
     function excessActiveOwedM() external view returns (uint256 getExcessOwedM);
 
-    function getMaxOwedM(address minter_) external view returns (uint256 maxOwedM);
+    function getMaxAllowedOwedM(address minter_) external view returns (uint256 maxAllowedOwedM);
 
     /**
      * @notice Returns the penalty for expired collateral value.
      * @dev Minter is penalized on current outstanding value per every missed interval.
      * @dev Penalized only once per missed interval.
      * @param minter Address of the minter to get penalty for
-     * @return The penalty for the given minter
+     * @return penalty The penalty for the given minter
      */
-    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint256);
+    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint256 penalty);
 
     /**
      * @notice Returns whether the given minter is active or not.
      * @param minter Address of the minter to check
-     * @return True for an active minter, false otherwise
+     * @return isActive True for an active minter, false otherwise
      */
-    function isActiveMinter(address minter) external view returns (bool);
+    function isActiveMinter(address minter) external view returns (bool isActive);
+
+    function isMinterApprovedByRegistrar(address minter_) external view returns (bool isApproved);
+
+    function isValidatorApprovedByRegistrar(address validator_) external view returns (bool isApproved);
 
     /// @notice The inactive owed M for a given active minter
     function inactiveOwedMOf(address minter) external view returns (uint256 inactiveOwedM);
@@ -233,6 +237,10 @@ interface IProtocol is IContinuousIndexing {
 
     function lastUpdateOf(address minter) external view returns (uint256 lastUpdate);
 
+    function mintDelay() external view returns (uint256 mintDelay);
+
+    function minterFreezeTime() external view returns (uint256 minterFreezeTime);
+
     function minterRate() external view returns (uint256 minterRate);
 
     /// @notice The mint proposal of minters, only 1 request per minter
@@ -241,6 +249,8 @@ interface IProtocol is IContinuousIndexing {
     ) external view returns (uint256 mintId, address destination, uint256 amount, uint256 createdAt);
 
     function mintRatio() external view returns (uint256 mintRatio);
+
+    function mintTTL() external view returns (uint256 mintTTL);
 
     /// @notice The address of M token
     function mToken() external view returns (address mToken);
@@ -276,4 +286,6 @@ interface IProtocol is IContinuousIndexing {
     function unfrozenTimeOf(address minter) external view returns (uint256 timestamp);
 
     function updateCollateralInterval() external view returns (uint256 updateCollateralInterval);
+
+    function validatorThreshold() external view returns (uint256 threshold);
 }
