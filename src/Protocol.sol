@@ -108,7 +108,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     /// @inheritdoc IProtocol
     function activateMinter(address minter_) external {
-        if (!_isApprovedMinter(minter_)) revert NotApprovedMinter();
+        if (!isMinterApprovedByRegistrar(minter_)) revert NotApprovedMinter();
         if (_isActiveMinter[minter_]) revert AlreadyActiveMinter();
 
         _isActiveMinter[minter_] = true;
@@ -143,7 +143,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function deactivateMinter(address minter_) external returns (uint256 inactiveOwedM_) {
-        if (_isApprovedMinter(minter_)) revert StillApprovedMinter();
+        if (isMinterApprovedByRegistrar(minter_)) revert StillApprovedMinter();
         _revertIfInactiveMinter(minter_);
 
         // NOTE: Instead of imposing, calculate penalty and add it to `_inactiveOwedM` to save gas.
@@ -176,7 +176,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     function freezeMinter(address minter_) external onlyApprovedValidator returns (uint256 frozenUntil_) {
         _revertIfInactiveMinter(minter_);
 
-        frozenUntil_ = block.timestamp + SPOGRegistrarReader.getMinterFreezeTime(spogRegistrar);
+        frozenUntil_ = block.timestamp + minterFreezeTime();
 
         emit MinterFrozen(minter_, _unfrozenTimestamps[minter_] = frozenUntil_);
     }
@@ -194,10 +194,10 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         if (id_ != mintId_) revert InvalidMintProposal();
 
         // Check that mint proposal is executable.
-        uint256 activeAt_ = createdAt_ + SPOGRegistrarReader.getMintDelay(spogRegistrar);
+        uint256 activeAt_ = createdAt_ + mintDelay();
         if (block.timestamp < activeAt_) revert PendingMintProposal(activeAt_);
 
-        uint256 expiresAt_ = activeAt_ + SPOGRegistrarReader.getMintTTL(spogRegistrar);
+        uint256 expiresAt_ = activeAt_ + mintTTL();
         if (block.timestamp > expiresAt_) revert ExpiredMintProposal(expiresAt_);
 
         _revertIfUndercollateralized(msg.sender, amount_); // Check that minter will remain sufficiently collateralized.
@@ -337,7 +337,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         if (totalActiveOwedM_ > totalMSupply_) return totalActiveOwedM_ - totalMSupply_;
     }
 
-    function getMaxOwedM(address minter_) public view returns (uint256 maxOwedM_) {
+    function getMaxAllowedOwedM(address minter_) public view returns (uint256 maxAllowedOwedM_) {
         return (collateralOf(minter_) * mintRatio()) / ONE;
     }
 
@@ -352,8 +352,16 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function isActiveMinter(address minter_) external view returns (bool) {
+    function isActiveMinter(address minter_) external view returns (bool isActive_) {
         return _isActiveMinter[minter_];
+    }
+
+    function isMinterApprovedByRegistrar(address minter_) public view returns (bool isApproved_) {
+        return SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_);
+    }
+
+    function isValidatorApprovedByRegistrar(address validator_) public view returns (bool isApproved_) {
+        return SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_);
     }
 
     function latestMinterRate() external view returns (uint256 latestMinterRate_) {
@@ -366,6 +374,14 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     function lastUpdateOf(address minter_) external view returns (uint256 lastUpdate_) {
         return _lastCollateralUpdates[minter_];
+    }
+
+    function mintDelay() public view returns (uint256 mintDelay_) {
+        return SPOGRegistrarReader.getMintDelay(spogRegistrar);
+    }
+
+    function minterFreezeTime() public view returns (uint256 minterFreezeTime_) {
+        return SPOGRegistrarReader.getMinterFreezeTime(spogRegistrar);
     }
 
     function minterRate() external view returns (uint256 minterRate_) {
@@ -383,6 +399,10 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     function mintRatio() public view returns (uint256 mintRatio_) {
         return SPOGRegistrarReader.getMintRatio(spogRegistrar);
+    }
+
+    function mintTTL() public view returns (uint256 mintTTL_) {
+        return SPOGRegistrarReader.getMintTTL(spogRegistrar);
     }
 
     function penalizedUntilOf(address minter_) external view returns (uint256 penalizedUntil_) {
@@ -425,6 +445,10 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         return SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar);
     }
 
+    function validatorThreshold() public view returns (uint256 threshold_) {
+        return SPOGRegistrarReader.getUpdateCollateralValidatorThreshold(spogRegistrar);
+    }
+
     /******************************************************************************************************************\
     |                                          Internal Interactive Functions                                          |
     \******************************************************************************************************************/
@@ -464,12 +488,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function _imposePenaltyIfUndercollateralized(address minter_) internal {
-        uint256 maxOwedM_ = getMaxOwedM(minter_);
+        uint256 maxAllowedOwedM_ = getMaxAllowedOwedM(minter_);
         uint256 activeOwedM_ = activeOwedMOf(minter_);
 
-        if (maxOwedM_ >= activeOwedM_) return;
+        if (maxAllowedOwedM_ >= activeOwedM_) return;
 
-        _imposePenalty(minter_, activeOwedM_ - maxOwedM_);
+        _imposePenalty(minter_, activeOwedM_ - maxAllowedOwedM_);
     }
 
     function _repayForActiveMinter(address minter_, uint256 maxAmount_) internal returns (uint256 amount_) {
@@ -559,14 +583,6 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
             );
     }
 
-    function _isApprovedMinter(address minter_) internal view returns (bool) {
-        return SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_);
-    }
-
-    function _isApprovedValidator(address validator_) internal view returns (bool) {
-        return SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_);
-    }
-
     function _max(uint256 a_, uint256 b_) internal pure returns (uint256 max_) {
         return a_ > b_ ? a_ : b_;
     }
@@ -604,15 +620,15 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
      * @param validator_ The address of the validator
      */
     function _revertIfNotApprovedValidator(address validator_) internal view {
-        if (!_isApprovedValidator(validator_)) revert NotApprovedValidator();
+        if (!isValidatorApprovedByRegistrar(validator_)) revert NotApprovedValidator();
     }
 
     function _revertIfUndercollateralized(address minter_, uint256 additionalOwedM_) internal view {
-        uint256 maxOwedM_ = getMaxOwedM(minter_);
+        uint256 maxAllowedOwedM_ = getMaxAllowedOwedM(minter_);
         uint256 activeOwedM_ = activeOwedMOf(minter_);
         uint256 finalActiveOwedM_ = activeOwedM_ + additionalOwedM_;
 
-        if (finalActiveOwedM_ > maxOwedM_) revert Undercollateralized(finalActiveOwedM_, maxOwedM_);
+        if (finalActiveOwedM_ > maxAllowedOwedM_) revert Undercollateralized(finalActiveOwedM_, maxAllowedOwedM_);
     }
 
     /**
@@ -635,7 +651,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         address[] calldata validators_,
         bytes[] calldata signatures_
     ) internal view returns (uint256 minTimestamp_) {
-        uint256 threshold_ = SPOGRegistrarReader.getUpdateCollateralValidatorThreshold(spogRegistrar);
+        uint256 threshold_ = validatorThreshold();
 
         minTimestamp_ = block.timestamp;
 
@@ -657,7 +673,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
             );
 
             // Check that validator is approved by SPOG.
-            if (!_isApprovedValidator(validators_[index_])) continue;
+            if (!isValidatorApprovedByRegistrar(validators_[index_])) continue;
 
             // Check that ECDSA or ERC1271 signatures for given digest are valid.
             if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_])) continue;
@@ -671,7 +687,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         // NOTE: Due to STACK_TOO_DEEP issues, we need to refetch `requiredThreshold_` and compute the number of valid
         //       signatures here, in order to emit the correct error message. However, the code will only reach this
         //       point to inevitably revert, so the gas cost is not much of a concern.
-        uint256 requiredThreshold_ = SPOGRegistrarReader.getUpdateCollateralValidatorThreshold(spogRegistrar);
+        uint256 requiredThreshold_ = validatorThreshold();
         uint256 validSignatures_ = requiredThreshold_ - threshold_;
 
         if (threshold_ > 0) revert NotEnoughValidSignatures(validSignatures_, requiredThreshold_);

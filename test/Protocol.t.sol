@@ -831,8 +831,8 @@ contract ProtocolTests is Test {
         );
 
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
-        uint256 maxOwedM = (collateral * _mintRatio) / ONE;
-        uint256 expectedPenalty = ((activeOwedM - maxOwedM) * _penaltyRate) / ONE;
+        uint256 maxAllowedOwedM = (collateral * _mintRatio) / ONE;
+        uint256 expectedPenalty = ((activeOwedM - maxAllowedOwedM) * _penaltyRate) / ONE;
 
         vm.expectEmit();
         emit PenaltyImposed(_minter1, expectedPenalty);
@@ -1295,13 +1295,13 @@ contract ProtocolTests is Test {
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, (collateral * _mintRatio) / ONE);
 
         uint256 retrievalAmount = 10e18;
-        uint256 expectedMaxOwedM = ((collateral - retrievalAmount) * _mintRatio) / ONE;
+        uint256 expectedMaxAllowedOwedM = ((collateral - retrievalAmount) * _mintRatio) / ONE;
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 IProtocol.Undercollateralized.selector,
                 _protocol.activeOwedMOf(_minter1),
-                expectedMaxOwedM
+                expectedMaxAllowedOwedM
             )
         );
 
