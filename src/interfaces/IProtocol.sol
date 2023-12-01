@@ -40,7 +40,7 @@ interface IProtocol is IContinuousIndexing {
     /// @notice Emitted when calling `deactivateMinter` with a minter still approved in SPOG Registrar.
     error StillApprovedMinter();
 
-    error Undercollateralized(uint256 activeOwedM, uint256 maxOwedM);
+    error Undercollateralized(uint256 activeOwedM, uint256 maxAllowedOwedM);
 
     error ZeroMToken();
 
@@ -206,7 +206,7 @@ interface IProtocol is IContinuousIndexing {
 
     function excessActiveOwedM() external view returns (uint256 getExcessOwedM);
 
-    function getMaxOwedM(address minter_) external view returns (uint256 maxOwedM);
+    function getMaxAllowedOwedM(address minter_) external view returns (uint256 maxAllowedOwedM);
 
     /**
      * @notice Returns the penalty for expired collateral value.

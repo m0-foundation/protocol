@@ -337,7 +337,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         if (totalActiveOwedM_ > totalMSupply_) return totalActiveOwedM_ - totalMSupply_;
     }
 
-    function getMaxOwedM(address minter_) public view returns (uint256 maxOwedM_) {
+    function getMaxAllowedOwedM(address minter_) public view returns (uint256 maxAllowedOwedM_) {
         return (collateralOf(minter_) * mintRatio()) / ONE;
     }
 
@@ -464,12 +464,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function _imposePenaltyIfUndercollateralized(address minter_) internal {
-        uint256 maxOwedM_ = getMaxOwedM(minter_);
+        uint256 maxAllowedOwedM_ = getMaxAllowedOwedM(minter_);
         uint256 activeOwedM_ = activeOwedMOf(minter_);
 
-        if (maxOwedM_ >= activeOwedM_) return;
+        if (maxAllowedOwedM_ >= activeOwedM_) return;
 
-        _imposePenalty(minter_, activeOwedM_ - maxOwedM_);
+        _imposePenalty(minter_, activeOwedM_ - maxAllowedOwedM_);
     }
 
     function _repayForActiveMinter(address minter_, uint256 maxAmount_) internal returns (uint256 amount_) {
@@ -608,11 +608,11 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     }
 
     function _revertIfUndercollateralized(address minter_, uint256 additionalOwedM_) internal view {
-        uint256 maxOwedM_ = getMaxOwedM(minter_);
+        uint256 maxAllowedOwedM_ = getMaxAllowedOwedM(minter_);
         uint256 activeOwedM_ = activeOwedMOf(minter_);
         uint256 finalActiveOwedM_ = activeOwedM_ + additionalOwedM_;
 
-        if (finalActiveOwedM_ > maxOwedM_) revert Undercollateralized(finalActiveOwedM_, maxOwedM_);
+        if (finalActiveOwedM_ > maxAllowedOwedM_) revert Undercollateralized(finalActiveOwedM_, maxAllowedOwedM_);
     }
 
     /**
