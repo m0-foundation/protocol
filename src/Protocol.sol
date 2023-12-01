@@ -134,12 +134,12 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         updateIndex();
     }
 
-    function cancelMint(uint256 mintId_) external onlyActiveMinter {
-        _cancelMint(msg.sender, mintId_);
-    }
-
     function cancelMint(address minter_, uint256 mintId_) external onlyApprovedValidator {
-        _cancelMint(minter_, mintId_);
+        if (_mintProposals[minter_].id != mintId_) revert InvalidMintProposal();
+
+        delete _mintProposals[minter_];
+
+        emit MintCanceled(mintId_, msg.sender);
     }
 
     function deactivateMinter(address minter_) external returns (uint256 inactiveOwedM_) {
@@ -452,14 +452,6 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     /******************************************************************************************************************\
     |                                          Internal Interactive Functions                                          |
     \******************************************************************************************************************/
-
-    function _cancelMint(address minter_, uint256 mintId_) internal {
-        if (_mintProposals[minter_].id != mintId_) revert InvalidMintProposal();
-
-        delete _mintProposals[minter_];
-
-        emit MintCanceled(mintId_, msg.sender);
-    }
 
     function _imposePenalty(address minter_, uint256 penaltyBase_) internal {
         // TODO: The rate being charged for a late interval should be M per active owed M.

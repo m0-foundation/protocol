@@ -529,64 +529,31 @@ contract ProtocolTests is Test {
         assertEq(timestamp, 0);
     }
 
-    function test_cancelMint_byMinter() external {
+    function test_cancelMint_notApprovedValidator() external {
         uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, _alice);
 
-        vm.expectEmit();
-        emit MintCanceled(mintId, _minter1);
+        vm.expectRevert(IProtocol.NotApprovedValidator.selector);
+        vm.prank(_alice);
+        _protocol.cancelMint(_minter1, mintId);
 
-        vm.prank(_minter1);
-        _protocol.cancelMint(mintId);
-
-        (uint256 mintId_, address destination_, uint256 amount_, uint256 timestamp) = _protocol.mintProposalOf(
+        (uint256 mintId_, address destination_, uint256 amount_, uint256 timestamp_) = _protocol.mintProposalOf(
             _minter1
         );
 
-        assertEq(mintId_, 0);
-        assertEq(destination_, address(0));
-        assertEq(amount_, 0);
-        assertEq(timestamp, 0);
+        assertEq(mintId_, mintId);
+        assertEq(destination_, _alice);
+        assertEq(amount_, 100);
+        assertEq(timestamp_, block.timestamp);
     }
 
-    function test_cancelMint_notApprovedMinter() external {
-        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
-
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, _alice);
-
-        vm.expectEmit();
-        emit MintCanceled(mintId, _minter1);
-
-        vm.prank(_minter1);
-        _protocol.cancelMint(mintId);
-
-        (uint256 mintId_, address destination_, uint256 amount_, uint256 timestamp) = _protocol.mintProposalOf(
-            _minter1
-        );
-
-        assertEq(mintId_, 0);
-        assertEq(destination_, address(0));
-        assertEq(amount_, 0);
-        assertEq(timestamp, 0);
-    }
-
-    function test_cancelMint_InactiveMinter() external {
-        _protocol.setActiveMinter(_minter1, false);
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, _alice);
-
-        vm.expectRevert(IProtocol.InactiveMinter.selector);
-
-        vm.prank(_minter1);
-        _protocol.cancelMint(mintId);
-    }
-
-    function test_cancelMint_invalidMintRequest() external {
-        vm.expectRevert(IProtocol.InvalidMintProposal.selector);
-        vm.prank(_minter1);
-        _protocol.cancelMint(1);
-
+    function test_cancelMint_invalidMintProposal() external {
         vm.expectRevert(IProtocol.InvalidMintProposal.selector);
         vm.prank(_validator1);
         _protocol.cancelMint(_minter1, 1);
+
+        vm.expectRevert(IProtocol.InvalidMintProposal.selector);
+        vm.prank(_validator1);
+        _protocol.cancelMint(_alice, 1);
     }
 
     function test_freezeMinter() external {
