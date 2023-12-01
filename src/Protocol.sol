@@ -51,7 +51,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     uint256 internal _totalPrincipalOfActiveOwedM;
     uint256 internal _totalInactiveOwedM;
 
-    mapping(address minter => bool isActiveMinter) internal _activeMinter;
+    mapping(address minter => bool isActiveMinter) internal _isActiveMinter;
     mapping(address minter => uint256 collateral) internal _collaterals;
     mapping(address minter => uint256 owedM) internal _inactiveOwedM;
     mapping(address minter => uint256 activeOwedM) internal _principalOfActiveOwedM;
@@ -109,9 +109,9 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     /// @inheritdoc IProtocol
     function activateMinter(address minter_) external {
         if (!_isApprovedMinter(minter_)) revert NotApprovedMinter();
-        if (_activeMinter[minter_]) revert AlreadyActiveMinter();
+        if (_isActiveMinter[minter_]) revert AlreadyActiveMinter();
 
-        _activeMinter[minter_] = true;
+        _isActiveMinter[minter_] = true;
 
         emit MinterActivated(minter_, msg.sender);
     }
@@ -121,7 +121,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         // Undercollateralization within one update interval is forgiven.
         _imposePenaltyIfMissedCollateralUpdates(minter_);
 
-        uint256 amount_ = _activeMinter[minter_]
+        uint256 amount_ = _isActiveMinter[minter_]
             ? _repayForActiveMinter(minter_, maxAmount_)
             : _repayForInactiveMinter(minter_, maxAmount_);
 
@@ -159,7 +159,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         _totalPrincipalOfActiveOwedM -= _principalOfActiveOwedM[minter_];
 
         // Reset reasonable aspects of minter's state.
-        delete _activeMinter[minter_];
+        delete _isActiveMinter[minter_];
         delete _collaterals[minter_];
         delete _lastUpdateIntervals[minter_];
         delete _lastCollateralUpdates[minter_];
@@ -342,7 +342,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     /// @inheritdoc IProtocol
     function isActiveMinter(address minter_) external view returns (bool) {
-        return _activeMinter[minter_];
+        return _isActiveMinter[minter_];
     }
 
     function latestMinterRate() external view returns (uint256 latestMinterRate_) {
@@ -594,7 +594,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
      * @param minter_ The address of the minter
      */
     function _revertIfInactiveMinter(address minter_) internal view {
-        if (!_activeMinter[minter_]) revert InactiveMinter();
+        if (!_isActiveMinter[minter_]) revert InactiveMinter();
     }
 
     /**
