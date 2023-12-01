@@ -208,19 +208,22 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        uint256 timestamp = _protocol.lastUpdateIntervalOf(_minter1) - 1;
+        uint256 lastUpdateTimestamp = _protocol.lastUpdateOf(_minter1);
+        uint256 newTimestamp = lastUpdateTimestamp - 1;
 
-        timestamps[0] = timestamp;
+        timestamps[0] = newTimestamp;
         signatures[0] = _getCollateralUpdateSignature(
             _minter1,
             100,
             retrievalIds,
             bytes32(0),
-            timestamp,
+            newTimestamp,
             _validator1Pk
         );
 
-        vm.expectRevert(IProtocol.StaleCollateralUpdate.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(IProtocol.StaleCollateralUpdate.selector, newTimestamp, lastUpdateTimestamp)
+        );
 
         vm.prank(_minter1);
         _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
@@ -320,10 +323,11 @@ contract ProtocolTests is Test {
     function test_proposeMint_undercollateralizedMint() external {
         _protocol.setCollateralOf(_minter1, 100e18);
         _protocol.setLastCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
         vm.warp(block.timestamp + _mintDelay);
 
-        vm.expectRevert(IProtocol.Undercollateralized.selector);
+        vm.expectRevert(abi.encodeWithSelector(IProtocol.Undercollateralized.selector, 100e18, 90e18));
 
         vm.prank(_minter1);
         _protocol.proposeMint(100e18, _alice);
@@ -435,10 +439,11 @@ contract ProtocolTests is Test {
     function test_mintM_pendingMintRequest() external {
         uint256 timestamp = block.timestamp;
         uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, timestamp, _alice);
+        uint256 activeTimestamp_ = timestamp + _mintDelay;
 
-        vm.warp(timestamp + _mintDelay / 2);
+        vm.warp(activeTimestamp_ - 10);
 
-        vm.expectRevert(IProtocol.PendingMintProposal.selector);
+        vm.expectRevert(abi.encodeWithSelector(IProtocol.PendingMintProposal.selector, activeTimestamp_));
 
         vm.prank(_minter1);
         _protocol.mintM(mintId);
@@ -447,24 +452,26 @@ contract ProtocolTests is Test {
     function test_mintM_expiredMintRequest() external {
         uint256 timestamp = block.timestamp;
         uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, timestamp, _alice);
+        uint256 deadline_ = timestamp + _mintDelay + _mintTTL;
 
-        vm.warp(timestamp + _mintDelay + _mintTTL + 1);
+        vm.warp(deadline_ + 1);
 
-        vm.expectRevert(IProtocol.ExpiredMintProposal.selector);
+        vm.expectRevert(abi.encodeWithSelector(IProtocol.ExpiredMintProposal.selector, deadline_));
 
         vm.prank(_minter1);
         _protocol.mintM(mintId);
     }
 
-    function test_mintM_undercollateralizedMint() external {
+    function test_mintM_undercollateralizedMint_xxx() external {
         _protocol.setCollateralOf(_minter1, 100e18);
         _protocol.setLastCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
         uint256 mintId = _protocol.setMintProposalOf(_minter1, 95e18, block.timestamp, _alice);
 
         vm.warp(block.timestamp + _mintDelay + 1);
 
-        vm.expectRevert(IProtocol.Undercollateralized.selector);
+        vm.expectRevert(abi.encodeWithSelector(IProtocol.Undercollateralized.selector, 95e18, 90e18));
 
         vm.prank(_minter1);
         _protocol.mintM(mintId);
@@ -473,12 +480,13 @@ contract ProtocolTests is Test {
     function test_mintM_undercollateralizedMint_outdatedCollateral() external {
         _protocol.setCollateralOf(_minter1, 100e18);
         _protocol.setLastCollateralUpdateOf(_minter1, block.timestamp - _updateCollateralInterval);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
         uint256 mintId = _protocol.setMintProposalOf(_minter1, 95e18, block.timestamp, _alice);
 
         vm.warp(block.timestamp + _mintDelay + 1);
 
-        vm.expectRevert(IProtocol.Undercollateralized.selector);
+        vm.expectRevert(abi.encodeWithSelector(IProtocol.Undercollateralized.selector, 95e18, 0));
 
         vm.prank(_minter1);
         _protocol.mintM(mintId);
@@ -1283,12 +1291,22 @@ contract ProtocolTests is Test {
 
         _protocol.setCollateralOf(_minter1, collateral);
         _protocol.setLastCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, (collateral * _mintRatio) / ONE);
 
-        vm.expectRevert(IProtocol.Undercollateralized.selector);
+        uint256 retrievalAmount = 10e18;
+        uint256 expectedMaxOwedM = ((collateral - retrievalAmount) * _mintRatio) / ONE;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IProtocol.Undercollateralized.selector,
+                _protocol.activeOwedMOf(_minter1),
+                expectedMaxOwedM
+            )
+        );
 
         vm.prank(_minter1);
-        _protocol.proposeRetrieval(10e18);
+        _protocol.proposeRetrieval(retrievalAmount);
     }
 
     function test_retrieve_multipleRequests() external {

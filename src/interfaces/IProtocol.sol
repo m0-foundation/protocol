@@ -12,7 +12,7 @@ interface IProtocol is IContinuousIndexing {
     /// @notice Emitted when calling `activeMinter` with an already active minter.
     error AlreadyActiveMinter();
 
-    error ExpiredMintProposal();
+    error ExpiredMintProposal(uint256 deadline);
 
     error FrozenMinter();
 
@@ -29,18 +29,18 @@ interface IProtocol is IContinuousIndexing {
 
     error NotApprovedValidator();
 
-    error NotEnoughValidSignatures();
+    error NotEnoughValidSignatures(uint256 validSignatures, uint256 requiredThreshold);
 
-    error PendingMintProposal();
+    error PendingMintProposal(uint256 activeTimestamp);
 
     error SignatureArrayLengthsMismatch();
 
-    error StaleCollateralUpdate();
+    error StaleCollateralUpdate(uint256 newTimestamp, uint256 lastCollateralUpdate);
 
     /// @notice Emitted when calling `deactivateMinter` with a minter still approved in SPOG Registrar.
     error StillApprovedMinter();
 
-    error Undercollateralized();
+    error Undercollateralized(uint256 activeOwedM, uint256 maxOwedM);
 
     error ZeroMToken();
 
@@ -57,7 +57,7 @@ interface IProtocol is IContinuousIndexing {
     event CollateralUpdated(
         address indexed minter,
         uint256 collateral,
-        uint256[] indexed retrieveIds,
+        uint256[] indexed retrievalIds,
         bytes32 indexed metadata,
         uint256 timestamp
     );
@@ -79,11 +79,21 @@ interface IProtocol is IContinuousIndexing {
      */
     event MinterDeactivated(address indexed minter, uint256 owedM, address indexed caller);
 
+    event MinterFrozen(address indexed minter, uint256 frozenUntil, address indexed validator);
+
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
+
+    event MinterRemoved(address indexed minter, uint256 inactiveOwedM);
 
     event MintExecuted(uint256 indexed mintId);
 
     event MintProposed(uint256 indexed mintId, address indexed minter, uint256 amount, address indexed destination);
+
+    event MintRequestCanceled(uint256 indexed mintId, address indexed caller);
+
+    event MintRequestExecuted(uint256 indexed mintId);
+
+    event PenaltyAccrued(address indexed minter, uint256 amount);
 
     event PenaltyImposed(address indexed minter, uint256 amount);
 
@@ -193,6 +203,10 @@ interface IProtocol is IContinuousIndexing {
     function collateralOf(address minter) external view returns (uint256 collateral);
 
     function collateralUpdateDeadlineOf(address minter) external view returns (uint256 lastUpdate);
+
+    function excessActiveOwedM() external view returns (uint256 getExcessOwedM);
+
+    function getMaxOwedM(address minter_) external view returns (uint256 maxOwedM);
 
     /**
      * @notice Returns the penalty for expired collateral value.
