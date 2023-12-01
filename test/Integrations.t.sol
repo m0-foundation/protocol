@@ -162,6 +162,11 @@ contract IntegrationTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.prank(_minters[0]);
+        _protocol.activateMinter(_minters[0]);
+
+        assertEq(_protocol.isActiveMinter(_minters[0]), true);
+
+        vm.prank(_minters[0]);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         // Both timestamps are updated since updateIndex gets called on the protocol, and thus on the mToken.
@@ -257,6 +262,8 @@ contract IntegrationTests is Test {
         assertEq(_protocol.activeOwedMOf(_minters[0]), 551_224_560629); // ~500k with 10% APY compounded continuously.
         assertEq(_mToken.balanceOf(_alice), 551_170_800163); // ~500k with 10% APY compounded continuously.
         assertEq(_mToken.balanceOf(_vault), 0); // Still 0 since no call to `_protocol.updateIndex()`.
+
+        vm.stopPrank();
 
         uint256 transferAmount_ = _mToken.balanceOf(_alice);
 

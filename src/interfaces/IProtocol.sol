@@ -9,6 +9,9 @@ interface IProtocol is IContinuousIndexing {
     |                                                      Errors                                                      |
     \******************************************************************************************************************/
 
+    /// @notice Emitted when calling `activeMinter` with an already active minter.
+    error AlreadyActiveMinter();
+
     error ExpiredMintProposal();
 
     error FrozenMinter();
@@ -18,6 +21,9 @@ interface IProtocol is IContinuousIndexing {
     error InvalidMintProposal();
 
     error InvalidSignatureOrder();
+
+    /// @notice Emitted when calling `deactivateMinter` with an inactive minter.
+    error InactiveMinter();
 
     error NotApprovedMinter();
 
@@ -31,6 +37,7 @@ interface IProtocol is IContinuousIndexing {
 
     error StaleCollateralUpdate();
 
+    /// @notice Emitted when calling `deactivateMinter` with a minter still approved in SPOG Registrar.
     error StillApprovedMinter();
 
     error Undercollateralized();
@@ -57,7 +64,20 @@ interface IProtocol is IContinuousIndexing {
 
     event MintCanceled(uint256 indexed mintId, address indexed canceller);
 
-    event MinterDeactivated(address indexed minter, uint256 owedM);
+    /**
+     * @notice Emitted when a minter is activated.
+     * @param minter Address of the minter that was activated
+     * @param caller Address who called the function
+     */
+    event MinterActivated(address indexed minter, address indexed caller);
+
+    /**
+     * @notice Emitted when a minter is deactivated.
+     * @param minter Address of the minter that was deactivated
+     * @param owedM Amount of M tokens owed by the minter
+     * @param caller Address who called the function
+     */
+    event MinterDeactivated(address indexed minter, uint256 owedM, address indexed caller);
 
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
 
@@ -74,6 +94,14 @@ interface IProtocol is IContinuousIndexing {
     \******************************************************************************************************************/
 
     /**
+     * @notice Activate an approved minter.
+     * @dev MUST revert if `minter` is not recorded as an approved minter in SPOG Registrar.
+     * @dev SHOULD revert if the minter is already active.
+     * @param minter The address of the minter to activate
+     */
+    function activateMinter(address minter) external;
+
+    /**
      * @notice Burns M tokens
      * @param minter The address of the minter to burn M tokens for
      * @param amount The max amount of M tokens to burn
@@ -83,6 +111,8 @@ interface IProtocol is IContinuousIndexing {
 
     /**
      * @notice Cancels minting request for minter
+     * @dev MUST only be callable by an active minter
+     * @dev An active minter that is not approved by SPOG Registrar anymore can still call cancelMint
      * @param mintId The id of outstanding mint request
      */
     function cancelMint(uint256 mintId) external;
@@ -94,11 +124,18 @@ interface IProtocol is IContinuousIndexing {
      */
     function cancelMint(address minter, uint256 mintId) external;
 
+    /**
+     * @notice Deactivates an active minter.
+     * @dev MUST revert if the minter is not an approved minter.
+     * @dev SHOULD revert if the minter is not active.
+     * @param minter The address of the minter to deactivate
+     * @return inactiveOwedM The inactive owed M for the deactivated minter
+     */
     function deactivateMinter(address minter) external returns (uint256 inactiveOwedM);
 
     /**
      * @notice Freezes minter
-     * @param minter The address of the minter to freezeMinter
+     * @param minter The address of the minter to freeze
      */
     function freezeMinter(address minter) external returns (uint256 frozenUntil_);
 
@@ -145,8 +182,12 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The EIP-712 typehash for the `updateCollateral` method.
     function UPDATE_COLLATERAL_TYPEHASH() external pure returns (bytes32 typehash);
 
-    /// @notice The active owed M for a given active minter
-    function activeOwedMOf(address minter) external view returns (uint256 activeOwedM_);
+    /**
+     * @notice The active owed M for a given active minter.
+     * @param minter Address of the minter to get active owed M for
+     * @return activeOwedM The active owed M for the given active minter
+     */
+    function activeOwedMOf(address minter) external view returns (uint256 activeOwedM);
 
     /// @notice The collateral of a given minter.
     function collateralOf(address minter) external view returns (uint256 collateral);
@@ -154,12 +195,20 @@ interface IProtocol is IContinuousIndexing {
     function collateralUpdateDeadlineOf(address minter) external view returns (uint256 lastUpdate);
 
     /**
-     * @notice Returns the penalty for expired collateral value
-     * @param minter The address of the minter to get penalty for
+     * @notice Returns the penalty for expired collateral value.
      * @dev Minter is penalized on current outstanding value per every missed interval.
      * @dev Penalized only once per missed interval.
+     * @param minter Address of the minter to get penalty for
+     * @return The penalty for the given minter
      */
     function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint256);
+
+    /**
+     * @notice Returns whether the given minter is active or not.
+     * @param minter Address of the minter to check
+     * @return True for an active minter, false otherwise
+     */
+    function isActiveMinter(address minter) external view returns (bool);
 
     /// @notice The inactive owed M for a given active minter
     function inactiveOwedMOf(address minter) external view returns (uint256 inactiveOwedM);
