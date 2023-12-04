@@ -74,26 +74,16 @@ interface IProtocol is IContinuousIndexing {
     /**
      * @notice Emitted when a minter is deactivated.
      * @param minter Address of the minter that was deactivated
-     * @param owedM Amount of M tokens owed by the minter
+     * @param inactiveOwedM Amount of M tokens owed by the minter
      * @param caller Address who called the function
      */
-    event MinterDeactivated(address indexed minter, uint256 owedM, address indexed caller);
-
-    event MinterFrozen(address indexed minter, uint256 frozenUntil, address indexed validator);
+    event MinterDeactivated(address indexed minter, uint256 inactiveOwedM, address indexed caller);
 
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
-
-    event MinterRemoved(address indexed minter, uint256 inactiveOwedM);
 
     event MintExecuted(uint256 indexed mintId);
 
     event MintProposed(uint256 indexed mintId, address indexed minter, uint256 amount, address indexed destination);
-
-    event MintRequestCanceled(uint256 indexed mintId, address indexed caller);
-
-    event MintRequestExecuted(uint256 indexed mintId);
-
-    event PenaltyAccrued(address indexed minter, uint256 amount);
 
     event PenaltyImposed(address indexed minter, uint256 amount);
 
