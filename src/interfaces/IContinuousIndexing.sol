@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.21;
+pragma solidity 0.8.23;
 
 interface IContinuousIndexing {
     event IndexUpdated(uint256 indexed index, uint256 indexed rate);

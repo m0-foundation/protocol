@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity 0.8.21;
+pragma solidity 0.8.23;
 
 import { IStatelessERC712 } from "../../lib/common/src/interfaces/IStatelessERC712.sol";
 

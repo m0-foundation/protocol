@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.21;
+pragma solidity 0.8.23;
 
 // TODO: Can optimize with base-2 scales instead of base-10 (so we can shift instead of divide)
 
