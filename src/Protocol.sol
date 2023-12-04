@@ -364,10 +364,6 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         return SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_);
     }
 
-    function latestMinterRate() external view returns (uint256 latestMinterRate_) {
-        return _latestRate;
-    }
-
     function lastUpdateIntervalOf(address minter_) external view returns (uint256 lastUpdateInterval_) {
         return _lastUpdateIntervals[minter_];
     }
