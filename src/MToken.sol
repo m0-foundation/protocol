@@ -99,7 +99,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     |                                       External/Public View/Pure Functions                                        |
     \******************************************************************************************************************/
 
-    function balanceOf(address account_) external view override(ERC20Permit, IERC20) returns (uint256 balance_) {
+    function balanceOf(address account_) external view returns (uint256 balance_) {
         return _isEarning[account_] ? _getPresentAmount(_balances[account_], currentIndex()) : _balances[account_];
     }
 
@@ -127,7 +127,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         return _totalNonEarningSupply;
     }
 
-    function totalSupply() external view override(ERC20Permit, IERC20) returns (uint256 totalSupply_) {
+    function totalSupply() external view returns (uint256 totalSupply_) {
         return _totalNonEarningSupply + totalEarningSupply();
     }
 
