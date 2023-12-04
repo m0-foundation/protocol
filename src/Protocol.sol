@@ -34,9 +34,9 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     uint256 public constant ONE = 10_000; // 100% in basis points.
 
-    // keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadata,uint256 timestamp)")
+    // keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadataHash,uint256 timestamp)")
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
-        0x03e759b5837dd0858df38108bd60b1bc91d4d860c1947922e31e9fdb35f0882f;
+        0x22b57ca54bd15c6234b29e87aa1d76a0841b6e65e63d7acacef989de0bc3ff9e;
 
     address public immutable spogRegistrar;
     address public immutable spogVault;
@@ -253,7 +253,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
     function updateCollateral(
         uint256 collateral_,
         uint256[] calldata retrievalIds_,
-        bytes32 metadata_,
+        bytes32 metadataHash_,
         address[] calldata validators_,
         uint256[] calldata timestamps_,
         bytes[] calldata signatures_
@@ -267,13 +267,13 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
             msg.sender,
             collateral_,
             retrievalIds_,
-            metadata_,
-            timestamps_,
+            metadataHash_,
             validators_,
+            timestamps_,
             signatures_
         );
 
-        emit CollateralUpdated(msg.sender, collateral_, retrievalIds_, metadata_, minTimestamp_);
+        emit CollateralUpdated(msg.sender, collateral_, retrievalIds_, metadataHash_, minTimestamp_);
 
         _resolvePendingRetrievals(msg.sender, retrievalIds_);
 
@@ -552,7 +552,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
      * @notice Returns the EIP-712 digest for updateCollateral method
      * @param minter_ The address of the minter
      * @param collateral_ The amount of collateral
-     * @param metadata_ The metadata of the collateral update, reserved for future informational use
+     * @param metadataHash_ The hash of metadata of the collateral update, reserved for future informational use
      * @param retrievalIds_ The list of proposed collateral retrieval IDs to resolve
      * @param timestamp_ The timestamp of the collateral update
      */
@@ -560,13 +560,20 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         address minter_,
         uint256 collateral_,
         uint256[] calldata retrievalIds_,
-        bytes32 metadata_,
+        bytes32 metadataHash_,
         uint256 timestamp_
     ) internal view returns (bytes32) {
         return
             _getDigest(
                 keccak256(
-                    abi.encode(UPDATE_COLLATERAL_TYPEHASH, minter_, collateral_, retrievalIds_, metadata_, timestamp_)
+                    abi.encode(
+                        UPDATE_COLLATERAL_TYPEHASH,
+                        minter_,
+                        collateral_,
+                        retrievalIds_,
+                        metadataHash_,
+                        timestamp_
+                    )
                 )
             );
     }
@@ -623,8 +630,8 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
      * @notice Checks that enough valid unique signatures were provided
      * @param minter_ The address of the minter
      * @param collateral_ The amount of collateral
-     * @param metadata_ The hash of metadata of the collateral update, reserved for future informational use
      * @param retrievalIds_ The list of proposed collateral retrieval IDs to resolve
+     * @param metadataHash_ The hash of metadata of the collateral update, reserved for future informational use
      * @param validators_ The list of validators
      * @param timestamps_ The list of validator timestamps for the collateral update signatures
      * @param signatures_ The list of signatures
@@ -634,9 +641,9 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         address minter_,
         uint256 collateral_,
         uint256[] calldata retrievalIds_,
-        bytes32 metadata_,
-        uint256[] calldata timestamps_,
+        bytes32 metadataHash_,
         address[] calldata validators_,
+        uint256[] calldata timestamps_,
         bytes[] calldata signatures_
     ) internal view returns (uint256 minTimestamp_) {
         uint256 threshold_ = validatorThreshold();
@@ -656,7 +663,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
                 minter_,
                 collateral_,
                 retrievalIds_,
-                metadata_,
+                metadataHash_,
                 timestamps_[index_]
             );
 

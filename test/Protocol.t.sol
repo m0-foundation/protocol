@@ -45,7 +45,7 @@ contract ProtocolTests is Test {
         address indexed minter,
         uint256 collateral,
         uint256[] indexed retrieveIds,
-        bytes32 indexed metadata,
+        bytes32 indexed metadataHash,
         uint256 timestamp
     );
 
@@ -1462,7 +1462,7 @@ contract ProtocolTests is Test {
         address minter,
         uint256 collateral,
         uint256[] memory retrievalIds,
-        bytes32 metadata,
+        bytes32 metadataHash,
         uint256 timestamp,
         uint256 privateKey
     ) internal view returns (bytes memory) {
@@ -1473,7 +1473,7 @@ contract ProtocolTests is Test {
                     minter,
                     collateral,
                     retrievalIds,
-                    metadata,
+                    metadataHash,
                     timestamp
                 ),
                 privateKey

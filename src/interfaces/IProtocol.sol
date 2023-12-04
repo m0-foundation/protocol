@@ -58,7 +58,7 @@ interface IProtocol is IContinuousIndexing {
         address indexed minter,
         uint256 collateral,
         uint256[] indexed retrievalIds,
-        bytes32 indexed metadata,
+        bytes32 indexed metadataHash,
         uint256 timestamp
     );
 
@@ -154,16 +154,17 @@ interface IProtocol is IContinuousIndexing {
     /**
      * @notice Updates collateral for minters
      * @param collateral The amount of collateral
-     * @param metadata The metadata of the update, reserved for future informational use
-     * @param retrieveIds The list of active proposeRetrieval requests to close
-     * @param timestamps The list of timestamps of validators' signatures
+     * @param retrievalIds The list of active proposeRetrieval requests to close
+     * @param metadataHash The hash of metadata of the collateral update, reserved for future informational use
      * @param validators The list of validators
+     * @param timestamps The list of timestamps of validators' signatures
      * @param signatures The list of signatures
+     * @return minTimestamp_ The minimum timestamp of all validators' signatures
      */
     function updateCollateral(
         uint256 collateral,
-        uint256[] calldata retrieveIds,
-        bytes32 metadata,
+        uint256[] calldata retrievalIds,
+        bytes32 metadataHash,
         address[] calldata validators,
         uint256[] calldata timestamps,
         bytes[] calldata signatures
