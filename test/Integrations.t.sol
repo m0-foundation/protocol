@@ -398,7 +398,7 @@ contract IntegrationTests is Test {
         address minter,
         uint256 collateral,
         uint256[] memory retrievalIds,
-        bytes32 metadata,
+        bytes32 metadataHash,
         uint256 timestamp,
         uint256 privateKey
     ) internal view returns (bytes memory) {
@@ -409,7 +409,7 @@ contract IntegrationTests is Test {
                     minter,
                     collateral,
                     retrievalIds,
-                    metadata,
+                    metadataHash,
                     timestamp
                 ),
                 privateKey
