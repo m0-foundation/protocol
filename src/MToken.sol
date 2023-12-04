@@ -2,11 +2,14 @@
 
 pragma solidity 0.8.23;
 
+import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
+
 import { ERC20Permit } from "../lib/common/src/ERC20Permit.sol";
 
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { IMToken } from "./interfaces/IMToken.sol";
+import { IProtocol } from "./interfaces/IProtocol.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexing } from "./ContinuousIndexing.sol";
