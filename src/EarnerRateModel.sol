@@ -32,6 +32,7 @@ contract EarnerRateModel is IEarnerRateModel {
 
         uint256 utilization_ = (totalActiveOwedM_ * _ONE) / totalEarningSupply_;
 
+        // TODO: optimize this formula at least for readability
         return _min(baseRate() * _min(_ONE, utilization_), IProtocol(protocol).minterRate() * utilization_) / _ONE;
     }
 
