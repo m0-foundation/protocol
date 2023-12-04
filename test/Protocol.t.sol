@@ -1204,7 +1204,7 @@ contract ProtocolTests is Test {
         uint256 retrievalId = _protocol.proposeRetrieval(collateral);
 
         assertEq(retrievalId, expectedRetrievalId);
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), collateral);
+        assertEq(_protocol.totalPendingCollateralRetrievalOf(_minter1), collateral);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), collateral);
 
         vm.warp(block.timestamp + 200);
@@ -1240,7 +1240,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral / 2, newRetrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), 0);
+        assertEq(_protocol.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), 0);
     }
 
@@ -1302,14 +1302,14 @@ contract ProtocolTests is Test {
         uint256 retrievalId = _protocol.proposeRetrieval(retrieveAmount);
 
         assertEq(retrievalId, expectedRetrievalId);
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), retrieveAmount);
+        assertEq(_protocol.totalPendingCollateralRetrievalOf(_minter1), retrieveAmount);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), retrieveAmount);
 
         // Second retrieve request
         vm.prank(_minter1);
         uint256 newRetrievalId = _protocol.proposeRetrieval(retrieveAmount);
 
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), retrieveAmount * 2);
+        assertEq(_protocol.totalPendingCollateralRetrievalOf(_minter1), retrieveAmount * 2);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, newRetrievalId), retrieveAmount);
 
         uint256[] memory retrievalIds = new uint256[](1);
@@ -1336,7 +1336,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), retrieveAmount);
+        assertEq(_protocol.totalPendingCollateralRetrievalOf(_minter1), retrieveAmount);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, newRetrievalId), 0);
 
         retrievalIds[0] = retrievalId;
@@ -1357,7 +1357,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), 0);
+        assertEq(_protocol.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), 0);
     }
 

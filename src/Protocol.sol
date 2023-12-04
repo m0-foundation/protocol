@@ -53,9 +53,9 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
     mapping(address minter => bool isActiveMinter) internal _isActiveMinter;
     mapping(address minter => uint256 collateral) internal _collaterals;
-    mapping(address minter => uint256 owedM) internal _inactiveOwedM;
+    mapping(address minter => uint256 inactiveOwedM) internal _inactiveOwedM;
     mapping(address minter => uint256 activeOwedM) internal _principalOfActiveOwedM;
-    mapping(address minter => uint256 totalCollateralPendingRetrieval) internal _totalCollateralPendingRetrieval;
+    mapping(address minter => uint256 totalPendingCollateralRetrieval) internal _totalPendingCollateralRetrieval;
 
     mapping(address minter => uint256 updateInterval) internal _lastUpdateIntervals;
     mapping(address minter => uint256 lastUpdate) internal _lastCollateralUpdates;
@@ -242,7 +242,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
 
         retrievalId_ = uint256(keccak256(abi.encode(msg.sender, collateral_, _retrievalNonce)));
 
-        _totalCollateralPendingRetrieval[msg.sender] += collateral_;
+        _totalPendingCollateralRetrieval[msg.sender] += collateral_;
         _pendingRetrievals[msg.sender][retrievalId_] = collateral_;
 
         _revertIfUndercollateralized(msg.sender, 0);
@@ -322,7 +322,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         // If collateral was not updated before deadline, assume that minter's collateral is zero.
         return
             block.timestamp < collateralUpdateDeadlineOf(minter_)
-                ? _collaterals[minter_] - _totalCollateralPendingRetrieval[minter_]
+                ? _collaterals[minter_] - _totalPendingCollateralRetrieval[minter_]
                 : 0;
     }
 
@@ -421,8 +421,8 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         return _getPresentValue(_totalPrincipalOfActiveOwedM);
     }
 
-    function totalCollateralPendingRetrievalOf(address minter_) external view returns (uint256 collateral_) {
-        return _totalCollateralPendingRetrieval[minter_];
+    function totalPendingCollateralRetrievalOf(address minter_) external view returns (uint256 collateral_) {
+        return _totalPendingCollateralRetrieval[minter_];
     }
 
     function totalInactiveOwedM() public view returns (uint256 totalInactiveOwedM_) {
@@ -503,7 +503,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
         for (uint256 index_; index_ < retrievalIds_.length; ++index_) {
             uint256 retrievalId_ = retrievalIds_[index_];
 
-            _totalCollateralPendingRetrieval[minter_] -= _pendingRetrievals[minter_][retrievalId_];
+            _totalPendingCollateralRetrieval[minter_] -= _pendingRetrievals[minter_][retrievalId_];
 
             delete _pendingRetrievals[minter_][retrievalId_];
         }

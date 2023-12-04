@@ -259,7 +259,7 @@ interface IProtocol is IContinuousIndexing {
     function totalActiveOwedM() external view returns (uint256 totalActiveOwedM);
 
     /// @notice The total amount of active proposeRetrieval requests per minter
-    function totalCollateralPendingRetrievalOf(address minter) external view returns (uint256 collateral);
+    function totalPendingCollateralRetrievalOf(address minter) external view returns (uint256 collateral);
 
     /// @notice The total owed M for all inactive minters
     function totalInactiveOwedM() external view returns (uint256 totalInactiveOwedM);
