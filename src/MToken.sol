@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.21;
-
-import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
+pragma solidity 0.8.23;
 
 import { ERC20Permit } from "../lib/common/src/ERC20Permit.sol";
 
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { IMToken } from "./interfaces/IMToken.sol";
-import { IProtocol } from "./interfaces/IProtocol.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexing } from "./ContinuousIndexing.sol";
@@ -99,7 +96,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     |                                       External/Public View/Pure Functions                                        |
     \******************************************************************************************************************/
 
-    function balanceOf(address account_) external view override(ERC20Permit, IERC20) returns (uint256 balance_) {
+    function balanceOf(address account_) external view returns (uint256 balance_) {
         return _isEarning[account_] ? _getPresentAmount(_balances[account_], currentIndex()) : _balances[account_];
     }
 
@@ -127,7 +124,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         return _totalNonEarningSupply;
     }
 
-    function totalSupply() external view override(ERC20Permit, IERC20) returns (uint256 totalSupply_) {
+    function totalSupply() external view returns (uint256 totalSupply_) {
         return _totalNonEarningSupply + totalEarningSupply();
     }
 
