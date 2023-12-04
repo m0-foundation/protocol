@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity 0.8.21;
+pragma solidity 0.8.23;
 
 import { Script, console } from "../lib/forge-std/src/Script.sol";
 import { ContractHelper } from "../lib/common/src/ContractHelper.sol";

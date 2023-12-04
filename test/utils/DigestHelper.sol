@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity 0.8.21;
+pragma solidity 0.8.23;
 
-import { IStatelessERC712 } from "../../lib/common/src/interfaces/IStatelessERC712.sol";
+import { IERC712 } from "../../lib/common/src/interfaces/IERC712.sol";
 
 import { IProtocol } from "../../src/interfaces/IProtocol.sol";
 
@@ -23,7 +23,7 @@ library DigestHelper {
     }
 
     function getUpdateCollateralDigest(address protocol, bytes32 internalDigest) public view returns (bytes32 digest_) {
-        return keccak256(abi.encodePacked("\x19\x01", IStatelessERC712(protocol).DOMAIN_SEPARATOR(), internalDigest));
+        return keccak256(abi.encodePacked("\x19\x01", IERC712(protocol).DOMAIN_SEPARATOR(), internalDigest));
     }
 
     function getUpdateCollateralInternalDigest(

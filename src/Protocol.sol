@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.21;
+pragma solidity 0.8.23;
 
 import { SignatureChecker } from "../lib/common/src/SignatureChecker.sol";
-import { StatelessERC712 } from "../lib/common/src/StatelessERC712.sol";
+import { ERC712 } from "../lib/common/src/ERC712.sol";
 
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
@@ -19,7 +19,7 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
  * @author M^ZERO LABS_
  * @notice Core protocol of M^ZERO ecosystem. TODO Add description.
  */
-contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
+contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     // TODO: bit-packing
     struct MintProposal {
         uint256 id; // TODO: uint96 or uint48 if 2 additional fields
@@ -96,7 +96,7 @@ contract Protocol is IProtocol, ContinuousIndexing, StatelessERC712 {
      * @param spogRegistrar_ The address of the SPOG Registrar contract.
      * @param mToken_ The address of the M Token.
      */
-    constructor(address spogRegistrar_, address mToken_) ContinuousIndexing() StatelessERC712("Protocol") {
+    constructor(address spogRegistrar_, address mToken_) ContinuousIndexing() ERC712("Protocol") {
         if ((spogRegistrar = spogRegistrar_) == address(0)) revert ZeroSpogRegistrar();
         if ((spogVault = SPOGRegistrarReader.getVault(spogRegistrar_)) == address(0)) revert ZeroSpogVault();
         if ((mToken = mToken_) == address(0)) revert ZeroMToken();
