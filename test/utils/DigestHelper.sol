@@ -11,14 +11,14 @@ library DigestHelper {
         address protocol,
         address minter,
         uint256 collateral,
-        uint256[] calldata retrieveIds,
-        bytes32 metadata,
+        uint256[] calldata retrievalIds,
+        bytes32 metadataHash,
         uint256 timestamp
     ) public view returns (bytes32) {
         return
             getUpdateCollateralDigest(
                 protocol,
-                getUpdateCollateralInternalDigest(protocol, minter, collateral, retrieveIds, metadata, timestamp)
+                getUpdateCollateralInternalDigest(protocol, minter, collateral, retrievalIds, metadataHash, timestamp)
             );
     }
 
@@ -30,8 +30,8 @@ library DigestHelper {
         address protocol,
         address minter,
         uint256 collateral,
-        uint256[] calldata retrieveIds,
-        bytes32 metadata,
+        uint256[] calldata retrievalIds,
+        bytes32 metadataHash,
         uint256 timestamp
     ) public pure returns (bytes32 digest_) {
         return
@@ -40,8 +40,8 @@ library DigestHelper {
                     IProtocol(protocol).UPDATE_COLLATERAL_TYPEHASH(),
                     minter,
                     collateral,
-                    retrieveIds,
-                    metadata,
+                    retrievalIds,
+                    metadataHash,
                     timestamp
                 )
             );
