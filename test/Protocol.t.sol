@@ -44,8 +44,8 @@ contract ProtocolTests is Test {
     event CollateralUpdated(
         address indexed minter,
         uint256 collateral,
-        uint256[] indexed retrieveIds,
-        bytes32 indexed metadata,
+        uint256[] indexed retrievalIds,
+        bytes32 indexed metadataHash,
         uint256 timestamp
     );
 
@@ -61,7 +61,7 @@ contract ProtocolTests is Test {
 
     event PenaltyImposed(address indexed minter, uint256 amount);
 
-    event RetrievalCreated(uint256 indexed retrieveId, address indexed minter, uint256 amount);
+    event RetrievalCreated(uint256 indexed retrievalId, address indexed minter, uint256 amount);
 
     // IERC20 events
     event Transfer(address indexed account, address indexed recipient, uint256 amount);
@@ -1204,7 +1204,7 @@ contract ProtocolTests is Test {
         uint256 retrievalId = _protocol.proposeRetrieval(collateral);
 
         assertEq(retrievalId, expectedRetrievalId);
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), collateral);
+        assertEq(_protocol.totalPendingCollateralRetrievalOf(_minter1), collateral);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), collateral);
 
         vm.warp(block.timestamp + 200);
@@ -1240,7 +1240,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral / 2, newRetrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), 0);
+        assertEq(_protocol.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), 0);
     }
 
@@ -1276,7 +1276,7 @@ contract ProtocolTests is Test {
         _protocol.proposeRetrieval(retrievalAmount);
     }
 
-    function test_retrieve_multipleRequests() external {
+    function test_proposeRetrieval_multipleProposals() external {
         uint256 collateral = 100e18;
         uint256 amount = 60e18;
         uint256 timestamp = block.timestamp;
@@ -1287,30 +1287,30 @@ contract ProtocolTests is Test {
 
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, amount);
 
-        uint256 retrieveAmount = 10e18;
+        uint256 retrievalAmount = 10e18;
         uint256 expectedRetrievalId = _protocol.getRetrievalId(
             _minter1,
-            retrieveAmount,
+            retrievalAmount,
             _protocol.retrievalNonce() + 1
         );
 
-        // First retrieve request
+        // First retrieval proposal
         vm.expectEmit();
-        emit RetrievalCreated(expectedRetrievalId, _minter1, retrieveAmount);
+        emit RetrievalCreated(expectedRetrievalId, _minter1, retrievalAmount);
 
         vm.prank(_minter1);
-        uint256 retrievalId = _protocol.proposeRetrieval(retrieveAmount);
+        uint256 retrievalId = _protocol.proposeRetrieval(retrievalAmount);
 
         assertEq(retrievalId, expectedRetrievalId);
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), retrieveAmount);
-        assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), retrieveAmount);
+        assertEq(_protocol.totalPendingCollateralRetrievalOf(_minter1), retrievalAmount);
+        assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), retrievalAmount);
 
-        // Second retrieve request
+        // Second retrieval proposal
         vm.prank(_minter1);
-        uint256 newRetrievalId = _protocol.proposeRetrieval(retrieveAmount);
+        uint256 newRetrievalId = _protocol.proposeRetrieval(retrievalAmount);
 
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), retrieveAmount * 2);
-        assertEq(_protocol.pendingRetrievalsOf(_minter1, newRetrievalId), retrieveAmount);
+        assertEq(_protocol.totalPendingCollateralRetrievalOf(_minter1), retrievalAmount * 2);
+        assertEq(_protocol.pendingRetrievalsOf(_minter1, newRetrievalId), retrievalAmount);
 
         uint256[] memory retrievalIds = new uint256[](1);
         retrievalIds[0] = newRetrievalId;
@@ -1332,11 +1332,11 @@ contract ProtocolTests is Test {
             _validator1Pk
         );
 
-        // Close first retrieve request
+        // Close first retrieval proposal
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), retrieveAmount);
+        assertEq(_protocol.totalPendingCollateralRetrievalOf(_minter1), retrievalAmount);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, newRetrievalId), 0);
 
         retrievalIds[0] = retrievalId;
@@ -1353,11 +1353,11 @@ contract ProtocolTests is Test {
 
         timestamps[0] = timestamp;
 
-        // Close second retrieve request
+        // Close second retrieval request
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        assertEq(_protocol.totalCollateralPendingRetrievalOf(_minter1), 0);
+        assertEq(_protocol.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_protocol.pendingRetrievalsOf(_minter1, retrievalId), 0);
     }
 
@@ -1392,13 +1392,13 @@ contract ProtocolTests is Test {
             bytes32(uint256(0))
         );
 
-        uint256[] memory retrieveIds = new uint256[](0);
+        uint256[] memory retrievalIds = new uint256[](0);
         address[] memory validators = new address[](0);
         uint256[] memory timestamps = new uint256[](0);
         bytes[] memory signatures = new bytes[](0);
 
         vm.prank(_minter1);
-        _protocol.updateCollateral(100, retrieveIds, bytes32(0), validators, timestamps, signatures);
+        _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         assertEq(_protocol.collateralOf(_minter1), 100);
         assertEq(_protocol.lastUpdateOf(_minter1), block.timestamp);
@@ -1462,7 +1462,7 @@ contract ProtocolTests is Test {
         address minter,
         uint256 collateral,
         uint256[] memory retrievalIds,
-        bytes32 metadata,
+        bytes32 metadataHash,
         uint256 timestamp,
         uint256 privateKey
     ) internal view returns (bytes memory) {
@@ -1473,7 +1473,7 @@ contract ProtocolTests is Test {
                     minter,
                     collateral,
                     retrievalIds,
-                    metadata,
+                    metadataHash,
                     timestamp
                 ),
                 privateKey

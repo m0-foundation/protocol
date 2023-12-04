@@ -9,7 +9,7 @@ import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
 
 contract EarnerRateModel is IEarnerRateModel {
-    uint256 internal constant _ONE_HUNDRED_PERCENT = 10_000; // Basis points.
+    uint256 internal constant _ONE = 10_000; // 100% in basis points.
 
     address public immutable mToken;
     address public immutable protocol;
@@ -21,10 +21,6 @@ contract EarnerRateModel is IEarnerRateModel {
         if ((mToken = IProtocol(protocol_).mToken()) == address(0)) revert ZeroMToken();
     }
 
-    function baseRate() public view returns (uint256 baseRate_) {
-        return SPOGRegistrarReader.getBaseEarnerRate(spogRegistrar);
-    }
-
     function rate() external view returns (uint256 rate_) {
         uint256 totalActiveOwedM_ = IProtocol(protocol).totalActiveOwedM();
 
@@ -34,13 +30,14 @@ contract EarnerRateModel is IEarnerRateModel {
 
         if (totalEarningSupply_ == 0) return baseRate();
 
-        uint256 utilization_ = (totalActiveOwedM_ * _ONE_HUNDRED_PERCENT) / totalEarningSupply_;
+        uint256 utilization_ = (totalActiveOwedM_ * _ONE) / totalEarningSupply_;
 
-        return
-            _min(
-                baseRate() * _min(_ONE_HUNDRED_PERCENT, utilization_),
-                IProtocol(protocol).minterRate() * utilization_
-            ) / _ONE_HUNDRED_PERCENT;
+        // TODO: optimize this formula at least for readability
+        return _min(baseRate() * _min(_ONE, utilization_), IProtocol(protocol).minterRate() * utilization_) / _ONE;
+    }
+
+    function baseRate() public view returns (uint256 baseRate_) {
+        return SPOGRegistrarReader.getBaseEarnerRate(spogRegistrar);
     }
 
     function _min(uint256 a_, uint256 b_) internal pure returns (uint256) {

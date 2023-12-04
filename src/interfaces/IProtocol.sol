@@ -58,11 +58,9 @@ interface IProtocol is IContinuousIndexing {
         address indexed minter,
         uint256 collateral,
         uint256[] indexed retrievalIds,
-        bytes32 indexed metadata,
+        bytes32 indexed metadataHash,
         uint256 timestamp
     );
-
-    event MintCanceled(uint256 indexed mintId, address indexed canceller);
 
     /**
      * @notice Emitted when a minter is activated.
@@ -74,26 +72,18 @@ interface IProtocol is IContinuousIndexing {
     /**
      * @notice Emitted when a minter is deactivated.
      * @param minter Address of the minter that was deactivated
-     * @param owedM Amount of M tokens owed by the minter
+     * @param inactiveOwedM Amount of M tokens owed by the minter
      * @param caller Address who called the function
      */
-    event MinterDeactivated(address indexed minter, uint256 owedM, address indexed caller);
-
-    event MinterFrozen(address indexed minter, uint256 frozenUntil, address indexed validator);
+    event MinterDeactivated(address indexed minter, uint256 inactiveOwedM, address indexed caller);
 
     event MinterFrozen(address indexed minter, uint256 frozenUntil);
 
-    event MinterRemoved(address indexed minter, uint256 inactiveOwedM);
+    event MintCanceled(uint256 indexed mintId, address indexed canceller);
 
     event MintExecuted(uint256 indexed mintId);
 
     event MintProposed(uint256 indexed mintId, address indexed minter, uint256 amount, address indexed destination);
-
-    event MintRequestCanceled(uint256 indexed mintId, address indexed caller);
-
-    event MintRequestExecuted(uint256 indexed mintId);
-
-    event PenaltyAccrued(address indexed minter, uint256 amount);
 
     event PenaltyImposed(address indexed minter, uint256 amount);
 
@@ -143,7 +133,7 @@ interface IProtocol is IContinuousIndexing {
 
     /**
      * @notice Executes minting of M tokens
-     * @param mintId The id of outstanding mint request for minter
+     * @param mintId The id of outstanding mint proposal for minter
      */
     function mintM(uint256 mintId) external;
 
@@ -154,21 +144,27 @@ interface IProtocol is IContinuousIndexing {
      */
     function proposeMint(uint256 amount, address destination) external returns (uint256 mintId);
 
+    /**
+     * @notice Proposes retrieval of minter's offchain collateral
+     * @param collateral The amount of collateral to retrieve
+     * @param retrievalId The unique id of outstanding retrieval proposal
+     */
     function proposeRetrieval(uint256 collateral) external returns (uint256 retrievalId);
 
     /**
      * @notice Updates collateral for minters
      * @param collateral The amount of collateral
-     * @param metadata The metadata of the update, reserved for future informational use
-     * @param retrieveIds The list of active proposeRetrieval requests to close
-     * @param timestamps The list of timestamps of validators' signatures
+     * @param retrievalIds The list of active proposeRetrieval requests to close
+     * @param metadataHash The hash of metadata of the collateral update, reserved for future informational use
      * @param validators The list of validators
+     * @param timestamps The list of timestamps of validators' signatures
      * @param signatures The list of signatures
+     * @return minTimestamp_ The minimum timestamp of all validators' signatures
      */
     function updateCollateral(
         uint256 collateral,
-        uint256[] calldata retrieveIds,
-        bytes32 metadata,
+        uint256[] calldata retrievalIds,
+        bytes32 metadataHash,
         address[] calldata validators,
         uint256[] calldata timestamps,
         bytes[] calldata signatures
@@ -223,8 +219,6 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The inactive owed M for a given active minter
     function inactiveOwedMOf(address minter) external view returns (uint256 inactiveOwedM);
 
-    function latestMinterRate() external view returns (uint256 latestMinterRate);
-
     function lastUpdateIntervalOf(address minter) external view returns (uint256 lastUpdateInterval);
 
     function lastUpdateOf(address minter) external view returns (uint256 lastUpdate);
@@ -235,7 +229,7 @@ interface IProtocol is IContinuousIndexing {
 
     function minterRate() external view returns (uint256 minterRate);
 
-    /// @notice The mint proposal of minters, only 1 request per minter
+    /// @notice The mint proposal of minters, only 1 active proposal per minter
     function mintProposalOf(
         address minter
     ) external view returns (uint256 mintId, address destination, uint256 amount, uint256 createdAt);
@@ -251,7 +245,7 @@ interface IProtocol is IContinuousIndexing {
 
     function penaltyRate() external view returns (uint256 penaltyRate);
 
-    /// @notice The minter's proposeRetrieval request amount
+    /// @notice The minter's proposeRetrieval proposal amount
     function pendingRetrievalsOf(address minter, uint256 retrievalId) external view returns (uint256 collateral);
 
     function rateModel() external view returns (address rateModel);
@@ -266,7 +260,7 @@ interface IProtocol is IContinuousIndexing {
     function totalActiveOwedM() external view returns (uint256 totalActiveOwedM);
 
     /// @notice The total amount of active proposeRetrieval requests per minter
-    function totalCollateralPendingRetrievalOf(address minter) external view returns (uint256 collateral);
+    function totalPendingCollateralRetrievalOf(address minter) external view returns (uint256 collateral);
 
     /// @notice The total owed M for all inactive minters
     function totalInactiveOwedM() external view returns (uint256 totalInactiveOwedM);
@@ -274,7 +268,6 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The total owed M for all minters
     function totalOwedM() external view returns (uint256 totalOwedM);
 
-    /// @notice The mint requests of minters, only 1 request per minter
     function unfrozenTimeOf(address minter) external view returns (uint256 timestamp);
 
     function updateCollateralInterval() external view returns (uint256 updateCollateralInterval);
