@@ -6,7 +6,9 @@
   "author": "mZero Labs <contact@m0.xyz>",
   "license": "GPL-3.0",
   "scripts": {
+    "coverage": "forge coverage --report lcov && lcov --extract lcov.info -o lcov.info 'src/*'",
     "prettier": "prettier --write 'script/**/*.sol' 'src/**/*.sol' 'test/**/*.sol'",
+    "slither": "forge build --build-info --skip '*/test/**' --skip '*/script/**' --force && slither --compile-force-framework foundry --ignore-compile --config-file slither.config.json --fail-high .",
     "solhint": "solhint -f stylish 'src/**/*.sol'",
     "solhint-fix": "solhint --fix 'src/**/*.sol'"
   },
