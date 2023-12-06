@@ -85,7 +85,7 @@ contract ProtocolTests is Test {
         _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validator2);
 
         _spogRegistrar.updateConfig(
-            SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD,
+            SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD,
             _updateCollateralThreshold
         );
         _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval);
@@ -230,7 +230,7 @@ contract ProtocolTests is Test {
     }
 
     function test_updateCollateral_notEnoughValidSignatures() external {
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD, 3);
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
 
         uint256 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
@@ -1151,10 +1151,7 @@ contract ProtocolTests is Test {
     }
 
     function test_proposeRetrieval_xxx() external {
-        _spogRegistrar.updateConfig(
-            SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD,
-            bytes32(uint256(2))
-        );
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(2)));
 
         uint256 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
@@ -1387,10 +1384,7 @@ contract ProtocolTests is Test {
     }
 
     function test_updateCollateral_zeroThreshold() external {
-        _spogRegistrar.updateConfig(
-            SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD,
-            bytes32(uint256(0))
-        );
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(0)));
 
         uint256[] memory retrievalIds = new uint256[](0);
         address[] memory validators = new address[](0);
@@ -1405,10 +1399,7 @@ contract ProtocolTests is Test {
     }
 
     function test_updateCollateral_someSignaturesAreInvalid() external {
-        _spogRegistrar.updateConfig(
-            SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD,
-            bytes32(uint256(1))
-        );
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(1)));
 
         uint256[] memory retrievalIds = new uint256[](0);
 

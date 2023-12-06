@@ -85,7 +85,7 @@ contract IntegrationTests is Test {
         _registrar.updateConfig(SPOGRegistrarReader.BASE_MINTER_RATE, _baseMinterRate);
         _registrar.updateConfig(SPOGRegistrarReader.EARNER_RATE_MODEL, earnerRateModel_);
         _registrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, minterRateModel_);
-        _registrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD, 1);
+        _registrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 1);
         _registrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateInterval);
         _registrar.updateConfig(SPOGRegistrarReader.MINT_DELAY, _mintDelay);
         _registrar.updateConfig(SPOGRegistrarReader.MINT_TTL, _mintTtl);
