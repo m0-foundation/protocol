@@ -194,7 +194,7 @@ interface IProtocol is IContinuousIndexing {
 
     function excessActiveOwedM() external view returns (uint256 getExcessOwedM);
 
-    function getMaxAllowedOwedM(address minter_) external view returns (uint256 maxAllowedOwedM);
+    function maxAllowedActiveOwedMOf(address minter_) external view returns (uint256 maxAllowedOwedM);
 
     /**
      * @notice Returns the penalty for expired collateral value.

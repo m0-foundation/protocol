@@ -61,19 +61,21 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     uint256 internal _totalInactiveOwedM;
 
     mapping(address minter => bool isActiveMinter) internal _isActiveMinter;
-    mapping(address minter => uint256 collateral) internal _collaterals;
-    mapping(address minter => uint256 inactiveOwedM) internal _inactiveOwedM;
-    mapping(address minter => uint256 activeOwedM) internal _principalOfActiveOwedM;
-    mapping(address minter => uint256 totalPendingCollateralRetrieval) internal _totalPendingCollateralRetrievals;
-
-    mapping(address minter => uint256 updateInterval) internal _lastUpdateIntervals;
-    mapping(address minter => uint256 lastUpdate) internal _lastCollateralUpdates;
-    mapping(address minter => uint256 penalizedUntil) internal _penalizedUntilTimestamps;
-    mapping(address minter => uint256 unfrozenTime) internal _unfrozenTimestamps;
 
     mapping(address minter => MintProposal proposal) internal _mintProposals;
 
+    mapping(address minter => uint256 amount) internal _inactiveOwedM;
+    mapping(address minter => uint256 principal) internal _principalOfActiveOwedM;
+
+    mapping(address minter => uint256 collateral) internal _collaterals;
+    mapping(address minter => uint256 updateInterval) internal _lastUpdateIntervals;
+    mapping(address minter => uint256 timestamp) internal _lastCollateralUpdates;
+    mapping(address minter => uint256 timestamp) internal _penalizedUntilTimestamps;
+
+    mapping(address minter => uint256 collateral) internal _totalPendingCollateralRetrievals;
     mapping(address minter => mapping(uint256 retrievalId => uint256 amount)) internal _pendingCollateralRetrievals;
+
+    mapping(address minter => uint256 timestamp) internal _unfrozenTimestamps;
 
     /******************************************************************************************************************\
     |                                            Modifiers and Constructor                                             |
@@ -360,7 +362,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function getMaxAllowedOwedM(address minter_) public view returns (uint256 maxAllowedOwedM_) {
+    function maxAllowedActiveOwedMOf(address minter_) public view returns (uint256 maxAllowedOwedM_) {
         return (collateralOf(minter_) * mintRatio()) / ONE;
     }
 
@@ -542,12 +544,12 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @param minter_ The address of the minter
      */
     function _imposePenaltyIfUndercollateralized(address minter_) internal {
-        uint256 maxAllowedOwedM_ = getMaxAllowedOwedM(minter_);
+        uint256 maxAllowedActiveOwedM_ = maxAllowedActiveOwedMOf(minter_);
         uint256 activeOwedM_ = activeOwedMOf(minter_);
 
-        if (maxAllowedOwedM_ >= activeOwedM_) return;
+        if (maxAllowedActiveOwedM_ >= activeOwedM_) return;
 
-        _imposePenalty(minter_, activeOwedM_ - maxAllowedOwedM_);
+        _imposePenalty(minter_, activeOwedM_ - maxAllowedActiveOwedM_);
     }
 
     /**
@@ -738,11 +740,12 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @param additionalOwedM_ The amount of additional owed M the action will add to minter's position
      */
     function _revertIfUndercollateralized(address minter_, uint256 additionalOwedM_) internal view {
-        uint256 maxAllowedOwedM_ = getMaxAllowedOwedM(minter_);
+        uint256 maxAllowedActiveOwedM_ = maxAllowedActiveOwedMOf(minter_);
         uint256 activeOwedM_ = activeOwedMOf(minter_);
         uint256 finalActiveOwedM_ = activeOwedM_ + additionalOwedM_;
 
-        if (finalActiveOwedM_ > maxAllowedOwedM_) revert Undercollateralized(finalActiveOwedM_, maxAllowedOwedM_);
+        if (finalActiveOwedM_ > maxAllowedActiveOwedM_)
+            revert Undercollateralized(finalActiveOwedM_, maxAllowedActiveOwedM_);
     }
 
     /**
