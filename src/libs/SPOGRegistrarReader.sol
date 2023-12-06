@@ -48,7 +48,7 @@ library SPOGRegistrarReader {
     bytes32 internal constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
 
     /// @notice The name of parameter that defines number of signatures required for successful collateral update
-    bytes32 internal constant UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD = "updateCollateral_threshold";
+    bytes32 internal constant UPDATE_COLLATERAL_VALIDATOR_THRESHOLD = "updateCollateral_threshold";
 
     /// @notice The validators list name in SPOG.
     bytes32 internal constant VALIDATORS_LIST = "validators";
@@ -94,7 +94,7 @@ library SPOGRegistrarReader {
     }
 
     function getUpdateCollateralValidatorThreshold(address registrar_) internal view returns (uint256 quorum_) {
-        return uint256(_get(registrar_, UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD));
+        return uint256(_get(registrar_, UPDATE_COLLATERAL_VALIDATOR_THRESHOLD));
     }
 
     function isApprovedEarner(address registrar_, address earner_) internal view returns (bool isApproved_) {
