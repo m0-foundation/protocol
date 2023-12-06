@@ -212,16 +212,16 @@ interface IProtocol is IContinuousIndexing {
      */
     function isActiveMinter(address minter) external view returns (bool isActive);
 
-    function isMinterApprovedByRegistrar(address minter_) external view returns (bool isApproved);
+    function isMinterApprovedBySPOG(address minter_) external view returns (bool isApproved);
 
-    function isValidatorApprovedByRegistrar(address validator_) external view returns (bool isApproved);
+    function isValidatorApprovedBySPOG(address validator_) external view returns (bool isApproved);
 
     /// @notice The inactive owed M for a given active minter
     function inactiveOwedMOf(address minter) external view returns (uint256 inactiveOwedM);
 
-    function lastUpdateIntervalOf(address minter) external view returns (uint256 lastUpdateInterval);
+    function lastCollateralUpdateIntervalOf(address minter) external view returns (uint256 lastUpdateInterval);
 
-    function lastUpdateOf(address minter) external view returns (uint256 lastUpdate);
+    function lastCollateralUpdateOf(address minter) external view returns (uint256 lastUpdate);
 
     function mintDelay() external view returns (uint256 mintDelay);
 
@@ -246,7 +246,10 @@ interface IProtocol is IContinuousIndexing {
     function penaltyRate() external view returns (uint256 penaltyRate);
 
     /// @notice The minter's proposeRetrieval proposal amount
-    function pendingRetrievalsOf(address minter, uint256 retrievalId) external view returns (uint256 collateral);
+    function pendingCollateralRetrievalOf(
+        address minter,
+        uint256 retrievalId
+    ) external view returns (uint256 collateral);
 
     function rateModel() external view returns (address rateModel);
 
@@ -260,7 +263,7 @@ interface IProtocol is IContinuousIndexing {
     function totalActiveOwedM() external view returns (uint256 totalActiveOwedM);
 
     /// @notice The total amount of active proposeRetrieval requests per minter
-    function totalPendingCollateralRetrievalOf(address minter) external view returns (uint256 collateral);
+    function totalPendingCollateralRetrievalsOf(address minter) external view returns (uint256 collateral);
 
     /// @notice The total owed M for all inactive minters
     function totalInactiveOwedM() external view returns (uint256 totalInactiveOwedM);
@@ -272,5 +275,5 @@ interface IProtocol is IContinuousIndexing {
 
     function updateCollateralInterval() external view returns (uint256 updateCollateralInterval);
 
-    function validatorThreshold() external view returns (uint256 threshold);
+    function updateCollateralValidatorThreshold() external view returns (uint256 threshold);
 }
