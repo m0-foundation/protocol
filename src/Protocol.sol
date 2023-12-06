@@ -248,6 +248,24 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
+    function cancelMint(address minter_, uint256 mintId_) external onlyApprovedValidator {
+        if (_mintProposals[minter_].id != mintId_) revert InvalidMintProposal();
+
+        delete _mintProposals[minter_];
+
+        emit MintCanceled(mintId_, msg.sender);
+    }
+
+    /// @inheritdoc IProtocol
+    function freezeMinter(address minter_) external onlyApprovedValidator returns (uint256 frozenUntil_) {
+        _revertIfInactiveMinter(minter_);
+
+        frozenUntil_ = block.timestamp + minterFreezeTime();
+
+        emit MinterFrozen(minter_, _unfrozenTimestamps[minter_] = frozenUntil_);
+    }
+
+    /// @inheritdoc IProtocol
     function activateMinter(address minter_) external {
         if (!isMinterApprovedBySPOG(minter_)) revert NotApprovedMinter();
         if (_isActiveMinter[minter_]) revert AlreadyActiveMinter();
@@ -286,24 +304,6 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the
         //       deactivation can result in a new rate, we should update the index here to lock in that rate.
         updateIndex();
-    }
-
-    /// @inheritdoc IProtocol
-    function cancelMint(address minter_, uint256 mintId_) external onlyApprovedValidator {
-        if (_mintProposals[minter_].id != mintId_) revert InvalidMintProposal();
-
-        delete _mintProposals[minter_];
-
-        emit MintCanceled(mintId_, msg.sender);
-    }
-
-    /// @inheritdoc IProtocol
-    function freezeMinter(address minter_) external onlyApprovedValidator returns (uint256 frozenUntil_) {
-        _revertIfInactiveMinter(minter_);
-
-        frozenUntil_ = block.timestamp + minterFreezeTime();
-
-        emit MinterFrozen(minter_, _unfrozenTimestamps[minter_] = frozenUntil_);
     }
 
     /// @inheritdoc IContinuousIndexing
@@ -354,6 +354,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
+    function minterRate() external view returns (uint256 minterRate_) {
+        return _latestRate;
+    }
+
+    /// @inheritdoc IProtocol
     function activeOwedMOf(address minter_) public view returns (uint256 activeOwedM_) {
         // TODO: This should also include the present value of unavoidable penalities. But then it would be very, if not
         //       impossible, to determine the `totalActiveOwedM` to the same standards. Perhaps we need a `penaltiesOf`
@@ -381,6 +386,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
+    function collateralUpdateOf(address minter_) external view returns (uint256 lastUpdate_) {
+        return _lastCollateralUpdates[minter_];
+    }
+
+    /// @inheritdoc IProtocol
     function collateralUpdateDeadlineOf(address minter_) public view returns (uint256 updateDeadline_) {
         return _lastCollateralUpdates[minter_] + _lastUpdateIntervals[minter_];
     }
@@ -388,11 +398,6 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @inheritdoc IProtocol
     function lastCollateralUpdateIntervalOf(address minter_) external view returns (uint256 lastUpdateInterval_) {
         return _lastUpdateIntervals[minter_];
-    }
-
-    /// @inheritdoc IProtocol
-    function lastCollateralUpdateOf(address minter_) external view returns (uint256 lastUpdate_) {
-        return _lastCollateralUpdates[minter_];
     }
 
     /// @inheritdoc IProtocol
@@ -428,11 +433,6 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @inheritdoc IProtocol
     function totalPendingCollateralRetrievalsOf(address minter_) external view returns (uint256 collateral_) {
         return _totalPendingCollateralRetrievals[minter_];
-    }
-
-    /// @inheritdoc IProtocol
-    function minterRate() external view returns (uint256 minterRate_) {
-        return _latestRate;
     }
 
     /// @inheritdoc IProtocol
