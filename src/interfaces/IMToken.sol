@@ -83,7 +83,7 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     function stopEarning(address account) external;
 
     /**
-     * @notice Opt out of earning so mobody except caller can trigget start earning for them.
+     * @notice Opt out of earning so nobody except caller can trigger the start earning for the caller.
      */
     function optOutOfEarning() external;
 
