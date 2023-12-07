@@ -278,6 +278,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @inheritdoc IProtocol
     function deactivateMinter(address minter_) external returns (uint256 inactiveOwedM_) {
         if (isMinterApprovedBySPOG(minter_)) revert StillApprovedMinter();
+
         _revertIfInactiveMinter(minter_);
 
         // NOTE: Instead of imposing, calculate penalty and add it to `_inactiveOwedM` to save gas.
