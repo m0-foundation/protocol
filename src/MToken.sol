@@ -350,6 +350,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     /**
      * @notice Reverts is account is not approved earner.
+     * @param account_ The account to check.
      */
     function _revertIfNotApprovedEarner(address account_) internal view {
         if (!_isApprovedEarner(account_)) revert NotApprovedEarner();
