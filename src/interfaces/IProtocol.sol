@@ -119,7 +119,6 @@ interface IProtocol is IContinuousIndexing {
     /**
      * @notice Emitted when mint proposal is canceled.
      * @param mintId The id of mint proposal
-     * @param minter The address of the minter
      * @param canceller The address of validator who cancelled the mint proposal
      */
     event MintCanceled(uint256 indexed mintId, address indexed canceller);
@@ -134,7 +133,7 @@ interface IProtocol is IContinuousIndexing {
      * @notice Emitted when M tokens are burned and minter's owed M balance descreased.
      * @param minter The address of the minter
      * @param amount The amount of M tokens to burn
-     * @param destination The address of the payer
+     * @param payer The address of the payer
      */
     event BurnExecuted(address indexed minter, uint256 amount, address indexed payer);
 
