@@ -47,11 +47,11 @@ contract ProtocolHarness is Protocol {
         _collaterals[minter_] = collateral_;
     }
 
-    function setcollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
+    function setCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
         _lastCollateralUpdates[minter_] = lastUpdated_;
     }
 
-    function setlastCollateralUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
+    function setLastCollateralUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
         _lastUpdateIntervals[minter_] = updateInterval_;
     }
 
