@@ -92,26 +92,26 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     \******************************************************************************************************************/
 
     /// @notice The address of the Protocol contract.
-    function protocol() external view returns (address protocol);
+    function protocol() external view returns (address);
 
     /// @notice The address of the SPOG Registrar contract.
-    function spogRegistrar() external view returns (address spogRegistrar);
+    function spogRegistrar() external view returns (address);
 
     /// @notice The address of SPOG approved earner rate model.
-    function rateModel() external view returns (address rateModel);
+    function rateModel() external view returns (address);
 
     /// @notice The current value of earner rate in bps.
-    function earnerRate() external view returns (uint256 rate);
+    function earnerRate() external view returns (uint256);
 
     /// @notice The total earning supply of M Token.
-    function totalEarningSupply() external view returns (uint256 totalEarningSupply);
+    function totalEarningSupply() external view returns (uint256);
 
     /// @notice The total non-earning supply of M Token.
-    function totalNonEarningSupply() external view returns (uint256 totalNonEarningSupply);
+    function totalNonEarningSupply() external view returns (uint256);
 
     /// @notice Checks if account is an earner.
-    function isEarning(address account) external view returns (bool isEarning);
+    function isEarning(address account) external view returns (bool);
 
     /// @notice Checks if account has opted out of earning.
-    function hasOptedOutOfEarning(address account) external view returns (bool hasOpted);
+    function hasOptedOutOfEarning(address account) external view returns (bool);
 }
