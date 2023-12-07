@@ -178,7 +178,7 @@ interface IProtocol is IContinuousIndexing {
     /**
      * @notice Proposes retrieval of minter's offchain collateral
      * @param collateral The amount of collateral to retrieve
-     * @param retrievalId The unique id of outstanding retrieval proposal
+     * @return retrievalId The unique id of created retrieval proposal
      */
     function proposeRetrieval(uint256 collateral) external returns (uint256 retrievalId);
 
@@ -186,6 +186,7 @@ interface IProtocol is IContinuousIndexing {
      * @notice Proposes minting of M tokens
      * @param amount The amount of M tokens to mint
      * @param destination The address to mint to
+     * @return mintId The unique id of created mint proposal
      */
     function proposeMint(uint256 amount, address destination) external returns (uint256 mintId);
 
@@ -213,6 +214,7 @@ interface IProtocol is IContinuousIndexing {
     /**
      * @notice Freezes minter
      * @param minter The address of the minter to freeze
+     * @return frozenUntil_ The timestamp until which minter is frozen
      */
     function freezeMinter(address minter) external returns (uint256 frozenUntil_);
 
@@ -238,61 +240,61 @@ interface IProtocol is IContinuousIndexing {
     \******************************************************************************************************************/
 
     /// @notice Descaler for variables in basis points. Effectively, 100% in basis points.
-    function ONE() external pure returns (uint256 one);
+    function ONE() external pure returns (uint256);
 
     /// @notice The EIP-712 typehash for the `updateCollateral` method.
-    function UPDATE_COLLATERAL_TYPEHASH() external pure returns (bytes32 typehash);
+    function UPDATE_COLLATERAL_TYPEHASH() external pure returns (bytes32);
 
     /// @notice The address of M token
-    function mToken() external view returns (address mToken);
+    function mToken() external view returns (address);
 
     /// @notice The address of SPOG Registrar contract.
-    function spogRegistrar() external view returns (address spogRegistrar);
+    function spogRegistrar() external view returns (address);
 
     /// @notice The address of SPOG Vault contract.
-    function spogVault() external view returns (address spogVault);
+    function spogVault() external view returns (address);
 
     /// @notice The last saved value of Minter rate.
-    function minterRate() external view returns (uint256 minterRate);
+    function minterRate() external view returns (uint256);
 
     /// @notice The total owed M for all active minters.
-    function totalActiveOwedM() external view returns (uint256 totalActiveOwedM);
+    function totalActiveOwedM() external view returns (uint256);
 
     /// @notice The total owed M for all inactive minters.
-    function totalInactiveOwedM() external view returns (uint256 totalInactiveOwedM);
+    function totalInactiveOwedM() external view returns (uint256);
 
     /// @notice The total owed M for all minters.
-    function totalOwedM() external view returns (uint256 totalOwedM);
+    function totalOwedM() external view returns (uint256);
 
     /// @notice The difference between total active owed M and M token total supply.
-    function excessActiveOwedM() external view returns (uint256 excessActiveOwedM);
+    function excessActiveOwedM() external view returns (uint256);
 
     /// @notice The active owed M of minter.
-    function activeOwedMOf(address minter) external view returns (uint256 activeOwedM);
+    function activeOwedMOf(address minter) external view returns (uint256);
 
     /// @notice The max allowed active owed M of minter taking into account collateral amount and retrival proposals.
-    function maxAllowedActiveOwedMOf(address minter_) external view returns (uint256 maxAllowedOwedM);
+    function maxAllowedActiveOwedMOf(address minter_) external view returns (uint256);
 
     /// @notice The inactive owed M of deactivated minter.
-    function inactiveOwedMOf(address minter) external view returns (uint256 inactiveOwedM);
+    function inactiveOwedMOf(address minter) external view returns (uint256);
 
     /// @notice The collateral of a given minter.
-    function collateralOf(address minter) external view returns (uint256 collateral);
+    function collateralOf(address minter) external view returns (uint256);
 
     /// @notice The timestamp of the last collateral update of minter.
-    function collateralUpdateOf(address minter) external view returns (uint256 lastUpdate);
+    function collateralUpdateOf(address minter) external view returns (uint256);
 
     /// @notice The timestamp of the deadline for the next collateral update of minter.
-    function collateralUpdateDeadlineOf(address minter) external view returns (uint256 lastUpdateDeadline);
+    function collateralUpdateDeadlineOf(address minter) external view returns (uint256);
 
     /// @notice The length of the last collateral interval for minter in case SPOG changes this parameter.
-    function lastCollateralUpdateIntervalOf(address minter) external view returns (uint256 lastUpdateInterval);
+    function lastCollateralUpdateIntervalOf(address minter) external view returns (uint256);
 
     /// @notice The timestamp until which minter is already penalized for missed collateral updates.
-    function penalizedUntilOf(address minter) external view returns (uint256 penalizedUntil);
+    function penalizedUntilOf(address minter) external view returns (uint256);
 
     /// @notice The penalty for missed collateral updates. Penalized once per missed interval.
-    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint256 penalty);
+    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint256);
 
     /// @notice The mint proposal of minters, only 1 active proposal per minter
     function mintProposalOf(
@@ -306,41 +308,41 @@ interface IProtocol is IContinuousIndexing {
     ) external view returns (uint256 collateral);
 
     /// @notice The total amount of active proposeRetrieval requests per minter
-    function totalPendingCollateralRetrievalsOf(address minter) external view returns (uint256 collateral);
+    function totalPendingCollateralRetrievalsOf(address minter) external view returns (uint256);
 
     /// @notice The timestamp when minter becomes unfrozen after being frozen by validator.
-    function unfrozenTimeOf(address minter) external view returns (uint256 timestamp);
+    function unfrozenTimeOf(address minter) external view returns (uint256);
 
     /// @notice Checks if minter was activated after approval by SPOG
-    function isActiveMinter(address minter) external view returns (bool isActive);
+    function isActiveMinter(address minter) external view returns (bool);
 
     /// @notice Checks if minter was approved by SPOG
-    function isMinterApprovedBySPOG(address minter_) external view returns (bool isApproved);
+    function isMinterApprovedBySPOG(address minter_) external view returns (bool);
 
     /// @notice Checks if validator was approved by SPOG
-    function isValidatorApprovedBySPOG(address validator_) external view returns (bool isApproved);
+    function isValidatorApprovedBySPOG(address validator_) external view returns (bool);
 
     /// @notice The delay between mint proposal creation and its earliest execution.
-    function mintDelay() external view returns (uint256 mintDelay);
+    function mintDelay() external view returns (uint256);
 
     /// @notice The time while mint request can still be processed before it is considered expired.
-    function mintTTL() external view returns (uint256 mintTTL);
+    function mintTTL() external view returns (uint256);
 
     /// @notice The freeze time for minter.
-    function minterFreezeTime() external view returns (uint256 minterFreezeTime);
+    function minterFreezeTime() external view returns (uint256);
 
     /// @notice The allowed activeOwedM to collateral ratio.
-    function mintRatio() external view returns (uint256 mintRatio);
+    function mintRatio() external view returns (uint256);
 
     /// @notice The % that defines penalty amount for missed collateral updates or excessive owedM value
-    function penaltyRate() external view returns (uint256 penaltyRate);
+    function penaltyRate() external view returns (uint256);
 
     /// @notice The smart contract that defines the minter rate.
-    function rateModel() external view returns (address rateModel);
+    function rateModel() external view returns (address);
 
     /// @notice The interval that defines the required frequency of collateral updates.
-    function updateCollateralInterval() external view returns (uint256 updateCollateralInterval);
+    function updateCollateralInterval() external view returns (uint256);
 
     /// @notice The number of signatures required for successful collateral update.
-    function updateCollateralValidatorThreshold() external view returns (uint256 threshold);
+    function updateCollateralValidatorThreshold() external view returns (uint256);
 }
