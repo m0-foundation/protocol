@@ -272,7 +272,7 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The active owed M of minter.
     function activeOwedMOf(address minter) external view returns (uint256);
 
-    /// @notice The max allowed active owed M of minter taking into account collateral amount and retrival proposals.
+    /// @notice The max allowed active owed M of minter taking into account collateral amount and retrieval proposals.
     function maxAllowedActiveOwedMOf(address minter_) external view returns (uint256);
 
     /// @notice The inactive owed M of deactivated minter.
