@@ -650,7 +650,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /**
      * @notice Returns the principal amount of M given the present value and the current index.
-     * @dev present = pricipal * index
+     * @dev present = principal * index
      * @param presentValue_ The present value of M
      */
     function _getPrincipalValue(uint256 presentValue_) internal view returns (uint256 principalValue_) {
