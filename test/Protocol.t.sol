@@ -282,7 +282,7 @@ contract ProtocolTests is Test {
         _protocol.setLastCollateralUpdateOf(_minter1, block.timestamp);
         _protocol.setLastUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint256 expectedMintId = _protocol.getMintId(_minter1, amount, _alice, _protocol.mintNonce() + 1);
+        uint256 expectedMintId = _protocol.mintNonce() + 1;
 
         vm.expectEmit();
         emit MintProposed(expectedMintId, _minter1, amount, _alice);
@@ -581,7 +581,7 @@ contract ProtocolTests is Test {
         // fast-forward to the time when minter is unfrozen
         vm.warp(frozenUntil);
 
-        uint256 expectedMintId = _protocol.getMintId(_minter1, amount, _alice, _protocol.mintNonce() + 1);
+        uint256 expectedMintId = _protocol.mintNonce() + 1;
 
         vm.expectEmit();
         emit MintProposed(expectedMintId, _minter1, amount, _alice);
@@ -1195,7 +1195,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        uint256 expectedRetrievalId = _protocol.getRetrievalId(_minter1, collateral, _protocol.retrievalNonce() + 1);
+        uint256 expectedRetrievalId = _protocol.retrievalNonce() + 1;
 
         vm.expectEmit();
         emit RetrievalCreated(expectedRetrievalId, _minter1, collateral);
@@ -1288,11 +1288,7 @@ contract ProtocolTests is Test {
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, amount);
 
         uint256 retrievalAmount = 10e18;
-        uint256 expectedRetrievalId = _protocol.getRetrievalId(
-            _minter1,
-            retrievalAmount,
-            _protocol.retrievalNonce() + 1
-        );
+        uint256 expectedRetrievalId = _protocol.retrievalNonce() + 1;
 
         // First retrieval proposal
         vm.expectEmit();
