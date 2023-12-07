@@ -130,7 +130,7 @@ interface IProtocol is IContinuousIndexing {
     event MintExecuted(uint256 indexed mintId);
 
     /**
-     * @notice Emitted when M tokens are burned and minter's owed M balance descreased.
+     * @notice Emitted when M tokens are burned and minter's owed M balance decreased.
      * @param minter The address of the minter
      * @param amount The amount of M tokens to burn
      * @param payer The address of the payer
