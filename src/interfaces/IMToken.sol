@@ -11,7 +11,7 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     |                                                     Errors                                                       |
     \******************************************************************************************************************/
 
-    /// @notice Emitted when calling `startEarning` by already earning account.
+    /// @notice Emitted when calling `startEarning` by an already earning account.
     error AlreadyEarning();
 
     /// @notice Emitted when calling `stopEarning` by non-earning account.
