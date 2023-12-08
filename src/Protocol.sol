@@ -225,10 +225,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         _revertIfUndercollateralized(msg.sender, amount_); // Check that minter will remain sufficiently collateralized.
 
         unchecked {
-            _mintNonce++;
+            mintId_ = ++_mintNonce;
         }
-
-        mintId_ = uint256(keccak256(abi.encode(msg.sender, amount_, destination_, _mintNonce)));
 
         _mintProposals[msg.sender] = MintProposal(mintId_, destination_, amount_, block.timestamp);
 
@@ -237,10 +235,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     function proposeRetrieval(uint256 collateral_) external onlyActiveMinter returns (uint256 retrievalId_) {
         unchecked {
-            _retrievalNonce++;
+            retrievalId_ = ++_retrievalNonce;
         }
-
-        retrievalId_ = uint256(keccak256(abi.encode(msg.sender, collateral_, _retrievalNonce)));
 
         _totalPendingCollateralRetrieval[msg.sender] += collateral_;
         _pendingRetrievals[msg.sender][retrievalId_] = collateral_;
