@@ -25,8 +25,7 @@ contract ProtocolHarness is Protocol {
         uint256 createdAt_,
         address destination_
     ) external returns (uint256 mintId_) {
-        mintId_ = uint256(keccak256(abi.encodePacked(minter_, amount_, destination_, createdAt_)));
-
+        mintId_ = ++_mintNonce;
         _mintProposals[minter_] = MintProposal(mintId_, destination_, amount_, createdAt_);
     }
 
@@ -34,11 +33,11 @@ contract ProtocolHarness is Protocol {
         _collaterals[minter_] = collateral_;
     }
 
-    function setLastCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
+    function setCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
         _lastCollateralUpdates[minter_] = lastUpdated_;
     }
 
-    function setLastUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
+    function setLastCollateralUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
         _lastUpdateIntervals[minter_] = updateInterval_;
     }
 
