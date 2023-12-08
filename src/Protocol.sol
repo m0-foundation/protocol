@@ -42,7 +42,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @notice Address of SPOG Registrar contract (read only by Protocol).
     address public immutable spogRegistrar;
 
-    /// @notice The address of SPOG Distribution Vault os ZERO holders.
+    /// @inheritdoc IProtocol
     address public immutable spogVault;
 
     /// @notice The address of M Token.
