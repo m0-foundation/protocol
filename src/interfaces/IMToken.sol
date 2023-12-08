@@ -23,7 +23,7 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     /// @notice Emitted when calling `stopEarning` for an account approved as earner by SPOG.
     error IsApprovedEarner();
 
-    /// @notice Emitted when calling `startEarning` for an account if account is not approved by SPOG earner.
+    /// @notice Emitted when calling `startEarning` for an account not approved as earner by SPOG.
     error NotApprovedEarner();
 
     /// @notice Emitted when calling `mint`, `burn` not by Protocol.
