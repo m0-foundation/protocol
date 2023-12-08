@@ -15,19 +15,6 @@ contract ProtocolHarness is Protocol {
         return _retrievalNonce;
     }
 
-    function getMintId(
-        address minter_,
-        uint256 amount_,
-        address destination_,
-        uint256 nonce_
-    ) external pure returns (uint256) {
-        return uint256(keccak256(abi.encode(minter_, amount_, destination_, nonce_)));
-    }
-
-    function getRetrievalId(address minter_, uint256 collateral_, uint256 nonce_) external pure returns (uint256) {
-        return uint256(keccak256(abi.encode(minter_, collateral_, nonce_)));
-    }
-
     function setActiveMinter(address minter_, bool isActive_) external {
         _isActiveMinter[minter_] = isActive_;
     }
@@ -38,8 +25,7 @@ contract ProtocolHarness is Protocol {
         uint256 createdAt_,
         address destination_
     ) external returns (uint256 mintId_) {
-        mintId_ = uint256(keccak256(abi.encodePacked(minter_, amount_, destination_, createdAt_)));
-
+        mintId_ = ++_mintNonce;
         _mintProposals[minter_] = MintProposal(mintId_, destination_, amount_, createdAt_);
     }
 
