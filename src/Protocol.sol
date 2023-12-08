@@ -39,7 +39,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
         0x22b57ca54bd15c6234b29e87aa1d76a0841b6e65e63d7acacef989de0bc3ff9e;
 
-    /// @notice Address of SPOG Registrar contract (read only by Protocol).
+    /// @inheritdoc IProtocol
     address public immutable spogRegistrar;
 
     /// @inheritdoc IProtocol
