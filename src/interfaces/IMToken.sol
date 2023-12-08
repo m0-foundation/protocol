@@ -39,7 +39,7 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     /// @notice Emitted when account stops being an M earner.
     event StoppedEarning(address indexed account);
 
-    /// @notice Emitted when account opts out of earning and caller attempt to start earning for them.
+    /// @notice Emitted when account opts out of earning and caller attempts to start earning for them.
     event OptedOutOfEarning(address indexed account);
 
     /******************************************************************************************************************\
