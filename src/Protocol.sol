@@ -45,7 +45,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @inheritdoc IProtocol
     address public immutable spogVault;
 
-    /// @notice The address of M Token.
+    /// @inheritdoc IProtocol
     address public immutable mToken;
 
     /// @notice Nonce used to generate unique mint proposal IDs.
