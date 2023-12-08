@@ -326,7 +326,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     \******************************************************************************************************************/
 
     /**
-     * @notice Checks is earner was approved by SPOG.
+     * @notice Checks if earner was approved by SPOG.
      * @param account_ The account to check.
      * @return isApproved_ True if approved, false otherwise.
      */
