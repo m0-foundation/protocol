@@ -100,7 +100,7 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     /// @notice The address of SPOG approved earner rate model.
     function rateModel() external view returns (address);
 
-    /// @notice The current value of earner rate in bps.
+    /// @notice The current value of earner rate in basis points.
     function earnerRate() external view returns (uint256);
 
     /// @notice The total earning supply of M Token.
