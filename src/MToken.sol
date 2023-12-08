@@ -139,7 +139,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         return _totalNonEarningSupply + totalEarningSupply();
     }
 
-    /// @notice See {IERC20-balanceOf}
+    /// @inheritdoc IERC20
     function balanceOf(address account_) external view returns (uint256 balance_) {
         return _isEarning[account_] ? _getPresentAmount(_balances[account_], currentIndex()) : _balances[account_];
     }
