@@ -68,13 +68,13 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     \******************************************************************************************************************/
 
     /// @inheritdoc IMToken
-    function burn(address account_, uint256 amount_) external onlyProtocol {
-        _burn(account_, amount_);
+    function mint(address account_, uint256 amount_) external onlyProtocol {
+        _mint(account_, amount_);
     }
 
     /// @inheritdoc IMToken
-    function mint(address account_, uint256 amount_) external onlyProtocol {
-        _mint(account_, amount_);
+    function burn(address account_, uint256 amount_) external onlyProtocol {
+        _burn(account_, amount_);
     }
 
     /// @inheritdoc IMToken
