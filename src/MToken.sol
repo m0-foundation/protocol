@@ -21,7 +21,7 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
  * @notice ERC20 M Token.
  */
 contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
-    /// @notice The Protocol address. The only entity that is allowed to mint and burn M.
+    /// @inheritdoc IMToken
     address public immutable protocol;
 
     /// @notice The address of SPOG Registrar
