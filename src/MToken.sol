@@ -162,7 +162,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     /**
      * @notice Adds principal to `_balances` of an earning account.
-     * @param account_ The account to add principal to.
+     * @param account_         The account to add principal to.
      * @param principalAmount_ The principal amount to add.
      */
     function _addEarningAmount(address account_, uint256 principalAmount_) internal {
