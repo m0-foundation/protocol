@@ -47,14 +47,14 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     \******************************************************************************************************************/
 
     /**
-     * @notice Mints M Token by protocol.
+     * @notice Mints tokens.
      * @param account The address of account to mint to.
      * @param amount The amount of M Token to mint.
      */
     function mint(address account, uint256 amount) external;
 
     /**
-     * @notice Burns M Token by protocol.
+     * @notice Burns tokens.
      * @param account The address of account to burn from.
      * @param amount The amount of M Token to burn.
      */
