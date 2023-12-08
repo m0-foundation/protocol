@@ -24,7 +24,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     /// @inheritdoc IMToken
     address public immutable protocol;
 
-    /// @notice The address of SPOG Registrar
+    /// @inheritdoc IMToken
     address public immutable spogRegistrar;
 
     // TODO: Consider each being uint128.
