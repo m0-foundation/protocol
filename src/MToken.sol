@@ -134,7 +134,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         return _totalNonEarningSupply;
     }
 
-    /// @notice See {IERC20-totalSupply}
+    /// @inheritdoc IERC20
     function totalSupply() external view returns (uint256 totalSupply_) {
         return _totalNonEarningSupply + totalEarningSupply();
     }
