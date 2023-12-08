@@ -2,12 +2,14 @@
 
 pragma solidity 0.8.23;
 
+import { UIntMath } from "../../src/libs/UIntMath.sol";
+
 import { Protocol } from "../../src/Protocol.sol";
 
 contract ProtocolHarness is Protocol {
     constructor(address spogRegistrar_, address mToken_) Protocol(spogRegistrar_, mToken_) {}
 
-    function mintNonce() external view returns (uint256) {
+    function mintNonce() external view returns (uint48) {
         return _mintNonce;
     }
 
@@ -26,28 +28,34 @@ contract ProtocolHarness is Protocol {
         address destination_
     ) external returns (uint256 mintId_) {
         mintId_ = ++_mintNonce;
-        _mintProposals[minter_] = MintProposal(mintId_, destination_, amount_, createdAt_);
+
+        _mintProposals[minter_] = MintProposal(
+            UIntMath.safe48(mintId_),
+            UIntMath.safe48(createdAt_),
+            destination_,
+            UIntMath.safe128(amount_)
+        );
     }
 
     function setCollateralOf(address minter_, uint256 collateral_) external {
-        _collaterals[minter_] = collateral_;
+        _minterBasics[minter_].collateral = UIntMath.safe128(collateral_);
     }
 
     function setCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
-        _lastCollateralUpdates[minter_] = lastUpdated_;
+        _minterBasics[minter_].updateTimestamp = UIntMath.safe48(lastUpdated_);
     }
 
     function setLastCollateralUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
-        _lastUpdateIntervals[minter_] = updateInterval_;
+        _minterBasics[minter_].lastUpdateInterval = UIntMath.safe48(updateInterval_);
     }
 
     function setPenalizedUntilOf(address minter_, uint256 penalizedUntil_) external {
-        _penalizedUntilTimestamps[minter_] = penalizedUntil_;
+        _minterBasics[minter_].penalizedUntilTimestamp = UIntMath.safe48(penalizedUntil_);
     }
 
     function setPrincipalOfActiveOwedMOf(address minter_, uint256 amount_) external {
-        _principalOfActiveOwedM[minter_] = amount_;
-        _totalPrincipalOfActiveOwedM += amount_; // TODO: fix this side effect.
+        _owedM[minter_].principalOfActive = UIntMath.safe128(amount_);
+        _totalPrincipalOfActiveOwedM += UIntMath.safe128(amount_); // TODO: fix this side effect. ?
     }
 
     function setLatestIndex(uint256 index_) external {
@@ -59,6 +67,6 @@ contract ProtocolHarness is Protocol {
     }
 
     function principalOfActiveOwedMOf(address minter_) external view returns (uint256 principalOfActiveOwedM_) {
-        return _principalOfActiveOwedM[minter_];
+        return _owedM[minter_].principalOfActive;
     }
 }
