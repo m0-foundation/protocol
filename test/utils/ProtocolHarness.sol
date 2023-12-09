@@ -59,11 +59,11 @@ contract ProtocolHarness is Protocol {
     }
 
     function setLatestIndex(uint256 index_) external {
-        _latestIndex = index_;
+        _latestIndex = UIntMath.safe184(index_);
     }
 
     function setLatestRate(uint256 rate_) external {
-        _latestRate = rate_;
+        _latestRate = UIntMath.safe24(rate_);
     }
 
     function principalOfActiveOwedMOf(address minter_) external view returns (uint256 principalOfActiveOwedM_) {

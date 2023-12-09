@@ -23,15 +23,19 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
  */
 contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     struct MintProposal {
+        // 1st slot
         uint48 id;
         uint48 createdAt;
         address destination;
+        // 2nd slot
         uint256 amount; // NOTE: it can be uint128, but nothing else is left to pack
     }
 
     struct MinterBasic {
+        // 1st slot
         uint128 collateral;
         uint128 totalPendingRetrievals;
+        // 2nd slot
         uint48 lastUpdateInterval;
         uint48 updateTimestamp;
         uint48 penalizedUntilTimestamp;
