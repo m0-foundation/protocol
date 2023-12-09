@@ -18,7 +18,7 @@ contract ProtocolHarness is Protocol {
     }
 
     function setActiveMinter(address minter_, bool isActive_) external {
-        _isActiveMinter[minter_] = isActive_;
+        _minterBasics[minter_].isActive = isActive_;
     }
 
     function setMintProposalOf(

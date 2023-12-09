@@ -40,6 +40,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint48 updateTimestamp;
         uint48 penalizedUntilTimestamp;
         uint48 unfrozenTimestamp;
+        bool isActive;
     }
 
     struct OwedM {
@@ -78,10 +79,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @notice The total amount of inactive M, sum of all inactive minter's owed M.
     uint128 internal _totalInactiveOwedM;
 
-    /// @notice Indicates if minter was approved by SPOG and activated in Protocol.
-    mapping(address minter => bool isActiveMinter) internal _isActiveMinter;
-
-    /// @notice The basic information of minter (collateral, last update interval, last update timestamp, etc.)
+    /// @notice The basic information of minter (collateral, last update interval, collateral update timestamp, etc.)
     mapping(address minter => MinterBasic basic) internal _minterBasics;
 
     /// @notice The mint proposals of minter (mint ID, creation timestamp, destination, amount).
@@ -252,7 +250,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         // Undercollateralization within one update interval is forgiven.
         _imposePenaltyIfMissedCollateralUpdates(minter_);
 
-        uint256 amount_ = _isActiveMinter[minter_]
+        uint256 amount_ = _minterBasics[minter_].isActive
             ? _repayForActiveMinter(minter_, maxAmount_)
             : _repayForInactiveMinter(minter_, maxAmount_);
 
@@ -286,9 +284,9 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @inheritdoc IProtocol
     function activateMinter(address minter_) external {
         if (!isMinterApprovedBySPOG(minter_)) revert NotApprovedMinter();
-        if (_isActiveMinter[minter_]) revert AlreadyActiveMinter();
+        if (_minterBasics[minter_].isActive) revert AlreadyActiveMinter();
 
-        _isActiveMinter[minter_] = true;
+        _minterBasics[minter_].isActive = true;
 
         emit MinterActivated(minter_, msg.sender);
     }
@@ -313,7 +311,6 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         _totalPrincipalOfActiveOwedM -= _owedM[minter_].principalOfActive;
 
         // Reset reasonable aspects of minter's state.
-        delete _isActiveMinter[minter_];
         delete _minterBasics[minter_];
         delete _mintProposals[minter_];
         delete _owedM[minter_].principalOfActive;
@@ -464,7 +461,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
     /// @inheritdoc IProtocol
     function isActiveMinter(address minter_) external view returns (bool isActive_) {
-        return _isActiveMinter[minter_];
+        return _minterBasics[minter_].isActive;
     }
 
     /// @inheritdoc IProtocol
@@ -750,7 +747,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @param minter_ The address of the minter
      */
     function _revertIfInactiveMinter(address minter_) internal view {
-        if (!_isActiveMinter[minter_]) revert InactiveMinter();
+        if (!_minterBasics[minter_].isActive) revert InactiveMinter();
     }
 
     /**
