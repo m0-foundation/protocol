@@ -203,7 +203,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     function mintM(uint256 mintId_) external onlyActiveMinter onlyUnfrozenMinter {
         MintProposal storage mintProposal_ = _mintProposals[msg.sender];
 
-        (uint48 id_, uint256 amount_, uint256 createdAt_, address destination_) = (
+        (uint256 id_, uint256 amount_, uint256 createdAt_, address destination_) = (
             mintProposal_.id,
             mintProposal_.amount,
             mintProposal_.createdAt,
