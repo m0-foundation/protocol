@@ -282,7 +282,7 @@ contract ProtocolTests is Test {
         _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint48 expectedMintId = _protocol.mintNonce() + 1;
+        uint256 expectedMintId = _protocol.mintNonce() + 1;
 
         vm.expectEmit();
         emit MintProposed(expectedMintId, _minter1, amount, _alice);
@@ -581,7 +581,7 @@ contract ProtocolTests is Test {
         // fast-forward to the time when minter is unfrozen
         vm.warp(frozenUntil);
 
-        uint48 expectedMintId = _protocol.mintNonce() + 1;
+        uint256 expectedMintId = _protocol.mintNonce() + 1;
 
         vm.expectEmit();
         emit MintProposed(expectedMintId, _minter1, amount, _alice);

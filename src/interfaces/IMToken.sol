@@ -11,19 +11,19 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     |                                                     Errors                                                       |
     \******************************************************************************************************************/
 
-    /// @notice Emitted when calling `startEarning` by already earning account.
+    /// @notice Emitted when calling `startEarning` by an already earning account.
     error AlreadyEarning();
 
-    /// @notice Emitted when calling `stopEarning` by non-earning account.
+    /// @notice Emitted when calling `stopEarning` by a non-earning account.
     error AlreadyNotEarning();
 
     /// @notice Emitted when calling `startEarning` for an account that has opted out of earning.
     error HasOptedOut();
 
-    /// @notice Emitted when calling `stopEarning` for an account if account is approved by SPOG earner.
+    /// @notice Emitted when calling `stopEarning` for an account approved as earner by SPOG.
     error IsApprovedEarner();
 
-    /// @notice Emitted when calling `startEarning` for an account if account is not approved by SPOG earner.
+    /// @notice Emitted when calling `startEarning` for an account not approved as earner by SPOG.
     error NotApprovedEarner();
 
     /// @notice Emitted when calling `mint`, `burn` not by Protocol.
@@ -33,13 +33,13 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     |                                                     Events                                                       |
     \******************************************************************************************************************/
 
-    /// @notice Emitted when account starts to be an M earner.
+    /// @notice Emitted when account starts being an M earner.
     event StartedEarning(address indexed account);
 
-    /// @notice Emitted when account stops to be an M earner.
+    /// @notice Emitted when account stops being an M earner.
     event StoppedEarning(address indexed account);
 
-    /// @notice Emitted when account opts out of earning and caller attempt to start earning for them.
+    /// @notice Emitted when account opts out of earning and caller attempts to start earning for them.
     event OptedOutOfEarning(address indexed account);
 
     /******************************************************************************************************************\
@@ -47,14 +47,14 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     \******************************************************************************************************************/
 
     /**
-     * @notice Mints M Token by protocol.
+     * @notice Mints tokens.
      * @param account The address of account to mint to.
      * @param amount The amount of M Token to mint.
      */
     function mint(address account, uint256 amount) external;
 
     /**
-     * @notice Burns M Token by protocol.
+     * @notice Burns tokens.
      * @param account The address of account to burn from.
      * @param amount The amount of M Token to burn.
      */
@@ -100,7 +100,7 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     /// @notice The address of SPOG approved earner rate model.
     function rateModel() external view returns (address);
 
-    /// @notice The current value of earner rate in bps.
+    /// @notice The current value of earner rate in basis points.
     function earnerRate() external view returns (uint256);
 
     /// @notice The total earning supply of M Token.

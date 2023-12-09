@@ -53,13 +53,13 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
         0x22b57ca54bd15c6234b29e87aa1d76a0841b6e65e63d7acacef989de0bc3ff9e;
 
-    /// @notice Address of SPOG Registrar contract (read only by Protocol).
+    /// @inheritdoc IProtocol
     address public immutable spogRegistrar;
 
-    /// @notice The address of SPOG Distribution Vault os ZERO holders.
+    /// @inheritdoc IProtocol
     address public immutable spogVault;
 
-    /// @notice The address of M Token.
+    /// @inheritdoc IProtocol
     address public immutable mToken;
 
     /// @notice Nonce used to generate unique mint proposal IDs.
@@ -68,10 +68,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @notice Nonce used to generate unique retrieval proposal IDs.
     uint48 internal _retrievalNonce;
 
-    /// @notice The total principal amount of active M
+    /// @notice The total principal amount of active M.
     uint128 internal _totalPrincipalOfActiveOwedM;
 
-    /// @notice The total amount of inactive M, sum of all inactive minter's owed M
+    /// @notice The total amount of inactive M, sum of all inactive minter's owed M.
     uint128 internal _totalInactiveOwedM;
 
     mapping(address minter => bool isActiveMinter) internal _isActiveMinter;
@@ -191,7 +191,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         _mintProposals[msg.sender] = MintProposal(
             UIntMath.safe48(mintId_),
-            uint48(block.timestamp),
+            UIntMath.safe48(block.timestamp),
             destination_,
             amount_
         );

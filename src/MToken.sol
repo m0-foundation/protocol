@@ -4,6 +4,8 @@ pragma solidity 0.8.23;
 
 import { ERC20Permit } from "../lib/common/src/ERC20Permit.sol";
 
+import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
+
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 
 import { IMToken } from "./interfaces/IMToken.sol";
@@ -21,10 +23,10 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
  * @notice ERC20 M Token.
  */
 contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
-    /// @notice The Protocol address. The only entity that is allowed to mint and burn M.
+    /// @inheritdoc IMToken
     address public immutable protocol;
 
-    /// @notice The address of SPOG Registrar
+    /// @inheritdoc IMToken
     address public immutable spogRegistrar;
 
     // TODO: Consider each being uint128.
@@ -66,13 +68,13 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     \******************************************************************************************************************/
 
     /// @inheritdoc IMToken
-    function burn(address account_, uint256 amount_) external onlyProtocol {
-        _burn(account_, amount_);
+    function mint(address account_, uint256 amount_) external onlyProtocol {
+        _mint(account_, amount_);
     }
 
     /// @inheritdoc IMToken
-    function mint(address account_, uint256 amount_) external onlyProtocol {
-        _mint(account_, amount_);
+    function burn(address account_, uint256 amount_) external onlyProtocol {
+        _burn(account_, amount_);
     }
 
     /// @inheritdoc IMToken
@@ -134,12 +136,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         return _totalNonEarningSupply;
     }
 
-    /// @notice See {IERC20-totalSupply}
+    /// @inheritdoc IERC20
     function totalSupply() external view returns (uint256 totalSupply_) {
         return _totalNonEarningSupply + totalEarningSupply();
     }
 
-    /// @notice See {IERC20-balanceOf}
+    /// @inheritdoc IERC20
     function balanceOf(address account_) external view returns (uint256 balance_) {
         return _isEarning[account_] ? _getPresentAmount(_balances[account_], currentIndex()) : _balances[account_];
     }
@@ -160,7 +162,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     /**
      * @notice Adds principal to `_balances` of an earning account.
-     * @param account_ The account to add principal to.
+     * @param account_         The account to add principal to.
      * @param principalAmount_ The principal amount to add.
      */
     function _addEarningAmount(address account_, uint256 principalAmount_) internal {
@@ -326,7 +328,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     \******************************************************************************************************************/
 
     /**
-     * @notice Checks is earner was approved by SPOG.
+     * @notice Checks if earner was approved by SPOG.
      * @param account_ The account to check.
      * @return isApproved_ True if approved, false otherwise.
      */
@@ -349,7 +351,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     }
 
     /**
-     * @notice Reverts is account is not approved earner.
+     * @notice Reverts if account is not approved earner.
      * @param account_ The account to check.
      */
     function _revertIfNotApprovedEarner(address account_) internal view {
