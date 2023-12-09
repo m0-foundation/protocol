@@ -71,17 +71,22 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @notice The total principal amount of active M
     uint128 internal _totalPrincipalOfActiveOwedM;
 
-    /// @notice The total amount of inactive M, sum of all inactive minter's owed M
+    /// @notice The total amount of inactive M, sum of all inactive minter's owed M.
     uint128 internal _totalInactiveOwedM;
 
+    /// @notice Indicates if minter was approved by SPOG and activated in Protocol.
     mapping(address minter => bool isActiveMinter) internal _isActiveMinter;
 
+    /// @notice The basic information of minter (collateral, last update interval, last update timestamp, etc.)
     mapping(address minter => MinterBasic basic) internal _minterBasics;
 
+    /// @notice The mint proposals of minter (mint ID, creation timestamp, destination, amount).
     mapping(address minter => MintProposal proposal) internal _mintProposals;
 
+    /// @notice The owed M of active and inactive minters (principal of active, inactive).
     mapping(address minter => OwedM owedM) internal _owedM;
 
+    /// @notice The pending collateral retrievals of minter (retrieval ID, amount).
     mapping(address minter => mapping(uint48 retrievalId => uint128 amount)) internal _pendingCollateralRetrievals;
 
     /******************************************************************************************************************\
