@@ -31,7 +31,7 @@ contract EarnerRateModel is IEarnerRateModel {
         if (totalEarningSupply_ == 0) return baseRate();
 
         // NOTE: Calculate safety guard rate that prevents overprinting of M.
-        // TODO: Move this into M Token itself after all integration/invariants tests are done.
+        // TODO: Discuss the pros/cons of moving this into M Token after all integration/invariants tests are done.
         uint256 safeRate_ = (IProtocol(protocol).minterRate() * totalActiveOwedM_) / totalEarningSupply_;
 
         return _min(baseRate(), safeRate_);

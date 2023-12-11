@@ -37,6 +37,11 @@ contract UIntMathTests is Test {
         assertEq(UIntMath.max40(2, 1), 2);
     }
 
+    function test_min32() external {
+        assertEq(UIntMath.min32(1, 2), 1);
+        assertEq(UIntMath.min32(2, 1), 1);
+    }
+
     function test_min40() external {
         assertEq(UIntMath.min40(1, 2), 1);
         assertEq(UIntMath.min40(2, 1), 1);
@@ -47,7 +52,7 @@ contract UIntMathTests is Test {
         assertEq(UIntMath.min128(2, 1), 1);
     }
 
-    function test_max256() external {
+    function test_min256() external {
         assertEq(UIntMath.min256(1, 2), 1);
         assertEq(UIntMath.min256(2, 1), 1);
     }
