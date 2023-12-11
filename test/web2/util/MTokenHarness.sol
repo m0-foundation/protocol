@@ -7,15 +7,15 @@ import { MToken } from "../../../src/MToken.sol";
 contract MTokenHarness is MToken {
     constructor(address spogRegistrar_, address protocol_) MToken(spogRegistrar_, protocol_) {}
 
-    function __getBalance(address account_) external view returns (uint256 balance_) {
+    function getter_balance(address account_) external view returns (uint256 balance_) {
         return _balances[account_];
     }
 
-    function __setIsEarning(address account_, bool isEarning_) external {
+    function setter_isEarning(address account_, bool isEarning_) external {
         _isEarning[account_] = isEarning_;
     }
 
-    function __getTotalPrincipalOfEarningSupply() external view returns (uint256 totalPrincipalOfEarningSupply_) {
+    function getter_totalPrincipalOfEarningSupply() external view returns (uint256 totalPrincipalOfEarningSupply_) {
         return _totalPrincipalOfEarningSupply;
     }
 

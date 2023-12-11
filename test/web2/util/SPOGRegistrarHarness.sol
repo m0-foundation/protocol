@@ -3,7 +3,7 @@ pragma solidity 0.8.23;
 
 import {ISPOGRegistrar} from "../../../src/interfaces/ISPOGRegistrar.sol";
 
-contract MockSPOGRegistrar is ISPOGRegistrar
+contract SPOGRegistrarHarness is ISPOGRegistrar
 {
     address internal _vault;
     mapping(bytes32 key => bytes32 value) internal _values;

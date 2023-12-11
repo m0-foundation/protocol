@@ -62,7 +62,7 @@ contract MTokenTest is Test {
 
 
     function test_mint_aliceNotEarning() public {
-        _mToken.__setIsEarning(_aliceAddress, false); 
+        _mToken.setter_isEarning(_aliceAddress, false);
 
         // Look for events
         vm.expectEmit(true, true, false, true, address(_mToken));
@@ -73,7 +73,7 @@ contract MTokenTest is Test {
         _mToken.mint(_aliceAddress, 1337);
 
         // balance for alice increased
-        assertEq(1337, _mToken.__getBalance(_aliceAddress));
+        assertEq(1337, _mToken.getter_balance(_aliceAddress));
         // totalNonEarningSupply increased
         assertEq(1337, _mToken.totalNonEarningSupply());
         // Nothing else happened
@@ -82,7 +82,7 @@ contract MTokenTest is Test {
     }
 
     function test_mint_aliceEarning() public {
-        _mToken.__setIsEarning(_aliceAddress, true);
+        _mToken.setter_isEarning(_aliceAddress, true);
 
         // Look for events
         vm.expectEmit(true, true, false, true, address(_mToken));
@@ -95,9 +95,9 @@ contract MTokenTest is Test {
         _mToken.mint(_aliceAddress, 1338);
 
         // balance for alice increased
-        assertEq(1338, _mToken.__getBalance(_aliceAddress));
+        assertEq(1338, _mToken.getter_balance(_aliceAddress));
         // totalNonEarningSupply increased
-        assertEq(1338, _mToken.__getTotalPrincipalOfEarningSupply());
+        assertEq(1338, _mToken.getter_totalPrincipalOfEarningSupply());
         // Nothing else happened
         // TODO
 
