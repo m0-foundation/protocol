@@ -11,9 +11,16 @@ import { SPOGRegistrarReader } from "../../src/libs/SPOGRegistrarReader.sol";
 contract MinterRateTest is Test {
 
     address internal _spogRegistrarAddress = makeAddr("spogRegistrar");
-    MinterRateModel internal _minterRateModel; 
+    MinterRateModel internal _minterRateModel;
+    uint256 _baseRate = 456;
 
     function setUp() public {
+        vm.mockCall(
+            _spogRegistrarAddress,
+            abi.encodeWithSelector(ISPOGRegistrar.get.selector, SPOGRegistrarReader.BASE_MINTER_RATE),
+            abi.encode(_baseRate)
+        );
+
         _minterRateModel = new MinterRateModel(_spogRegistrarAddress);
     }
 
@@ -21,30 +28,13 @@ contract MinterRateTest is Test {
         assertEq(_spogRegistrarAddress, _minterRateModel.spogRegistrar(), "Setup spogRegistrar address failed");
     }
 
-
     function test_baseRate() public {
-        uint256 expectedBaseRate = 123;
-         _setBaseRate(expectedBaseRate);
-
-        assertEq(expectedBaseRate,_minterRateModel.baseRate());
+        assertEq(_baseRate, _minterRateModel.baseRate());
     }
-
 
     function test_rate() public {
-        uint256 expectedBaseRate = 456;
-        _setBaseRate(expectedBaseRate);
-        
-        assertEq(expectedBaseRate,_minterRateModel.rate());
+        assertEq(_baseRate, _minterRateModel.rate());
     }
 
-    // Helper
-    function _setBaseRate(uint256 value) private
-    {
-        vm.mockCall(
-            _spogRegistrarAddress,
-            abi.encodeWithSelector(ISPOGRegistrar.get.selector, SPOGRegistrarReader.BASE_MINTER_RATE),
-            abi.encode(value)
-        ); 
-    }
 
 }
