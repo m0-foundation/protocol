@@ -27,6 +27,9 @@ interface IProtocol is IContinuousIndexing {
     /// @notice Emitted when calling `updateCollateral` if `validators` addresses are not ordered in ascending order.
     error InvalidSignatureOrder();
 
+    /// @notice Emitted when the update collateral interval is an invalid value.
+    error InvalidUpdateCollateralInterval();
+
     /// @notice Emitted when calling `deactivateMinter` with an inactive minter.
     error InactiveMinter();
 

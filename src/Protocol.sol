@@ -374,6 +374,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
+    function isActiveMinter(address minter_) external view returns (bool isActive_) {
+        return _minterStates[minter_].isActive;
+    }
+
+    /// @inheritdoc IProtocol
     function activeOwedMOf(address minter_) public view returns (uint128 activeOwedM_) {
         // TODO: This should also include the present value of unavoidable penalities. But then it would be very, if not
         //       impossible, to determine the `totalActiveOwedM` to the same standards. Perhaps we need a `penaltiesOf`
@@ -460,11 +465,6 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /// @inheritdoc IProtocol
-    function isActiveMinter(address minter_) external view returns (bool isActive_) {
-        return _minterStates[minter_].isActive;
-    }
-
-    /// @inheritdoc IProtocol
     function isMinterApprovedBySPOG(address minter_) public view returns (bool isApproved_) {
         return SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_);
     }
@@ -476,7 +476,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function updateCollateralInterval() public view returns (uint32 updateCollateralInterval_) {
-        return UIntMath.bound32(SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar));
+        updateCollateralInterval_ = UIntMath.bound32(SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar));
+
+        // Revert if update collateral interval is 0, preventing any calling functions from carrying on.
+        if (updateCollateralInterval_ == 0) revert InvalidUpdateCollateralInterval();
     }
 
     /// @inheritdoc IProtocol
@@ -486,7 +489,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function mintRatio() public view returns (uint32 mintRatio_) {
-        return UIntMath.bound32(SPOGRegistrarReader.getMintRatio(spogRegistrar));
+        // Protocol can never explicitly allow undercollateralization via a mint ratio greater than 100%.
+        return UIntMath.min32(UIntMath.bound32(SPOGRegistrarReader.getMintRatio(spogRegistrar)), ONE);
     }
 
     /// @inheritdoc IProtocol
@@ -643,22 +647,23 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         address minter_
     ) internal view returns (uint128 penaltyBase_, uint40 penalizedUntil_) {
         MinterState storage minterState_ = _minterStates[minter_];
-        (uint32 updateInterval_, uint40 lastUpdate_, uint40 lastPenalizedUntil_) = (
+        (uint32 lastUpdateInterval_, uint40 lastUpdate_, uint40 lastPenalizedUntil_) = (
             minterState_.lastUpdateInterval,
             minterState_.updateTimestamp,
             minterState_.penalizedUntilTimestamp
         );
 
         uint40 penalizeFrom_ = UIntMath.max40(lastUpdate_, lastPenalizedUntil_);
-        uint40 penalizationDeadline_ = penalizeFrom_ + updateInterval_;
+        uint40 penalizationDeadline_ = penalizeFrom_ + lastUpdateInterval_;
 
         // Return if it is first update collateral ever or deadline for new penalization was not reached yet
-        if (updateInterval_ == 0 || penalizationDeadline_ > block.timestamp) return (0, penalizeFrom_);
+        if (lastUpdateInterval_ == 0 || penalizationDeadline_ > block.timestamp) return (0, penalizationDeadline_);
 
-        uint40 missedIntervals_ = 1 + (uint40(block.timestamp) - penalizationDeadline_) / updateCollateralInterval();
+        uint32 updateCollateralInterval_ = updateCollateralInterval();
+        uint40 missedIntervals_ = 1 + (uint40(block.timestamp) - penalizationDeadline_) / updateCollateralInterval_;
 
         penaltyBase_ = missedIntervals_ * activeOwedMOf(minter_);
-        penalizedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);
+        penalizedUntil_ = penalizationDeadline_ + ((missedIntervals_ - 1) * updateCollateralInterval_);
     }
 
     /**

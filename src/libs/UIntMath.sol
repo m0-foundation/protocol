@@ -32,6 +32,14 @@ library UIntMath {
         return a_ > b_ ? a_ : b_;
     }
 
+    function max256(uint256 a_, uint256 b_) internal pure returns (uint256 max_) {
+        return a_ > b_ ? a_ : b_;
+    }
+
+    function min32(uint32 a_, uint32 b_) internal pure returns (uint32 min_) {
+        return a_ < b_ ? a_ : b_;
+    }
+
     function min40(uint40 a_, uint40 b_) internal pure returns (uint40 min_) {
         return a_ < b_ ? a_ : b_;
     }
