@@ -25,6 +25,8 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
  * @notice ERC20 M Token.
  */
 contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
+    type MBalance is uint256;
+
     /// @inheritdoc IMToken
     address public immutable protocol;
 
@@ -38,15 +40,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     uint128 internal _totalPrincipalOfEarningSupply;
 
     /// @notice The balance of M for non-earner or principal of earning M balance for earners.
-    mapping(address account => uint128 balance) internal _balances;
-
-    /// @dev Defines if account is an earner - allowed by SPOG and explicitly called `startEarning`.
-    // TODO: Consider replace with flag bit/byte in balance.
-    mapping(address account => bool isEarning) internal _isEarning;
-
-    /// @dev Checks if account has opted out of earning.
-    // TODO: Consider replace with flag bit/byte in balance.
-    mapping(address account => bool hasOptedOutOfEarning) internal _hasOptedOutOfEarning;
+    mapping(address account => MBalance balance) internal _balances;
 
     modifier onlyProtocol() {
         if (msg.sender != protocol) revert NotProtocol();
@@ -86,7 +80,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     /// @inheritdoc IMToken
     function startEarning(address account_) external {
-        if (_hasOptedOutOfEarning[account_]) revert HasOptedOut();
+        if (hasOptedOutOfEarning(account_)) revert HasOptedOut();
 
         _revertIfNotApprovedEarner(account_);
         _startEarning(account_);
@@ -108,13 +102,13 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     /// @inheritdoc IMToken
     function optInToEarning() public {
         emit OptedInToEarning(msg.sender);
-        _hasOptedOutOfEarning[msg.sender] = false;
+        _balances[msg.sender] = MBalance.wrap(MBalance.unwrap(_balances[msg.sender]) & ~(uint256(1) << 254));
     }
 
     /// @inheritdoc IMToken
     function optOutOfEarning() public {
         emit OptedOutOfEarning(msg.sender);
-        _hasOptedOutOfEarning[msg.sender] = true;
+        _balances[msg.sender] = MBalance.wrap(MBalance.unwrap(_balances[msg.sender]) | (1 << 254));
     }
 
     /******************************************************************************************************************\
@@ -150,17 +144,19 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     /// @inheritdoc IERC20
     function balanceOf(address account_) external view returns (uint256 balance_) {
-        return _isEarning[account_] ? _getPresentAmount(_balances[account_], currentIndex()) : _balances[account_];
+        (uint256 earningBit_, , uint128 rawBalance_) = _extract(_balances[account_]);
+
+        return earningBit_ == 0 ? rawBalance_ : _getPresentAmount(rawBalance_);
     }
 
     /// @inheritdoc IMToken
     function isEarning(address account_) external view returns (bool isEarning_) {
-        return _isEarning[account_];
+        return (MBalance.unwrap(_balances[account_]) >> 255) != 0;
     }
 
     /// @inheritdoc IMToken
-    function hasOptedOutOfEarning(address account_) external view returns (bool hasOpted_) {
-        return _hasOptedOutOfEarning[account_];
+    function hasOptedOutOfEarning(address account_) public view returns (bool hasOpted_) {
+        return ((MBalance.unwrap(_balances[account_]) << 1) >> 255) != 0;
     }
 
     /******************************************************************************************************************\
@@ -168,40 +164,35 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     \******************************************************************************************************************/
 
     /**
-     * @dev   Adds principal to `_balances` of an earning account.
-     * @param account_         The account to add principal to.
-     * @param principalAmount_ The principal amount to add.
-     */
-    function _addEarningAmount(address account_, uint128 principalAmount_) internal {
-        unchecked {
-            _balances[account_] += principalAmount_;
-            _totalPrincipalOfEarningSupply += principalAmount_;
-        }
-    }
-
-    /**
-     * @dev   Adds amount to `_balances` of a non-earning account.
-     * @param account_ The account to add amount to.
-     * @param amount_  The amount to add.
-     */
-    function _addNonEarningAmount(address account_, uint128 amount_) internal {
-        unchecked {
-            _balances[account_] += amount_;
-            _totalNonEarningSupply += amount_;
-        }
-    }
-
-    /**
-     * @dev   Burns amount of earning or non-earning M from account.
+     * @notice Burns amount of earning or non-earning M from account.
      * @param account_ The account to burn from.
      * @param amount_  The amount to burn.
      */
     function _burn(address account_, uint256 amount_) internal {
         emit Transfer(account_, address(0), amount_);
 
-        _isEarning[account_]
-            ? _subtractEarningAmount(account_, _getPrincipalAmountAndUpdateIndex(UIntMath.safe128(amount_)))
-            : _subtractNonEarningAmount(account_, UIntMath.safe128(amount_));
+        if (amount_ == 0) return;
+
+        (uint256 earningBit_, uint256 optOutBit_, uint128 rawBalance_) = _extract(_balances[account_]);
+
+        uint128 presentValue_ = UIntMath.safe128(amount_);
+
+        if (earningBit_ == 0) {
+            _balances[account_] = MBalance.wrap(optOutBit_ | (rawBalance_ - presentValue_));
+
+            unchecked {
+                _totalNonEarningSupply -= presentValue_;
+            }
+        } else {
+            uint128 principalAmount_ = _getPrincipalAmount(presentValue_);
+            _balances[account_] = MBalance.wrap(earningBit_ | optOutBit_ | (rawBalance_ - principalAmount_));
+
+            unchecked {
+                _totalPrincipalOfEarningSupply -= principalAmount_;
+            }
+
+            updateIndex();
+        }
     }
 
     /**
@@ -212,9 +203,29 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     function _mint(address recipient_, uint256 amount_) internal {
         emit Transfer(address(0), recipient_, amount_);
 
-        _isEarning[recipient_]
-            ? _addEarningAmount(recipient_, _getPrincipalAmountAndUpdateIndex(UIntMath.safe128(amount_)))
-            : _addNonEarningAmount(recipient_, UIntMath.safe128(amount_));
+        if (amount_ == 0) return;
+
+        (uint256 earningBit_, uint256 optOutBit_, uint128 rawBalance_) = _extract(_balances[recipient_]);
+
+        uint128 presentValue_ = UIntMath.safe128(amount_);
+
+        if (earningBit_ == 0) {
+            unchecked {
+                _balances[recipient_] = MBalance.wrap(optOutBit_ | (rawBalance_ + presentValue_));
+            }
+
+            _totalNonEarningSupply += presentValue_;
+        } else {
+            uint128 principalAmount_ = _getPrincipalAmount(presentValue_);
+
+            unchecked {
+                _balances[recipient_] = MBalance.wrap(earningBit_ | optOutBit_ | (rawBalance_ + principalAmount_));
+            }
+
+            _totalPrincipalOfEarningSupply += principalAmount_;
+
+            updateIndex();
+        }
     }
 
     /**
@@ -224,22 +235,28 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     function _startEarning(address account_) internal {
         emit StartedEarning(account_);
 
-        if (_isEarning[account_]) return;
+        (uint256 earningBit_, uint256 optOutBit_, uint128 presentAmount_) = _extract(_balances[account_]);
 
-        _isEarning[account_] = true;
+        if (earningBit_ != 0) return;
 
-        uint128 presentAmount_ = _balances[account_];
+        if (presentAmount_ == 0) {
+            _balances[account_] = MBalance.wrap((1 << 255) | optOutBit_);
+            return;
+        }
 
-        if (presentAmount_ == 0) return;
+        uint128 principalAmount_ = _getPrincipalAmount(presentAmount_);
 
-        uint128 principalAmount_ = _getPrincipalAmountAndUpdateIndex(presentAmount_);
+        _balances[account_] = MBalance.wrap((1 << 255) | optOutBit_ | principalAmount_);
 
-        _balances[account_] = principalAmount_;
+        unchecked {
+            _totalNonEarningSupply -= presentAmount_;
+        }
 
         unchecked {
             _totalPrincipalOfEarningSupply += principalAmount_;
-            _totalNonEarningSupply -= presentAmount_;
         }
+
+        updateIndex();
     }
 
     /**
@@ -249,48 +266,28 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     function _stopEarning(address account_) internal {
         emit StoppedEarning(account_);
 
-        if (!_isEarning[account_]) return;
+        (uint256 earningBit_, uint256 optOutBit_, uint128 principalAmount_) = _extract(_balances[account_]);
 
-        _isEarning[account_] = false;
+        if (earningBit_ == 0) return;
 
-        uint128 principalAmount_ = _balances[account_];
+        if (principalAmount_ == 0) {
+            _balances[account_] = MBalance.wrap(optOutBit_);
+            return;
+        }
 
-        if (principalAmount_ == 0) return;
+        uint128 presentAmount_ = _getPresentAmount(principalAmount_);
 
-        uint128 presentAmount_ = _getPresentAmountAndUpdateIndex(principalAmount_);
+        _balances[account_] = MBalance.wrap(optOutBit_ | presentAmount_);
 
-        _balances[account_] = presentAmount_;
+        unchecked {
+            _totalPrincipalOfEarningSupply -= principalAmount_;
+        }
 
         unchecked {
             _totalNonEarningSupply += presentAmount_;
-            _totalPrincipalOfEarningSupply -= principalAmount_;
         }
-    }
 
-    /**
-     * @dev   Subtracts principal from `_balances` of an earning account.
-     * @param account_         The account to subtract principal from.
-     * @param principalAmount_ The principal amount to subtract.
-     */
-    function _subtractEarningAmount(address account_, uint128 principalAmount_) internal {
-        _balances[account_] -= principalAmount_;
-
-        unchecked {
-            _totalPrincipalOfEarningSupply -= principalAmount_;
-        }
-    }
-
-    /**
-     * @dev   Subtracts amount from `_balances` of a non-earning account.
-     * @param account_ The account to subtract amount from.
-     * @param amount_  The amount to subtract.
-     */
-    function _subtractNonEarningAmount(address account_, uint128 amount_) internal {
-        _balances[account_] -= amount_;
-
-        unchecked {
-            _totalNonEarningSupply -= amount_;
-        }
+        updateIndex();
     }
 
     /**
@@ -302,49 +299,73 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     function _transfer(address sender_, address recipient_, uint256 amount_) internal override {
         emit Transfer(sender_, recipient_, amount_);
 
+        (uint256 senderEarningBit_, uint256 senderOptOutBit_, uint128 senderRawBalance_) = _extract(_balances[sender_]);
+
+        (uint256 recipientEarningBit_, uint256 recipientOptOutBit_, uint128 recipientRawBalance_) = _extract(
+            _balances[recipient_]
+        );
+
         uint128 presentAmount_ = UIntMath.safe128(amount_);
 
-        bool senderIsEarning_ = _isEarning[sender_]; // Only using the sender's earning status more than once.
+        uint128 principalAmount_ = (senderEarningBit_ != 0 || recipientEarningBit_ != 0)
+            ? _getPrincipalAmount(presentAmount_)
+            : 0;
 
-        // If this is an in-kind transfer, then...
-        if (senderIsEarning_ == _isEarning[recipient_]) {
-            return
-                _transferAmountInKind( // perform an in-kind transfer with...
-                    sender_,
-                    recipient_,
-                    senderIsEarning_ ? _getPrincipalAmount(presentAmount_, currentIndex()) : presentAmount_ // the appropriate amount.
-                );
-        }
+        int256 presentAmountChange_;
+        int256 principalAmountChange_;
 
-        // If this is not an in-kind transfer, then...
-        if (senderIsEarning_) {
-            // either the sender is earning and the recipient is not, or...
-            _subtractEarningAmount(sender_, _getPrincipalAmountAndUpdateIndex(presentAmount_));
-            _addNonEarningAmount(recipient_, presentAmount_);
+        if (senderEarningBit_ == 0) {
+            _balances[sender_] = MBalance.wrap(senderOptOutBit_ | (senderRawBalance_ - presentAmount_));
+            presentAmountChange_ = -int256(uint256(presentAmount_));
         } else {
-            // the sender is not earning and the recipient is.
-            _subtractNonEarningAmount(sender_, presentAmount_);
-            _addEarningAmount(recipient_, _getPrincipalAmountAndUpdateIndex(presentAmount_));
+            _balances[sender_] = MBalance.wrap(
+                senderEarningBit_ | senderOptOutBit_ | (senderRawBalance_ - principalAmount_)
+            );
+            principalAmountChange_ = -int256(uint256(principalAmount_));
         }
-    }
 
-    /**
-     * @dev   Transfer M between same earning status accounts.
-     * @param sender_    The account to transfer from.
-     * @param recipient_ The account to transfer to.
-     * @param amount_    The amount to transfer.
-     */
-    function _transferAmountInKind(address sender_, address recipient_, uint128 amount_) internal {
-        _balances[sender_] -= amount_;
+        if (recipientEarningBit_ == 0) {
+            unchecked {
+                _balances[recipient_] = MBalance.wrap(recipientOptOutBit_ | (recipientRawBalance_ + presentAmount_));
+                presentAmountChange_ += int256(uint256(presentAmount_));
+            }
+        } else {
+            unchecked {
+                _balances[recipient_] = MBalance.wrap(
+                    recipientEarningBit_ | recipientOptOutBit_ | (recipientRawBalance_ + principalAmount_)
+                );
+                principalAmountChange_ += int256(uint256(principalAmount_));
+            }
+        }
 
-        unchecked {
-            _balances[recipient_] += amount_;
+        if (presentAmountChange_ != 0) {
+            unchecked {
+                _totalNonEarningSupply = uint128(
+                    uint256(int256(uint256(_totalNonEarningSupply)) + presentAmountChange_)
+                );
+            }
+        }
+
+        if (principalAmountChange_ != 0) {
+            unchecked {
+                _totalPrincipalOfEarningSupply = uint128(
+                    uint256(int256(uint256(_totalPrincipalOfEarningSupply)) + principalAmountChange_)
+                );
+            }
+
+            updateIndex();
         }
     }
 
     /******************************************************************************************************************\
     |                                           Internal View/Pure Functions                                           |
     \******************************************************************************************************************/
+
+    function _extract(MBalance mBalance) internal pure returns (uint256, uint256, uint128) {
+        uint256 unwrapped_ = MBalance.unwrap(mBalance);
+
+        return ((unwrapped_ >> 255) << 255, ((unwrapped_ << 1) >> 255) << 254, uint128(unwrapped_));
+    }
 
     /**
      * @dev    Checks if earner was approved by SPOG.

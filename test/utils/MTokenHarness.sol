@@ -20,11 +20,19 @@ contract MTokenHarness is MToken {
     }
 
     function setIsEarning(address account_, bool isEarning_) external {
-        _isEarning[account_] = isEarning_;
+        uint256 original_ = MBalance.unwrap(_balances[account_]);
+
+        _balances[account_] = isEarning_
+            ? MBalance.wrap(original_ | (1 << 255))
+            : MBalance.wrap(original_ & ~(uint256(1) << 255));
     }
 
     function setHasOptedOutOfEarning(address account_, bool hasOptedOut_) external {
-        _hasOptedOutOfEarning[account_] = hasOptedOut_;
+        uint256 original_ = MBalance.unwrap(_balances[account_]);
+
+        _balances[account_] = hasOptedOut_
+            ? MBalance.wrap(original_ | (1 << 254))
+            : MBalance.wrap(original_ & ~(uint256(1) << 254));
     }
 
     function setTotalNonEarningSupply(uint256 totalNonEarningSupply_) external {
@@ -36,11 +44,11 @@ contract MTokenHarness is MToken {
     }
 
     function setInternalBalanceOf(address account_, uint256 balance_) external {
-        _balances[account_] = uint128(balance_);
+        _balances[account_] = MBalance.wrap(((MBalance.unwrap(_balances[account_]) >> 254) << 254) | balance_);
     }
 
-    function internalBalanceOf(address account_) external view returns (uint128 balance_) {
-        return _balances[account_];
+    function internalBalanceOf(address account_) external view returns (uint256 balance_) {
+        return (MBalance.unwrap(_balances[account_]) << 2) >> 2;
     }
 
     function totalPrincipalOfEarningSupply() external view returns (uint128 totalPrincipalOfEarningSupply_) {
