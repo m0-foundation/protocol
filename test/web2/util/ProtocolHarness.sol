@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: UNLICENSED
+
+pragma solidity 0.8.23;
+
+import { Protocol } from "../../../src/Protocol.sol";
+
+contract ProtocolHarness is Protocol {
+    constructor(address spogRegistrar_, address mToken_) Protocol(spogRegistrar_, mToken_) {}
+
+    // --- ContinuousIndexing
+    function setter_latestIndex(uint256 latestIndex_) external {
+        _latestIndex = latestIndex_;
+    }
+
+    function setter_latestRate(uint256 latestRate_) external {
+        _latestRate = latestRate_;
+    }
+
+    function setter_latestUpdateTimestamp(uint256 latestUpdateTimestamp_) external {
+        _latestUpdateTimestamp= latestUpdateTimestamp_;
+    }
+
+    // --- Protocol 
+
+    function setter_isActiveMinter(address minter_, bool isActiveMinter_) external {
+        _isActiveMinter[minter_] = isActiveMinter_;
+    }
+
+    function setter_collateral(address minter_, uint256 collateral_) external {
+        _collaterals[minter_] = collateral_;
+    }
+
+    function setter_inactiveOwedM(address minter_, uint256 inactiveOwedM_) external {
+        _inactiveOwedM[minter_] = inactiveOwedM_;
+    }
+
+    function setter_activeOwedM(address minter_, uint256 activeOwedM_) external {
+        _principalOfActiveOwedM[minter_] = activeOwedM_;
+    }
+
+    function setter_totalPendingCollateralRetrieval(address minter_, uint256 totalPendingCollateralRetrieval_) external {
+        _totalPendingCollateralRetrieval[minter_] = totalPendingCollateralRetrieval_;
+    }
+
+    function setter_lastUpdateInterval(address minter_, uint256 updateInterval_) external {
+        _lastUpdateIntervals[minter_] = updateInterval_;
+    }
+
+    function setter_lastUpdateTimestamp(address minter_, uint256 lastUpdate_) external {
+        _lastCollateralUpdates[minter_] = lastUpdate_;
+    }
+
+    function setter_penalizedUntilTimestamp(address minter_, uint256 penalizedUntil_) external {
+        _penalizedUntilTimestamps[minter_] = penalizedUntil_;
+    }
+
+    function setter_unfrozenTime(address minter_, uint256 unfrozenTime_) external {
+        _unfrozenTimestamps[minter_] = unfrozenTime_;
+    }
+
+    // function setter_mintProposals(address minter_, MintProposal proposal_) external {
+    //     _mintProposals[minter_] = proposal_;
+    // }
+
+    function setter_pendingRetrievals(address minter_, uint256 retrievalId_, uint256 amount_) external {
+        _pendingRetrievals[minter_][retrievalId_] = amount_;
+    }
+
+    // --- Protocol Functions
+
+    function external_getPresentValue(uint256 principalValue_) external view returns (uint256 presentValue_) {
+        return _getPresentValue(principalValue_);
+    }
+
+    function external_rate() external view returns (uint256 rate_) {
+        return _rate();
+    }
+
+    function external_getPenaltyBaseAndTimeForMissedCollateralUpdates(address minter_) external view returns (uint256 penaltyBase_, uint256 penalizedUntil_) {
+        return _getPenaltyBaseAndTimeForMissedCollateralUpdates(minter_);
+    }
+
+}

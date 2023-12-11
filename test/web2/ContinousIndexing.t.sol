@@ -47,11 +47,18 @@ contract ContinousIndexingTest is Test {
     |                                       External/Public View/Pure Functions                                        |
     \******************************************************************************************************************/
 
-    function test_currentIndex() public view {
-        // _latestIndex * tailor( (yearlyRate * time) / seconds_per_year )
-       //1000000000000000000
-       //uint256 index = _continuousIndexing.latestIndex();
-       //console2.logUint(index);
+    function test_currentIndex() public {
+        _continuousIndexing.setter_latestUpdateTimestamp(0); // converted into seconds
+        _continuousIndexing.setter_latestRate(1000); // 10%    
+
+        vm.warp(365 days); // one year later
+
+        // see ContinuousIndexingMathTest::test_getContinuousIndex factor for 10% after one year
+        _continuousIndexing.setter_latestIndex(1 * 1e18); // 1
+        assertEq(1_105_170_833_333_333_332, _continuousIndexing.currentIndex());
+
+        _continuousIndexing.setter_latestIndex(2 * 1e18); // 2
+        assertEq(2_210_341_666_666_666_664, _continuousIndexing.currentIndex());
     }
 
     function test_latestIndex() public {
@@ -79,14 +86,11 @@ contract ContinousIndexingTest is Test {
     \******************************************************************************************************************/
 
     function test_getPresentAmount() public {
-
+        assertEq(2_000_000_000_000_000_000, _continuousIndexing.external_getPresentAmount(1_000_000_000_000_000_000, 2_000_000_000_000_000_000)); 
+        assertEq(1_105_170_833_333_333_332, _continuousIndexing.external_getPresentAmount(1_000_000_000_000_000_000, 1_105_170_833_333_333_332)); 
     }
 
     function test_getPrincipalAmount() public {
-
-    }
-
-    function test_rate() public {
 
     }
 
