@@ -28,7 +28,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint48 createdAt;
         address destination;
         // 2nd slot
-        uint256 amount; // NOTE: it can be uint128, but nothing else is left to pack
+        uint128 amount;
     }
 
     struct MinterBasic {
@@ -178,7 +178,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         uint128 safeCollateral_ = UIntMath.safe128(collateral_);
         _minterBasics[msg.sender].totalPendingRetrievals += safeCollateral_;
-        _pendingCollateralRetrievals[msg.sender][UIntMath.safe48(retrievalId_)] = safeCollateral_;
+        _pendingCollateralRetrievals[msg.sender][uint48(retrievalId_)] = safeCollateral_;
 
         _revertIfUndercollateralized(msg.sender, 0);
 
@@ -197,10 +197,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         }
 
         _mintProposals[msg.sender] = MintProposal(
-            UIntMath.safe48(mintId_),
-            UIntMath.safe48(block.timestamp),
+            uint48(mintId_),
+            uint48(block.timestamp),
             destination_,
-            amount_
+            UIntMath.safe128(amount_)
         );
 
         emit MintProposed(mintId_, msg.sender, amount_, destination_);
@@ -210,7 +210,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     function mintM(uint256 mintId_) external onlyActiveMinter onlyUnfrozenMinter {
         MintProposal storage mintProposal_ = _mintProposals[msg.sender];
 
-        (uint256 id_, uint256 amount_, uint256 createdAt_, address destination_) = (
+        (uint256 id_, uint128 amount_, uint256 createdAt_, address destination_) = (
             mintProposal_.id,
             mintProposal_.amount,
             mintProposal_.createdAt,
@@ -233,7 +233,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         emit MintExecuted(mintId_);
 
         // Adjust principal of active owed M for minter.
-        uint128 principalAmount_ = UIntMath.safe128(_getPrincipalValue(amount_));
+        uint128 principalAmount_ = _getPrincipalValue(amount_);
         _owedM[msg.sender].principalOfActive += principalAmount_;
         _totalPrincipalOfActiveOwedM += principalAmount_;
 
@@ -278,7 +278,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         frozenUntil_ = block.timestamp + minterFreezeTime();
 
-        emit MinterFrozen(minter_, _minterBasics[minter_].unfrozenTimestamp = UIntMath.safe48(frozenUntil_));
+        emit MinterFrozen(minter_, _minterBasics[minter_].unfrozenTimestamp = uint48(frozenUntil_));
     }
 
     /// @inheritdoc IProtocol
@@ -443,7 +443,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         address minter_,
         uint256 retrievalId_
     ) external view returns (uint256 collateral) {
-        return _pendingCollateralRetrievals[minter_][UIntMath.safe48(retrievalId_)];
+        return _pendingCollateralRetrievals[minter_][uint48(retrievalId_)];
     }
 
     /// @inheritdoc IProtocol
@@ -526,7 +526,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      */
     function _imposePenalty(address minter_, uint256 penaltyBase_) internal {
         uint256 penalty_ = (penaltyBase_ * penaltyRate()) / ONE;
-        uint128 penaltyPrincipal_ = UIntMath.safe128(_getPrincipalValue(penalty_));
+        uint128 penaltyPrincipal_ = _getPrincipalValue(penalty_);
 
         // Calculate and add penalty principal to total minter's principal of active owed M
         _owedM[minter_].principalOfActive += penaltyPrincipal_;
@@ -546,7 +546,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         if (penaltyBase_ == 0) return;
 
         // Save penalization interval to not double charge for the same missed periods again
-        _minterBasics[minter_].penalizedUntilTimestamp = UIntMath.safe48(penalizedUntil_);
+        _minterBasics[minter_].penalizedUntilTimestamp = uint48(penalizedUntil_);
         // We charged for the first missed interval based on previous collateral interval length only once
         // NOTE: extra caution for the case when SPOG changed collateral interval length
         _minterBasics[minter_].lastUpdateInterval = UIntMath.safe48(updateCollateralInterval());
@@ -588,13 +588,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @param maxAmount_ The maximum amount of inactive owed M to repay
      * @return amount_ The amount of inactive owed M that was actually repaid
      */
-    function _repayForInactiveMinter(address minter_, uint256 maxAmount_) internal returns (uint256 amount_) {
-        uint128 safeAmount_ = UIntMath.safe128(_min(_owedM[minter_].inactive, maxAmount_));
+    function _repayForInactiveMinter(address minter_, uint256 maxAmount_) internal returns (uint128 amount_) {
+        amount_ = UIntMath.safe128(_min(_owedM[minter_].inactive, maxAmount_));
 
-        _owedM[minter_].inactive -= safeAmount_;
-        _totalInactiveOwedM -= safeAmount_;
-
-        return safeAmount_;
+        _owedM[minter_].inactive -= amount_;
+        _totalInactiveOwedM -= amount_;
     }
 
     /**
@@ -604,7 +602,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      */
     function _resolvePendingRetrievals(address minter_, uint256[] calldata retrievalIds_) internal {
         for (uint256 index_; index_ < retrievalIds_.length; ++index_) {
-            uint48 retrievalId_ = UIntMath.safe48(retrievalIds_[index_]);
+            uint48 retrievalId_ = uint48(retrievalIds_[index_]);
 
             _minterBasics[minter_].totalPendingRetrievals -= _pendingCollateralRetrievals[minter_][retrievalId_];
 
@@ -625,7 +623,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         if (newTimestamp_ < lastUpdateTimestamp_) revert StaleCollateralUpdate(newTimestamp_, lastUpdateTimestamp_);
 
         _minterBasics[minter_].collateral = UIntMath.safe128(amount_);
-        _minterBasics[minter_].updateTimestamp = UIntMath.safe48(newTimestamp_);
+        _minterBasics[minter_].updateTimestamp = uint48(newTimestamp_);
 
         // NOTE: Save for the future potential valid penalization if update collateral interval is changed by SPOG.
         _minterBasics[minter_].lastUpdateInterval = UIntMath.safe48(updateCollateralInterval());
@@ -644,11 +642,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     function _getPenaltyBaseAndTimeForMissedCollateralUpdates(
         address minter_
     ) internal view returns (uint256 penaltyBase_, uint256 penalizedUntil_) {
-        MinterBasic storage MinterBasic_ = _minterBasics[minter_];
+        MinterBasic storage minterBasic_ = _minterBasics[minter_];
         (uint256 updateInterval_, uint256 lastUpdate_, uint256 lastPenalizedUntil_) = (
-            MinterBasic_.lastUpdateInterval,
-            MinterBasic_.updateTimestamp,
-            MinterBasic_.penalizedUntilTimestamp
+            minterBasic_.lastUpdateInterval,
+            minterBasic_.updateTimestamp,
+            minterBasic_.penalizedUntilTimestamp
         );
 
         uint256 penalizeFrom_ = _max(lastUpdate_, lastPenalizedUntil_);
@@ -677,8 +675,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @dev present = principal * index
      * @param presentValue_ The present value of M
      */
-    function _getPrincipalValue(uint256 presentValue_) internal view returns (uint256 principalValue_) {
-        return _getPrincipalAmount(presentValue_, currentIndex());
+    function _getPrincipalValue(uint256 presentValue_) internal view returns (uint128 principalValue_) {
+        return UIntMath.safe128(_getPrincipalAmount(presentValue_, currentIndex()));
     }
 
     /**
