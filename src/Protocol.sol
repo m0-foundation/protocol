@@ -576,7 +576,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      */
     function _repayForActiveMinter(address minter_, uint256 maxAmount_) internal returns (uint256 amount_) {
         amount_ = _min(activeOwedMOf(minter_), maxAmount_);
-        uint128 principalAmount_ = UIntMath.safe128(_getPrincipalValue(amount_));
+        uint128 principalAmount_ = _getPrincipalValue(amount_);
 
         _owedM[minter_].principalOfActive -= principalAmount_;
         _totalPrincipalOfActiveOwedM -= principalAmount_;
@@ -650,7 +650,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         );
 
         uint256 penalizeFrom_ = _max(lastUpdate_, lastPenalizedUntil_);
-        uint256 penalizationDeadline_ = penalizeFrom_ + updateInterval_;
+        uint256 penalizationDeadline_ = UIntMath.safe48(penalizeFrom_ + updateInterval_);
 
         // Return if it is first update collateral ever or deadline for new penalization was not reached yet
         if (updateInterval_ == 0 || penalizationDeadline_ > block.timestamp) return (0, penalizeFrom_);
