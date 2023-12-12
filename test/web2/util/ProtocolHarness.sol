@@ -34,8 +34,12 @@ contract ProtocolHarness is Protocol {
         _inactiveOwedM[minter_] = inactiveOwedM_;
     }
 
-    function setter_activeOwedM(address minter_, uint256 activeOwedM_) external {
+    function setter_principalOfActiveOwedM(address minter_, uint256 activeOwedM_) external {
         _principalOfActiveOwedM[minter_] = activeOwedM_;
+    }
+
+    function getter_principalOfActiveOwedM(address minter_) external returns (uint256 activeOwedM_) {
+        return _principalOfActiveOwedM[minter_];
     }
 
     function setter_totalPendingCollateralRetrieval(address minter_, uint256 totalPendingCollateralRetrieval_) external {
@@ -54,13 +58,26 @@ contract ProtocolHarness is Protocol {
         _penalizedUntilTimestamps[minter_] = penalizedUntil_;
     }
 
-    function setter_unfrozenTime(address minter_, uint256 unfrozenTime_) external {
+    function setter_unfrozenTimestamp(address minter_, uint256 unfrozenTime_) external {
         _unfrozenTimestamps[minter_] = unfrozenTime_;
     }
 
     // function setter_mintProposals(address minter_, MintProposal proposal_) external {
     //     _mintProposals[minter_] = proposal_;
     // }
+
+    function setter_totalInactiveOwedM(uint256 totalInactiveOwedM_) external {
+        _totalInactiveOwedM = totalInactiveOwedM_;
+    }
+
+    function setter_totalPrincipalOfActiveOwedM(uint256 totalPrincipalOfActiveOwedM_) external {
+        _totalPrincipalOfActiveOwedM = totalPrincipalOfActiveOwedM_;
+    }
+
+    function getter_totalPrincipalOfActiveOwedM() external returns (uint256 totalPrincipalOfActiveOwedM_) {
+        return _totalPrincipalOfActiveOwedM;
+    }
+
 
     function setter_pendingRetrievals(address minter_, uint256 retrievalId_, uint256 amount_) external {
         _pendingRetrievals[minter_][retrievalId_] = amount_;
