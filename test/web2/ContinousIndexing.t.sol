@@ -47,18 +47,34 @@ contract ContinousIndexingTest is Test {
     |                                       External/Public View/Pure Functions                                        |
     \******************************************************************************************************************/
 
-    function test_currentIndex() public {
+    function test_currentIndex_OneYearVanillaIndex() public {
+        // Interest compounding over one year
+        _continuousIndexing.setter_latestIndex(1 * 1e18); // 1
         _continuousIndexing.setter_latestUpdateTimestamp(0); // converted into seconds
         _continuousIndexing.setter_latestRate(1000); // 10%    
-
         vm.warp(365 days); // one year later
 
-        // see ContinuousIndexingMathTest::test_getContinuousIndex factor for 10% after one year
-        _continuousIndexing.setter_latestIndex(1 * 1e18); // 1
         assertEq(1_105_170_833_333_333_332, _continuousIndexing.currentIndex());
+    }
 
-        _continuousIndexing.setter_latestIndex(2 * 1e18); // 2
-        assertEq(2_210_341_666_666_666_664, _continuousIndexing.currentIndex());
+    function test_currentIndex_TwoDaysVanillaIndex() public {
+        // Interest compounding over two days
+        _continuousIndexing.setter_latestIndex(1 * 1e18); // 1
+        _continuousIndexing.setter_latestUpdateTimestamp(12 days); // converted into seconds
+        _continuousIndexing.setter_latestRate(200); // 10%
+        vm.warp(14 days); // 2 days later
+
+        assertEq(1_000_109_595_046_194_216, _continuousIndexing.currentIndex());
+    }
+
+    function test_currentIndex_SevenDaysVanillaIndex() public {
+        // Interest compounding over one year
+        _continuousIndexing.setter_latestIndex(1 * 1e18); // 1
+        _continuousIndexing.setter_latestUpdateTimestamp(7 days); // converted into seconds
+        _continuousIndexing.setter_latestRate(200); // 10%    
+        vm.warp(14 days); // 7 days later
+
+        assertEq(1_000_383_635_213_008_728, _continuousIndexing.currentIndex());
     }
 
     function test_latestIndex() public {

@@ -3,9 +3,12 @@
 pragma solidity 0.8.23;
 
 import { Protocol } from "../../../src/Protocol.sol";
+import { IContinuousIndexing } from "../../../src/interfaces/IContinuousIndexing.sol";
+import { ContinuousIndexing } from "../../../src/ContinuousIndexing.sol";
 
 contract ProtocolHarness is Protocol {
     constructor(address spogRegistrar_, address mToken_) Protocol(spogRegistrar_, mToken_) {}
+    uint256 internal _fixedIndex;
 
     // --- ContinuousIndexing
     function setter_latestIndex(uint256 latestIndex_) external {
@@ -78,12 +81,11 @@ contract ProtocolHarness is Protocol {
         return _totalPrincipalOfActiveOwedM;
     }
 
-
     function setter_pendingRetrievals(address minter_, uint256 retrievalId_, uint256 amount_) external {
         _pendingRetrievals[minter_][retrievalId_] = amount_;
     }
 
-    // --- Protocol Functions
+    // --- external Protocol Functions
 
     function external_getPresentValue(uint256 principalValue_) external view returns (uint256 presentValue_) {
         return _getPresentValue(principalValue_);
@@ -96,5 +98,23 @@ contract ProtocolHarness is Protocol {
     function external_getPenaltyBaseAndTimeForMissedCollateralUpdates(address minter_) external view returns (uint256 penaltyBase_, uint256 penalizedUntil_) {
         return _getPenaltyBaseAndTimeForMissedCollateralUpdates(minter_);
     }
+
+    // overwritten compunding functions functions to set expected values
+    function override_fixedIndex(uint256 fixedIndex_) external {
+        _fixedIndex = fixedIndex_;
+    }
+
+    function override_fixedIndex() external {
+        _fixedIndex = 1e18;
+    }
+
+    function currentIndex() public view virtual override(IContinuousIndexing, ContinuousIndexing) returns (uint256 currentIndex_) {
+        if (_fixedIndex != 0) {
+            return _fixedIndex;
+        }
+
+        return super.currentIndex();
+    }
+
 
 }

@@ -124,7 +124,7 @@ contract ProtocolTest is Test {
     /**
      * TODO Here are a lot of invariants for totals
      */
-    function test_deactivateMinter_happy() public {
+    function test_deactivateMinter_fixedIndex() public {
         // foo
         _denyList(SPOGRegistrarReader.MINTERS_LIST, _aliceAddress);
      
@@ -138,19 +138,19 @@ contract ProtocolTest is Test {
 
         // Amount calculation (current amount + compound interest)
         _setValue(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1 days); // global update interval = 1 day
-        _protocol.setter_principalOfActiveOwedM(_aliceAddress, 100 * 1e18); // current amount
-        _protocol.setter_latestIndex(1 * 1e18);
-        _protocol.setter_latestRate(200); // 2% interest
-        _protocol.setter_latestUpdateTimestamp(12 days);  // 2 days ago
-        uint256 _activeOwedM = 100_010_959_504_619_421_600; // result from test_activeOwedMOf_TwoDaysVanillaIndex()
+
+        uint256 _activeOwedM = 100 * 1e18; 
+        _protocol.setter_principalOfActiveOwedM(_aliceAddress, _activeOwedM); // current amount
+        _protocol.override_fixedIndex(); // override index calculation
 
         // Penalty Calculation (2 missed intervals)
         _setValue(SPOGRegistrarReader.PENALTY_RATE, 20);
         _protocol.setter_lastUpdateInterval(_aliceAddress, 1 days); // minter update interval = 1 day
         _protocol.setter_lastUpdateTimestamp(_aliceAddress, 12 days); // last update on day 12
         _protocol.setter_penalizedUntilTimestamp(_aliceAddress, 12 days); // last penalized on day 12
-        uint256 _penalty = 400_043_838_018_477_686; // result from test_getPenaltyForMissedCollateralUpdates()
+        uint256 _penalty = 0.4 * 1e18; 
         
+        // intermediate result
         uint256 _inactiveOwedM = (_activeOwedM + _penalty);
 
         _protocol.setter_totalPrincipalOfActiveOwedM((100 * 1e18) + 444);
@@ -189,8 +189,7 @@ contract ProtocolTest is Test {
         assertEq(0, _protocol.getter_principalOfActiveOwedM(_aliceAddress));
         assertEq(0, _protocol.unfrozenTimeOf(_aliceAddress));
 
-
-        // TODO test update index
+        // TODO check is index is updated
     }
 
     function test_freezeMinter() public {
@@ -214,70 +213,11 @@ contract ProtocolTest is Test {
     /******************************************************************************************************************\
     |                                           External View/Pure Functions                                           |
     \******************************************************************************************************************/
-
-    function test_activeOwedMOf_OneYearVanillaIndex() public {
-        // current amount * compounded interest
+    function test_activeOwedMOf_fixedIndex() public {
         _protocol.setter_principalOfActiveOwedM(_aliceAddress, 100 * 1e18); // current amount 100
+        _protocol.override_fixedIndex(2 * 1e18);  // hardcode index calculation
 
-        // Interest compounding over one year
-        _protocol.setter_latestIndex(1 * 1e18); // 1
-        _protocol.setter_latestUpdateTimestamp(0); // converted into seconds
-        _protocol.setter_latestRate(1000); // 10%    
-        vm.warp(365 days); // one year later
-
-        // see ContinuousIndexingMathTest::test_getContinuousIndex()
-        //       100_000_000_000_000_000_000
-        //     +  10 517 083 333 333 333 200 for 10% after 1 year
-        assertEq(110_517_083_333_333_333_200, _protocol.activeOwedMOf(_aliceAddress));
-    }
-
-    function test_activeOwedMOf_TwoDaysVanillaIndex() public {
-        // current amount * compounded interest
-        _protocol.setter_principalOfActiveOwedM(_aliceAddress, 100 * 1e18); // current amount 100
-
-        // Interest compounding over two days
-        _protocol.setter_latestIndex(1 * 1e18); // 1
-        _protocol.setter_latestUpdateTimestamp(12 days); // converted into seconds
-        _protocol.setter_latestRate(200); // 10%
-        vm.warp(14 days); // 2 days later
-
-        // see ContinuousIndexingMathTest::test_getContinuousIndex()
-        //       100_000_000_000_000_000_000
-        //     +      10_959_504_619_421_600 for 2% after 2 days
-        assertEq(100_010_959_504_619_421_600, _protocol.activeOwedMOf(_aliceAddress));
-    }
-
-    function test_activeOwedMOf_SevenDaysVanillaIndex() public {
-        // current amount * compounded interest
-        _protocol.setter_principalOfActiveOwedM(_aliceAddress, 100 * 1e18); // current amount 100
-
-        // Interest compounding over one year
-        _protocol.setter_latestIndex(1 * 1e18); // 1
-        _protocol.setter_latestUpdateTimestamp(7 days); // converted into seconds
-        _protocol.setter_latestRate(200); // 10%    
-        vm.warp(14 days); // 7 days later
-
-        // see ContinuousIndexingMathTest::test_getContinuousIndex()
-        //       100_000_000_000_000_000_000
-        //     +      38_363_521_300_872_800 for 2% after 7 days
-        assertEq(100_038_363_521_300_872_800, _protocol.activeOwedMOf(_aliceAddress));
-    }
-
-
-    function test_activeOwedMOf_SevenDaysUpdatedIndex() public {
-        // current amount * compounded interest
-        _protocol.setter_principalOfActiveOwedM(_aliceAddress, 100 * 1e18); // current amount 100
-
-        // Interest compounding over seven days
-        _protocol.setter_latestIndex(2 * 1e18); // 2
-        _protocol.setter_latestUpdateTimestamp(7 days); // converted into seconds
-        _protocol.setter_latestRate(200); // 10%    
-        vm.warp(14 days); // 7 days later
-
-        // make sure the latest index is used in calculation
-        //       100_000_000_000_000_000_000
-        //     +      38_363_521_300_872_800 for 2% after 7 days
-        assertEq(200_076_727_042_601_745_600, _protocol.activeOwedMOf(_aliceAddress));
+        assertEq(200 * 1e18, _protocol.activeOwedMOf(_aliceAddress));
     }
 
 
@@ -293,17 +233,15 @@ contract ProtocolTest is Test {
     function test_getMaxAllowedOwedM() public {
     }
 
-    function test_getPenaltyForMissedCollateralUpdates() public {
+    function test_getPenaltyForMissedCollateralUpdates_fixedIndex() public {
         // SPOG Values
         _setValue(SPOGRegistrarReader.PENALTY_RATE, 20); // 0.2%
         _setValue(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1 days);
 
-        // Amount calculation (current amount + compound interest)
-        _protocol.setter_principalOfActiveOwedM(_aliceAddress, 100_000_000_000_000_000_000); // current amount
-        _protocol.setter_latestIndex(1 * 1e18);
-        _protocol.setter_latestRate(200); // 2% interest
-        _protocol.setter_latestUpdateTimestamp(12 days);  // 2 days ago
-        uint256 _activeOwedM = 100_010_959_504_619_421_600; // result from test_activeOwedMOf_TwoDaysVanillaIndex()
+       // Amount calculation (current amount + compound interest)
+        uint256 _activeOwedM = 100 * 1e18; 
+        _protocol.setter_principalOfActiveOwedM(_aliceAddress, 100 * 1e18); // current amount
+        _protocol.override_fixedIndex();
 
         // Penalty Calculation (2 missed intervals)
         _protocol.setter_lastUpdateInterval(_aliceAddress, 1 days); // minter update interval = 1 day
@@ -312,8 +250,7 @@ contract ProtocolTest is Test {
         vm.warp(14 days);
 
         // 20 (rate in bps) * 2 (missed intervals) * (_currentM + _interestM) / 10_000 (conversion to basis point)
-        uint256 _result = 20 * 2 * (_activeOwedM ) / 10_000;
-        assertEq(_result /*400_043_838_018_477_686*/, _protocol.getPenaltyForMissedCollateralUpdates(_aliceAddress));     
+        assertEq(0.4 * 1e18 , _protocol.getPenaltyForMissedCollateralUpdates(_aliceAddress));     
     }
 
     function test_inactiveOwedMOf() public {
@@ -430,16 +367,14 @@ contract ProtocolTest is Test {
     \******************************************************************************************************************/
 
 
-    function test__getPenaltyBaseAndTimeForMissedCollateralUpdates() public {
+    function test__getPenaltyBaseAndTimeForMissedCollateralUpdates_fixedIndex() public {
         // SPOG Values
         _setValue(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1 days); // global update interval = 1 day
 
         // Amount calculation (current amount + compound interest)
-        _protocol.setter_principalOfActiveOwedM(_aliceAddress, 100_000_000_000_000_000_000); // current amount
-        _protocol.setter_latestIndex(1 * 1e18);
-        _protocol.setter_latestRate(200); // 2% interest
-        _protocol.setter_latestUpdateTimestamp(12 days);  // 2 days ago
-        uint256 _activeOwedM = 100_010_959_504_619_421_600; // result from test_activeOwedMOf_TwoDaysVanillaIndex()
+        uint256 _activeOwedM = 100 * 1e18; 
+        _protocol.setter_principalOfActiveOwedM(_aliceAddress, _activeOwedM); // current amount
+        _protocol.override_fixedIndex(); // override index calculation
 
         // Penalty Calculation (2 missed intervals)
         _protocol.setter_lastUpdateInterval(_aliceAddress, 1 days); // minter update interval = 1 day
@@ -454,7 +389,7 @@ contract ProtocolTest is Test {
         (uint256 penaltyBase_, uint256 penalizedUntil_) = _protocol.external_getPenaltyBaseAndTimeForMissedCollateralUpdates(_aliceAddress);
         // 2 missed intervals: day 13, day 14
         uint256 _result = 2 * (_activeOwedM);
-        assertEq(_result /*200_021_919_009_238_843_200*/, penaltyBase_);
+        assertEq(200 * 1e18, penaltyBase_); // _activeOwedM for two days
         assertEq(14 days, penalizedUntil_);
     }
 
