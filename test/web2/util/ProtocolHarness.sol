@@ -91,12 +91,24 @@ contract ProtocolHarness is Protocol {
         return _getPresentValue(principalValue_);
     }
 
+    function external_getPrincipalValue(uint256 principalValue_) external view returns (uint256 presentValue_) {
+        return _getPrincipalValue(principalValue_);
+    }
+
     function external_rate() external view returns (uint256 rate_) {
         return _rate();
     }
 
     function external_getPenaltyBaseAndTimeForMissedCollateralUpdates(address minter_) external view returns (uint256 penaltyBase_, uint256 penalizedUntil_) {
         return _getPenaltyBaseAndTimeForMissedCollateralUpdates(minter_);
+    }
+
+    function external_imposePenaltyIfMissedCollateralUpdates(address minter_) external {
+        _imposePenaltyIfMissedCollateralUpdates(minter_);
+    }
+
+    function external_imposePenalty(address minter_, uint256 penaltyBase_) external {
+        _imposePenalty(minter_, penaltyBase_);
     }
 
     // overwritten compunding functions functions to set expected values

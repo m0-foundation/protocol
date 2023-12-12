@@ -130,40 +130,44 @@ contract MTokenTest is Test {
 
 
     /******************************************************************************************************************\
-    |                                       External/Public View/Pure Functions                                        |
+    |                                          External View/Pure Functions                                            |
     \******************************************************************************************************************/
 
 
-    function test_updateIndex() public
-    {
+    function test_earnerRate() public {
 
     }
 
-    function test_currentIndex() public
-    {
+    function test_hasOptedOutOfEarning() {
 
     }
 
-    function test_latestIndex() public
-    {
+    function test_isEarning() {
 
     }
 
-    function test_getPresentAmountAndUpdateIndex() public
-    {
+    function test_protocol() {
 
     }
 
-    function test_getPrincipalAmountAndUpdateIndex() public
-    {
+    function test_rateModel() {
+
+    }
+
+    function test_spogRegistrar() {
 
     }
 
 
-    function test_rate() public
-    {
+    function test_totalEarningSupply() {
 
     }
+
+
+    function test_totalNonEarningSupply() {
+
+    }
+
 
 
 }
