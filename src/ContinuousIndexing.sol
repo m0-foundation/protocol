@@ -9,13 +9,13 @@ import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
 abstract contract ContinuousIndexing is IContinuousIndexing {
-    uint184 internal _latestIndex;
+    uint192 internal _latestIndex;
     uint24 internal _latestRate;
-    uint48 internal _latestUpdateTimestamp;
+    uint40 internal _latestUpdateTimestamp;
 
     constructor() {
         _latestIndex = uint184(1 * ContinuousIndexingMath.EXP_BASE_SCALE);
-        _latestUpdateTimestamp = uint48(block.timestamp);
+        _latestUpdateTimestamp = uint40(block.timestamp);
     }
 
     /******************************************************************************************************************\
@@ -31,9 +31,9 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
 
         if (_latestUpdateTimestamp == block.timestamp && _latestRate == rate_) return currentIndex_;
 
-        _latestIndex = UIntMath.safe184(currentIndex_);
+        _latestIndex = UIntMath.safe192(currentIndex_);
         _latestRate = UIntMath.safe24(rate_);
-        _latestUpdateTimestamp = UIntMath.safe48(block.timestamp);
+        _latestUpdateTimestamp = uint40(block.timestamp);
 
         emit IndexUpdated(currentIndex_, _latestRate);
     }

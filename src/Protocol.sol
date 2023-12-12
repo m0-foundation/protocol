@@ -25,7 +25,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     struct MintProposal {
         // 1st slot
         uint48 id;
-        uint48 createdAt;
+        uint40 createdAt;
         address destination;
         // 2nd slot
         uint128 amount;
@@ -36,10 +36,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint128 collateral;
         uint128 totalPendingRetrievals;
         // 2nd slot
-        uint48 lastUpdateInterval;
-        uint48 updateTimestamp;
-        uint48 penalizedUntilTimestamp;
-        uint48 unfrozenTimestamp;
+        uint32 lastUpdateInterval;
+        uint40 updateTimestamp;
+        uint40 penalizedUntilTimestamp;
+        uint40 unfrozenTimestamp;
         bool isActive;
     }
 
@@ -198,7 +198,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         _mintProposals[msg.sender] = MintProposal(
             uint48(mintId_),
-            uint48(block.timestamp),
+            uint40(block.timestamp),
             destination_,
             UIntMath.safe128(amount_)
         );
@@ -278,7 +278,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         frozenUntil_ = block.timestamp + minterFreezeTime();
 
-        emit MinterFrozen(minter_, _minterBasics[minter_].unfrozenTimestamp = uint48(frozenUntil_));
+        emit MinterFrozen(minter_, _minterBasics[minter_].unfrozenTimestamp = uint40(frozenUntil_));
     }
 
     /// @inheritdoc IProtocol
@@ -546,10 +546,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         if (penaltyBase_ == 0) return;
 
         // Save penalization interval to not double charge for the same missed periods again
-        _minterBasics[minter_].penalizedUntilTimestamp = uint48(penalizedUntil_);
+        _minterBasics[minter_].penalizedUntilTimestamp = uint40(penalizedUntil_);
         // We charged for the first missed interval based on previous collateral interval length only once
         // NOTE: extra caution for the case when SPOG changed collateral interval length
-        _minterBasics[minter_].lastUpdateInterval = UIntMath.safe48(updateCollateralInterval());
+        _minterBasics[minter_].lastUpdateInterval = uint32(updateCollateralInterval());
 
         _imposePenalty(minter_, penaltyBase_);
     }
@@ -623,10 +623,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         if (newTimestamp_ < lastUpdateTimestamp_) revert StaleCollateralUpdate(newTimestamp_, lastUpdateTimestamp_);
 
         _minterBasics[minter_].collateral = UIntMath.safe128(amount_);
-        _minterBasics[minter_].updateTimestamp = uint48(newTimestamp_);
+        _minterBasics[minter_].updateTimestamp = uint40(newTimestamp_);
 
         // NOTE: Save for the future potential valid penalization if update collateral interval is changed by SPOG.
-        _minterBasics[minter_].lastUpdateInterval = UIntMath.safe48(updateCollateralInterval());
+        _minterBasics[minter_].lastUpdateInterval = uint32(updateCollateralInterval());
     }
 
     /******************************************************************************************************************\
@@ -650,7 +650,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         );
 
         uint256 penalizeFrom_ = _max(lastUpdate_, lastPenalizedUntil_);
-        uint256 penalizationDeadline_ = UIntMath.safe48(penalizeFrom_ + updateInterval_);
+        uint256 penalizationDeadline_ = UIntMath.safe40(penalizeFrom_ + updateInterval_);
 
         // Return if it is first update collateral ever or deadline for new penalization was not reached yet
         if (updateInterval_ == 0 || penalizationDeadline_ > block.timestamp) return (0, penalizeFrom_);

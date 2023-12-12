@@ -30,8 +30,8 @@ contract ProtocolHarness is Protocol {
         mintId_ = ++_mintNonce;
 
         _mintProposals[minter_] = MintProposal(
-            UIntMath.safe48(mintId_),
-            UIntMath.safe48(createdAt_),
+            uint48(mintId_),
+            uint40(createdAt_),
             destination_,
             UIntMath.safe128(amount_)
         );
@@ -42,15 +42,15 @@ contract ProtocolHarness is Protocol {
     }
 
     function setCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
-        _minterBasics[minter_].updateTimestamp = UIntMath.safe48(lastUpdated_);
+        _minterBasics[minter_].updateTimestamp = uint40(lastUpdated_);
     }
 
     function setLastCollateralUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
-        _minterBasics[minter_].lastUpdateInterval = UIntMath.safe48(updateInterval_);
+        _minterBasics[minter_].lastUpdateInterval = uint32(updateInterval_);
     }
 
     function setPenalizedUntilOf(address minter_, uint256 penalizedUntil_) external {
-        _minterBasics[minter_].penalizedUntilTimestamp = UIntMath.safe48(penalizedUntil_);
+        _minterBasics[minter_].penalizedUntilTimestamp = uint40(penalizedUntil_);
     }
 
     function setPrincipalOfActiveOwedMOf(address minter_, uint256 amount_) external {
@@ -59,7 +59,7 @@ contract ProtocolHarness is Protocol {
     }
 
     function setLatestIndex(uint256 index_) external {
-        _latestIndex = UIntMath.safe184(index_);
+        _latestIndex = UIntMath.safe192(index_);
     }
 
     function setLatestRate(uint256 rate_) external {

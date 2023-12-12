@@ -10,7 +10,7 @@ contract MTokenHarness is MToken {
     constructor(address spogRegistrar_, address protocol_) MToken(spogRegistrar_, protocol_) {}
 
     function setLatestIndex(uint256 index_) external {
-        _latestIndex = UIntMath.safe184(index_);
+        _latestIndex = UIntMath.safe192(index_);
     }
 
     function setLatestRate(uint256 rate_) external {
@@ -18,7 +18,7 @@ contract MTokenHarness is MToken {
     }
 
     function setLatestUpdated(uint256 timestamp_) external {
-        _latestUpdateTimestamp = UIntMath.safe48(timestamp_);
+        _latestUpdateTimestamp = uint40(timestamp_);
     }
 
     function setIsEarning(address account_, bool isEarning_) external {
