@@ -46,4 +46,8 @@ contract MTokenHarness is MToken {
     function totalPrincipalOfEarningSupply() external view returns (uint256 totalPrincipalOfEarningSupply_) {
         return _totalPrincipalOfEarningSupply;
     }
+
+    function rate() external view returns (uint256 rate_) {
+        return _rate();
+    }
 }

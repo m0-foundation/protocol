@@ -1445,6 +1445,12 @@ contract ProtocolTests is Test {
         assertEq(_protocol.collateralUpdateOf(_minter1), block.timestamp);
     }
 
+    function test_emptyRateModel() external {
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, address(0));
+
+        assertEq(_protocol.rate(), 0);
+    }
+
     function _getCollateralUpdateSignature(
         address minter,
         uint256 collateral,

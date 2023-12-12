@@ -61,4 +61,8 @@ contract ProtocolHarness is Protocol {
     function principalOfActiveOwedMOf(address minter_) external view returns (uint256 principalOfActiveOwedM_) {
         return _principalOfActiveOwedM[minter_];
     }
+
+    function rate() external view returns (uint256 rate_) {
+        return _rate();
+    }
 }
