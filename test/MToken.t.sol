@@ -645,4 +645,10 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.hasOptedOutOfEarning(_alice), true);
     }
+
+    function test_emptyRateModel() external {
+        _registrar.updateConfig(SPOGRegistrarReader.EARNER_RATE_MODEL, address(0));
+
+        assertEq(_mToken.rate(), 0);
+    }
 }

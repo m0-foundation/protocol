@@ -347,7 +347,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
             abi.encodeWithSelector(IRateModel.rate.selector)
         );
 
-        rate_ = success_ ? abi.decode(returnData_, (uint256)) : 0;
+        rate_ = (success_ && returnData_.length >= 32) ? abi.decode(returnData_, (uint256)) : 0;
     }
 
     /**

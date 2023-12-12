@@ -17,7 +17,7 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 /**
  * @title Protocol
  * @author M^ZERO LABS_
- * @notice Core protocol of M^ZERO ecosystem. 
+ * @notice Core protocol of M^ZERO ecosystem.
            Minting Gateway of M Token for all approved by SPOG and activated minters.
  */
 contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
@@ -704,7 +704,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
             abi.encodeWithSelector(IRateModel.rate.selector)
         );
 
-        rate_ = success_ ? abi.decode(returnData_, (uint256)) : 0;
+        rate_ = (success_ && returnData_.length >= 32) ? abi.decode(returnData_, (uint256)) : 0;
     }
 
     /**
