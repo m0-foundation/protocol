@@ -138,33 +138,33 @@ contract MTokenTest is Test {
 
     }
 
-    function test_hasOptedOutOfEarning() {
+    function test_hasOptedOutOfEarning() public {
 
     }
 
-    function test_isEarning() {
+    function test_isEarning() public {
 
     }
 
-    function test_protocol() {
+    function test_protocol() public {
 
     }
 
-    function test_rateModel() {
+    function test_rateModel() public {
 
     }
 
-    function test_spogRegistrar() {
-
-    }
-
-
-    function test_totalEarningSupply() {
+    function test_spogRegistrar() public {
 
     }
 
 
-    function test_totalNonEarningSupply() {
+    function test_totalEarningSupply() public {
+
+    }
+
+
+    function test_totalNonEarningSupply() public {
 
     }
 
