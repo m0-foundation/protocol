@@ -7,7 +7,7 @@ import { IRateModel } from "./IRateModel.sol";
 interface IMinterRateModel is IRateModel {
     error ZeroSpogRegistrar();
 
-    function spogRegistrar() external view returns (address spogRegistrar);
+    function spogRegistrar() external view returns (address);
 
-    function baseRate() external view returns (uint256 baseRate);
+    function baseRate() external view returns (uint256);
 }

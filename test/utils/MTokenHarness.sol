@@ -2,19 +2,17 @@
 
 pragma solidity 0.8.23;
 
-import { UIntMath } from "../../src/libs/UIntMath.sol";
-
 import { MToken } from "../../src/MToken.sol";
 
 contract MTokenHarness is MToken {
     constructor(address spogRegistrar_, address protocol_) MToken(spogRegistrar_, protocol_) {}
 
     function setLatestIndex(uint256 index_) external {
-        _latestIndex = UIntMath.safe192(index_);
+        _latestIndex = uint128(index_);
     }
 
     function setLatestRate(uint256 rate_) external {
-        _latestRate = UIntMath.safe24(rate_);
+        _latestRate = uint32(rate_);
     }
 
     function setLatestUpdated(uint256 timestamp_) external {
@@ -30,26 +28,26 @@ contract MTokenHarness is MToken {
     }
 
     function setTotalNonEarningSupply(uint256 totalNonEarningSupply_) external {
-        _totalNonEarningSupply = totalNonEarningSupply_;
+        _totalNonEarningSupply = uint128(totalNonEarningSupply_);
     }
 
     function setTotalPrincipalOfEarningSupply(uint256 totalPrincipalOfEarningSupply_) external {
-        _totalPrincipalOfEarningSupply = totalPrincipalOfEarningSupply_;
+        _totalPrincipalOfEarningSupply = uint128(totalPrincipalOfEarningSupply_);
     }
 
     function setInternalBalanceOf(address account_, uint256 balance_) external {
-        _balances[account_] = balance_;
+        _balances[account_] = uint128(balance_);
     }
 
-    function internalBalanceOf(address account_) external view returns (uint256 balance_) {
+    function internalBalanceOf(address account_) external view returns (uint128 balance_) {
         return _balances[account_];
     }
 
-    function totalPrincipalOfEarningSupply() external view returns (uint256 totalPrincipalOfEarningSupply_) {
+    function totalPrincipalOfEarningSupply() external view returns (uint128 totalPrincipalOfEarningSupply_) {
         return _totalPrincipalOfEarningSupply;
     }
 
-    function rate() external view returns (uint256 rate_) {
+    function rate() external view returns (uint32 rate_) {
         return _rate();
     }
 }

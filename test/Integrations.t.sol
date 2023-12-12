@@ -191,8 +191,7 @@ contract IntegrationTests is Test {
         vm.prank(_alice);
         _mToken.startEarning();
 
-        // Only mToken is updated since mToken does not cause state changes in Protocol.
-        latestMTokenUpdateTimestamp_ = block.timestamp;
+        // No index values are updated since nothing relevant changed.
 
         assertEq(_protocol.minterRate(), 1_000);
         assertEq(_protocol.latestIndex(), 1_000034247161763120);

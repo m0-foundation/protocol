@@ -3,18 +3,9 @@
 pragma solidity 0.8.23;
 
 library UIntMath {
-    error InvalidUInt24();
-
     error InvalidUInt40();
 
     error InvalidUInt128();
-
-    error InvalidUInt192();
-
-    function safe24(uint256 n) internal pure returns (uint24) {
-        if (n > type(uint24).max) revert InvalidUInt24();
-        return uint24(n);
-    }
 
     function safe40(uint256 n) internal pure returns (uint40) {
         if (n > type(uint40).max) revert InvalidUInt40();
@@ -26,8 +17,27 @@ library UIntMath {
         return uint128(n);
     }
 
-    function safe192(uint256 n) internal pure returns (uint192) {
-        if (n > type(uint192).max) revert InvalidUInt192();
-        return uint192(n);
+    function bound32(uint256 n) internal pure returns (uint32) {
+        return uint32(min256(n, uint256(type(uint32).max)));
+    }
+
+    function max40(uint40 a_, uint40 b_) internal pure returns (uint40 max_) {
+        return a_ > b_ ? a_ : b_;
+    }
+
+    function min40(uint40 a_, uint40 b_) internal pure returns (uint40 min_) {
+        return a_ < b_ ? a_ : b_;
+    }
+
+    function min128(uint128 a_, uint128 b_) internal pure returns (uint128 min_) {
+        return a_ < b_ ? a_ : b_;
+    }
+
+    function min256(uint256 a_, uint256 b_) internal pure returns (uint256 min_) {
+        return a_ < b_ ? a_ : b_;
+    }
+
+    function min40IgnoreZero(uint40 a_, uint40 b_) internal pure returns (uint40 min_) {
+        return a_ == 0 ? b_ : (b_ == 0 ? a_ : min40(a_, b_));
     }
 }

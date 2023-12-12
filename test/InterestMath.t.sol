@@ -58,9 +58,9 @@ contract InterestMathTests is Test {
     }
 
     function test_multiplyThenDivide_100apy() external {
-        uint256 amount = 1_000e6;
-        uint256 sevenDayRate = ContinuousIndexingMath.getContinuousIndex(ONE_IN_EXP, 7 days);
-        uint256 thirtyDayRate = ContinuousIndexingMath.getContinuousIndex(ONE_IN_EXP, 30 days);
+        uint128 amount = 1_000e6;
+        uint128 sevenDayRate = ContinuousIndexingMath.getContinuousIndex(ONE_IN_EXP, 7 days);
+        uint128 thirtyDayRate = ContinuousIndexingMath.getContinuousIndex(ONE_IN_EXP, 30 days);
 
         assertEq(
             ContinuousIndexingMath.divide(ContinuousIndexingMath.multiply(amount, sevenDayRate), sevenDayRate),
@@ -82,9 +82,9 @@ contract InterestMathTests is Test {
     }
 
     function test_multiplyThenDivide_6apy() external {
-        uint256 amount = 1_000e6;
-        uint256 sevenDayRate = ContinuousIndexingMath.getContinuousIndex((ONE_IN_EXP * 6) / 100, 7 days);
-        uint256 thirtyDayRate = ContinuousIndexingMath.getContinuousIndex((ONE_IN_EXP * 6) / 100, 30 days);
+        uint128 amount = 1_000e6;
+        uint128 sevenDayRate = ContinuousIndexingMath.getContinuousIndex((ONE_IN_EXP * 6) / 100, 7 days);
+        uint128 thirtyDayRate = ContinuousIndexingMath.getContinuousIndex((ONE_IN_EXP * 6) / 100, 30 days);
 
         assertEq(
             ContinuousIndexingMath.divide(ContinuousIndexingMath.multiply(amount, sevenDayRate), sevenDayRate),

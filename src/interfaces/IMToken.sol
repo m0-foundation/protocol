@@ -11,12 +11,6 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     |                                                     Errors                                                       |
     \******************************************************************************************************************/
 
-    /// @notice Emitted when calling `startEarning` by an already earning account.
-    error AlreadyEarning();
-
-    /// @notice Emitted when calling `stopEarning` by a non-earning account.
-    error AlreadyNotEarning();
-
     /// @notice Emitted when calling `startEarning` for an account that has opted out of earning.
     error HasOptedOut();
 
@@ -39,7 +33,10 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     /// @notice Emitted when account stops being an M earner.
     event StoppedEarning(address indexed account);
 
-    /// @notice Emitted when account opts out of earning and caller attempts to start earning for them.
+    /// @notice Emitted when account opts in to earning allowing anyone else to enable their earning.
+    event OptedInToEarning(address indexed account);
+
+    /// @notice Emitted when account opts ou of earning preventing anyone else from enabling their earning.
     event OptedOutOfEarning(address indexed account);
 
     /******************************************************************************************************************\
@@ -48,15 +45,15 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
 
     /**
      * @notice Mints tokens.
-     * @param account The address of account to mint to.
-     * @param amount The amount of M Token to mint.
+     * @param  account The address of account to mint to.
+     * @param  amount  The amount of M Token to mint.
      */
     function mint(address account, uint256 amount) external;
 
     /**
      * @notice Burns tokens.
-     * @param account The address of account to burn from.
-     * @param amount The amount of M Token to burn.
+     * @param  account The address of account to burn from.
+     * @param  amount  The amount of M Token to burn.
      */
     function burn(address account, uint256 amount) external;
 
@@ -78,9 +75,14 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
 
     /**
      * @notice Stops earning for account.
-     * @param account The address of account to stop earning for.
+     * @param  account The address of account to stop earning for.
      */
     function stopEarning(address account) external;
+
+    /**
+     * @notice Opt in to earning so anyone can trigger the start earning for the caller.
+     */
+    function optInToEarning() external;
 
     /**
      * @notice Opt out of earning so nobody except caller can trigger the start earning for the caller.
@@ -101,7 +103,7 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     function rateModel() external view returns (address);
 
     /// @notice The current value of earner rate in basis points.
-    function earnerRate() external view returns (uint256);
+    function earnerRate() external view returns (uint32);
 
     /// @notice The total earning supply of M Token.
     function totalEarningSupply() external view returns (uint256);
