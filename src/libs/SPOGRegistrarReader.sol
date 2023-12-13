@@ -38,9 +38,6 @@ library SPOGRegistrarReader {
     /// @notice The minters list name in SPOG.
     bytes32 internal constant MINTERS_LIST = "minters";
 
-    /// @notice The name of parameter in SPOG that defines the minter rate.
-    bytes32 internal constant MINTER_RATE = "minter_rate";
-
     /// @notice The name of parameter in SPOG that defines the penalty rate.
     bytes32 internal constant PENALTY_RATE = "penalty_rate";
 
@@ -71,10 +68,6 @@ library SPOGRegistrarReader {
 
     function getMinterFreezeTime(address registrar_) internal view returns (uint256 freezeTime_) {
         return uint256(_get(registrar_, MINTER_FREEZE_TIME));
-    }
-
-    function getMinterRate(address registrar_) internal view returns (uint256 rate_) {
-        return uint256(_get(registrar_, MINTER_RATE));
     }
 
     function getMinterRateModel(address registrar_) internal view returns (address rateModel_) {
@@ -125,19 +118,11 @@ library SPOGRegistrarReader {
         return address(uint160(uint256(input_)));
     }
 
-    function toBytes32(address input_) internal pure returns (bytes32 output_) {
-        return bytes32(uint256(uint160(input_)));
-    }
-
     function _contains(address registrar_, bytes32 listName_, address account_) private view returns (bool contains_) {
         return ISPOGRegistrar(registrar_).listContains(listName_, account_);
     }
 
     function _get(address registrar_, bytes32 key_) private view returns (bytes32 value_) {
         return ISPOGRegistrar(registrar_).get(key_);
-    }
-
-    function _toAddress(bytes32 input_) private pure returns (address output_) {
-        return address(uint160(uint256(input_)));
     }
 }

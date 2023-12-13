@@ -133,6 +133,8 @@ contract ProtocolTests is Test {
         assertEq(_protocol.collateralOf(_minter1), collateral);
         assertEq(_protocol.lastCollateralUpdateIntervalOf(_minter1), _updateCollateralInterval);
         assertEq(_protocol.collateralUpdateOf(_minter1), signatureTimestamp);
+        assertEq(_protocol.collateralUpdateDeadlineOf(_minter1), signatureTimestamp + _updateCollateralInterval);
+        assertEq(_protocol.maxAllowedActiveOwedMOf(_minter1), (collateral * _mintRatio) / ONE);
     }
 
     function test_updateCollateral_InactiveMinter() external {
@@ -229,7 +231,7 @@ contract ProtocolTests is Test {
         _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
     }
 
-    function test_updateCollateral_notEnoughValidSignatures() external {
+    function test_updateCollateral_invalidSignatureOrder() external {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
 
         uint256 collateral = 100;
@@ -255,14 +257,14 @@ contract ProtocolTests is Test {
         );
 
         address[] memory validators = new address[](3);
-        validators[0] = _validator1;
+        validators[0] = _validator2;
         validators[1] = _validator2;
-        validators[2] = _validator2;
+        validators[2] = _validator1;
 
         bytes[] memory signatures = new bytes[](3);
-        signatures[0] = signature1_;
+        signatures[0] = signature2_;
         signatures[1] = signature2_;
-        signatures[2] = signature2_;
+        signatures[2] = signature1_;
 
         uint256[] memory timestamps = new uint256[](3);
         timestamps[0] = timestamp;
@@ -270,6 +272,76 @@ contract ProtocolTests is Test {
         timestamps[2] = timestamp;
 
         vm.expectRevert(IProtocol.InvalidSignatureOrder.selector);
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
+    }
+
+    function test_updateCollateral_notEnoughValidSignatures() external {
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
+
+        uint256 collateral = 100;
+        uint256[] memory retrievalIds = new uint256[](0);
+        uint256 timestamp = block.timestamp;
+
+        bytes memory signature1_ = _getCollateralUpdateSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            timestamp,
+            _validator1Pk
+        );
+
+        bytes memory signature2_ = _getCollateralUpdateSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            timestamp,
+            _validator2Pk
+        );
+
+        (address validator3_, uint256 validator3Pk_) = makeAddrAndKey("validator3");
+        bytes memory signature3_ = _getCollateralUpdateSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            timestamp,
+            validator3Pk_
+        );
+
+        (address validator4_, uint256 validator4Pk_) = makeAddrAndKey("validator4");
+        _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, validator4_);
+        bytes memory signature4_ = _getCollateralUpdateSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            timestamp,
+            validator4Pk_
+        );
+
+        address[] memory validators = new address[](4);
+        validators[0] = _validator2;
+        validators[1] = _validator1;
+        validators[2] = validator4_;
+        validators[3] = validator3_;
+
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = signature2_;
+        signatures[1] = signature1_;
+        signatures[2] = signature4_;
+        signatures[3] = signature3_;
+
+        uint256[] memory timestamps = new uint256[](4);
+        timestamps[0] = timestamp;
+        timestamps[1] = timestamp;
+        timestamps[2] = timestamp - 1;
+        timestamps[3] = timestamp;
+
+        vm.expectRevert(abi.encodeWithSelector(IProtocol.NotEnoughValidSignatures.selector, 2, 3));
 
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
@@ -1090,6 +1162,16 @@ contract ProtocolTests is Test {
         assertEq(_protocol.isActiveMinter(_minter1), true);
     }
 
+    function test_activateMinter_notApprovedMinter() external {
+        vm.expectRevert(IProtocol.NotApprovedMinter.selector);
+        _protocol.activateMinter(makeAddr("notApprovedMinter"));
+    }
+
+    function test_activateMinter_alreadyActiveMinter() external {
+        vm.expectRevert(IProtocol.AlreadyActiveMinter.selector);
+        _protocol.activateMinter(_minter1);
+    }
+
     function test_deactivateMinter() external {
         uint256 mintAmount = 1000000e18;
 
@@ -1104,8 +1186,23 @@ contract ProtocolTests is Test {
         vm.expectEmit();
         emit MinterDeactivated(_minter1, activeOwedM, _alice);
 
+        uint256 totalInactiveOwedM = _protocol.totalInactiveOwedM();
+        uint256 totalActiveOwedM = _protocol.totalActiveOwedM();
+        uint256 totalOwedM = _protocol.totalOwedM();
+        assertEq(totalInactiveOwedM, 0);
+        assertEq(totalActiveOwedM, activeOwedM);
+        assertEq(totalOwedM, totalActiveOwedM);
+
         vm.prank(_alice);
         _protocol.deactivateMinter(_minter1);
+
+        totalInactiveOwedM = _protocol.totalInactiveOwedM();
+        totalActiveOwedM = _protocol.totalActiveOwedM();
+        totalOwedM = _protocol.totalOwedM();
+
+        assertEq(totalInactiveOwedM, activeOwedM);
+        assertEq(totalActiveOwedM, 0);
+        assertEq(totalOwedM, totalInactiveOwedM);
 
         assertEq(_protocol.principalOfActiveOwedMOf(_minter1), 0);
         assertEq(_protocol.activeOwedMOf(_minter1), 0);
@@ -1203,6 +1300,7 @@ contract ProtocolTests is Test {
         assertEq(retrievalId, expectedRetrievalId);
         assertEq(_protocol.totalPendingCollateralRetrievalsOf(_minter1), collateral);
         assertEq(_protocol.pendingCollateralRetrievalOf(_minter1, retrievalId), collateral);
+        assertEq(_protocol.maxAllowedActiveOwedMOf(_minter1), 0);
 
         vm.warp(block.timestamp + 200);
 
@@ -1239,6 +1337,7 @@ contract ProtocolTests is Test {
 
         assertEq(_protocol.totalPendingCollateralRetrievalsOf(_minter1), 0);
         assertEq(_protocol.pendingCollateralRetrievalOf(_minter1, retrievalId), 0);
+        assertEq(_protocol.maxAllowedActiveOwedMOf(_minter1), ((collateral / 2) * _mintRatio) / ONE);
     }
 
     function test_proposeRetrieval_InactiveMinter() external {
@@ -1449,6 +1548,45 @@ contract ProtocolTests is Test {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, address(0));
 
         assertEq(_protocol.rate(), 0);
+    }
+
+    function test_readSPOGParameters() external {
+        address peter = makeAddr("peter");
+
+        assertEq(_protocol.isMinterApprovedBySPOG(peter), false);
+        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, peter);
+        assertEq(_protocol.isMinterApprovedBySPOG(peter), true);
+
+        assertEq(_protocol.isValidatorApprovedBySPOG(peter), false);
+        _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, peter);
+        assertEq(_protocol.isValidatorApprovedBySPOG(peter), true);
+
+        _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validator1);
+
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, 8000);
+        assertEq(_protocol.mintRatio(), 8000);
+
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
+        assertEq(_protocol.updateCollateralValidatorThreshold(), 3);
+
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 12 * 60 * 60);
+        assertEq(_protocol.updateCollateralInterval(), 12 * 60 * 60);
+
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_FREEZE_TIME, 2 * 60 * 60);
+        assertEq(_protocol.minterFreezeTime(), 2 * 60 * 60);
+
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_DELAY, 3 * 60 * 60);
+        assertEq(_protocol.mintDelay(), 3 * 60 * 60);
+
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_TTL, 4 * 60 * 60);
+        assertEq(_protocol.mintTTL(), 4 * 60 * 60);
+
+        MockRateModel minterRateModel = new MockRateModel();
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, address(minterRateModel));
+        assertEq(_protocol.rateModel(), address(minterRateModel));
+
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.PENALTY_RATE, 100);
+        assertEq(_protocol.penaltyRate(), 100);
     }
 
     function _getCollateralUpdateSignature(
