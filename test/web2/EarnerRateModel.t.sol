@@ -186,6 +186,44 @@ contract EarnerRateModelTest is Test
         assertEq(500000000000000000, _earnerRateModel.rate());
     }
 
+    // Fuzz Testing
+    function test_rate_fuzz(
+        uint256 totalActiveOwedM, 
+        uint256 totalEarningSupply, 
+        uint256 baseEarnerRate, 
+        uint256 minterRate) public 
+    {
+        // only if ... 
+        // because these values would return directly 0 or baseRate()
+        vm.assume(totalActiveOwedM > 0);
+        vm.assume(totalEarningSupply > 0);
+
+        // overflow protection
+        vm.assume(totalActiveOwedM <= type(uint256).max / 10_000);
+        vm.assume(baseEarnerRate   <= type(uint256).max / 10_000);
+        vm.assume(minterRate       <= type(uint256).max / 10_000);
+
+        _setTotalActiveOwedM(totalActiveOwedM);
+        _setTotalEarningSupply(totalEarningSupply);
+        _setBaseEarnerRate(baseEarnerRate);
+        _setMinterRate(minterRate);
+
+        uint256 utilization = (totalActiveOwedM * 10_000) / totalEarningSupply;
+        uint256 utilizationMax10000 = (utilization < 10000) ? utilization : 10000;
+        uint256 c = baseEarnerRate * utilizationMax10000; // todo: naming
+        
+        // overflow protection
+        vm.assume(minterRate  <= type(uint128).max);
+        vm.assume(utilization <= type(uint128).max);
+
+        uint256 d = minterRate * utilization; // todo: naming
+        uint256 min2 = (c < d) ? c : d; // todo: naming
+        uint256 calculatedRate = min2 / 10000;
+
+        assertEq(baseEarnerRate, _earnerRateModel.baseRate());
+        assertEq(calculatedRate, _earnerRateModel.rate());
+    }
+
 
     // --- Helpers ----
     function _setTotalActiveOwedM(uint256 value) private
