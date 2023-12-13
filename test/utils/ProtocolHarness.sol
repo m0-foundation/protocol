@@ -18,7 +18,7 @@ contract ProtocolHarness is Protocol {
     }
 
     function setActiveMinter(address minter_, bool isActive_) external {
-        _minterBasics[minter_].isActive = isActive_;
+        _minterStates[minter_].isActive = isActive_;
     }
 
     function setMintProposalOf(
@@ -38,19 +38,19 @@ contract ProtocolHarness is Protocol {
     }
 
     function setCollateralOf(address minter_, uint256 collateral_) external {
-        _minterBasics[minter_].collateral = UIntMath.safe128(collateral_);
+        _minterStates[minter_].collateral = UIntMath.safe128(collateral_);
     }
 
     function setCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
-        _minterBasics[minter_].updateTimestamp = uint40(lastUpdated_);
+        _minterStates[minter_].updateTimestamp = uint40(lastUpdated_);
     }
 
     function setLastCollateralUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
-        _minterBasics[minter_].lastUpdateInterval = uint32(updateInterval_);
+        _minterStates[minter_].lastUpdateInterval = uint32(updateInterval_);
     }
 
     function setPenalizedUntilOf(address minter_, uint256 penalizedUntil_) external {
-        _minterBasics[minter_].penalizedUntilTimestamp = uint40(penalizedUntil_);
+        _minterStates[minter_].penalizedUntilTimestamp = uint40(penalizedUntil_);
     }
 
     function setPrincipalOfActiveOwedMOf(address minter_, uint256 amount_) external {
