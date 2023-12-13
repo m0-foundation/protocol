@@ -117,11 +117,14 @@ contract IntegrationTests is Test {
         uint256 latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_protocol.minterRate(), 1_000);
+        assertEq(_minterRateModel.baseRate(), 1_000);
         assertEq(_protocol.latestIndex(), 1_000000000000000000);
         assertEq(_protocol.currentIndex(), 1_000000000000000000);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
+        assertEq(_earnerRateModel.baseRate(), 1_000);
+        assertEq(_mToken.rateModel(), address(_earnerRateModel));
         assertEq(_mToken.latestIndex(), 1_000000000000000000);
         assertEq(_mToken.currentIndex(), 1_000000000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
@@ -288,6 +291,8 @@ contract IntegrationTests is Test {
 
         vm.warp(block.timestamp + 1 hours); // 1 hour later, someone updates the indices.
 
+        uint256 excessActiveOwedM = _protocol.excessActiveOwedM();
+
         _protocol.updateIndex();
 
         // Both timestamps are updated since updateIndex gets called on the protocol, and thus on the mToken.
@@ -307,6 +312,10 @@ contract IntegrationTests is Test {
         assertEq(_protocol.activeOwedMOf(_minters[0]), 551_230_853162);
         assertEq(_mToken.balanceOf(_bob), 551_170_800163); // Bob is not earning, so no change.
         assertEq(_mToken.balanceOf(_vault), 60_052998);
+        assertEq(_mToken.balanceOf(_vault), excessActiveOwedM); // Excess active owed M is distributed to vault.
+
+        excessActiveOwedM = _protocol.excessActiveOwedM();
+        assertEq(excessActiveOwedM, 0);
 
         vm.warp(block.timestamp + 1 days); // 1 day later, bob starts earning.
 
