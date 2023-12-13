@@ -8,13 +8,14 @@ import { IProtocol } from "../../src/interfaces/IProtocol.sol";
 import { ISPOGRegistrar } from "../../src/interfaces/ISPOGRegistrar.sol";
 import { SPOGRegistrarReader } from "../../src/libs/SPOGRegistrarReader.sol";
 
-contract MinterRateTest is Test {
-
+contract MinterRateTest is Test 
+{
     address internal _spogRegistrarAddress = makeAddr("spogRegistrar");
     MinterRateModel internal _minterRateModel;
     uint256 _baseRate = 456;
 
-    function setUp() public {
+    function setUp() public 
+    {
         vm.mockCall(
             _spogRegistrarAddress,
             abi.encodeWithSelector(ISPOGRegistrar.get.selector, SPOGRegistrarReader.BASE_MINTER_RATE),
@@ -24,17 +25,18 @@ contract MinterRateTest is Test {
         _minterRateModel = new MinterRateModel(_spogRegistrarAddress);
     }
 
-    function test_setUp() public {
+    function test_setUp() public 
+    {
         assertEq(_spogRegistrarAddress, _minterRateModel.spogRegistrar(), "Setup spogRegistrar address failed");
     }
 
-    function test_baseRate() public {
+    function test_baseRate() public 
+    {
         assertEq(_baseRate, _minterRateModel.baseRate());
     }
 
-    function test_rate() public {
+    function test_rate() public 
+    {
         assertEq(_baseRate, _minterRateModel.rate());
     }
-
-
 }
