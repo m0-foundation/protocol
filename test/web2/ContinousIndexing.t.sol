@@ -48,16 +48,15 @@ contract ContinousIndexingTest is Test {
         assertEq(fixed_index, _continuousIndexing.currentIndex());
     }
 
-    function test_updateIndex_UpdateEmitted() public {
-        // _continuousIndexing.setter_latestIndex(fixed_index); // 5
-        _continuousIndexing.setter_rate(2); // 2
+    function test_updateIndex_FuzzyUpdateEmitted(uint256 rate_) public {
+        _continuousIndexing.setter_rate(rate_); // 2
         _continuousIndexing.setter_latestUpdateTimestamp(0);
         vm.warp(3 days);
 
         _continuousIndexing.external_updateIndex();
 
         // Rate has been update after update
-        assertEq(2, _continuousIndexing.external_rate());
+        assertEq(rate_, _continuousIndexing.external_rate());
         // 3 days warped in time
         assertEq(259200, _continuousIndexing.latestUpdateTimestamp());
     }
