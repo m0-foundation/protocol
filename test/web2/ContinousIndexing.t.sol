@@ -36,19 +36,20 @@ contract ContinousIndexingTest is Test {
     \******************************************************************************************************************/
 
     function test_updateIndex_latestUpdateEqualsBlock() public {
-        uint256 fixed_index = 5 * 1e18; // 5
+        _continuousIndexing.setter_latestIndex(5 * 1e18); // 5
+        _continuousIndexing.setter_latestRate(200); // 2
 
-        _continuousIndexing.setter_latestIndex(fixed_index); // 5
-        _continuousIndexing.setter_rate(2); // 2
-
-        _continuousIndexing.setter_latestUpdateTimestamp(block.timestamp);
+        _continuousIndexing.setter_latestUpdateTimestamp(1);
+        vm.warp(2 days);
 
         _continuousIndexing.external_updateIndex();
 
-        assertEq(fixed_index, _continuousIndexing.currentIndex());
+        assertEq(5000547972059644355, _continuousIndexing.currentIndex());
+        // 2 days
+        assertEq(172800, _continuousIndexing.latestUpdateTimestamp());
     }
 
-    function test_updateIndex_FuzzyUpdateEmitted(uint256 rate_) public {
+    function testFuzz_updateIndex_UpdateEmitted(uint256 rate_) public {
         _continuousIndexing.setter_rate(rate_); // 2
         _continuousIndexing.setter_latestUpdateTimestamp(0);
         vm.warp(3 days);
@@ -107,24 +108,56 @@ contract ContinousIndexingTest is Test {
     |                                          Internal Interactive Functions                                          |
     \******************************************************************************************************************/
 
-    function test_getPresentAmountAndUpdateIndex() public {}
+    function test_getPresentAmountAndUpdateIndex(uint256 r_, uint256 pa_) public {
+        pa_ = bound(pa_, 0, 10_000_000_000_000_000);
 
-    function test_getPrincipalAmountAndUpdateIndex() public {}
+        _continuousIndexing.setter_latestIndex(2);
+        _continuousIndexing.setter_latestUpdateTimestamp(0);
+        _continuousIndexing.setter_rate(r_);
+
+        vm.warp(2 days);
+
+        uint256 l_ = _continuousIndexing.external_getPresentAmountAndUpdateIndex(pa_ * 1e18);
+
+        // 2 days
+        assertEq(172800, _continuousIndexing.latestUpdateTimestamp());
+        assertEq(r_, _continuousIndexing.external_rate());
+        // 2 days * pa_
+        assertEq(2 * pa_, l_);
+    }
+
+    function test_getPrincipalAmountAndUpdateIndex(uint256 r_, uint256 pa_) public {
+        pa_ = bound(pa_, 0, 10_000_000_000_000_000);
+
+        _continuousIndexing.setter_latestIndex(2);
+        _continuousIndexing.setter_latestUpdateTimestamp(0);
+        _continuousIndexing.setter_rate(r_);
+
+        vm.warp(2 days);
+
+        uint256 l_ = _continuousIndexing.external_getPrincipalAmountAndUpdateIndex(pa_);
+
+        // 2 days
+        assertEq(172800, _continuousIndexing.latestUpdateTimestamp());
+        assertEq(r_, _continuousIndexing.external_rate());
+        // pa_ / 2
+        assertEq((pa_ * 1e18) / 2, l_);
+    }
 
     /******************************************************************************************************************\
     |                                           Internal View/Pure Functions                                           |
     \******************************************************************************************************************/
 
-    function test_getPresentAmount() public {
-        assertEq(
-            2_000_000_000_000_000_000,
-            _continuousIndexing.external_getPresentAmount(1_000_000_000_000_000_000, 2_000_000_000_000_000_000)
-        );
-        assertEq(
-            1_105_170_833_333_333_332,
-            _continuousIndexing.external_getPresentAmount(1_000_000_000_000_000_000, 1_105_170_833_333_333_332)
-        );
+    function test_getPresentAmount(uint256 index_) public {
+        index_ = bound(index_, 0, 2_000_000_000_000_000_000);
+
+        assertEq(index_, _continuousIndexing.external_getPresentAmount(1_000_000_000_000_000_000, index_));
     }
 
-    function test_getPrincipalAmount() public {}
+    function testFuzz_getPrincipalAmount(uint256 index_) public {
+        index_ = bound(index_, 0, 1_105_170_833_333_333_332);
+        uint256 pa_ = _continuousIndexing.external_getPresentAmount(1_000_000_000_000_000_000, index_);
+
+        assertEq((pa_ * index_) / 1e18, _continuousIndexing.external_getPrincipalAmount(pa_, index_));
+    }
 }
