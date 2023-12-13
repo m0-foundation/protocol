@@ -2,19 +2,20 @@
 
 pragma solidity 0.8.23;
 
+import { UIntMath } from "./libs/UIntMath.sol";
+
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 
 import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
 abstract contract ContinuousIndexing is IContinuousIndexing {
-    // TODO: Consider packing these into a single slot.
-    uint256 internal _latestIndex;
-    uint256 internal _latestRate;
-    uint256 internal _latestUpdateTimestamp;
+    uint192 internal _latestIndex;
+    uint24 internal _latestRate;
+    uint40 internal _latestUpdateTimestamp;
 
     constructor() {
-        _latestIndex = 1 * ContinuousIndexingMath.EXP_BASE_SCALE;
-        _latestUpdateTimestamp = block.timestamp;
+        _latestIndex = uint184(1 * ContinuousIndexingMath.EXP_BASE_SCALE);
+        _latestUpdateTimestamp = uint40(block.timestamp);
     }
 
     /******************************************************************************************************************\
@@ -30,9 +31,9 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
 
         if (_latestUpdateTimestamp == block.timestamp && _latestRate == rate_) return currentIndex_;
 
-        _latestIndex = currentIndex_;
-        _latestRate = rate_;
-        _latestUpdateTimestamp = block.timestamp;
+        _latestIndex = UIntMath.safe192(currentIndex_);
+        _latestRate = UIntMath.safe24(rate_);
+        _latestUpdateTimestamp = uint40(block.timestamp);
 
         emit IndexUpdated(currentIndex_, _latestRate);
     }

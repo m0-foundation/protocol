@@ -2,21 +2,23 @@
 
 pragma solidity 0.8.23;
 
+import { UIntMath } from "../../src/libs/UIntMath.sol";
+
 import { MToken } from "../../src/MToken.sol";
 
 contract MTokenHarness is MToken {
     constructor(address spogRegistrar_, address protocol_) MToken(spogRegistrar_, protocol_) {}
 
     function setLatestIndex(uint256 index_) external {
-        _latestIndex = index_;
+        _latestIndex = UIntMath.safe192(index_);
     }
 
     function setLatestRate(uint256 rate_) external {
-        _latestRate = rate_;
+        _latestRate = UIntMath.safe24(rate_);
     }
 
     function setLatestUpdated(uint256 timestamp_) external {
-        _latestUpdateTimestamp = timestamp_;
+        _latestUpdateTimestamp = uint40(timestamp_);
     }
 
     function setIsEarning(address account_, bool isEarning_) external {

@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.23;
 
+import { UIntMath } from "../../src/libs/UIntMath.sol";
+
 import { Protocol } from "../../src/Protocol.sol";
 
 contract ProtocolHarness is Protocol {
@@ -16,7 +18,7 @@ contract ProtocolHarness is Protocol {
     }
 
     function setActiveMinter(address minter_, bool isActive_) external {
-        _isActiveMinter[minter_] = isActive_;
+        _minterBasics[minter_].isActive = isActive_;
     }
 
     function setMintProposalOf(
@@ -26,40 +28,46 @@ contract ProtocolHarness is Protocol {
         address destination_
     ) external returns (uint256 mintId_) {
         mintId_ = ++_mintNonce;
-        _mintProposals[minter_] = MintProposal(mintId_, destination_, amount_, createdAt_);
+
+        _mintProposals[minter_] = MintProposal(
+            uint48(mintId_),
+            uint40(createdAt_),
+            destination_,
+            UIntMath.safe128(amount_)
+        );
     }
 
     function setCollateralOf(address minter_, uint256 collateral_) external {
-        _collaterals[minter_] = collateral_;
+        _minterBasics[minter_].collateral = UIntMath.safe128(collateral_);
     }
 
     function setCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
-        _lastCollateralUpdates[minter_] = lastUpdated_;
+        _minterBasics[minter_].updateTimestamp = uint40(lastUpdated_);
     }
 
     function setLastCollateralUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
-        _lastUpdateIntervals[minter_] = updateInterval_;
+        _minterBasics[minter_].lastUpdateInterval = uint32(updateInterval_);
     }
 
     function setPenalizedUntilOf(address minter_, uint256 penalizedUntil_) external {
-        _penalizedUntilTimestamps[minter_] = penalizedUntil_;
+        _minterBasics[minter_].penalizedUntilTimestamp = uint40(penalizedUntil_);
     }
 
     function setPrincipalOfActiveOwedMOf(address minter_, uint256 amount_) external {
-        _principalOfActiveOwedM[minter_] = amount_;
-        _totalPrincipalOfActiveOwedM += amount_; // TODO: fix this side effect.
+        _owedM[minter_].principalOfActive = UIntMath.safe128(amount_);
+        _totalPrincipalOfActiveOwedM += UIntMath.safe128(amount_); // TODO: fix this side effect. ?
     }
 
     function setLatestIndex(uint256 index_) external {
-        _latestIndex = index_;
+        _latestIndex = UIntMath.safe192(index_);
     }
 
     function setLatestRate(uint256 rate_) external {
-        _latestRate = rate_;
+        _latestRate = UIntMath.safe24(rate_);
     }
 
     function principalOfActiveOwedMOf(address minter_) external view returns (uint256 principalOfActiveOwedM_) {
-        return _principalOfActiveOwedM[minter_];
+        return _owedM[minter_].principalOfActive;
     }
 
     function rate() external view returns (uint256 rate_) {

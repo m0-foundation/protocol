@@ -299,7 +299,7 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The mint proposal of minters, only 1 active proposal per minter
     function mintProposalOf(
         address minter
-    ) external view returns (uint256 mintId, address destination, uint256 amount, uint256 createdAt);
+    ) external view returns (uint256 mintId, uint256 createdAt, address destination, uint256 amount);
 
     /// @notice The minter's proposeRetrieval proposal amount
     function pendingCollateralRetrievalOf(
