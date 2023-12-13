@@ -13,12 +13,10 @@ import { IContinuousIndexing } from "../../src/interfaces/IContinuousIndexing.so
 import { ISPOGRegistrar } from "../../src/interfaces/ISPOGRegistrar.sol";
 import { SPOGRegistrarReader } from "../../src/libs/SPOGRegistrarReader.sol";
 
-
 contract ContinousIndexingTest is Test {
-
-    ContinuousIndexingHarness internal _continuousIndexing; 
+    ContinuousIndexingHarness internal _continuousIndexing;
     uint256 internal _rate = 100; // 10% (1000 = 100%)
-    uint256 internal _timestamp = 1_000_000_000; 
+    uint256 internal _timestamp = 1_000_000_000;
     uint256 internal _index = 1_000_000_000_000_000_000; // 1 * scale
 
     function setUp() public {
@@ -33,14 +31,35 @@ contract ContinousIndexingTest is Test {
         assertEq(_timestamp, _continuousIndexing.latestUpdateTimestamp(), "Setup update timestamp failed");
     }
 
-
     /******************************************************************************************************************\
     |                                       External/Public Interactive Functions                                        |
     \******************************************************************************************************************/
 
+    function test_updateIndex_latestUpdateEqualsBlock() public {
+        uint256 fixed_index = 5 * 1e18; // 5
 
-    function test_updateIndex() public {
+        _continuousIndexing.setter_latestIndex(fixed_index); // 5
+        _continuousIndexing.setter_rate(2); // 2
 
+        _continuousIndexing.setter_latestUpdateTimestamp(block.timestamp);
+
+        _continuousIndexing.external_updateIndex();
+
+        assertEq(fixed_index, _continuousIndexing.currentIndex());
+    }
+
+    function test_updateIndex_UpdateEmitted() public {
+        // _continuousIndexing.setter_latestIndex(fixed_index); // 5
+        _continuousIndexing.setter_rate(2); // 2
+        _continuousIndexing.setter_latestUpdateTimestamp(0);
+        vm.warp(3 days);
+
+        _continuousIndexing.external_updateIndex();
+
+        // Rate has been update after update
+        assertEq(2, _continuousIndexing.external_rate());
+        // 3 days warped in time
+        assertEq(259200, _continuousIndexing.latestUpdateTimestamp());
     }
 
     /******************************************************************************************************************\
@@ -51,7 +70,7 @@ contract ContinousIndexingTest is Test {
         // Interest compounding over one year
         _continuousIndexing.setter_latestIndex(1 * 1e18); // 1
         _continuousIndexing.setter_latestUpdateTimestamp(0); // converted into seconds
-        _continuousIndexing.setter_latestRate(1000); // 10%    
+        _continuousIndexing.setter_latestRate(1000); // 10%
         vm.warp(365 days); // one year later
 
         assertEq(1_105_170_833_333_333_332, _continuousIndexing.currentIndex());
@@ -71,7 +90,7 @@ contract ContinousIndexingTest is Test {
         // Interest compounding over one year
         _continuousIndexing.setter_latestIndex(1 * 1e18); // 1
         _continuousIndexing.setter_latestUpdateTimestamp(7 days); // converted into seconds
-        _continuousIndexing.setter_latestRate(200); // 10%    
+        _continuousIndexing.setter_latestRate(200); // 10%
         vm.warp(14 days); // 7 days later
 
         assertEq(1_000_383_635_213_008_728, _continuousIndexing.currentIndex());
@@ -89,26 +108,24 @@ contract ContinousIndexingTest is Test {
     |                                          Internal Interactive Functions                                          |
     \******************************************************************************************************************/
 
-    function test_getPresentAmountAndUpdateIndex() public {
+    function test_getPresentAmountAndUpdateIndex() public {}
 
-    }
+    function test_getPrincipalAmountAndUpdateIndex() public {}
 
-    function test_getPrincipalAmountAndUpdateIndex() public {
-
-    }
-
-        /******************************************************************************************************************\
+    /******************************************************************************************************************\
     |                                           Internal View/Pure Functions                                           |
     \******************************************************************************************************************/
 
     function test_getPresentAmount() public {
-        assertEq(2_000_000_000_000_000_000, _continuousIndexing.external_getPresentAmount(1_000_000_000_000_000_000, 2_000_000_000_000_000_000)); 
-        assertEq(1_105_170_833_333_333_332, _continuousIndexing.external_getPresentAmount(1_000_000_000_000_000_000, 1_105_170_833_333_333_332)); 
+        assertEq(
+            2_000_000_000_000_000_000,
+            _continuousIndexing.external_getPresentAmount(1_000_000_000_000_000_000, 2_000_000_000_000_000_000)
+        );
+        assertEq(
+            1_105_170_833_333_333_332,
+            _continuousIndexing.external_getPresentAmount(1_000_000_000_000_000_000, 1_105_170_833_333_333_332)
+        );
     }
 
-    function test_getPrincipalAmount() public {
-
-    }
-
-
+    function test_getPrincipalAmount() public {}
 }

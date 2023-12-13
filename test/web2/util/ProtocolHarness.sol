@@ -8,6 +8,7 @@ import { ContinuousIndexing } from "../../../src/ContinuousIndexing.sol";
 
 contract ProtocolHarness is Protocol {
     constructor(address spogRegistrar_, address mToken_) Protocol(spogRegistrar_, mToken_) {}
+
     uint256 internal _fixedIndex;
 
     // --- ContinuousIndexing
@@ -20,10 +21,10 @@ contract ProtocolHarness is Protocol {
     }
 
     function setter_latestUpdateTimestamp(uint256 latestUpdateTimestamp_) external {
-        _latestUpdateTimestamp= latestUpdateTimestamp_;
+        _latestUpdateTimestamp = latestUpdateTimestamp_;
     }
 
-    // --- Protocol 
+    // --- Protocol
 
     function setter_isActiveMinter(address minter_, bool isActiveMinter_) external {
         _isActiveMinter[minter_] = isActiveMinter_;
@@ -45,7 +46,10 @@ contract ProtocolHarness is Protocol {
         return _principalOfActiveOwedM[minter_];
     }
 
-    function setter_totalPendingCollateralRetrieval(address minter_, uint256 totalPendingCollateralRetrieval_) external {
+    function setter_totalPendingCollateralRetrieval(
+        address minter_,
+        uint256 totalPendingCollateralRetrieval_
+    ) external {
         _totalPendingCollateralRetrieval[minter_] = totalPendingCollateralRetrieval_;
     }
 
@@ -99,7 +103,9 @@ contract ProtocolHarness is Protocol {
         return _rate();
     }
 
-    function external_getPenaltyBaseAndTimeForMissedCollateralUpdates(address minter_) external view returns (uint256 penaltyBase_, uint256 penalizedUntil_) {
+    function external_getPenaltyBaseAndTimeForMissedCollateralUpdates(
+        address minter_
+    ) external view returns (uint256 penaltyBase_, uint256 penalizedUntil_) {
         return _getPenaltyBaseAndTimeForMissedCollateralUpdates(minter_);
     }
 
@@ -120,13 +126,17 @@ contract ProtocolHarness is Protocol {
         _fixedIndex = 1e18;
     }
 
-    function currentIndex() public view virtual override(IContinuousIndexing, ContinuousIndexing) returns (uint256 currentIndex_) {
+    function currentIndex()
+        public
+        view
+        virtual
+        override(IContinuousIndexing, ContinuousIndexing)
+        returns (uint256 currentIndex_)
+    {
         if (_fixedIndex != 0) {
             return _fixedIndex;
         }
 
         return super.currentIndex();
     }
-
-
 }
