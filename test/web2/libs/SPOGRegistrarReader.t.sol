@@ -2,160 +2,163 @@
 pragma solidity 0.8.23;
 
 import { console2, stdError, Test } from "../../../lib/forge-std/src/Test.sol";
-import { SPOGRegistrarHarness } from "../util/SPOGRegistrarHarness.sol";
 import { SPOGRegistrarReader } from "../../../src/libs/SPOGRegistrarReader.sol";
 import { ISPOGRegistrar } from "../../../src/interfaces/ISPOGRegistrar.sol";
 
 
 contract SPOGRegistrarReaderTest is Test {
 
-    function test_getBaseEarnerRate() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
-        registrar.__setValue(SPOGRegistrarReader.BASE_EARNER_RATE, 123);
+    address internal _spogRegistrarAddress = makeAddr("spogRegistrar");
 
-        assertEq(123, SPOGRegistrarReader.getBaseEarnerRate(address(registrar)));
+
+    function setUp() public {
+            vm.mockCall(
+            _spogRegistrarAddress,
+            abi.encodeWithSelector(ISPOGRegistrar.get.selector),
+            abi.encode()
+        ); 
+
+        vm.mockCall(
+            _spogRegistrarAddress,
+            abi.encodeWithSelector(ISPOGRegistrar.listContains.selector),
+            abi.encode(false)
+        ); 
+    }
+
+    function test_getBaseEarnerRate() public {
+        _setSPOGRegistrarValue(SPOGRegistrarReader.BASE_EARNER_RATE, 123);
+
+        assertEq(123, SPOGRegistrarReader.getBaseEarnerRate(_spogRegistrarAddress));
     }
 
     function test_getBaseMinterRate() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
-        registrar.__setValue(SPOGRegistrarReader.BASE_MINTER_RATE, 123);
+        _setSPOGRegistrarValue(SPOGRegistrarReader.BASE_MINTER_RATE, 123);
 
-        assertEq(123, SPOGRegistrarReader.getBaseMinterRate(address(registrar)));
+        assertEq(123, SPOGRegistrarReader.getBaseMinterRate(_spogRegistrarAddress));
     }
 
     function test_getEarnerRateModel() public {
-
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
         address rateModel = makeAddr("rateModel");
-        registrar.__setValue(SPOGRegistrarReader.EARNER_RATE_MODEL, rateModel);
+        _setSPOGRegistrarValue(SPOGRegistrarReader.EARNER_RATE_MODEL, rateModel);
 
-        assertEq(rateModel, SPOGRegistrarReader.getEarnerRateModel(address(registrar)));
+        assertEq(rateModel, SPOGRegistrarReader.getEarnerRateModel(_spogRegistrarAddress));
     }
 
     function test_getMintDelay() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
-        registrar.__setValue(SPOGRegistrarReader.MINT_DELAY, 123);
+        _setSPOGRegistrarValue(SPOGRegistrarReader.MINT_DELAY, 123);
 
-        assertEq(123, SPOGRegistrarReader.getMintDelay(address(registrar)));
+        assertEq(123, SPOGRegistrarReader.getMintDelay(_spogRegistrarAddress));
     }
 
     function test_getMinterFreezeTime() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
-        registrar.__setValue(SPOGRegistrarReader.MINTER_FREEZE_TIME, 123);
+        _setSPOGRegistrarValue(SPOGRegistrarReader.MINTER_FREEZE_TIME, 123);
 
-        assertEq(123, SPOGRegistrarReader.getMinterFreezeTime(address(registrar)));
+        assertEq(123, SPOGRegistrarReader.getMinterFreezeTime(_spogRegistrarAddress));
     }
 
     function test_getMinterRate() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
-        registrar.__setValue(SPOGRegistrarReader.MINTER_RATE, 123);
+        _setSPOGRegistrarValue(SPOGRegistrarReader.MINTER_RATE, 123);
 
-        assertEq(123, SPOGRegistrarReader.getMinterRate(address(registrar)));
+        assertEq(123, SPOGRegistrarReader.getMinterRate(_spogRegistrarAddress));
     }
 
     function test_getMinterRateModel() public {
 
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
         address rateModel = makeAddr("rateModel");
-        registrar.__setValue(SPOGRegistrarReader.MINTER_RATE_MODEL, rateModel);
+        _setSPOGRegistrarValue(SPOGRegistrarReader.MINTER_RATE_MODEL, rateModel);
 
-        assertEq(rateModel, SPOGRegistrarReader.getMinterRateModel(address(registrar)));
+        assertEq(rateModel, SPOGRegistrarReader.getMinterRateModel(_spogRegistrarAddress));
     }
 
     function test_getMintTTL() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
-        registrar.__setValue(SPOGRegistrarReader.MINT_TTL, 123);
+        _setSPOGRegistrarValue(SPOGRegistrarReader.MINT_TTL, 123);
 
-        assertEq(123, SPOGRegistrarReader.getMintTTL(address(registrar)));
+        assertEq(123, SPOGRegistrarReader.getMintTTL(_spogRegistrarAddress));
     }
 
     function test_getUpdateCollateralInterval() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
-        registrar.__setValue(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 123);
+        _setSPOGRegistrarValue(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 123);
 
-        assertEq(123, SPOGRegistrarReader.getUpdateCollateralInterval(address(registrar)));
+        assertEq(123, SPOGRegistrarReader.getUpdateCollateralInterval(_spogRegistrarAddress));
     }
 
     // TODO #1
     function test_getUpdateCollateralValidatorThreshold() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
-        registrar.__setValue(SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD, 123);
+        _setSPOGRegistrarValue(SPOGRegistrarReader.UPDATE_COLLATERAL_QUORUM_VALIDATOR_THRESHOLD, 123);
 
-        assertEq(123, SPOGRegistrarReader.getUpdateCollateralValidatorThreshold(address(registrar)));
+        assertEq(123, SPOGRegistrarReader.getUpdateCollateralValidatorThreshold(_spogRegistrarAddress));
     }
 
     function test_isApprovedEarner_negative() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
         address account = makeAddr("account");
 
-        assertFalse(SPOGRegistrarReader.isApprovedEarner(address(registrar), account));
+        assertFalse(SPOGRegistrarReader.isApprovedEarner(_spogRegistrarAddress, account));
     }
 
     function test_isApprovedEarner_positive() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
         address account = makeAddr("account");
-        registrar.__setListValue(SPOGRegistrarReader.EARNERS_LIST, account);
+        _addAddressToSPOGList(SPOGRegistrarReader.EARNERS_LIST, account);
 
-        assertTrue(SPOGRegistrarReader.isApprovedEarner(address(registrar), account));
+        assertTrue(SPOGRegistrarReader.isApprovedEarner(_spogRegistrarAddress, account));
     }
 
     function test_isEarnersListIgnored_negative() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
+        vm.mockCall(
+            _spogRegistrarAddress,
+            abi.encodeWithSelector(ISPOGRegistrar.get.selector, SPOGRegistrarReader.EARNERS_LIST_IGNORED),
+            abi.encode(bytes32(0))
+        ); 
 
-        assertFalse(SPOGRegistrarReader.isEarnersListIgnored(address(registrar)));
+        assertFalse(SPOGRegistrarReader.isEarnersListIgnored(_spogRegistrarAddress));
     }
 
     function test_isEarnersListIgnored_positive() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
-        address earnersListIgnored = makeAddr("earnersListIgnored");
-        registrar.__setValue(SPOGRegistrarReader.EARNERS_LIST_IGNORED, earnersListIgnored);
+        _setSPOGRegistrarValue(SPOGRegistrarReader.EARNERS_LIST_IGNORED, 1);
 
-        assertTrue(SPOGRegistrarReader.isEarnersListIgnored(address(registrar)));
+        assertTrue(SPOGRegistrarReader.isEarnersListIgnored(_spogRegistrarAddress));
     }
 
     function test_isApprovedMinter_negative() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
         address account = makeAddr("account");
 
-        assertFalse(SPOGRegistrarReader.isApprovedMinter(address(registrar), account));
+        assertFalse(SPOGRegistrarReader.isApprovedMinter(_spogRegistrarAddress, account));
     }
 
     function test_isApprovedMinter_positive() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
         address account = makeAddr("account");
-        registrar.__setListValue(SPOGRegistrarReader.MINTERS_LIST, account);
+        _addAddressToSPOGList(SPOGRegistrarReader.MINTERS_LIST, account);
 
-        assertTrue(SPOGRegistrarReader.isApprovedMinter(address(registrar), account));
+        assertTrue(SPOGRegistrarReader.isApprovedMinter(_spogRegistrarAddress, account));
     }
 
     function test_isApprovedValidator_negative() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
         address account = makeAddr("account");
 
-        assertFalse(SPOGRegistrarReader.isApprovedValidator(address(registrar), account));
+        assertFalse(SPOGRegistrarReader.isApprovedValidator(_spogRegistrarAddress, account));
     }
 
     function test_isApprovedValidator_positive() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
         address account = makeAddr("account");
-        registrar.__setListValue(SPOGRegistrarReader.VALIDATORS_LIST, account);
+        _addAddressToSPOGList(SPOGRegistrarReader.VALIDATORS_LIST, account);
 
-        assertTrue(SPOGRegistrarReader.isApprovedValidator(address(registrar), account));
+        assertTrue(SPOGRegistrarReader.isApprovedValidator(_spogRegistrarAddress, account));
     }
 
     function test_getPenaltyRate() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
-        registrar.__setValue(SPOGRegistrarReader.PENALTY_RATE, 123);
+        _setSPOGRegistrarValue(SPOGRegistrarReader.PENALTY_RATE, 123);
 
-        assertEq(123, SPOGRegistrarReader.getPenaltyRate(address(registrar)));
+        assertEq(123, SPOGRegistrarReader.getPenaltyRate(_spogRegistrarAddress));
     }
 
     function test_getVault() public {
-        SPOGRegistrarHarness registrar = new SPOGRegistrarHarness();
-        address vault = makeAddr("vault");
-        registrar.setVault(vault);
+        address vaultAddress_ = makeAddr("vault");
+        vm.mockCall(
+            _spogRegistrarAddress,
+            abi.encodeWithSelector(ISPOGRegistrar.vault.selector),
+            abi.encode(vaultAddress_ )
+        ); 
 
-        assertEq(vault, SPOGRegistrarReader.getVault(address(registrar)));
+        assertEq(vaultAddress_ , SPOGRegistrarReader.getVault(_spogRegistrarAddress));
     }
 
     // function test_toAddress() public {
@@ -163,5 +166,30 @@ contract SPOGRegistrarReaderTest is Test {
 
     // function test_toBytes32() public {
     // }
+
+    // Helper
+    function _setSPOGRegistrarValue(bytes32 name_, uint256 value_) private {
+        vm.mockCall(
+            _spogRegistrarAddress,
+            abi.encodeWithSelector(ISPOGRegistrar.get.selector, name_),
+            abi.encode(value_)
+        ); 
+    }
+
+    function _setSPOGRegistrarValue(bytes32 name_, address value_) private {
+        vm.mockCall(
+            _spogRegistrarAddress,
+            abi.encodeWithSelector(ISPOGRegistrar.get.selector, name_),
+            abi.encode(value_)
+        ); 
+    }
+
+    function _addAddressToSPOGList(bytes32 list_, address account_) private {
+        vm.mockCall(
+            _spogRegistrarAddress,
+            abi.encodeWithSelector(ISPOGRegistrar.listContains.selector, list_, account_),
+            abi.encode(true)
+        ); 
+    }
 
 }
