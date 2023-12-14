@@ -220,12 +220,36 @@ abstract contract ScenarioTest is Test {
         ); 
     }
 
-    function _pogRemoveAccount(bytes32 list_, address account_) internal {
+    function _spogRemoveAccount(bytes32 list_, address account_) internal {
         vm.mockCall(
             _spogRegistrarAddress,
             abi.encodeWithSelector(ISPOGRegistrar.listContains.selector, list_, account_),
             abi.encode(false)
         ); 
+    }
+
+    function _spogAddEarner(address account_) internal {
+        _spogAddAccount(SPOGRegistrarReader.EARNERS_LIST, account_);
+    }
+
+    function _spogRemoveEarner(address account_) internal {
+        _spogRemoveAccount(SPOGRegistrarReader.EARNERS_LIST, account_);
+    }
+
+    function _spogAddMinter(address account_) internal {
+        _spogAddAccount(SPOGRegistrarReader.MINTERS_LIST, account_);
+    }
+
+    function _spogRemoveMinter(address account_) internal {
+        _spogRemoveAccount(SPOGRegistrarReader.MINTERS_LIST, account_);
+    }
+
+    function _spogAddValidator(address account_) internal {
+        _spogAddAccount(SPOGRegistrarReader.VALIDATORS_LIST, account_);
+    }
+
+    function _spogRemoveValidator(address account_) internal {
+        _spogRemoveAccount(SPOGRegistrarReader.VALIDATORS_LIST, account_);
     }
 
     // VM Helper
@@ -238,5 +262,7 @@ abstract contract ScenarioTest is Test {
 
         return _currentTimestamp;
     }
+
+
 
 }

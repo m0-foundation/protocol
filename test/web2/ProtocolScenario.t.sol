@@ -4,6 +4,7 @@ pragma solidity 0.8.23;
 import { console2, stdError, Test, Vm } from "../../lib/forge-std/src/Test.sol";
 import { ScenarioTest } from "./Scenario.sol";
 
+
 contract ProtocolScenarioTest is ScenarioTest {
 
     function setUp() public {
@@ -78,13 +79,14 @@ contract ProtocolScenarioTest is ScenarioTest {
         t[4] = _advanceTimeBy(4 hours);
         console2.log("  Michael executing the mint after the mintTTL has passed");
 
+        //_mToken.startEarning(_michael.addr);
+
         vm.prank(_michael.addr);
         _protocol.mintM(mintId);
 
         assertProtocolIndexing(1_000, 1_000171247537898172, 1_000171247537898172, t[4]);
         assertMTokenIndexing(  1_000, 1_000000000000000000, 1_000000000000000000, t[4]); // first time mToken.updateIndex() is called
 
-        assertEq(_protocol.activeOwedMOf(_michael.addr), 499_999_999999); // ~500k
         assertEq(_protocol.activeOwedMOf(_michael.addr), 499_999_999999); // ~500k
         assertEq(_protocol.totalActiveOwedM(), 499_999_999999); // ~500k
         //console2.logUint(_protocol.)
