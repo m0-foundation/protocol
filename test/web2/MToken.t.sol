@@ -73,11 +73,14 @@ contract MTokenTest is Test {
         _mToken.mint(_aliceAddress, 1337);
 
         // balance for alice increased
-//        assertEq(1337, _mToken.getter_balance(_aliceAddress));
+        assertEq(_mToken.balanceOf(_aliceAddress), 1337);
         // totalNonEarningSupply increased
-        assertEq(1337, _mToken.totalNonEarningSupply());
-        // Nothing else happened
-        // TODO
+        assertEq(_mToken.totalNonEarningSupply(), 1337);
+
+        assertEq(_mToken.totalSupply(), 1337);
+        assertEq(_mToken.totalEarningSupply(), 0);
+        assertFalse(_mToken.isEarning(_aliceAddress));
+        assertFalse(_mToken.hasOptedOutOfEarning(_aliceAddress));
     }
 
     function test_mint_aliceEarning() public 
