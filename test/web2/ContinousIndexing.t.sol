@@ -8,8 +8,6 @@ import { IMToken } from "../../src/interfaces/IMToken.sol";
 import { IProtocol } from "../../src/interfaces/IProtocol.sol";
 import { IRateModel } from "../../src/interfaces/IRateModel.sol";
 import { IContinuousIndexing } from "../../src/interfaces/IContinuousIndexing.sol";
-//import { IEarnerRateModel } from "../../src/interfaces/IEarnerRateModel.sol";
-//import { IMinterRateModel } from "../../src/interfaces/IMinterRateModel.sol";
 import { ISPOGRegistrar } from "../../src/interfaces/ISPOGRegistrar.sol";
 import { SPOGRegistrarReader } from "../../src/libs/SPOGRegistrarReader.sol";
 
