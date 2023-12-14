@@ -12,7 +12,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     uint40 internal _latestUpdateTimestamp;
 
     constructor() {
-        _latestIndex = uint128(1 * ContinuousIndexingMath.EXP_BASE_SCALE);
+        _latestIndex = uint128(1 * ContinuousIndexingMath.EXP_ONE);
         _latestUpdateTimestamp = uint40(block.timestamp);
     }
 
@@ -46,7 +46,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
                 _latestIndex,
                 ContinuousIndexingMath.getContinuousIndex(
                     ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
-                    block.timestamp - _latestUpdateTimestamp
+                    uint32(block.timestamp - _latestUpdateTimestamp)
                 )
             );
     }
