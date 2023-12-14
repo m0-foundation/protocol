@@ -20,8 +20,8 @@ build:
 tests:
 	@./test.sh -p default
 
-gas:
-	@./test.sh -p production -g
+gas-report:
+	npx hardhat test
 
 sizes:
 	@./build.sh -p production -s
