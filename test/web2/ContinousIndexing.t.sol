@@ -68,7 +68,7 @@ contract ContinousIndexingTest is Test {
 
     function test_currentIndex_OneYearVanillaIndex() public {
         // Interest compounding over one year
-        _continuousIndexing.setter_latestIndex(1 * 1e18); // 1
+        _continuousIndexing.setter_latestIndex(1e18); // 1
         _continuousIndexing.setter_latestUpdateTimestamp(0); // converted into seconds
         _continuousIndexing.setter_latestRate(1000); // 10%
         vm.warp(365 days); // one year later
@@ -78,7 +78,7 @@ contract ContinousIndexingTest is Test {
 
     function test_currentIndex_TwoDaysVanillaIndex() public {
         // Interest compounding over two days
-        _continuousIndexing.setter_latestIndex(1 * 1e18); // 1
+        _continuousIndexing.setter_latestIndex(1e18); // 1
         _continuousIndexing.setter_latestUpdateTimestamp(12 days); // converted into seconds
         _continuousIndexing.setter_latestRate(200); // 10%
         vm.warp(14 days); // 2 days later
@@ -88,7 +88,7 @@ contract ContinousIndexingTest is Test {
 
     function test_currentIndex_SevenDaysVanillaIndex() public {
         // Interest compounding over one year
-        _continuousIndexing.setter_latestIndex(1 * 1e18); // 1
+        _continuousIndexing.setter_latestIndex(1e18); // 1
         _continuousIndexing.setter_latestUpdateTimestamp(7 days); // converted into seconds
         _continuousIndexing.setter_latestRate(200); // 10%
         vm.warp(14 days); // 7 days later
