@@ -42,7 +42,7 @@ contract ProtocolHarness is Protocol {
         _principalOfActiveOwedM[minter_] = activeOwedM_;
     }
 
-    function getter_principalOfActiveOwedM(address minter_) external returns (uint256 activeOwedM_) {
+    function getter_principalOfActiveOwedM(address minter_) external view returns (uint256 activeOwedM_) {
         return _principalOfActiveOwedM[minter_];
     }
 
@@ -81,7 +81,7 @@ contract ProtocolHarness is Protocol {
         _totalPrincipalOfActiveOwedM = totalPrincipalOfActiveOwedM_;
     }
 
-    function getter_totalPrincipalOfActiveOwedM() external returns (uint256 totalPrincipalOfActiveOwedM_) {
+    function getter_totalPrincipalOfActiveOwedM() external view returns (uint256 totalPrincipalOfActiveOwedM_) {
         return _totalPrincipalOfActiveOwedM;
     }
 
@@ -134,7 +134,7 @@ contract ProtocolHarness is Protocol {
         returns (uint256 currentIndex_)
     {
         if (_fixedIndex != 0) {
-            return _fixedIndex;
+          //  return _fixedIndex;
         }
 
         return super.currentIndex();

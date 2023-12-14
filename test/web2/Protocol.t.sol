@@ -90,7 +90,7 @@ contract ProtocolTest is Test {
     }
 
     function test_burnM() public {
-        uint256 activeOwedM_ = _setDefaultsWithoutPenalty();
+        //uint256 activeOwedM_ = _setDefaultsWithoutPenalty();
 
         // TODO test _imposePenaltyIfMissedCollateralUpdates first
     }
@@ -225,7 +225,7 @@ contract ProtocolTest is Test {
      * Test with a global update collateral interval of '0' (zero).
      */
     function test__getPenaltyBaseAndTimeForMissedCollateralUpdates_zeroUpdateCollateral() public {
-        uint256 activeOwedM = 100_038_363_521_300_872_800; // see test_activeOwedMOf_SevenDaysVanillaIndex
+        //uint256 activeOwedM = 100_038_363_521_300_872_800; // see test_activeOwedMOf_SevenDaysVanillaIndex
         _protocol.setter_principalOfActiveOwedM(_aliceAddress, 100 * 1e18);
         _protocol.setter_latestIndex(1 * 1e18);
         _protocol.setter_latestUpdateTimestamp(7 days);
@@ -410,8 +410,7 @@ contract ProtocolTest is Test {
 
         (uint256 penaltyBase_, uint256 penalizedUntil_) = _protocol
             .external_getPenaltyBaseAndTimeForMissedCollateralUpdates(_aliceAddress);
-        // 2 missed intervals: day 13, day 14
-        uint256 _result = 2 * (_activeOwedM);
+        // 2 missed intervals: day 13, day 14 --> result = 2 * (_activeOwedM);
         assertEq(200e18, penaltyBase_); // _activeOwedM for two days
         assertEq(14 days, penalizedUntil_);
     }

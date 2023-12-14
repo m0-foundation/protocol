@@ -12,7 +12,7 @@ contract SPOGRegistrarReaderTest is Test {
 
 
     function setUp() public {
-            vm.mockCall(
+        vm.mockCall(
             _spogRegistrarAddress,
             abi.encodeWithSelector(ISPOGRegistrar.get.selector),
             abi.encode()
@@ -189,6 +189,14 @@ contract SPOGRegistrarReaderTest is Test {
             _spogRegistrarAddress,
             abi.encodeWithSelector(ISPOGRegistrar.listContains.selector, list_, account_),
             abi.encode(true)
+        ); 
+    }
+
+        function _removeAddressFromSPOGList(bytes32 list_, address account_) private {
+        vm.mockCall(
+            _spogRegistrarAddress,
+            abi.encodeWithSelector(ISPOGRegistrar.listContains.selector, list_, account_),
+            abi.encode(false)
         ); 
     }
 
