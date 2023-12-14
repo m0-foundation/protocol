@@ -47,8 +47,8 @@ contract IntegrationTests is Test {
     uint256[] internal _validatorKeys = [_idaKey, _johnKey, _kenKey, _lisaKey];
     address[] internal _validators = [_ida, _john, _ken, _lisa];
 
-    uint256 internal _baseEarnerRate = ContinuousIndexingMath.BPS_BASE_SCALE / 10; // 10% APY
-    uint256 internal _baseMinterRate = ContinuousIndexingMath.BPS_BASE_SCALE / 10; // 10% APY
+    uint256 internal _baseEarnerRate = ContinuousIndexingMath.BPS_ONE / 10; // 10% APY
+    uint256 internal _baseMinterRate = ContinuousIndexingMath.BPS_ONE / 10; // 10% APY
     uint256 internal _updateInterval = 24 hours;
     uint256 internal _mintDelay = 12 hours;
     uint256 internal _mintTtl = 24 hours;
@@ -118,15 +118,15 @@ contract IntegrationTests is Test {
 
         assertEq(_protocol.minterRate(), 1_000);
         assertEq(_minterRateModel.baseRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_000000000000000000);
-        assertEq(_protocol.currentIndex(), 1_000000000000000000);
+        assertEq(_protocol.latestIndex(), 1_000000000000);
+        assertEq(_protocol.currentIndex(), 1_000000000000);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
         assertEq(_earnerRateModel.baseRate(), 1_000);
         assertEq(_mToken.rateModel(), address(_earnerRateModel));
-        assertEq(_mToken.latestIndex(), 1_000000000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000000000);
+        assertEq(_mToken.latestIndex(), 1_000000000000);
+        assertEq(_mToken.currentIndex(), 1_000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.warp(block.timestamp + 2 hours); // 2 hours after deploy, minter collects signatures.
@@ -155,13 +155,13 @@ contract IntegrationTests is Test {
         vm.warp(block.timestamp + 1 hours); // 1 hour after collecting signatures, minter updateCollateral is mined.
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_000000000000000000);
-        assertEq(_protocol.currentIndex(), 1_000034247161763120);
+        assertEq(_protocol.latestIndex(), 1_000000000000);
+        assertEq(_protocol.currentIndex(), 1_000034247161);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_000000000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000000000);
+        assertEq(_mToken.latestIndex(), 1_000000000000);
+        assertEq(_mToken.currentIndex(), 1_000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.prank(_minters[0]);
@@ -177,13 +177,13 @@ contract IntegrationTests is Test {
         latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_000034247161763120);
-        assertEq(_protocol.currentIndex(), 1_000034247161763120);
+        assertEq(_protocol.latestIndex(), 1_000034247161);
+        assertEq(_protocol.currentIndex(), 1_000034247161);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_000000000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000000000);
+        assertEq(_mToken.latestIndex(), 1_000000000000);
+        assertEq(_mToken.currentIndex(), 1_000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.warp(block.timestamp + 1 hours); // 1 hour later, minter proposes a mint.
@@ -194,38 +194,38 @@ contract IntegrationTests is Test {
         // No index values are updated since nothing relevant changed.
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_000034247161763120);
-        assertEq(_protocol.currentIndex(), 1_000045663142986194);
+        assertEq(_protocol.latestIndex(), 1_000034247161);
+        assertEq(_protocol.currentIndex(), 1_000045663141);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_000000000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000000000);
+        assertEq(_mToken.latestIndex(), 1_000000000000);
+        assertEq(_mToken.currentIndex(), 1_000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.prank(_minters[0]);
         uint256 mintId = _protocol.proposeMint(mintAmount, _alice);
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_000034247161763120);
-        assertEq(_protocol.currentIndex(), 1_000045663142986194);
+        assertEq(_protocol.latestIndex(), 1_000034247161);
+        assertEq(_protocol.currentIndex(), 1_000045663141);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_000000000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000000000);
+        assertEq(_mToken.latestIndex(), 1_000000000000);
+        assertEq(_mToken.currentIndex(), 1_000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.warp(block.timestamp + _mintDelay + 1 hours); // 1 hour after the mint delay, the minter mints M.
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_000034247161763120);
-        assertEq(_protocol.currentIndex(), 1_000194082758562665);
+        assertEq(_protocol.latestIndex(), 1_000034247161);
+        assertEq(_protocol.currentIndex(), 1_000194082756);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_000000000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000000000);
+        assertEq(_mToken.latestIndex(), 1_000000000000);
+        assertEq(_mToken.currentIndex(), 1_000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.prank(_minters[0]);
@@ -236,13 +236,13 @@ contract IntegrationTests is Test {
         latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_000194082758562665);
-        assertEq(_protocol.currentIndex(), 1_000194082758562665);
+        assertEq(_protocol.latestIndex(), 1_000194082756);
+        assertEq(_protocol.currentIndex(), 1_000194082756);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 999);
-        assertEq(_mToken.latestIndex(), 1_000000000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000000000);
+        assertEq(_mToken.latestIndex(), 1_000000000000);
+        assertEq(_mToken.currentIndex(), 1_000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         assertEq(_protocol.activeOwedMOf(_minters[0]), 499_999_999999); // ~500k
@@ -252,17 +252,17 @@ contract IntegrationTests is Test {
         vm.warp(block.timestamp + 356 days); // 1 year later, Alice transfers all all her M to Bob, who is not earning.
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_000194082758562665);
-        assertEq(_protocol.currentIndex(), 1_102663087626709063);
+        assertEq(_protocol.latestIndex(), 1_000194082756);
+        assertEq(_protocol.currentIndex(), 1_102663162403);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 999);
-        assertEq(_mToken.latestIndex(), 1_000000000000000000);
-        assertEq(_mToken.currentIndex(), 1_102341600326255643);
+        assertEq(_mToken.latestIndex(), 1_000000000000);
+        assertEq(_mToken.currentIndex(), 1_102341674717);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_224_560629); // ~500k with 10% APY compounded continuously.
-        assertEq(_mToken.balanceOf(_alice), 551_170_800163); // ~500k with 10% APY compounded continuously.
+        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_224_598011); // ~500k with 10% APY compounded continuously.
+        assertEq(_mToken.balanceOf(_alice), 551_170_837358); // ~500k with 10% APY compounded continuously.
         assertEq(_mToken.balanceOf(_vault), 0); // Still 0 since no call to `_protocol.updateIndex()`.
 
         uint256 transferAmount_ = _mToken.balanceOf(_alice);
@@ -274,18 +274,18 @@ contract IntegrationTests is Test {
         latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_000194082758562665);
-        assertEq(_protocol.currentIndex(), 1_102663087626709063);
+        assertEq(_protocol.latestIndex(), 1_000194082756);
+        assertEq(_protocol.currentIndex(), 1_102663162403);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_102341600326255643);
-        assertEq(_mToken.currentIndex(), 1_102341600326255643);
+        assertEq(_mToken.latestIndex(), 1_102341674717);
+        assertEq(_mToken.currentIndex(), 1_102341674717);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_224_560629);
+        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_224_598011);
         assertEq(_mToken.balanceOf(_alice), 1); // Rounding error left over.
-        assertEq(_mToken.balanceOf(_bob), 551_170_800163);
+        assertEq(_mToken.balanceOf(_bob), 551_170_837358);
         assertEq(_mToken.balanceOf(_vault), 0); // No change since no call to `_protocol.updateIndex()`.
 
         vm.warp(block.timestamp + 1 hours); // 1 hour later, someone updates the indices.
@@ -299,18 +299,18 @@ contract IntegrationTests is Test {
         latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_102675675133662193);
-        assertEq(_protocol.currentIndex(), 1_102675675133662193);
+        assertEq(_protocol.latestIndex(), 1_102675749954);
+        assertEq(_protocol.currentIndex(), 1_102675749954);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_102354184206304205);
-        assertEq(_mToken.currentIndex(), 1_102354184206304205);
+        assertEq(_mToken.latestIndex(), 1_102354258597);
+        assertEq(_mToken.currentIndex(), 1_102354258597);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_230_853162);
-        assertEq(_mToken.balanceOf(_bob), 551_170_800163); // Bob is not earning, so no change.
-        assertEq(_mToken.balanceOf(_vault), 60_052998);
+        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_230_890566);
+        assertEq(_mToken.balanceOf(_bob), 551_170_837358); // Bob is not earning, so no change.
+        assertEq(_mToken.balanceOf(_vault), 60_053207);
         assertEq(_mToken.balanceOf(_vault), excessActiveOwedM); // Excess active owed M is distributed to vault.
 
         excessActiveOwedM = _protocol.excessActiveOwedM();
@@ -325,34 +325,34 @@ contract IntegrationTests is Test {
         latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_102675675133662193);
-        assertEq(_protocol.currentIndex(), 1_102977819446098247);
+        assertEq(_protocol.latestIndex(), 1_102675749954);
+        assertEq(_protocol.currentIndex(), 1_102977894285);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_102656240426967319);
-        assertEq(_mToken.currentIndex(), 1_102656240426967319);
+        assertEq(_mToken.latestIndex(), 1_102656314836);
+        assertEq(_mToken.currentIndex(), 1_102656314836);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_381_896003);
-        assertEq(_mToken.balanceOf(_bob), 551_170_800162);
-        assertEq(_mToken.balanceOf(_vault), 60_052998); // No change since no call to `_protocol.updateIndex()`.
+        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_381_933416);
+        assertEq(_mToken.balanceOf(_bob), 551_170_837357);
+        assertEq(_mToken.balanceOf(_vault), 60_053207); // No change since no call to `_protocol.updateIndex()`.
 
         vm.warp(block.timestamp + 30 days); // 30 days later, the unresponsive minter is deactivated.
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_102675675133662193);
-        assertEq(_protocol.currentIndex(), 1_112080748616834297);
+        assertEq(_protocol.latestIndex(), 1_102675749954);
+        assertEq(_protocol.currentIndex(), 1_112080824074);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_102656240426967319);
-        assertEq(_mToken.currentIndex(), 1_111756515590601303);
+        assertEq(_mToken.latestIndex(), 1_102656314836);
+        assertEq(_mToken.currentIndex(), 1_111756590613);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_protocol.activeOwedMOf(_minters[0]), 555_932_477399);
-        assertEq(_mToken.balanceOf(_bob), 555_719_639374);
-        assertEq(_mToken.balanceOf(_vault), 60_052998); // No change since no call to `_protocol.updateIndex()`.
+        assertEq(_protocol.activeOwedMOf(_minters[0]), 555_932_515121);
+        assertEq(_mToken.balanceOf(_bob), 555_719_676875);
+        assertEq(_mToken.balanceOf(_vault), 60_053207); // No change since no call to `_protocol.updateIndex()`.
 
         _registrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minters[0]);
 
@@ -363,39 +363,39 @@ contract IntegrationTests is Test {
         latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_112080748616834297);
-        assertEq(_protocol.currentIndex(), 1_112080748616834297);
+        assertEq(_protocol.latestIndex(), 1_112080824074);
+        assertEq(_protocol.currentIndex(), 1_112080824074);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0); // Dropped to zero due to drastic change in utilization.
-        assertEq(_mToken.latestIndex(), 1_111756515590601303);
-        assertEq(_mToken.currentIndex(), 1_111756515590601303);
+        assertEq(_mToken.latestIndex(), 1_111756590613);
+        assertEq(_mToken.currentIndex(), 1_111756590613);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         assertEq(_protocol.activeOwedMOf(_minters[0]), 0);
-        assertEq(_protocol.inactiveOwedMOf(_minters[0]), 555_932_477399);
-        assertEq(_mToken.balanceOf(_bob), 555_719_639374);
+        assertEq(_protocol.inactiveOwedMOf(_minters[0]), 555_932_515121);
+        assertEq(_mToken.balanceOf(_bob), 555_719_676875);
 
         // Note: No change here since when `_protocol.updateIndex()` was called, the `_protocol.totalActiveM` was 0, and
         //       thus there was no `_protocol.activeOwedM` in excess of `_mToken.totalSupply` to distribute to `_vault`.
-        assertEq(_mToken.balanceOf(_vault), 60_052998);
+        assertEq(_mToken.balanceOf(_vault), 60_053207);
 
         vm.warp(block.timestamp + 30 days); // 30 more days pass without any changes to the system.
 
         assertEq(_protocol.minterRate(), 1_000);
-        assertEq(_protocol.latestIndex(), 1_112080748616834297);
-        assertEq(_protocol.currentIndex(), 1_121258804701362087); // Incased due to nonzero minter rate.
+        assertEq(_protocol.latestIndex(), 1_112080824074);
+        assertEq(_protocol.currentIndex(), 1_121258880780); // Incased due to nonzero minter rate.
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_111756515590601303);
-        assertEq(_mToken.currentIndex(), 1_111756515590601303); // No change due to no earner rate in last 30 days.
+        assertEq(_mToken.latestIndex(), 1_111756590613);
+        assertEq(_mToken.currentIndex(), 1_111756590613); // No change due to no earner rate in last 30 days.
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         assertEq(_protocol.activeOwedMOf(_minters[0]), 0);
-        assertEq(_protocol.inactiveOwedMOf(_minters[0]), 555_932_477399);
-        assertEq(_mToken.balanceOf(_bob), 555_719_639374); // No change due to no earner rate in last 30 days.
-        assertEq(_mToken.balanceOf(_vault), 60_052998); // No change since conditions did not change.
+        assertEq(_protocol.inactiveOwedMOf(_minters[0]), 555_932_515121);
+        assertEq(_mToken.balanceOf(_bob), 555_719_676875); // No change due to no earner rate in last 30 days.
+        assertEq(_mToken.balanceOf(_vault), 60_053207); // No change since conditions did not change.
     }
 
     function _makeKey(string memory name) internal returns (uint256 privateKey) {
