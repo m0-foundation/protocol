@@ -30,10 +30,11 @@ contract EarnerRateModel is IEarnerRateModel {
 
         if (totalEarningSupply_ == 0) return baseRate();
 
-        uint256 utilization_ = (totalActiveOwedM_ * _ONE) / totalEarningSupply_;
+        // NOTE: Calculate safety guard rate that prevents overprinting of M.
+        // TODO: Move this into M Token itself after all integration/invariants tests are done.
+        uint256 safeRate_ = (IProtocol(protocol).minterRate() * totalActiveOwedM_) / totalEarningSupply_;
 
-        // TODO: optimize this formula at least for readability
-        return _min(baseRate() * _min(_ONE, utilization_), IProtocol(protocol).minterRate() * utilization_) / _ONE;
+        return _min(baseRate(), safeRate_);
     }
 
     function baseRate() public view returns (uint256 baseRate_) {
