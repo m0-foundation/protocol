@@ -32,7 +32,7 @@ contract MTokenHarness is MToken {
     }
 
     function external_getPrincipalAmount(uint256 presentAmount_, uint256 index_) external pure returns (uint256 principalAmount_) {
-        return _getPresentAmount(presentAmount_, index_);
+        return _getPrincipalAmount(presentAmount_, index_);
     }
 
     function external_rate() external view virtual returns (uint256 rate_) {

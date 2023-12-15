@@ -8,11 +8,12 @@ import { IMToken } from "../../src/interfaces/IMToken.sol";
 import { IProtocol } from "../../src/interfaces/IProtocol.sol";
 import { IRateModel } from "../../src/interfaces/IRateModel.sol";
 import { IContinuousIndexing } from "../../src/interfaces/IContinuousIndexing.sol";
+import { ContinuousIndexingMath } from "../../src/libs/ContinuousIndexingMath.sol";
 //import { IEarnerRateModel } from "../../src/interfaces/IEarnerRateModel.sol";
 //import { IMinterRateModel } from "../../src/interfaces/IMinterRateModel.sol";
 import { ISPOGRegistrar } from "../../src/interfaces/ISPOGRegistrar.sol";
 import { SPOGRegistrarReader } from "../../src/libs/SPOGRegistrarReader.sol";
-
+import {MTokenHarness} from "./util/MTokenHarness.sol";
 
 contract MTokenTest is Test {
     address internal _protocolAddress = makeAddr("protocol");
@@ -20,13 +21,15 @@ contract MTokenTest is Test {
     address internal _earnerRateModelAddress = makeAddr("earnerRateModel");
     address internal _aliceAddress = makeAddr("alice");
     address internal _bobAddress = makeAddr("bob");
+    uint256 internal _start = block.timestamp;
 
-    MToken internal _mToken; 
+    MTokenHarness internal _mToken;
     uint256 internal _earnerRate = 100; // 10% (1000 = 100%)
 
-    function setUp() public 
+
+    function setUp() public
     {
-        _mToken = new MToken(_spogRegistrarAddress, _protocolAddress);
+        _mToken = new MTokenHarness(_spogRegistrarAddress, _protocolAddress);
 
         // set address of earner model
         vm.mockCall(
@@ -62,8 +65,6 @@ contract MTokenTest is Test {
 
 
     function test_mint_aliceNotEarning() public {
-//        _mToken.setter_isEarning(_aliceAddress, false);
-
         // Look for events
         vm.expectEmit(true, true, false, true, address(_mToken));
         emit IERC20.Transfer(address(0), _aliceAddress, 1337);
@@ -85,7 +86,23 @@ contract MTokenTest is Test {
 
     function test_mint_aliceEarning() public 
     {
-//        _mToken.setter_isEarning(_aliceAddress, true);
+        // set EARNERS_LIST_IGNORED false
+        // TODO: solve with harness
+//        vm.mockCall(
+//            _spogRegistrarAddress,
+//            abi.encodeWithSelector(ISPOGRegistrar.get.selector, SPOGRegistrarReader.EARNERS_LIST_IGNORED),
+//            abi.encode(false)
+//        );
+        // set Alice approved earner
+        // TODO: solve with harness
+//        vm.mockCall(
+//            _spogRegistrarAddress,
+//            abi.encodeWithSelector(ISPOGRegistrar.listContains.selector, SPOGRegistrarReader.EARNERS_LIST, _aliceAddress),
+//            abi.encode(true)
+//        );
+//
+//        _mToken.startEarning(_aliceAddress);
+        _mToken.setter_isEarning(_aliceAddress, true);
 
         // Look for events
         vm.expectEmit(true, true, false, true, address(_mToken));
@@ -103,6 +120,16 @@ contract MTokenTest is Test {
 //        assertEq(1338, _mToken.getter_totalPrincipalOfEarningSupply());
         // Nothing else happened
         // TODO
+
+        // set currentIndex so that _getPresentAmount returns mToken._balances
+//        assertEq(_mToken.balanceOf(_aliceAddress), 1337);
+//        // totalNonEarningSupply increased
+//        assertEq(_mToken.totalNonEarningSupply(), 1337);
+//
+//        assertEq(_mToken.totalSupply(), 1337);
+//        assertEq(_mToken.totalEarningSupply(), 0);
+//        assertFalse(_mToken.isEarning(_aliceAddress));
+//        assertFalse(_mToken.hasOptedOutOfEarning(_aliceAddress));
     }
 
     function test_burn() public {
