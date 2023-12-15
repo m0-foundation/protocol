@@ -23,10 +23,10 @@ contract MTokenTests is Test {
 
     address[] internal _accounts = [_alice, _bob, _charlie, _david];
 
-    uint256 internal _earnerRate = ContinuousIndexingMath.BPS_BASE_SCALE / 10; // 10% APY
+    uint32 internal _earnerRate = ContinuousIndexingMath.BPS_BASE_SCALE / 10; // 10% APY
     uint256 internal _start = block.timestamp;
 
-    uint256 internal _expectedCurrentIndex;
+    uint128 internal _expectedCurrentIndex;
 
     MockRateModel internal _earnerRateModel;
     MockSPOGRegistrar internal _registrar;
@@ -286,14 +286,6 @@ contract MTokenTests is Test {
         _mToken.startEarning(_alice);
     }
 
-    function test_startEarning_onBehalfOf_alreadyEarning() external {
-        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _alice);
-        _mToken.setIsEarning(_alice, true);
-
-        vm.expectRevert(IMToken.AlreadyEarning.selector);
-        _mToken.startEarning(_alice);
-    }
-
     function test_startEarning_onBehalfOf() external {
         _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalNonEarningSupply(1_000);
@@ -316,15 +308,6 @@ contract MTokenTests is Test {
 
     function test_startEarning_notApprovedEarner() external {
         vm.expectRevert(IMToken.NotApprovedEarner.selector);
-        vm.prank(_alice);
-        _mToken.startEarning();
-    }
-
-    function test_startEarning_alreadyEarning() external {
-        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _alice);
-        _mToken.setIsEarning(_alice, true);
-
-        vm.expectRevert(IMToken.AlreadyEarning.selector);
         vm.prank(_alice);
         _mToken.startEarning();
     }
@@ -357,11 +340,6 @@ contract MTokenTests is Test {
         _mToken.stopEarning(_alice);
     }
 
-    function test_stopEarning_onBehalfOf_alreadyNotEarning() external {
-        vm.expectRevert(IMToken.AlreadyNotEarning.selector);
-        _mToken.stopEarning(_alice);
-    }
-
     function test_stopEarning_onBehalfOf() external {
         _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalPrincipalOfEarningSupply(909);
@@ -379,12 +357,6 @@ contract MTokenTests is Test {
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
-    }
-
-    function test_stopEarning_alreadyNotEarning() external {
-        vm.expectRevert(IMToken.AlreadyNotEarning.selector);
-        vm.prank(_alice);
-        _mToken.stopEarning();
     }
 
     function test_stopEarning() external {

@@ -7,6 +7,7 @@ import { ERC20Permit } from "../lib/common/src/ERC20Permit.sol";
 import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
+import { UIntMath } from "./libs/UIntMath.sol";
 
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
@@ -17,6 +18,7 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 // TODO: Some mechanism that allows a UI/script to determine how much an account or the system stands to gain from
 //       calling `updateIndex()`.
 // TODO: Some increased/decreased earning supply event(s)? Might be useful for a UI/script, or useless in general.
+
 /**
  * @title MToken
  * @author M^ZERO LABS_
@@ -29,21 +31,20 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     /// @inheritdoc IMToken
     address public immutable spogRegistrar;
 
-    // TODO: Consider each being uint128.
-    /// @notice The total amount of non earning M supply.
-    uint256 internal _totalNonEarningSupply;
+    /// @dev The total amount of non earning M supply.
+    uint128 internal _totalNonEarningSupply;
 
-    /// @notice The total amount of principal of earning M supply. totalEarningSupply = principal * currentIndex
-    uint256 internal _totalPrincipalOfEarningSupply;
+    /// @dev The total amount of principal of earning M supply. totalEarningSupply = principal * currentIndex
+    uint128 internal _totalPrincipalOfEarningSupply;
 
     /// @notice The balance of M for non-earner or principal of earning M balance for earners.
-    mapping(address account => uint256 balance) internal _balances;
+    mapping(address account => uint128 balance) internal _balances;
 
-    /// @notice Defines if account is an earner - allowed by SPOG and explicitly called `startEarning`.
+    /// @dev Defines if account is an earner - allowed by SPOG and explicitly called `startEarning`.
     // TODO: Consider replace with flag bit/byte in balance.
     mapping(address account => bool isEarning) internal _isEarning;
 
-    /// Checks if account has opted out of earning.
+    /// @dev Checks if account has opted out of earning.
     // TODO: Consider replace with flag bit/byte in balance.
     mapping(address account => bool hasOptedOutOfEarning) internal _hasOptedOutOfEarning;
 
@@ -55,8 +56,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     /**
      * @notice Constructor.
-     * @param spogRegistrar_ The address of the SPOG Registrar contract.
-     * @param protocol_ The address of Protocol.
+     * @param  spogRegistrar_ The address of the SPOG Registrar contract.
+     * @param  protocol_      The address of Protocol.
      */
     constructor(address spogRegistrar_, address protocol_) ContinuousIndexing() ERC20Permit("M Token", "M", 6) {
         spogRegistrar = spogRegistrar_;
@@ -80,16 +81,14 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     /// @inheritdoc IMToken
     function startEarning() external {
         _revertIfNotApprovedEarner(msg.sender);
-
         _startEarning(msg.sender);
     }
 
     /// @inheritdoc IMToken
     function startEarning(address account_) external {
-        _revertIfNotApprovedEarner(account_);
-
         if (_hasOptedOutOfEarning[account_]) revert HasOptedOut();
 
+        _revertIfNotApprovedEarner(account_);
         _startEarning(account_);
     }
 
@@ -104,6 +103,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         if (_isApprovedEarner(account_)) revert IsApprovedEarner();
 
         _stopEarning(account_);
+    }
+
+    /// @inheritdoc IMToken
+    function optInToEarning() public {
+        emit OptedInToEarning(msg.sender);
+        _hasOptedOutOfEarning[msg.sender] = false;
     }
 
     /// @inheritdoc IMToken
@@ -122,7 +127,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     }
 
     /// @inheritdoc IMToken
-    function earnerRate() public view returns (uint256 earnerRate_) {
+    function earnerRate() public view returns (uint32 earnerRate_) {
         return _latestRate;
     }
 
@@ -138,7 +143,9 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     /// @inheritdoc IERC20
     function totalSupply() external view returns (uint256 totalSupply_) {
-        return _totalNonEarningSupply + totalEarningSupply();
+        unchecked {
+            return _totalNonEarningSupply + totalEarningSupply();
+        }
     }
 
     /// @inheritdoc IERC20
@@ -161,11 +168,11 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     \******************************************************************************************************************/
 
     /**
-     * @notice Adds principal to `_balances` of an earning account.
+     * @dev   Adds principal to `_balances` of an earning account.
      * @param account_         The account to add principal to.
      * @param principalAmount_ The principal amount to add.
      */
-    function _addEarningAmount(address account_, uint256 principalAmount_) internal {
+    function _addEarningAmount(address account_, uint128 principalAmount_) internal {
         unchecked {
             _balances[account_] += principalAmount_;
             _totalPrincipalOfEarningSupply += principalAmount_;
@@ -173,11 +180,11 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     }
 
     /**
-     * @notice Adds amount to `_balances` of a non-earning account.
+     * @dev   Adds amount to `_balances` of a non-earning account.
      * @param account_ The account to add amount to.
-     * @param amount_ The amount to add.
+     * @param amount_  The amount to add.
      */
-    function _addNonEarningAmount(address account_, uint256 amount_) internal {
+    function _addNonEarningAmount(address account_, uint128 amount_) internal {
         unchecked {
             _balances[account_] += amount_;
             _totalNonEarningSupply += amount_;
@@ -185,105 +192,117 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     }
 
     /**
-     * @notice Burns amount of earning or non-earning M from account.
+     * @dev   Burns amount of earning or non-earning M from account.
      * @param account_ The account to burn from.
-     * @param amount_ The amount to burn.
+     * @param amount_  The amount to burn.
      */
     function _burn(address account_, uint256 amount_) internal {
         emit Transfer(account_, address(0), amount_);
 
         _isEarning[account_]
-            ? _subtractEarningAmount(account_, _getPrincipalAmountAndUpdateIndex(amount_))
-            : _subtractNonEarningAmount(account_, amount_);
+            ? _subtractEarningAmount(account_, _getPrincipalAmountAndUpdateIndex(UIntMath.safe128(amount_)))
+            : _subtractNonEarningAmount(account_, UIntMath.safe128(amount_));
     }
 
     /**
-     * @notice Mints amount of earning or non-earning M to account.
+     * @dev   Mints amount of earning or non-earning M to account.
      * @param recipient_ The account to mint to.
-     * @param amount_ The amount to mint.
+     * @param amount_    The amount to mint.
      */
     function _mint(address recipient_, uint256 amount_) internal {
         emit Transfer(address(0), recipient_, amount_);
 
         _isEarning[recipient_]
-            ? _addEarningAmount(recipient_, _getPrincipalAmountAndUpdateIndex(amount_))
-            : _addNonEarningAmount(recipient_, amount_);
+            ? _addEarningAmount(recipient_, _getPrincipalAmountAndUpdateIndex(UIntMath.safe128(amount_)))
+            : _addNonEarningAmount(recipient_, UIntMath.safe128(amount_));
     }
 
     /**
-     * @notice Starts earning for account.
+     * @dev   Starts earning for account.
      * @param account_ The account to start earning for.
      */
     function _startEarning(address account_) internal {
-        if (_isEarning[account_]) revert AlreadyEarning();
+        emit StartedEarning(account_);
 
-        uint256 presentAmount_ = _balances[account_];
-        uint256 principalAmount_ = _getPrincipalAmountAndUpdateIndex(presentAmount_);
+        if (_isEarning[account_]) return;
+
+        _isEarning[account_] = true;
+
+        uint128 presentAmount_ = _balances[account_];
+
+        if (presentAmount_ == 0) return;
+
+        uint128 principalAmount_ = _getPrincipalAmountAndUpdateIndex(presentAmount_);
 
         _balances[account_] = principalAmount_;
 
         unchecked {
             _totalPrincipalOfEarningSupply += principalAmount_;
+            _totalNonEarningSupply -= presentAmount_;
         }
-
-        _totalNonEarningSupply -= presentAmount_;
-
-        _isEarning[account_] = true;
-
-        emit StartedEarning(account_);
     }
 
     /**
-     * @notice Stops earning for account.
+     * @dev   Stops earning for account.
      * @param account_ The account to stop earning for.
      */
     function _stopEarning(address account_) internal {
-        if (!_isEarning[account_]) revert AlreadyNotEarning();
+        emit StoppedEarning(account_);
 
-        uint256 principalAmount_ = _balances[account_];
-        uint256 presentAmount_ = _getPresentAmountAndUpdateIndex(principalAmount_);
+        if (!_isEarning[account_]) return;
+
+        _isEarning[account_] = false;
+
+        uint128 principalAmount_ = _balances[account_];
+
+        if (principalAmount_ == 0) return;
+
+        uint128 presentAmount_ = _getPresentAmountAndUpdateIndex(principalAmount_);
 
         _balances[account_] = presentAmount_;
 
         unchecked {
             _totalNonEarningSupply += presentAmount_;
+            _totalPrincipalOfEarningSupply -= principalAmount_;
         }
-
-        _totalPrincipalOfEarningSupply -= principalAmount_;
-
-        _isEarning[account_] = false;
-
-        emit StoppedEarning(account_);
     }
 
     /**
-     * @notice Subtracts principal from `_balances` of an earning account.
-     * @param account_ The account to subtract principal from.
+     * @dev   Subtracts principal from `_balances` of an earning account.
+     * @param account_         The account to subtract principal from.
      * @param principalAmount_ The principal amount to subtract.
      */
-    function _subtractEarningAmount(address account_, uint256 principalAmount_) internal {
+    function _subtractEarningAmount(address account_, uint128 principalAmount_) internal {
         _balances[account_] -= principalAmount_;
-        _totalPrincipalOfEarningSupply -= principalAmount_;
+
+        unchecked {
+            _totalPrincipalOfEarningSupply -= principalAmount_;
+        }
     }
 
     /**
-     * @notice Subtracts amount from `_balances` of a non-earning account.
+     * @dev   Subtracts amount from `_balances` of a non-earning account.
      * @param account_ The account to subtract amount from.
-     * @param amount_ The amount to subtract.
+     * @param amount_  The amount to subtract.
      */
-    function _subtractNonEarningAmount(address account_, uint256 amount_) internal {
+    function _subtractNonEarningAmount(address account_, uint128 amount_) internal {
         _balances[account_] -= amount_;
-        _totalNonEarningSupply -= amount_;
+
+        unchecked {
+            _totalNonEarningSupply -= amount_;
+        }
     }
 
     /**
-     * @notice Transfer M between both earning and non-earning accounts.
-     * @param sender_ The account to transfer from. It can be either earning or non-earning account.
+     * @dev   Transfer M between both earning and non-earning accounts.
+     * @param sender_    The account to transfer from. It can be either earning or non-earning account.
      * @param recipient_ The account to transfer to. It can be either earning or non-earning account.
-     * @param amount_ The amount to transfer.
+     * @param amount_    The amount to transfer.
      */
     function _transfer(address sender_, address recipient_, uint256 amount_) internal override {
         emit Transfer(sender_, recipient_, amount_);
+
+        uint128 presentAmount_ = UIntMath.safe128(amount_);
 
         bool senderIsEarning_ = _isEarning[sender_]; // Only using the sender's earning status more than once.
 
@@ -293,29 +312,29 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
                 _transferAmountInKind( // perform an in-kind transfer with...
                     sender_,
                     recipient_,
-                    senderIsEarning_ ? _getPrincipalAmount(amount_, currentIndex()) : amount_ // the appropriate amount.
+                    senderIsEarning_ ? _getPrincipalAmount(presentAmount_, currentIndex()) : presentAmount_ // the appropriate amount.
                 );
         }
 
         // If this is not an in-kind transfer, then...
         if (senderIsEarning_) {
             // either the sender is earning and the recipient is not, or...
-            _subtractEarningAmount(sender_, _getPrincipalAmountAndUpdateIndex(amount_));
-            _addNonEarningAmount(recipient_, amount_);
+            _subtractEarningAmount(sender_, _getPrincipalAmountAndUpdateIndex(presentAmount_));
+            _addNonEarningAmount(recipient_, presentAmount_);
         } else {
             // the sender is not earning and the recipient is.
-            _subtractNonEarningAmount(sender_, amount_);
-            _addEarningAmount(recipient_, _getPrincipalAmountAndUpdateIndex(amount_));
+            _subtractNonEarningAmount(sender_, presentAmount_);
+            _addEarningAmount(recipient_, _getPrincipalAmountAndUpdateIndex(presentAmount_));
         }
     }
 
     /**
-     * @notice Transfer M between same earning status accounts.
-     * @param sender_ The account to transfer from.
+     * @dev   Transfer M between same earning status accounts.
+     * @param sender_    The account to transfer from.
      * @param recipient_ The account to transfer to.
-     * @param amount_ The amount to transfer.
+     * @param amount_    The amount to transfer.
      */
-    function _transferAmountInKind(address sender_, address recipient_, uint256 amount_) internal {
+    function _transferAmountInKind(address sender_, address recipient_, uint128 amount_) internal {
         _balances[sender_] -= amount_;
 
         unchecked {
@@ -328,8 +347,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     \******************************************************************************************************************/
 
     /**
-     * @notice Checks if earner was approved by SPOG.
-     * @param account_ The account to check.
+     * @dev    Checks if earner was approved by SPOG.
+     * @param  account_    The account to check.
      * @return isApproved_ True if approved, false otherwise.
      */
     function _isApprovedEarner(address account_) internal view returns (bool isApproved_) {
@@ -339,19 +358,19 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     }
 
     /**
-     * @notice Gets the current earner rate from Spog approved rate model contract.
+     * @dev    Gets the current earner rate from Spog approved rate model contract.
      * @return rate_ The current earner rate.
      */
-    function _rate() internal view override returns (uint256 rate_) {
+    function _rate() internal view override returns (uint32 rate_) {
         (bool success_, bytes memory returnData_) = rateModel().staticcall(
             abi.encodeWithSelector(IRateModel.rate.selector)
         );
 
-        rate_ = (success_ && returnData_.length >= 32) ? abi.decode(returnData_, (uint256)) : 0;
+        rate_ = (success_ && returnData_.length >= 32) ? UIntMath.bound32(abi.decode(returnData_, (uint256))) : 0;
     }
 
     /**
-     * @notice Reverts if account is not approved earner.
+     * @dev   Reverts if account is not approved earner.
      * @param account_ The account to check.
      */
     function _revertIfNotApprovedEarner(address account_) internal view {

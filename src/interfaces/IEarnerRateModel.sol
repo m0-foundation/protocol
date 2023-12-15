@@ -11,11 +11,11 @@ interface IEarnerRateModel is IRateModel {
 
     error ZeroSpogRegistrar();
 
-    function mToken() external view returns (address mToken);
+    function mToken() external view returns (address);
 
-    function protocol() external view returns (address protocol);
+    function protocol() external view returns (address);
 
-    function spogRegistrar() external view returns (address spogRegistrar);
+    function spogRegistrar() external view returns (address);
 
-    function baseRate() external view returns (uint256 baseRate_);
+    function baseRate() external view returns (uint256);
 }

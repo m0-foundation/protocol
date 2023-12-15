@@ -13,7 +13,7 @@ interface IProtocol is IContinuousIndexing {
     error AlreadyActiveMinter();
 
     /// @notice Emitted when calling `mintM` with a proposal that was created more than `mintDelay + mintTTL` time ago.
-    error ExpiredMintProposal(uint256 deadline);
+    error ExpiredMintProposal(uint40 deadline);
 
     /// @notice Emitted when calling `mintM` or `proposeMint` by a minter who was frozen by validator.
     error FrozenMinter();
@@ -40,21 +40,21 @@ interface IProtocol is IContinuousIndexing {
     error NotEnoughValidSignatures(uint256 validSignatures, uint256 requiredThreshold);
 
     /// @notice Emitted when calling `mintM` if `mintDelay` time has not passed yet.
-    error PendingMintProposal(uint256 activeTimestamp);
+    error PendingMintProposal(uint40 activeTimestamp);
 
     /// @notice Emitted when calling `updateCollateral`
     ///         If `validators`, `signatures`, `timestamps` lengths do not match.
     error SignatureArrayLengthsMismatch();
 
     /// @notice Emitted when calling `updateCollateral` if protocol has more fresh collateral update.
-    error StaleCollateralUpdate(uint256 newTimestamp, uint256 lastCollateralUpdate);
+    error StaleCollateralUpdate(uint40 newTimestamp, uint40 lastCollateralUpdate);
 
     /// @notice Emitted when calling `deactivateMinter` with a minter still approved in SPOG Registrar.
     error StillApprovedMinter();
 
     /// @notice Emitted when calling `proposeMint`, `mintM`, `proposeRetrieval`
     ///         If minter position becomes undercollateralized.
-    error Undercollateralized(uint256 activeOwedM, uint256 maxAllowedOwedM);
+    error Undercollateralized(uint128 activeOwedM, uint128 maxAllowedOwedM);
 
     ///  @notice Emitted in constructor if M Token is 0x0.
     error ZeroMToken();
@@ -71,86 +71,86 @@ interface IProtocol is IContinuousIndexing {
 
     /**
      * @notice Emitted when a minter's collateral is updated.
-     * @param minter Address of the minter
-     * @param collateral The latest amount of collateral
-     * @param retrievalIds The list of outstanding proposeRetrieval requests to close
-     * @param metadataHash The hash of metadata of the collateral update, reserved for future informational use
-     * @param timestamp The timestamp of the collateral update, minimum of given validators' signatures
+     * @param  minter       Address of the minter
+     * @param  collateral   The latest amount of collateral
+     * @param  retrievalIds The list of outstanding proposeRetrieval requests to close
+     * @param  metadataHash The hash of metadata of the collateral update, reserved for future informational use
+     * @param  timestamp    The timestamp of the collateral update, minimum of given validators' signatures
      */
     event CollateralUpdated(
         address indexed minter,
-        uint256 collateral,
+        uint128 collateral,
         uint256[] indexed retrievalIds,
         bytes32 indexed metadataHash,
-        uint256 timestamp
+        uint40 timestamp
     );
 
     /**
      * @notice Emitted when a minter is activated.
-     * @param minter Address of the minter that was activated
-     * @param caller Address who called the function
+     * @param  minter Address of the minter that was activated
+     * @param  caller Address who called the function
      */
     event MinterActivated(address indexed minter, address indexed caller);
 
     /**
      * @notice Emitted when a minter is deactivated.
-     * @param minter Address of the minter that was deactivated
-     * @param inactiveOwedM Amount of M tokens owed by the minter
-     * @param caller Address who called the function
+     * @param  minter        Address of the minter that was deactivated
+     * @param  inactiveOwedM Amount of M tokens owed by the minter
+     * @param  caller        Address who called the function
      */
-    event MinterDeactivated(address indexed minter, uint256 inactiveOwedM, address indexed caller);
+    event MinterDeactivated(address indexed minter, uint128 inactiveOwedM, address indexed caller);
 
     /**
      * @notice Emitted when a minter is frozen.
-     * @param minter Address of the minter that was frozen
-     * @param frozenUntil Timestamp until the minter is frozen
+     * @param  minter      Address of the minter that was frozen
+     * @param  frozenUntil Timestamp until the minter is frozen
      */
-    event MinterFrozen(address indexed minter, uint256 frozenUntil);
+    event MinterFrozen(address indexed minter, uint40 frozenUntil);
 
     /**
      * @notice Emitted when mint proposal is created.
-     * @param mintId The id of mint proposal
-     * @param minter The address of the minter
-     * @param amount The amount of M tokens to mint
-     * @param destination The address to mint to
+     * @param  mintId      The id of mint proposal
+     * @param  minter      The address of the minter
+     * @param  amount      The amount of M tokens to mint
+     * @param  destination The address to mint to
      */
-    event MintProposed(uint256 indexed mintId, address indexed minter, uint256 amount, address indexed destination);
+    event MintProposed(uint48 indexed mintId, address indexed minter, uint128 amount, address indexed destination);
 
     /**
      * @notice Emitted when mint proposal is canceled.
-     * @param mintId The id of mint proposal
-     * @param canceller The address of validator who cancelled the mint proposal
+     * @param  mintId    The id of mint proposal
+     * @param  canceller The address of validator who cancelled the mint proposal
      */
-    event MintCanceled(uint256 indexed mintId, address indexed canceller);
+    event MintCanceled(uint48 indexed mintId, address indexed canceller);
 
     /**
      * @notice Emitted when mint proposal is executed.
-     * @param mintId The id of executed mint proposal
+     * @param  mintId The id of executed mint proposal
      */
-    event MintExecuted(uint256 indexed mintId);
+    event MintExecuted(uint48 indexed mintId);
 
     /**
      * @notice Emitted when M tokens are burned and minter's owed M balance decreased.
-     * @param minter The address of the minter
-     * @param amount The amount of M tokens to burn
-     * @param payer The address of the payer
+     * @param  minter The address of the minter
+     * @param  amount The amount of M tokens to burn
+     * @param  payer  The address of the payer
      */
-    event BurnExecuted(address indexed minter, uint256 amount, address indexed payer);
+    event BurnExecuted(address indexed minter, uint128 amount, address indexed payer);
 
     /**
      * @notice Emitted when penalty is imposed on minter.
-     * @param minter The address of the minter
-     * @param amount The amount of penalty charge
+     * @param  minter The address of the minter
+     * @param  amount The amount of penalty charge
      */
-    event PenaltyImposed(address indexed minter, uint256 amount);
+    event PenaltyImposed(address indexed minter, uint128 amount);
 
     /**
      * @notice Emitted when collateral retrieval proposal is created.
-     * @param retrievalId The id of retrieval proposal
-     * @param minter The address of the minter
-     * @param amount The amount of collateral to retrieve
+     * @param  retrievalId The id of retrieval proposal
+     * @param  minter      The address of the minter
+     * @param  amount      The amount of collateral to retrieve
      */
-    event RetrievalCreated(uint256 indexed retrievalId, address indexed minter, uint256 amount);
+    event RetrievalCreated(uint48 indexed retrievalId, address indexed minter, uint128 amount);
 
     /******************************************************************************************************************\
     |                                          External Interactive Functions                                          |
@@ -158,13 +158,13 @@ interface IProtocol is IContinuousIndexing {
 
     /**
      * @notice Updates collateral for minters
-     * @param collateral The amount of collateral
-     * @param retrievalIds The list of active proposeRetrieval requests to close
-     * @param metadataHash The hash of metadata of the collateral update, reserved for future informational use
-     * @param validators The list of validators
-     * @param timestamps The list of timestamps of validators' signatures
-     * @param signatures The list of signatures
-     * @return minTimestamp_ The minimum timestamp of all validators' signatures
+     * @param  collateral    The amount of collateral
+     * @param  retrievalIds  The list of active proposeRetrieval requests to close
+     * @param  metadataHash  The hash of metadata of the collateral update, reserved for future informational use
+     * @param  validators    The list of validators
+     * @param  timestamps    The list of timestamps of validators' signatures
+     * @param  signatures    The list of signatures
+     * @return minTimestamp  The minimum timestamp of all validators' signatures
      */
     function updateCollateral(
         uint256 collateral,
@@ -173,74 +173,74 @@ interface IProtocol is IContinuousIndexing {
         address[] calldata validators,
         uint256[] calldata timestamps,
         bytes[] calldata signatures
-    ) external returns (uint256 minTimestamp_);
+    ) external returns (uint40 minTimestamp);
 
     /**
      * @notice Proposes retrieval of minter's offchain collateral
-     * @param collateral The amount of collateral to retrieve
+     * @param  collateral  The amount of collateral to retrieve
      * @return retrievalId The unique id of created retrieval proposal
      */
-    function proposeRetrieval(uint256 collateral) external returns (uint256 retrievalId);
+    function proposeRetrieval(uint256 collateral) external returns (uint48 retrievalId);
 
     /**
      * @notice Proposes minting of M tokens
-     * @param amount The amount of M tokens to mint
-     * @param destination The address to mint to
-     * @return mintId The unique id of created mint proposal
+     * @param  amount      The amount of M tokens to mint
+     * @param  destination The address to mint to
+     * @return mintId      The unique id of created mint proposal
      */
-    function proposeMint(uint256 amount, address destination) external returns (uint256 mintId);
+    function proposeMint(uint256 amount, address destination) external returns (uint48 mintId);
 
     /**
      * @notice Executes minting of M tokens
-     * @param mintId The id of outstanding mint proposal for minter
+     * @param  mintId The id of outstanding mint proposal for minter
      */
     function mintM(uint256 mintId) external;
 
     /**
      * @notice Burns M tokens
-     * @param minter The address of the minter to burn M tokens for
-     * @param amount The max amount of M tokens to burn
-     * @dev If amount to burn is greater than minter's outstandingValue including penalties, burn all outstandingValue
+     * @dev    If amount to burn is greater than minter's owedM including penalties, burn all up to owedM
+     * @param  minter The address of the minter to burn M tokens for
+     * @param  amount The max amount of M tokens to burn
      */
     function burnM(address minter, uint256 amount) external;
 
     /**
      * @notice Cancels minting request for selected minter by validator
-     * @param minter The address of the minter to cancelMint minting request for
-     * @param mintId The id of outstanding mint request
+     * @param  minter The address of the minter to cancelMint minting request for
+     * @param  mintId The id of outstanding mint request
      */
     function cancelMint(address minter, uint256 mintId) external;
 
     /**
      * @notice Freezes minter
-     * @param minter The address of the minter to freeze
-     * @return frozenUntil_ The timestamp until which minter is frozen
+     * @param  minter      The address of the minter to freeze
+     * @return frozenUntil The timestamp until which minter is frozen
      */
-    function freezeMinter(address minter) external returns (uint256 frozenUntil_);
+    function freezeMinter(address minter) external returns (uint40 frozenUntil);
 
     /**
      * @notice Activate an approved minter.
-     * @dev MUST revert if `minter` is not recorded as an approved minter in SPOG Registrar.
-     * @dev SHOULD revert if the minter is already active.
-     * @param minter The address of the minter to activate
+     * @dev    MUST revert if `minter` is not recorded as an approved minter in SPOG Registrar.
+     * @dev    SHOULD revert if the minter is already active.
+     * @param  minter The address of the minter to activate
      */
     function activateMinter(address minter) external;
 
     /**
      * @notice Deactivates an active minter.
-     * @dev MUST revert if the minter is not an approved minter.
-     * @dev SHOULD revert if the minter is not active.
-     * @param minter The address of the minter to deactivate
+     * @dev    MUST revert if the minter is not an approved minter.
+     * @dev    SHOULD revert if the minter is not active.
+     * @param  minter The address of the minter to deactivate
      * @return inactiveOwedM The inactive owed M for the deactivated minter
      */
-    function deactivateMinter(address minter) external returns (uint256 inactiveOwedM);
+    function deactivateMinter(address minter) external returns (uint128 inactiveOwedM);
 
     /******************************************************************************************************************\
     |                                           External View/Pure Functions                                           |
     \******************************************************************************************************************/
 
     /// @notice Descaler for variables in basis points. Effectively, 100% in basis points.
-    function ONE() external pure returns (uint256);
+    function ONE() external pure returns (uint16);
 
     /// @notice The EIP-712 typehash for the `updateCollateral` method.
     function UPDATE_COLLATERAL_TYPEHASH() external pure returns (bytes32);
@@ -255,93 +255,90 @@ interface IProtocol is IContinuousIndexing {
     function spogVault() external view returns (address);
 
     /// @notice The last saved value of Minter rate.
-    function minterRate() external view returns (uint256);
+    function minterRate() external view returns (uint32);
 
     /// @notice The total owed M for all active minters.
-    function totalActiveOwedM() external view returns (uint256);
+    function totalActiveOwedM() external view returns (uint128);
 
     /// @notice The total owed M for all inactive minters.
-    function totalInactiveOwedM() external view returns (uint256);
+    function totalInactiveOwedM() external view returns (uint128);
 
     /// @notice The total owed M for all minters.
-    function totalOwedM() external view returns (uint256);
+    function totalOwedM() external view returns (uint128);
 
     /// @notice The difference between total active owed M and M token total supply.
-    function excessActiveOwedM() external view returns (uint256);
+    function excessActiveOwedM() external view returns (uint128);
 
     /// @notice The active owed M of minter.
-    function activeOwedMOf(address minter) external view returns (uint256);
+    function activeOwedMOf(address minter) external view returns (uint128);
 
     /// @notice The max allowed active owed M of minter taking into account collateral amount and retrieval proposals.
-    function maxAllowedActiveOwedMOf(address minter_) external view returns (uint256);
+    function maxAllowedActiveOwedMOf(address minter) external view returns (uint128);
 
     /// @notice The inactive owed M of deactivated minter.
-    function inactiveOwedMOf(address minter) external view returns (uint256);
+    function inactiveOwedMOf(address minter) external view returns (uint128);
 
     /// @notice The collateral of a given minter.
-    function collateralOf(address minter) external view returns (uint256);
+    function collateralOf(address minter) external view returns (uint128);
 
     /// @notice The timestamp of the last collateral update of minter.
-    function collateralUpdateOf(address minter) external view returns (uint256);
+    function collateralUpdateOf(address minter) external view returns (uint40);
 
     /// @notice The timestamp of the deadline for the next collateral update of minter.
-    function collateralUpdateDeadlineOf(address minter) external view returns (uint256);
+    function collateralUpdateDeadlineOf(address minter) external view returns (uint40);
 
     /// @notice The length of the last collateral interval for minter in case SPOG changes this parameter.
-    function lastCollateralUpdateIntervalOf(address minter) external view returns (uint256);
+    function lastCollateralUpdateIntervalOf(address minter) external view returns (uint32);
 
     /// @notice The timestamp until which minter is already penalized for missed collateral updates.
-    function penalizedUntilOf(address minter) external view returns (uint256);
+    function penalizedUntilOf(address minter) external view returns (uint40);
 
     /// @notice The penalty for missed collateral updates. Penalized once per missed interval.
-    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint256);
+    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint128);
 
     /// @notice The mint proposal of minters, only 1 active proposal per minter
     function mintProposalOf(
         address minter
-    ) external view returns (uint256 mintId, uint256 createdAt, address destination, uint256 amount);
+    ) external view returns (uint48 mintId, uint40 createdAt, address destination, uint128 amount);
 
     /// @notice The minter's proposeRetrieval proposal amount
-    function pendingCollateralRetrievalOf(
-        address minter,
-        uint256 retrievalId
-    ) external view returns (uint256 collateral);
+    function pendingCollateralRetrievalOf(address minter, uint256 retrievalId) external view returns (uint128);
 
     /// @notice The total amount of active proposeRetrieval requests per minter
-    function totalPendingCollateralRetrievalsOf(address minter) external view returns (uint256);
+    function totalPendingCollateralRetrievalsOf(address minter) external view returns (uint128);
 
     /// @notice The timestamp when minter becomes unfrozen after being frozen by validator.
-    function unfrozenTimeOf(address minter) external view returns (uint256);
+    function unfrozenTimeOf(address minter) external view returns (uint40);
 
     /// @notice Checks if minter was activated after approval by SPOG
     function isActiveMinter(address minter) external view returns (bool);
 
     /// @notice Checks if minter was approved by SPOG
-    function isMinterApprovedBySPOG(address minter_) external view returns (bool);
+    function isMinterApprovedBySPOG(address minter) external view returns (bool);
 
     /// @notice Checks if validator was approved by SPOG
-    function isValidatorApprovedBySPOG(address validator_) external view returns (bool);
+    function isValidatorApprovedBySPOG(address validator) external view returns (bool);
 
     /// @notice The delay between mint proposal creation and its earliest execution.
-    function mintDelay() external view returns (uint256);
+    function mintDelay() external view returns (uint32);
 
     /// @notice The time while mint request can still be processed before it is considered expired.
-    function mintTTL() external view returns (uint256);
+    function mintTTL() external view returns (uint32);
 
     /// @notice The freeze time for minter.
-    function minterFreezeTime() external view returns (uint256);
+    function minterFreezeTime() external view returns (uint32);
 
     /// @notice The allowed activeOwedM to collateral ratio.
-    function mintRatio() external view returns (uint256);
+    function mintRatio() external view returns (uint32);
 
     /// @notice The % that defines penalty amount for missed collateral updates or excessive owedM value
-    function penaltyRate() external view returns (uint256);
+    function penaltyRate() external view returns (uint32);
 
     /// @notice The smart contract that defines the minter rate.
     function rateModel() external view returns (address);
 
     /// @notice The interval that defines the required frequency of collateral updates.
-    function updateCollateralInterval() external view returns (uint256);
+    function updateCollateralInterval() external view returns (uint32);
 
     /// @notice The number of signatures required for successful collateral update.
     function updateCollateralValidatorThreshold() external view returns (uint256);
