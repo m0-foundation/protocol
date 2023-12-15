@@ -240,7 +240,7 @@ interface IProtocol is IContinuousIndexing {
     \******************************************************************************************************************/
 
     /// @notice Descaler for variables in basis points. Effectively, 100% in basis points.
-    function ONE() external pure returns (uint32);
+    function ONE() external pure returns (uint16);
 
     /// @notice The EIP-712 typehash for the `updateCollateral` method.
     function UPDATE_COLLATERAL_TYPEHASH() external pure returns (bytes32);

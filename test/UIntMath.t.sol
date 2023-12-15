@@ -14,6 +14,13 @@ contract UIntMathTests is Test {
         UIntMath.safe40(2 ** 40);
     }
 
+    function test_safe48() external {
+        assertEq(UIntMath.safe48(2 ** 48 - 1), 2 ** 48 - 1);
+
+        vm.expectRevert(UIntMath.InvalidUInt48.selector);
+        UIntMath.safe48(2 ** 48);
+    }
+
     function test_safe128() external {
         assertEq(UIntMath.safe128(2 ** 128 - 1), 2 ** 128 - 1);
 

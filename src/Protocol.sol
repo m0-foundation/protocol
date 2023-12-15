@@ -2,8 +2,6 @@
 
 pragma solidity 0.8.23;
 
-import { console2 } from "../lib/forge-std/src/Test.sol";
-
 import { SignatureChecker } from "../lib/common/src/SignatureChecker.sol";
 import { ERC712 } from "../lib/common/src/ERC712.sol";
 
@@ -56,7 +54,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     |                                                    Variables                                                     |
     \******************************************************************************************************************/
 
-    uint32 public constant ONE = 10_000; // 100% in basis points.
+    uint16 public constant ONE = 10_000; // 100% in basis points.
 
     // keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadataHash,uint256 timestamp)")
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
@@ -604,8 +602,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      */
     function _resolvePendingRetrievals(address minter_, uint256[] calldata retrievalIds_) internal {
         for (uint256 index_; index_ < retrievalIds_.length; ++index_) {
-            // TODO: Consider safe casting here as an invalid retrieval ID can become valid.
-            uint48 retrievalId_ = uint48(retrievalIds_[index_]);
+            uint48 retrievalId_ = UIntMath.safe48(retrievalIds_[index_]);
 
             _minterStates[minter_].totalPendingRetrievals -= _pendingCollateralRetrievals[minter_][retrievalId_];
 
@@ -790,7 +787,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
             // Check that ECDSA or ERC1271 signatures for given digest are valid.
             if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_])) continue;
 
-            // Find minimum between all valid timestamps for valid signatures
+            // Find minimum between all valid timestamps for valid signatures.
             minTimestamp_ = UIntMath.min40IgnoreZero(minTimestamp_, UIntMath.safe40(timestamps_[index_]));
 
             --threshold_;

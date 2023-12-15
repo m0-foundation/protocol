@@ -5,11 +5,18 @@ pragma solidity 0.8.23;
 library UIntMath {
     error InvalidUInt40();
 
+    error InvalidUInt48();
+
     error InvalidUInt128();
 
     function safe40(uint256 n) internal pure returns (uint40) {
         if (n > type(uint40).max) revert InvalidUInt40();
         return uint40(n);
+    }
+
+    function safe48(uint256 n) internal pure returns (uint48) {
+        if (n > type(uint48).max) revert InvalidUInt48();
+        return uint48(n);
     }
 
     function safe128(uint256 n) internal pure returns (uint128) {
