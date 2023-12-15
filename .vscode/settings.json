@@ -11,6 +11,7 @@
     "files.insertFinalNewline": true
   },
   "[solidity]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+    "editor.defaultFormatter": "JuanBlanco.solidity"
+  },
+  "solidity.compileUsingRemoteVersion": "v0.8.23+commit.f704f362"
 }
