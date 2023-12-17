@@ -249,7 +249,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         emit MintExecuted(id_);
 
         // Adjust principal of active owed M for minter.
-        uint128 principalAmount_ = _getPrincipalAmount(amount_);
+        uint128 principalAmount_ = _getPrincipalAmountUp(amount_);
         _owedM[msg.sender].principalOfActive += principalAmount_;
         _totalPrincipalOfActiveOwedM += principalAmount_;
 
@@ -369,7 +369,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function totalActiveOwedM() public view returns (uint128 totalActiveOwedM_) {
-        return _getPresentAmount(_totalPrincipalOfActiveOwedM);
+        return _getPresentAmountUp(_totalPrincipalOfActiveOwedM);
     }
 
     /// @inheritdoc IProtocol
@@ -385,7 +385,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @inheritdoc IProtocol
     function excessActiveOwedM() public view returns (uint128 getExcessOwedM_) {
         uint128 totalMSupply_ = UIntMath.safe128(IMToken(mToken).totalSupply());
-        uint128 totalActiveOwedM_ = _getPresentAmount(_totalPrincipalOfActiveOwedM);
+        uint128 totalActiveOwedM_ = _getPresentAmountUp(_totalPrincipalOfActiveOwedM);
 
         if (totalActiveOwedM_ > totalMSupply_) return totalActiveOwedM_ - totalMSupply_;
     }
@@ -405,7 +405,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         // TODO: This should also include the present value of unavoidable penalities. But then it would be very, if not
         //       impossible, to determine the `totalActiveOwedM` to the same standards. Perhaps we need a `penaltiesOf`
         //       external function to provide the present value of unavoidable penalities
-        return _getPresentAmount(_owedM[minter_].principalOfActive);
+        return _getPresentAmountUp(_owedM[minter_].principalOfActive);
     }
 
     /// @inheritdoc IProtocol
@@ -552,7 +552,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      */
     function _imposePenalty(address minter_, uint128 penaltyBase_) internal {
         uint128 penalty_ = uint128((penaltyBase_ * penaltyRate()) / ONE);
-        uint128 penaltyPrincipal_ = _getPrincipalAmount(penalty_);
+        uint128 penaltyPrincipal_ = _getPrincipalAmountUp(penalty_);
 
         // Calculate and add penalty principal to total minter's principal of active owed M
         _owedM[minter_].principalOfActive += penaltyPrincipal_;
@@ -603,7 +603,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      */
     function _repayForActiveMinter(address minter_, uint128 maxAmount_) internal returns (uint128 amount_) {
         amount_ = UIntMath.min128(activeOwedMOf(minter_), maxAmount_);
-        uint128 principalAmount_ = _getPrincipalAmount(amount_);
+        uint128 principalAmount_ = _getPrincipalAmountDown(amount_);
 
         _owedM[minter_].principalOfActive -= principalAmount_;
         _totalPrincipalOfActiveOwedM -= principalAmount_;

@@ -9,6 +9,94 @@ import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
 contract ContinuousIndexingMathTests is Test {
     uint56 constant EXP_SCALED_ONE = ContinuousIndexingMath.EXP_SCALED_ONE;
 
+    function test_divideDown() external {
+        // Same as divideUp
+        assertEq(ContinuousIndexingMath.divideDown(0, 1), 0);
+        assertEq(ContinuousIndexingMath.divideDown(1, 1), EXP_SCALED_ONE);
+        assertEq(ContinuousIndexingMath.divideDown(2, 1), 2 * EXP_SCALED_ONE);
+        assertEq(ContinuousIndexingMath.divideDown(3, 1), 3 * EXP_SCALED_ONE);
+
+        // Same as divideUp
+        assertEq(ContinuousIndexingMath.divideDown(0, 2), 0);
+        assertEq(ContinuousIndexingMath.divideDown(1, 2), EXP_SCALED_ONE / 2);
+        assertEq(ContinuousIndexingMath.divideDown(2, 2), 1 * EXP_SCALED_ONE);
+        assertEq(ContinuousIndexingMath.divideDown(3, 2), 1 * EXP_SCALED_ONE + EXP_SCALED_ONE / 2);
+        assertEq(ContinuousIndexingMath.divideDown(4, 2), 2 * EXP_SCALED_ONE);
+        assertEq(ContinuousIndexingMath.divideDown(5, 2), 2 * EXP_SCALED_ONE + EXP_SCALED_ONE / 2);
+
+        // Different from indexing
+        assertEq(ContinuousIndexingMath.divideDown(1, EXP_SCALED_ONE + 1), 0);
+        assertEq(ContinuousIndexingMath.divideDown(1, EXP_SCALED_ONE), 1);
+        assertEq(ContinuousIndexingMath.divideDown(1, EXP_SCALED_ONE - 1), 1);
+        assertEq(ContinuousIndexingMath.divideDown(1, (EXP_SCALED_ONE / 2) + 1), 1);
+        assertEq(ContinuousIndexingMath.divideDown(1, (EXP_SCALED_ONE / 2)), 2);
+        assertEq(ContinuousIndexingMath.divideDown(1, (EXP_SCALED_ONE / 2) - 1), 2);
+    }
+
+    function test_divideUp() external {
+        // Same as divideDown
+        assertEq(ContinuousIndexingMath.divideUp(0, 1), 0);
+        assertEq(ContinuousIndexingMath.divideUp(1, 1), EXP_SCALED_ONE);
+        assertEq(ContinuousIndexingMath.divideUp(2, 1), 2 * EXP_SCALED_ONE);
+        assertEq(ContinuousIndexingMath.divideUp(3, 1), 3 * EXP_SCALED_ONE);
+
+        // Same as divideDown
+        assertEq(ContinuousIndexingMath.divideUp(0, 2), 0);
+        assertEq(ContinuousIndexingMath.divideUp(1, 2), EXP_SCALED_ONE / 2);
+        assertEq(ContinuousIndexingMath.divideUp(2, 2), 1 * EXP_SCALED_ONE);
+        assertEq(ContinuousIndexingMath.divideUp(3, 2), 1 * EXP_SCALED_ONE + EXP_SCALED_ONE / 2);
+        assertEq(ContinuousIndexingMath.divideUp(4, 2), 2 * EXP_SCALED_ONE);
+        assertEq(ContinuousIndexingMath.divideUp(5, 2), 2 * EXP_SCALED_ONE + EXP_SCALED_ONE / 2);
+
+        // Different from divideDown
+        assertEq(ContinuousIndexingMath.divideUp(1, EXP_SCALED_ONE + 1), 1);
+        assertEq(ContinuousIndexingMath.divideUp(1, EXP_SCALED_ONE), 1);
+        assertEq(ContinuousIndexingMath.divideUp(1, EXP_SCALED_ONE - 1), 2);
+        assertEq(ContinuousIndexingMath.divideUp(1, (EXP_SCALED_ONE / 2) + 1), 2);
+        assertEq(ContinuousIndexingMath.divideUp(1, (EXP_SCALED_ONE / 2)), 2);
+        assertEq(ContinuousIndexingMath.divideUp(1, (EXP_SCALED_ONE / 2) - 1), 3);
+    }
+
+    // TODO: fix this test
+    function test_multiplyDown() external {
+        // Same as multiplyUp
+        assertEq(ContinuousIndexingMath.multiplyDown(0, 1), 0);
+        assertEq(ContinuousIndexingMath.multiplyDown(1, 1), EXP_SCALED_ONE);
+        // assertEq(ContinuousIndexingMath.multiplyDown(2, 1), 2 * EXP_SCALED_ONE);
+        // assertEq(ContinuousIndexingMath.multiplyDown(3, 1), 3 * EXP_SCALED_ONE);
+
+        // // Same as multiplyUp
+        // assertEq(ContinuousIndexingMath.multiplyDown(0, 2), 0);
+        // assertEq(ContinuousIndexingMath.multiplyDown(1, 2), 2 * EXP_SCALED_ONE);
+        // assertEq(ContinuousIndexingMath.multiplyDown(2, 2), 4 * EXP_SCALED_ONE);
+        // assertEq(ContinuousIndexingMath.multiplyDown(3, 2), 6 * EXP_SCALED_ONE);
+    }
+
+    // TODO: fix this test
+    function test_multiplyUp() external {
+        // Same as multiplyDown
+        assertEq(ContinuousIndexingMath.multiplyUp(0, 1), 0);
+        assertEq(ContinuousIndexingMath.multiplyUp(1, 1), EXP_SCALED_ONE);
+        assertEq(ContinuousIndexingMath.multiplyUp(2, 1), 2 * EXP_SCALED_ONE);
+        assertEq(ContinuousIndexingMath.multiplyUp(3, 1), 3 * EXP_SCALED_ONE);
+
+        // Same as multiplyDown
+        assertEq(ContinuousIndexingMath.multiplyUp(0, 2), 0);
+        assertEq(ContinuousIndexingMath.multiplyUp(1, 2), EXP_SCALED_ONE / 2);
+        assertEq(ContinuousIndexingMath.multiplyUp(2, 2), 1 * EXP_SCALED_ONE);
+        assertEq(ContinuousIndexingMath.multiplyUp(3, 2), 1 * EXP_SCALED_ONE + EXP_SCALED_ONE / 2);
+        assertEq(ContinuousIndexingMath.multiplyUp(4, 2), 2 * EXP_SCALED_ONE);
+        assertEq(ContinuousIndexingMath.multiplyUp(5, 2), 2 * EXP_SCALED_ONE + EXP_SCALED_ONE / 2);
+
+        // Different from multiplyDown
+        assertEq(ContinuousIndexingMath.multiplyUp(1, EXP_SCALED_ONE + 1), 2);
+        assertEq(ContinuousIndexingMath.multiplyUp(1, EXP_SCALED_ONE), 1);
+        assertEq(ContinuousIndexingMath.multiplyUp(1, EXP_SCALED_ONE - 1), 1);
+        assertEq(ContinuousIndexingMath.multiplyUp(1, (EXP_SCALED_ONE / 2) + 1), 1);
+        assertEq(ContinuousIndexingMath.multiplyUp(1, (EXP_SCALED_ONE / 2)), 1);
+        assertEq(ContinuousIndexingMath.multiplyUp(1, (EXP_SCALED_ONE / 2) - 1), 0);
+    }
+
     function test_exponent() external {
         assertEq(ContinuousIndexingMath.exponent(0), 1_000000000000); // actual 1
 

@@ -40,7 +40,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
 
     function currentIndex() public view virtual returns (uint128 currentIndex_) {
         return
-            ContinuousIndexingMath.multiply(
+            ContinuousIndexingMath.multiplyDown(
                 _latestIndex,
                 ContinuousIndexingMath.getContinuousIndex(
                     ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
@@ -61,12 +61,20 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     |                                          Internal Interactive Functions                                          |
     \******************************************************************************************************************/
 
-    function _getPresentAmountAndUpdateIndex(uint128 principalAmount_) internal returns (uint128 presentAmount_) {
-        return _getPresentAmount(principalAmount_, updateIndex());
+    function _getPresentAmountUpAndUpdateIndex(uint128 principalAmount_) internal returns (uint128 presentAmount_) {
+        return _getPresentAmountUp(principalAmount_, updateIndex());
     }
 
-    function _getPrincipalAmountAndUpdateIndex(uint128 presentAmount_) internal returns (uint128 principalAmount_) {
-        return _getPrincipalAmount(presentAmount_, updateIndex());
+    function _getPresentAmountDownAndUpdateIndex(uint128 principalAmount_) internal returns (uint128 presentAmount_) {
+        return _getPresentAmountDown(principalAmount_, updateIndex());
+    }
+
+    function _getPrincipalAmountUpAndUpdateIndex(uint128 presentAmount_) internal returns (uint128 principalAmount_) {
+        return _getPrincipalAmountUp(presentAmount_, updateIndex());
+    }
+
+    function _getPrincipalAmountDownAndUpdateIndex(uint128 presentAmount_) internal returns (uint128 principalAmount_) {
+        return _getPrincipalAmountDown(presentAmount_, updateIndex());
     }
 
     /******************************************************************************************************************\
@@ -77,8 +85,16 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
      * @dev   Returns the present value given the principal value, using the current index.
      * @param principalAmount_ The principal value
      */
-    function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128 presentValue_) {
-        return _getPresentAmount(principalAmount_, currentIndex());
+    function _getPresentAmountUp(uint128 principalAmount_) internal view returns (uint128 presentValue_) {
+        return _getPresentAmountUp(principalAmount_, currentIndex());
+    }
+
+    /**
+     * @dev   Returns the present value given the principal value, using the current index.
+     * @param principalAmount_ The principal value
+     */
+    function _getPresentAmountDown(uint128 principalAmount_) internal view returns (uint128 presentValue_) {
+        return _getPresentAmountDown(principalAmount_, currentIndex());
     }
 
     /**
@@ -86,19 +102,39 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
      * @param principalAmount_ The principal value
      * @param index_           An index
      */
-    function _getPresentAmount(
+    function _getPresentAmountUp(
         uint128 principalAmount_,
         uint128 index_
     ) internal pure returns (uint128 presentAmount_) {
-        return ContinuousIndexingMath.multiply(principalAmount_, index_);
+        return ContinuousIndexingMath.multiplyUp(principalAmount_, index_);
+    }
+
+    /**
+     * @dev   Returns the present value given the principal value and an index.
+     * @param principalAmount_ The principal value
+     * @param index_           An index
+     */
+    function _getPresentAmountDown(
+        uint128 principalAmount_,
+        uint128 index_
+    ) internal pure returns (uint128 presentAmount_) {
+        return ContinuousIndexingMath.multiplyDown(principalAmount_, index_);
     }
 
     /**
      * @dev   Returns the principal value given the present value, using the current index.
      * @param presentAmount_ The present value
      */
-    function _getPrincipalAmount(uint128 presentAmount_) internal view returns (uint128 principalValue_) {
-        return _getPrincipalAmount(presentAmount_, currentIndex());
+    function _getPrincipalAmountUp(uint128 presentAmount_) internal view returns (uint128 principalValue_) {
+        return _getPrincipalAmountUp(presentAmount_, currentIndex());
+    }
+
+    /**
+     * @dev   Returns the principal value given the present value, using the current index.
+     * @param presentAmount_ The present value
+     */
+    function _getPrincipalAmountDown(uint128 presentAmount_) internal view returns (uint128 principalValue_) {
+        return _getPrincipalAmountDown(presentAmount_, currentIndex());
     }
 
     /**
@@ -106,11 +142,23 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
      * @param presentAmount_ The present value
      * @param index_         An index
      */
-    function _getPrincipalAmount(
+    function _getPrincipalAmountUp(
         uint128 presentAmount_,
         uint128 index_
     ) internal pure returns (uint128 principalAmount_) {
-        return ContinuousIndexingMath.divide(presentAmount_, index_);
+        return ContinuousIndexingMath.divideUp(presentAmount_, index_);
+    }
+
+    /**
+     * @dev   Returns the principal value given the present value, using the current index.
+     * @param presentAmount_ The present value
+     * @param index_         An index
+     */
+    function _getPrincipalAmountDown(
+        uint128 presentAmount_,
+        uint128 index_
+    ) internal pure returns (uint128 principalAmount_) {
+        return ContinuousIndexingMath.divideDown(presentAmount_, index_);
     }
 
     function _rate() internal view virtual returns (uint32 rate_);

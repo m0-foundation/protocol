@@ -131,7 +131,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     /// @inheritdoc IMToken
     function totalEarningSupply() public view returns (uint256 totalEarningSupply_) {
-        return _getPresentAmount(_totalPrincipalOfEarningSupply);
+        return _getPresentAmountDown(_totalPrincipalOfEarningSupply);
     }
 
     /// @inheritdoc IMToken
@@ -150,7 +150,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     function balanceOf(address account_) external view returns (uint256 balance_) {
         MBalance storage mBalance_ = _balances[account_];
 
-        return mBalance_.isEarning ? _getPresentAmount(mBalance_.rawBalance) : mBalance_.rawBalance;
+        return mBalance_.isEarning ? _getPresentAmountDown(mBalance_.rawBalance) : mBalance_.rawBalance;
     }
 
     /// @inheritdoc IMToken
@@ -200,7 +200,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         emit Transfer(account_, address(0), amount_);
 
         _balances[account_].isEarning
-            ? _subtractEarningAmount(account_, _getPrincipalAmountAndUpdateIndex(UIntMath.safe128(amount_)))
+            ? _subtractEarningAmount(account_, _getPrincipalAmountUpAndUpdateIndex(UIntMath.safe128(amount_)))
             : _subtractNonEarningAmount(account_, UIntMath.safe128(amount_));
     }
 
@@ -213,7 +213,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         emit Transfer(address(0), recipient_, amount_);
 
         _balances[recipient_].isEarning
-            ? _addEarningAmount(recipient_, _getPrincipalAmountAndUpdateIndex(UIntMath.safe128(amount_)))
+            ? _addEarningAmount(recipient_, _getPrincipalAmountDownAndUpdateIndex(UIntMath.safe128(amount_)))
             : _addNonEarningAmount(recipient_, UIntMath.safe128(amount_));
     }
 
@@ -234,7 +234,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
         if (presentAmount_ == 0) return;
 
-        uint128 principalAmount_ = _getPrincipalAmountAndUpdateIndex(presentAmount_);
+        uint128 principalAmount_ = _getPrincipalAmountDownAndUpdateIndex(presentAmount_);
 
         _balances[account_].rawBalance = principalAmount_;
 
@@ -261,7 +261,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
         if (principalAmount_ == 0) return;
 
-        uint128 presentAmount_ = _getPresentAmountAndUpdateIndex(principalAmount_);
+        uint128 presentAmount_ = _getPresentAmountDownAndUpdateIndex(principalAmount_);
 
         _balances[account_].rawBalance = presentAmount_;
 
@@ -316,19 +316,19 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
                 _transferAmountInKind( // perform an in-kind transfer with...
                     sender_,
                     recipient_,
-                    senderIsEarning_ ? _getPrincipalAmount(presentAmount_) : presentAmount_ // the appropriate amount.
+                    senderIsEarning_ ? _getPrincipalAmountDown(presentAmount_) : presentAmount_ // the appropriate amount.
                 );
         }
 
         // If this is not an in-kind transfer, then...
         if (senderIsEarning_) {
             // either the sender is earning and the recipient is not, or...
-            _subtractEarningAmount(sender_, _getPrincipalAmountAndUpdateIndex(presentAmount_));
+            _subtractEarningAmount(sender_, _getPrincipalAmountUpAndUpdateIndex(presentAmount_));
             _addNonEarningAmount(recipient_, presentAmount_);
         } else {
             // the sender is not earning and the recipient is.
             _subtractNonEarningAmount(sender_, presentAmount_);
-            _addEarningAmount(recipient_, _getPrincipalAmountAndUpdateIndex(presentAmount_));
+            _addEarningAmount(recipient_, _getPrincipalAmountDownAndUpdateIndex(presentAmount_));
         }
     }
 

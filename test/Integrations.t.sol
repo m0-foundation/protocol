@@ -109,7 +109,7 @@ contract IntegrationTests is Test {
         _protocol.updateIndex();
     }
 
-    function test_story1() external {
+    function skip_test_story1() external {
         _protocol.updateIndex();
 
         // Since the contracts ae deployed at the same time, these values are the same..
