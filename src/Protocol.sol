@@ -601,13 +601,15 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @param retrievalIds_ The list of outstanding collateral retrieval IDs to resolve
      */
     function _resolvePendingRetrievals(address minter_, uint256[] calldata retrievalIds_) internal {
+        uint128 totalResolvedRetrievals_;
         for (uint256 index_; index_ < retrievalIds_.length; ++index_) {
             uint48 retrievalId_ = UIntMath.safe48(retrievalIds_[index_]);
 
-            _minterStates[minter_].totalPendingRetrievals -= _pendingCollateralRetrievals[minter_][retrievalId_];
+            totalResolvedRetrievals_ += _pendingCollateralRetrievals[minter_][retrievalId_];
 
             delete _pendingCollateralRetrievals[minter_][retrievalId_];
         }
+        _minterStates[minter_].totalPendingRetrievals -= totalResolvedRetrievals_;
     }
 
     /**
@@ -796,9 +798,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         // NOTE: Due to STACK_TOO_DEEP issues, we need to refetch `requiredThreshold_` and compute the number of valid
         //       signatures here, in order to emit the correct error message. However, the code will only reach this
         //       point to inevitably revert, so the gas cost is not much of a concern.
-        uint256 requiredThreshold_ = updateCollateralValidatorThreshold();
-        uint256 validSignatures_ = requiredThreshold_ - threshold_;
-
-        if (threshold_ > 0) revert NotEnoughValidSignatures(validSignatures_, requiredThreshold_);
+        if (threshold_ > 0) {
+            uint256 requiredThreshold_ = updateCollateralValidatorThreshold();
+            uint256 validSignatures_ = requiredThreshold_ - threshold_;
+            revert NotEnoughValidSignatures(validSignatures_, requiredThreshold_);
+        }
     }
 }
