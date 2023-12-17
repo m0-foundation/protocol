@@ -18,7 +18,7 @@ contract ContinuousIndexingMathTests is Test {
         assertEq(ContinuousIndexingMath.exponent(EXP_ONE / 10), 1_105170918075); // actual 1.1051709180756477
         assertEq(ContinuousIndexingMath.exponent(EXP_ONE / 2), 1_648721270572); // actual 1.6487212707001282
         assertEq(ContinuousIndexingMath.exponent(EXP_ONE), 2_718281718281); // actual 2.718281828459045
-        assertEq(ContinuousIndexingMath.exponent(EXP_ONE * 2), 7_388888888888); // actual 7.3890560989306495
+        assertEq(ContinuousIndexingMath.exponent(EXP_ONE * 2), 7_389055499940); // actual 7.3890560989306495
     }
 
     function test_getContinuousIndex() external {
