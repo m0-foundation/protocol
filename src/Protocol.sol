@@ -169,8 +169,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
 
+        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if SPOG changes it.
         if (updateCollateralInterval_ != 0) {
-            // NOTE: Save for the future potential valid penalization if update collateral interval is changed by SPOG.
             _minterStates[msg.sender].lastUpdateInterval = updateCollateralInterval_;
         }
 
@@ -260,8 +260,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         // Undercollateralization within one update interval is forgiven.
         _imposePenaltyIfMissedCollateralUpdates(minter_, updateCollateralInterval_);
 
+        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if SPOG changes it.
         if (updateCollateralInterval_ != 0) {
-            // NOTE: Save for the future potential valid penalization if update collateral interval is changed by SPOG.
             _minterStates[minter_].lastUpdateInterval = updateCollateralInterval_;
         }
 
@@ -503,8 +503,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function mintRatio() public view returns (uint32 mintRatio_) {
-        // Protocol can never explicitly allow undercollateralization via a mint ratio greater than 100%.
-        return UIntMath.min32(UIntMath.bound32(SPOGRegistrarReader.getMintRatio(spogRegistrar)), ONE);
+        // NOTE: It is possible for the mint ratio to be greater than 100%.
+        return UIntMath.bound32(SPOGRegistrarReader.getMintRatio(spogRegistrar));
     }
 
     /// @inheritdoc IProtocol
@@ -673,8 +673,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         // Return if it is first update collateral ever or deadline for new penalization was not reached yet
         if (lastUpdateInterval_ == 0 || penalizationDeadline_ > block.timestamp) return (0, penalizationDeadline_);
 
-        // If `updateCollateralInterval_` is 0, we only charge for the one missed interval.
-        if (updateCollateralInterval_ == 0) return (activeOwedMOf(minter_), penalizationDeadline_);
+        // If `updateCollateralInterval_` is 0, then there is no missed interval charge at all.
+        if (updateCollateralInterval_ == 0) return (0, penalizationDeadline_);
 
         // We charge for the first missed interval based on previous collateral interval length only once
         uint40 missedIntervals_ = 1 + (uint40(block.timestamp) - penalizationDeadline_) / updateCollateralInterval_;

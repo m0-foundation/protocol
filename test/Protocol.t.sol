@@ -1607,14 +1607,6 @@ contract ProtocolTests is Test {
         assertEq(_protocol.updateCollateralInterval(), 10);
     }
 
-    function test_mintRatio() external {
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, 20000);
-        assertEq(_protocol.mintRatio(), ONE);
-
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, 9999);
-        assertEq(_protocol.mintRatio(), 9999);
-    }
-
     function _getCollateralUpdateSignature(
         address minter,
         uint256 collateral,
