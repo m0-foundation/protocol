@@ -600,8 +600,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @param minter_       The address of the minter
      * @param retrievalIds_ The list of outstanding collateral retrieval IDs to resolve
      */
-    function _resolvePendingRetrievals(address minter_, uint256[] calldata retrievalIds_) internal {
-        uint128 totalResolvedRetrievals_;
+    function _resolvePendingRetrievals(
+        address minter_,
+        uint256[] calldata retrievalIds_
+    ) internal returns (uint128 totalResolvedRetrievals_) {
         for (uint256 index_; index_ < retrievalIds_.length; ++index_) {
             uint48 retrievalId_ = UIntMath.safe48(retrievalIds_[index_]);
 
@@ -609,6 +611,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
             delete _pendingCollateralRetrievals[minter_][retrievalId_];
         }
+
         _minterStates[minter_].totalPendingRetrievals -= totalResolvedRetrievals_;
     }
 
