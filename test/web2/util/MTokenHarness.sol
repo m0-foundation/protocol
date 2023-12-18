@@ -23,6 +23,10 @@ contract MTokenHarness is MToken {
         _isEarning[account_] = isEarning_;
     }
 
+    function getter_isEarning(address account_) external view returns (bool isEarning) {
+        return _isEarning[account_];
+    }
+
     function getter_totalPrincipalOfEarningSupply() external view returns (uint256 totalPrincipalOfEarningSupply_) {
         return _totalPrincipalOfEarningSupply;
     }
@@ -49,5 +53,9 @@ contract MTokenHarness is MToken {
 
     function external_rate() external view virtual returns (uint256 rate_) {
         return _rate();
+    }
+
+    function external_startEarning(address account) external {
+        return _startEarning(account);
     }
 }
