@@ -123,7 +123,36 @@ contract MTokenTest is Test {
     }
 
     function test_optOutOfEarning() public {
+        _mToken.setter_latestRate(_earnerRate);
+        _mToken.setter_isEarning(_aliceAddress, true);
 
+        vm.warp(_start + 31_379_364);
+        _mToken.updateIndex();
+
+        _mToken.setter_balance(_aliceAddress, 1_234_000);
+        _mToken.setter_totalPrincipalOfEarningSupply(1_234_000);
+
+        assertEq(_mToken.getter_totalPrincipalOfEarningSupply(), 1_234_000);
+        assertApproxEqAbs(_mToken.balanceOf(_aliceAddress), 1_246_340, 1);
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertApproxEqAbs(_mToken.totalSupply(),  1_246_340, 1);
+        assertApproxEqAbs(_mToken.totalEarningSupply(), 1_246_340, 1);
+        assertTrue(_mToken.isEarning(_aliceAddress));
+        assertFalse(_mToken.hasOptedOutOfEarning(_aliceAddress));
+
+        vm.prank(_aliceAddress);
+        vm.expectEmit(true, false, false, false, address(_mToken));
+        emit IMToken.OptedOutOfEarning(_aliceAddress);
+        _mToken.optOutOfEarning();
+
+        // nothing changed except for hasOptedOutOfEarning
+        assertEq(_mToken.getter_totalPrincipalOfEarningSupply(), 1_234_000);
+        assertApproxEqAbs(_mToken.balanceOf(_aliceAddress), 1_246_340, 1);
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertApproxEqAbs(_mToken.totalSupply(),  1_246_340, 1);
+        assertApproxEqAbs(_mToken.totalEarningSupply(), 1_246_340, 1);
+        assertTrue(_mToken.isEarning(_aliceAddress));
+        assertTrue(_mToken.hasOptedOutOfEarning(_aliceAddress));
     }
 
     function test_startEarning() public {

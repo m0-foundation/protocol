@@ -11,6 +11,10 @@ contract MTokenHarness is MToken {
         return _balances[account_];
     }
 
+    function setter_balance(address account_, uint256 balance) external {
+        _balances[account_] = balance;
+    }
+
     function setter_latestRate(uint256 rate) external {
         _latestRate = rate;
     }
@@ -21,6 +25,10 @@ contract MTokenHarness is MToken {
 
     function getter_totalPrincipalOfEarningSupply() external view returns (uint256 totalPrincipalOfEarningSupply_) {
         return _totalPrincipalOfEarningSupply;
+    }
+
+    function setter_totalPrincipalOfEarningSupply(uint256 totalPrincipalOfEarningSupply) external {
+        _totalPrincipalOfEarningSupply = totalPrincipalOfEarningSupply;
     }
 
     function external_getPresentAmountAndUpdateIndex(uint256 principalAmount_) external returns (uint256 presentAmount_) {
