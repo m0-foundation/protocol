@@ -990,6 +990,40 @@ contract ProtocolTests is Test {
         assertEq(_protocol.penalizedUntilOf(_minter1), penalizedUntil);
     }
 
+    function test_imposePenalty_penalizedUntil_reducedInterval() external {
+        uint256 collateral = 100e18;
+        uint256 timestamp = block.timestamp;
+
+        _protocol.setCollateralOf(_minter1, collateral);
+        _protocol.setCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
+        _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+
+        // Change update collateral interval, more frequent updates are required
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
+
+        uint256 threeMissedIntervals = _updateCollateralInterval + (2 * _updateCollateralInterval) / 4;
+        vm.warp(timestamp + threeMissedIntervals + 10);
+
+        // Burn 1 unit of M and impose penalty for 3 missed intervals
+        vm.prank(_alice);
+        _protocol.burnM(_minter1, 1);
+
+        uint256 penalizedUntil = _protocol.penalizedUntilOf(_minter1);
+        assertEq(penalizedUntil, timestamp + threeMissedIntervals);
+        assertEq(_protocol.lastCollateralUpdateIntervalOf(_minter1), _updateCollateralInterval / 4);
+
+        uint256 oneMoreMissedInterval = _updateCollateralInterval / 4;
+        vm.warp(block.timestamp + oneMoreMissedInterval);
+
+        // Burn 1 unit of M and impose penalty for 1 more missed interval
+        vm.prank(_alice);
+        _protocol.burnM(_minter1, 1);
+
+        penalizedUntil = _protocol.penalizedUntilOf(_minter1);
+        assertEq(penalizedUntil, timestamp + threeMissedIntervals + oneMoreMissedInterval);
+    }
+
     function test_getPenaltyForMissedCollateralUpdates_noMissedIntervals() external {
         uint256 collateral = 100e18;
         uint256 timestamp = block.timestamp;
@@ -1566,6 +1600,11 @@ contract ProtocolTests is Test {
 
         _spogRegistrar.updateConfig(SPOGRegistrarReader.PENALTY_RATE, 100);
         assertEq(_protocol.penaltyRate(), 100);
+    }
+
+    function test_updateCollateralInterval() external {
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 10);
+        assertEq(_protocol.updateCollateralInterval(), 10);
     }
 
     function _getCollateralUpdateSignature(

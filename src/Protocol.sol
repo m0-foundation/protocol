@@ -163,9 +163,16 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         _resolvePendingRetrievals(msg.sender, retrievalIds_);
 
-        _imposePenaltyIfMissedCollateralUpdates(msg.sender);
+        uint32 updateCollateralInterval_ = updateCollateralInterval();
+
+        _imposePenaltyIfMissedCollateralUpdates(msg.sender, updateCollateralInterval_);
 
         _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
+
+        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if SPOG changes it.
+        if (updateCollateralInterval_ != 0) {
+            _minterStates[msg.sender].lastUpdateInterval = updateCollateralInterval_;
+        }
 
         _imposePenaltyIfUndercollateralized(msg.sender);
 
@@ -247,9 +254,16 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function burnM(address minter_, uint256 maxAmount_) external {
+        uint32 updateCollateralInterval_ = updateCollateralInterval();
+
         // NOTE: Penalize only for missed collateral updates, not for undercollateralization.
         // Undercollateralization within one update interval is forgiven.
-        _imposePenaltyIfMissedCollateralUpdates(minter_);
+        _imposePenaltyIfMissedCollateralUpdates(minter_, updateCollateralInterval_);
+
+        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if SPOG changes it.
+        if (updateCollateralInterval_ != 0) {
+            _minterStates[minter_].lastUpdateInterval = updateCollateralInterval_;
+        }
 
         uint128 amount_ = _minterStates[minter_].isActive
             ? _repayForActiveMinter(minter_, UIntMath.safe128(maxAmount_))
@@ -374,6 +388,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
+    function isActiveMinter(address minter_) external view returns (bool isActive_) {
+        return _minterStates[minter_].isActive;
+    }
+
+    /// @inheritdoc IProtocol
     function activeOwedMOf(address minter_) public view returns (uint128 activeOwedM_) {
         // TODO: This should also include the present value of unavoidable penalities. But then it would be very, if not
         //       impossible, to determine the `totalActiveOwedM` to the same standards. Perhaps we need a `penaltiesOf`
@@ -422,7 +441,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function getPenaltyForMissedCollateralUpdates(address minter_) public view returns (uint128 penalty_) {
-        (uint128 penaltyBase_, ) = _getPenaltyBaseAndTimeForMissedCollateralUpdates(minter_);
+        (uint128 penaltyBase_, ) = _getPenaltyBaseAndTimeForMissedCollateralUpdates(
+            minter_,
+            updateCollateralInterval()
+        );
 
         return (penaltyBase_ * penaltyRate()) / ONE;
     }
@@ -460,11 +482,6 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /// @inheritdoc IProtocol
-    function isActiveMinter(address minter_) external view returns (bool isActive_) {
-        return _minterStates[minter_].isActive;
-    }
-
-    /// @inheritdoc IProtocol
     function isMinterApprovedBySPOG(address minter_) public view returns (bool isApproved_) {
         return SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_);
     }
@@ -486,6 +503,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function mintRatio() public view returns (uint32 mintRatio_) {
+        // NOTE: It is possible for the mint ratio to be greater than 100%.
         return UIntMath.bound32(SPOGRegistrarReader.getMintRatio(spogRegistrar));
     }
 
@@ -538,18 +556,19 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /**
      * @dev   Imposes penalty if minter missed collateral updates.
      * @dev   penalty = total active owed M * penalty rate * number of missed intervals
-     * @param minter_ The address of the minter
+     * @param minter_                   The address of the minter
+     * @param updateCollateralInterval_ The current update collateral interval
      */
-    function _imposePenaltyIfMissedCollateralUpdates(address minter_) internal {
-        (uint128 penaltyBase_, uint40 penalizedUntil_) = _getPenaltyBaseAndTimeForMissedCollateralUpdates(minter_);
+    function _imposePenaltyIfMissedCollateralUpdates(address minter_, uint32 updateCollateralInterval_) internal {
+        (uint128 penaltyBase_, uint40 penalizedUntil_) = _getPenaltyBaseAndTimeForMissedCollateralUpdates(
+            minter_,
+            updateCollateralInterval_
+        );
 
         if (penaltyBase_ == 0) return;
 
         // Save penalization interval to not double charge for the same missed periods again
         _minterStates[minter_].penalizedUntilTimestamp = penalizedUntil_;
-        // We charged for the first missed interval based on previous collateral interval length only once
-        // NOTE: extra caution for the case when SPOG changed collateral interval length
-        _minterStates[minter_].lastUpdateInterval = updateCollateralInterval();
 
         _imposePenalty(minter_, penaltyBase_);
     }
@@ -614,7 +633,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @dev   Updates the collateral amount and update timestamp for the minter.
      * @param minter_       The address of the minter
      * @param amount_       The amount of collateral
-     * @param newTimestamp_ The timestamp of the collateral update, minimum of all given validator timestamps
+     * @param newTimestamp_ The timestamp of the collateral update
      */
     function _updateCollateral(address minter_, uint128 amount_, uint40 newTimestamp_) internal {
         uint40 lastUpdateTimestamp_ = _minterStates[minter_].updateTimestamp;
@@ -624,9 +643,6 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         _minterStates[minter_].collateral = amount_;
         _minterStates[minter_].updateTimestamp = newTimestamp_;
-
-        // NOTE: Save for the future potential valid penalization if update collateral interval is changed by SPOG.
-        _minterStates[minter_].lastUpdateInterval = updateCollateralInterval();
     }
 
     /******************************************************************************************************************\
@@ -635,30 +651,36 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /**
      * @dev    Returns the penalization base and the penalized until timestamp.
-     * @param  minter_         The address of the minter
-     * @return penaltyBase_    The base amount of penalty
-     * @return penalizedUntil_ The timestamp until which minter is penalized for missed collateral updates
+     * @param  minter_                   The address of the minter
+     * @param  updateCollateralInterval_ The current update collateral interval
+     * @return penaltyBase_              The base amount of penalty
+     * @return penalizedUntil_           The timestamp until which minter is penalized for missed collateral updates
      */
     function _getPenaltyBaseAndTimeForMissedCollateralUpdates(
-        address minter_
+        address minter_,
+        uint32 updateCollateralInterval_
     ) internal view returns (uint128 penaltyBase_, uint40 penalizedUntil_) {
         MinterState storage minterState_ = _minterStates[minter_];
-        (uint32 updateInterval_, uint40 lastUpdate_, uint40 lastPenalizedUntil_) = (
+        (uint32 lastUpdateInterval_, uint40 lastUpdate_, uint40 lastPenalizedUntil_) = (
             minterState_.lastUpdateInterval,
             minterState_.updateTimestamp,
             minterState_.penalizedUntilTimestamp
         );
 
         uint40 penalizeFrom_ = UIntMath.max40(lastUpdate_, lastPenalizedUntil_);
-        uint40 penalizationDeadline_ = penalizeFrom_ + updateInterval_;
+        uint40 penalizationDeadline_ = penalizeFrom_ + lastUpdateInterval_;
 
         // Return if it is first update collateral ever or deadline for new penalization was not reached yet
-        if (updateInterval_ == 0 || penalizationDeadline_ > block.timestamp) return (0, penalizeFrom_);
+        if (lastUpdateInterval_ == 0 || penalizationDeadline_ > block.timestamp) return (0, penalizationDeadline_);
 
-        uint40 missedIntervals_ = 1 + (uint40(block.timestamp) - penalizationDeadline_) / updateCollateralInterval();
+        // If `updateCollateralInterval_` is 0, then there is no missed interval charge at all.
+        if (updateCollateralInterval_ == 0) return (0, penalizationDeadline_);
+
+        // We charge for the first missed interval based on previous collateral interval length only once
+        uint40 missedIntervals_ = 1 + (uint40(block.timestamp) - penalizationDeadline_) / updateCollateralInterval_;
 
         penaltyBase_ = missedIntervals_ * activeOwedMOf(minter_);
-        penalizedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);
+        penalizedUntil_ = penalizationDeadline_ + ((missedIntervals_ - 1) * updateCollateralInterval_);
     }
 
     /**
