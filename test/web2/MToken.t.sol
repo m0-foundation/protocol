@@ -163,8 +163,53 @@ contract MTokenTest is Test {
 
     }
 
-    function test_stopEarning() public {
+    function test_stopEarning_AliceEarning() public {
+        _mToken.setter_latestRate(_earnerRate);
+        _mToken.setter_isEarning(_aliceAddress, true);
 
+        vm.warp(_start + 31_379_364);
+        _mToken.updateIndex();
+
+        _mToken.setter_balance(_aliceAddress, 1_234_000);
+        _mToken.setter_totalPrincipalOfEarningSupply(1_234_000);
+
+        assertEq(_mToken.getter_totalPrincipalOfEarningSupply(), 1_234_000);
+        assertApproxEqAbs(_mToken.balanceOf(_aliceAddress), 1_246_340, 1);
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertApproxEqAbs(_mToken.totalSupply(),  1_246_340, 1);
+        assertApproxEqAbs(_mToken.totalEarningSupply(), 1_246_340, 1);
+        assertTrue(_mToken.isEarning(_aliceAddress));
+        assertFalse(_mToken.hasOptedOutOfEarning(_aliceAddress));
+
+        vm.prank(_aliceAddress);
+        vm.expectEmit(true, false, false, false, address(_mToken));
+        emit IMToken.OptedOutOfEarning(_aliceAddress);
+        _mToken.stopEarning();
+
+        // earning supply
+        assertEq(_mToken.getter_totalPrincipalOfEarningSupply(), 0);
+        assertEq(_mToken.balanceOf(_aliceAddress), 1_246_340);
+        assertEq(_mToken.totalNonEarningSupply(), 1_246_340);
+        assertEq(_mToken.totalSupply(),  1_246_340);
+        assertEq(_mToken.totalEarningSupply(), 0);
+        assertFalse(_mToken.isEarning(_aliceAddress));
+        assertTrue(_mToken.hasOptedOutOfEarning(_aliceAddress));
+    }
+
+
+    function test_stopEarning_AliceNotEarning() public {
+        _mToken.setter_isEarning(_aliceAddress, false);
+        vm.prank(_aliceAddress);
+        vm.expectEmit(true, false, false, false, address(_mToken));
+        emit IMToken.OptedOutOfEarning(_aliceAddress);
+        vm.expectRevert();
+        revert IMToken.AlreadyNotEarning();
+        vm.prank(_aliceAddress);
+        _mToken.stopEarning();
+    }
+
+    function test_restart_earning() public {
+        // cannot be tested without rebasing to main and having optInToEarning https://github.com/MZero-Labs/protocol/blob/main/src/MToken.sol#L107
     }
 
     function test_stopEarningForAddress() public 
