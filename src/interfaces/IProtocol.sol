@@ -42,6 +42,10 @@ interface IProtocol is IContinuousIndexing {
     /// @notice Emitted when calling `mintM` if `mintDelay` time has not passed yet.
     error PendingMintProposal(uint40 activeTimestamp);
 
+    /// @notice Emitted when calling `proposeRetrieval` if sum of all outstanding retrievals
+    ///         Plus new proposed retrieval amount is greater than collateral.
+    error RetrievalsExceedCollateral(uint128 totalPendingRetrievals, uint128 collateral);
+
     /// @notice Emitted when calling `updateCollateral`
     ///         If `validators`, `signatures`, `timestamps` lengths do not match.
     error SignatureArrayLengthsMismatch();

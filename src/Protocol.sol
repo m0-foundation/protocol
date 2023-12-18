@@ -187,13 +187,21 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
             retrievalId_ = ++_retrievalNonce;
         }
 
-        uint128 safeCollateral_ = UIntMath.safe128(collateral_);
-        _minterStates[msg.sender].totalPendingRetrievals += safeCollateral_;
-        _pendingCollateralRetrievals[msg.sender][retrievalId_] = safeCollateral_;
+        MinterState storage minterState_ = _minterStates[msg.sender];
+        uint128 currentCollateral_ = minterState_.collateral;
+        uint128 safeRetrieval_ = UIntMath.safe128(collateral_);
+        uint128 updatedTotalPendingRetrievals_ = minterState_.totalPendingRetrievals + safeRetrieval_;
+
+        // NOTE: Revert if collateral is less than sum of all pending retrievals even if there is no owed M by minter.
+        if (currentCollateral_ < updatedTotalPendingRetrievals_)
+            revert RetrievalsExceedCollateral(updatedTotalPendingRetrievals_, currentCollateral_);
+
+        minterState_.totalPendingRetrievals = updatedTotalPendingRetrievals_;
+        _pendingCollateralRetrievals[msg.sender][retrievalId_] = safeRetrieval_;
 
         _revertIfUndercollateralized(msg.sender, 0);
 
-        emit RetrievalCreated(retrievalId_, msg.sender, safeCollateral_);
+        emit RetrievalCreated(retrievalId_, msg.sender, safeRetrieval_);
     }
 
     /// @inheritdoc IProtocol

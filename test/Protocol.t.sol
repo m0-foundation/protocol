@@ -1362,7 +1362,7 @@ contract ProtocolTests is Test {
         _protocol.proposeRetrieval(100);
     }
 
-    function test_proposeRetrieval_notEnoughCollateral() external {
+    function test_proposeRetrieval_Undercollateralized() external {
         uint256 collateral = 100e18;
 
         _protocol.setCollateralOf(_minter1, collateral);
@@ -1378,6 +1378,27 @@ contract ProtocolTests is Test {
                 IProtocol.Undercollateralized.selector,
                 _protocol.activeOwedMOf(_minter1),
                 expectedMaxAllowedOwedM
+            )
+        );
+
+        vm.prank(_minter1);
+        _protocol.proposeRetrieval(retrievalAmount);
+    }
+
+    function test_proposeRetrieval_RetrievalsExceedCollateral() external {
+        uint256 collateral = 100e18;
+
+        _protocol.setCollateralOf(_minter1, collateral);
+        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setTotalPendingRetrievalsOf(_minter1, collateral);
+        _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
+
+        uint256 retrievalAmount = 10e18;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IProtocol.RetrievalsExceedCollateral.selector,
+                collateral + retrievalAmount,
+                collateral
             )
         );
 
