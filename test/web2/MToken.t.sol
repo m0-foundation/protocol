@@ -86,50 +86,36 @@ contract MTokenTest is Test {
 
     function test_mint_aliceEarning() public 
     {
-        // set EARNERS_LIST_IGNORED false
-        // TODO: solve with harness
-//        vm.mockCall(
-//            _spogRegistrarAddress,
-//            abi.encodeWithSelector(ISPOGRegistrar.get.selector, SPOGRegistrarReader.EARNERS_LIST_IGNORED),
-//            abi.encode(false)
-//        );
-        // set Alice approved earner
-        // TODO: solve with harness
-//        vm.mockCall(
-//            _spogRegistrarAddress,
-//            abi.encodeWithSelector(ISPOGRegistrar.listContains.selector, SPOGRegistrarReader.EARNERS_LIST, _aliceAddress),
-//            abi.encode(true)
-//        );
-//
-//        _mToken.startEarning(_aliceAddress);
+        _mToken.setter_latestRate(_earnerRate);
         _mToken.setter_isEarning(_aliceAddress, true);
 
-        // Look for events
-        vm.expectEmit(true, true, false, true, address(_mToken));
-        emit IERC20.Transfer(address(0), _aliceAddress, 1338);
-        // vm.expectEmit(true, true, false, false, address(_mToken));
-        // emit IContinuousIndexing.IndexUpdated(1e18, 100);       // TODO indexing logic 
+        // time to reach index ±1.01
+        // but why?? it's only 363.187 days
+        vm.warp(_start + 31_379_364);
 
-        // Execute method
+        vm.expectEmit(true, true, false, false);
+        emit IContinuousIndexing.IndexUpdated(1_010_000_000_198_216_635, 100);
+        _mToken.updateIndex();
+
+        vm.expectEmit(true, true, false, true, address(_mToken));
+        emit IERC20.Transfer(address(0), _aliceAddress, 1_338_000);
         vm.prank(_protocolAddress);
-        _mToken.mint(_aliceAddress, 1338);
+        _mToken.mint(_aliceAddress, 1_338_000);
 
         // balance for alice increased
-//        assertEq(1338, _mToken.getter_balance(_aliceAddress));
+        assertEq(_mToken.getter_balance(_aliceAddress), 1_324_752);
         // totalNonEarningSupply increased
-//        assertEq(1338, _mToken.getter_totalPrincipalOfEarningSupply());
-        // Nothing else happened
-        // TODO
+        assertEq(_mToken.getter_totalPrincipalOfEarningSupply(), 1_324_752);
 
-        // set currentIndex so that _getPresentAmount returns mToken._balances
-//        assertEq(_mToken.balanceOf(_aliceAddress), 1337);
-//        // totalNonEarningSupply increased
-//        assertEq(_mToken.totalNonEarningSupply(), 1337);
-//
-//        assertEq(_mToken.totalSupply(), 1337);
-//        assertEq(_mToken.totalEarningSupply(), 0);
-//        assertFalse(_mToken.isEarning(_aliceAddress));
-//        assertFalse(_mToken.hasOptedOutOfEarning(_aliceAddress));
+        // rounding problem here
+        assertApproxEqAbs(_mToken.balanceOf(_aliceAddress), 1_338_000, 1);
+        // totalNonEarningSupply didn't change
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+
+        assertApproxEqAbs(_mToken.totalSupply(),  1_338_000, 1);
+        assertApproxEqAbs(_mToken.totalEarningSupply(), 1_338_000, 1);
+        assertTrue(_mToken.isEarning(_aliceAddress));
+        assertFalse(_mToken.hasOptedOutOfEarning(_aliceAddress));
     }
 
     function test_burn() public {

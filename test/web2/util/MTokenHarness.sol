@@ -11,6 +11,10 @@ contract MTokenHarness is MToken {
         return _balances[account_];
     }
 
+    function setter_latestRate(uint256 rate) external {
+        _latestRate = rate;
+    }
+
     function setter_isEarning(address account_, bool isEarning_) external {
         _isEarning[account_] = isEarning_;
     }
