@@ -23,7 +23,7 @@ contract MTokenTests is Test {
 
     address[] internal _accounts = [_alice, _bob, _charlie, _david];
 
-    uint32 internal _earnerRate = ContinuousIndexingMath.BPS_BASE_SCALE / 10; // 10% APY
+    uint32 internal _earnerRate = ContinuousIndexingMath.BPS_SCALED_ONE / 10; // 10% APY
     uint256 internal _start = block.timestamp;
 
     uint128 internal _expectedCurrentIndex;
@@ -47,7 +47,7 @@ contract MTokenTests is Test {
 
         vm.warp(_start + 30_057_038); // Just enough time for the index to be ~1.1.
 
-        _expectedCurrentIndex = 1_100_000_002_107_323_285;
+        _expectedCurrentIndex = 1_100000068703;
     }
 
     function test_mint_notProtocol() external {
@@ -63,7 +63,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.totalNonEarningSupply(), 1_000);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
         assertEq(_mToken.earnerRate(), _earnerRate);
-        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
@@ -117,7 +117,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.internalBalanceOf(_alice), 500);
         assertEq(_mToken.totalNonEarningSupply(), 500);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
-        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
@@ -128,7 +128,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
         assertEq(_mToken.earnerRate(), _earnerRate);
-        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
@@ -195,7 +195,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.totalNonEarningSupply(), 1_500);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
         assertEq(_mToken.earnerRate(), _earnerRate);
-        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
@@ -250,7 +250,7 @@ contract MTokenTests is Test {
     function test_transfer_fromEarner_toEarner() external {
         _mToken.setTotalPrincipalOfEarningSupply(1_364);
         _mToken.setLatestRate(_earnerRate);
-        _mToken.setTotalPrincipalOfEarningSupply(1364);
+        _mToken.setTotalPrincipalOfEarningSupply(1_364);
 
         _mToken.setIsEarning(_alice, true);
         _mToken.setInternalBalanceOf(_alice, 909);
@@ -268,7 +268,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 1_364);
         assertEq(_mToken.earnerRate(), _earnerRate);
-        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_BASE_SCALE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
@@ -383,7 +383,7 @@ contract MTokenTests is Test {
     function test_updateIndex() external {
         _mToken.setLatestRate(_earnerRate);
 
-        uint256 expectedLatestIndex_ = ContinuousIndexingMath.EXP_BASE_SCALE;
+        uint256 expectedLatestIndex_ = ContinuousIndexingMath.EXP_SCALED_ONE;
         uint256 expectedLatestUpdateTimestamp_ = _start;
 
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
@@ -394,10 +394,10 @@ contract MTokenTests is Test {
         vm.warp(block.timestamp + 365 days);
 
         _expectedCurrentIndex = ContinuousIndexingMath.multiply(
-            ContinuousIndexingMath.EXP_BASE_SCALE,
+            ContinuousIndexingMath.EXP_SCALED_ONE,
             ContinuousIndexingMath.getContinuousIndex(
                 ContinuousIndexingMath.convertFromBasisPoints(_earnerRate),
-                block.timestamp - _start
+                uint32(block.timestamp - _start)
             )
         );
 
@@ -471,7 +471,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.balanceOf(_alice), 1_000); // Is not dependent on latestRate.
 
-        _mToken.setLatestIndex(1_200_000_000_000_000_000);
+        _mToken.setLatestIndex(1_200_000_000_000);
 
         assertEq(_mToken.balanceOf(_alice), 1_000); // Is not dependent on latestIndex.
     }
@@ -492,7 +492,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.balanceOf(_alice), 1_002); // Is dependent on latestRate.
 
-        _mToken.setLatestIndex(1_200_000_000_000_000_000);
+        _mToken.setLatestIndex(1_200_000_000_000);
 
         assertEq(_mToken.balanceOf(_alice), 1_202); // Is dependent on latestIndex.
     }
@@ -511,7 +511,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalEarningSupply(), 1_002); // Is dependent on latestRate.
 
-        _mToken.setLatestIndex(1_200_000_000_000_000_000);
+        _mToken.setLatestIndex(1_200_000_000_000);
 
         assertEq(_mToken.totalEarningSupply(), 1_202); // Is dependent on latestIndex.
     }
@@ -529,7 +529,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalNonEarningSupply(), 1_000); // Is not dependent on latestRate.
 
-        _mToken.setLatestIndex(1_200_000_000_000_000_000);
+        _mToken.setLatestIndex(1_200_000_000_000);
 
         assertEq(_mToken.totalNonEarningSupply(), 1_000); // Is not dependent on latestIndex.
     }
@@ -547,7 +547,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalSupply(), 1_000); // Is not dependent on latestRate.
 
-        _mToken.setLatestIndex(1_200_000_000_000_000_000);
+        _mToken.setLatestIndex(1_200_000_000_000);
 
         assertEq(_mToken.totalSupply(), 1_000); // Is not dependent on latestIndex.
     }
@@ -566,7 +566,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalSupply(), 1_002); // Is dependent on latestRate.
 
-        _mToken.setLatestIndex(1_200_000_000_000_000_000);
+        _mToken.setLatestIndex(1_200_000_000_000);
 
         assertEq(_mToken.totalSupply(), 1_202); // Is dependent on latestIndex.
     }
@@ -586,7 +586,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalSupply(), 2_002); // Is dependent on latestRate.
 
-        _mToken.setLatestIndex(1_200_000_000_000_000_000);
+        _mToken.setLatestIndex(1_200_000_000_000);
 
         assertEq(_mToken.totalSupply(), 2_202); // Is dependent on latestIndex.
     }

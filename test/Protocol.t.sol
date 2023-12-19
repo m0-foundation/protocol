@@ -905,7 +905,7 @@ contract ProtocolTests is Test {
         uint256 expectedPenalty = (((activeOwedM + penalty) - (newCollateral * _mintRatio) / ONE) * _penaltyRate) / ONE;
 
         // precision loss of 2 wei-s - 1 per each penalty
-        assertEq(_protocol.activeOwedMOf(_minter1) + 2 wei, activeOwedM + penalty + expectedPenalty);
+        assertEq(_protocol.activeOwedMOf(_minter1) + 1 wei, activeOwedM + penalty + expectedPenalty);
 
         assertEq(_protocol.collateralUpdateOf(_minter1), signatureTimestamp);
         assertEq(_protocol.lastCollateralUpdateIntervalOf(_minter1), _updateCollateralInterval);
