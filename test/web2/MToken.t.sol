@@ -214,7 +214,7 @@ contract MTokenTest is Test {
 
     function test_stopEarningForAddress() public 
     {
-
+        // todo: adam
     }
 
 
@@ -225,41 +225,36 @@ contract MTokenTest is Test {
 
     function test_earnerRate() public 
     {
-
+        // todo: adam
     }
 
     function test_hasOptedOutOfEarning() public 
     {
-
+        // todo: florian
     }
 
     function test_isEarning() public 
     {
-
-    }
-
-    function test_protocol() public 
-    {
-
+        // todo: florian
     }
 
     function test_rateModel() public 
     {
-
+        // todo: florian
     }
 
     function test_spogRegistrar() public 
     {
-
+        // todo: florian
     }
 
     function test_totalEarningSupply() public 
     {
-
+        // todo: adam
     }
 
     function test_totalNonEarningSupply() public 
     {
-
+        // todo: adam
     }
 }
