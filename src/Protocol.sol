@@ -16,6 +16,8 @@ import { IRateModel } from "./interfaces/IRateModel.sol";
 import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 
 // TODO: Revisit storage slot and struct ordering once accurate gas reporting is achieved.
+// TODO: Consider `totalPendingCollateralRetrievalOf` or `totalCollateralPendingRetrievalOf`.
+// TODO: Consider `totalResolvedCollateralRetrieval` or `totalCollateralRetrievalResolved`.
 
 /**
  * @title Protocol
@@ -159,6 +161,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         uint128 safeCollateral_ = UIntMath.safe128(collateral_);
 
+        // TODO: Consider adding the `totalResolvedRetrievals_` to the event.
         emit CollateralUpdated(msg.sender, safeCollateral_, retrievalIds_, metadataHash_, minTimestamp_);
 
         _resolvePendingRetrievals(msg.sender, retrievalIds_);
@@ -193,8 +196,9 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint128 updatedTotalPendingRetrievals_ = minterState_.totalPendingRetrievals + safeRetrieval_;
 
         // NOTE: Revert if collateral is less than sum of all pending retrievals even if there is no owed M by minter.
-        if (currentCollateral_ < updatedTotalPendingRetrievals_)
+        if (currentCollateral_ < updatedTotalPendingRetrievals_) {
             revert RetrievalsExceedCollateral(updatedTotalPendingRetrievals_, currentCollateral_);
+        }
 
         minterState_.totalPendingRetrievals = updatedTotalPendingRetrievals_;
         _pendingCollateralRetrievals[msg.sender][retrievalId_] = safeRetrieval_;
@@ -211,7 +215,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     ) external onlyActiveMinter onlyUnfrozenMinter returns (uint48 mintId_) {
         uint128 safeAmount_ = UIntMath.safe128(amount_);
 
-        _revertIfUndercollateralized(msg.sender, safeAmount_); // Check that minter will remain sufficiently collateralized.
+        _revertIfUndercollateralized(msg.sender, safeAmount_); // Ensure minter remains sufficiently collateralized.
 
         unchecked {
             mintId_ = ++_mintNonce;
@@ -242,14 +246,15 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint40 expiresAt_ = activeAt_ + mintTTL();
         if (block.timestamp > expiresAt_) revert ExpiredMintProposal(expiresAt_);
 
-        _revertIfUndercollateralized(msg.sender, amount_); // Check that minter will remain sufficiently collateralized.
+        _revertIfUndercollateralized(msg.sender, amount_); // Ensure minter remains sufficiently collateralized.
 
         delete _mintProposals[msg.sender]; // Delete mint request.
 
         emit MintExecuted(id_);
 
         // Adjust principal of active owed M for minter.
-        uint128 principalAmount_ = _getPrincipalAmountUp(amount_);
+        // NOTE: When minting a present amount, round the principal up to favour of the protocol.
+        uint128 principalAmount_ = _getPrincipalAmountRoundedUp(amount_);
         _owedM[msg.sender].principalOfActive += principalAmount_;
         _totalPrincipalOfActiveOwedM += principalAmount_;
 
@@ -288,6 +293,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function cancelMint(address minter_, uint256 mintId_) external onlyApprovedValidator {
+        // TODO: Possible gas optimization by getting storage pointer once and using it again for delete.
         uint48 id_ = _mintProposals[minter_].id;
 
         if (id_ != mintId_) revert InvalidMintProposal();
@@ -369,7 +375,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function totalActiveOwedM() public view returns (uint128 totalActiveOwedM_) {
-        return _getPresentAmountUp(_totalPrincipalOfActiveOwedM);
+        return _getPresentAmount(_totalPrincipalOfActiveOwedM);
     }
 
     /// @inheritdoc IProtocol
@@ -384,8 +390,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function excessActiveOwedM() public view returns (uint128 getExcessOwedM_) {
+        // TODO: Consider dropping this safe cast since if the total M supply is greater than 2^128, there are bigger
+        //       issues, but also because reverts here bricks `updateIndex()`, which bricks everything else.
         uint128 totalMSupply_ = UIntMath.safe128(IMToken(mToken).totalSupply());
-        uint128 totalActiveOwedM_ = _getPresentAmountUp(_totalPrincipalOfActiveOwedM);
+        uint128 totalActiveOwedM_ = totalActiveOwedM();
 
         if (totalActiveOwedM_ > totalMSupply_) return totalActiveOwedM_ - totalMSupply_;
     }
@@ -404,8 +412,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     function activeOwedMOf(address minter_) public view returns (uint128 activeOwedM_) {
         // TODO: This should also include the present value of unavoidable penalities. But then it would be very, if not
         //       impossible, to determine the `totalActiveOwedM` to the same standards. Perhaps we need a `penaltiesOf`
-        //       external function to provide the present value of unavoidable penalities
-        return _getPresentAmountUp(_owedM[minter_].principalOfActive);
+        //       external function to provide the present value of unavoidable penalities.
+        return _getPresentAmount(_owedM[minter_].principalOfActive);
     }
 
     /// @inheritdoc IProtocol
@@ -472,7 +480,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         address minter_,
         uint256 retrievalId_
     ) external view returns (uint128 collateral) {
-        return _pendingCollateralRetrievals[minter_][uint48(retrievalId_)];
+        return _pendingCollateralRetrievals[minter_][UIntMath.safe48(retrievalId_)];
     }
 
     /// @inheritdoc IProtocol
@@ -552,7 +560,9 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      */
     function _imposePenalty(address minter_, uint128 penaltyBase_) internal {
         uint128 penalty_ = uint128((penaltyBase_ * penaltyRate()) / ONE);
-        uint128 penaltyPrincipal_ = _getPrincipalAmountUp(penalty_);
+
+        // NOTE: When imposing a present amount penalty, round the principal up to favour of the protocol.
+        uint128 penaltyPrincipal_ = _getPrincipalAmountRoundedUp(penalty_);
 
         // Calculate and add penalty principal to total minter's principal of active owed M
         _owedM[minter_].principalOfActive += penaltyPrincipal_;
@@ -603,7 +613,9 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      */
     function _repayForActiveMinter(address minter_, uint128 maxAmount_) internal returns (uint128 amount_) {
         amount_ = UIntMath.min128(activeOwedMOf(minter_), maxAmount_);
-        uint128 principalAmount_ = _getPrincipalAmountDown(amount_);
+
+        // NOTE: When subtracting a present amount, round the principal down to favour of the protocol.
+        uint128 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
 
         _owedM[minter_].principalOfActive -= principalAmount_;
         _totalPrincipalOfActiveOwedM -= principalAmount_;
@@ -694,6 +706,15 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         penaltyBase_ = missedIntervals_ * activeOwedMOf(minter_);
         penalizedUntil_ = penalizationDeadline_ + ((missedIntervals_ - 1) * updateCollateralInterval_);
+    }
+
+    /**
+     * @dev   Returns the present value (rounded down) given the principal value, using the current index.
+     *        All present values are rounded up in favour of the protocol, since they are owed.
+     * @param principalAmount_ The principal value
+     */
+    function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128 presentValue_) {
+        return _getPresentAmountRoundedUp(principalAmount_, currentIndex());
     }
 
     /**

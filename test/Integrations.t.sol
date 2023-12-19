@@ -109,7 +109,7 @@ contract IntegrationTests is Test {
         _protocol.updateIndex();
     }
 
-    function skip_test_story1() external {
+    function test_story1() external {
         _protocol.updateIndex();
 
         // Since the contracts ae deployed at the same time, these values are the same..
@@ -240,14 +240,14 @@ contract IntegrationTests is Test {
         assertEq(_protocol.currentIndex(), 1_000194082756);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
-        assertEq(_mToken.earnerRate(), 999);
+        assertEq(_mToken.earnerRate(), 1_000);
         assertEq(_mToken.latestIndex(), 1_000000000000);
         assertEq(_mToken.currentIndex(), 1_000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_protocol.activeOwedMOf(_minters[0]), 499_999_999999); // ~500k
+        assertEq(_protocol.activeOwedMOf(_minters[0]), 500_000_000001); // ~500k
         assertEq(_mToken.balanceOf(_alice), 500_000_000000); // 500k
-        assertEq(_mToken.balanceOf(_vault), 0);
+        assertEq(_mToken.balanceOf(_vault), 1);
 
         vm.warp(block.timestamp + 356 days); // 1 year later, Alice transfers all all her M to Bob, who is not earning.
 
@@ -256,14 +256,14 @@ contract IntegrationTests is Test {
         assertEq(_protocol.currentIndex(), 1_102663162403);
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
-        assertEq(_mToken.earnerRate(), 999);
+        assertEq(_mToken.earnerRate(), 1_000);
         assertEq(_mToken.latestIndex(), 1_000000000000);
-        assertEq(_mToken.currentIndex(), 1_102341674717);
+        assertEq(_mToken.currentIndex(), 1_102449196025);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_224_598011); // ~500k with 10% APY compounded continuously.
-        assertEq(_mToken.balanceOf(_alice), 551_170_837358); // ~500k with 10% APY compounded continuously.
-        assertEq(_mToken.balanceOf(_vault), 0); // Still 0 since no call to `_protocol.updateIndex()`.
+        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_224_598014); // ~500k with 10% APY compounded continuously.
+        assertEq(_mToken.balanceOf(_alice), 551_224_598012); // ~500k with 10% APY compounded continuously.
+        assertEq(_mToken.balanceOf(_vault), 1); // Still 0 since no call to `_protocol.updateIndex()`.
 
         uint256 transferAmount_ = _mToken.balanceOf(_alice);
 
@@ -279,18 +279,19 @@ contract IntegrationTests is Test {
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_102341674717);
-        assertEq(_mToken.currentIndex(), 1_102341674717);
+        assertEq(_mToken.latestIndex(), 1_102449196025);
+        assertEq(_mToken.currentIndex(), 1_102449196025);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_224_598011);
-        assertEq(_mToken.balanceOf(_alice), 1); // Rounding error left over.
-        assertEq(_mToken.balanceOf(_bob), 551_170_837358);
-        assertEq(_mToken.balanceOf(_vault), 0); // No change since no call to `_protocol.updateIndex()`.
+        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_224_598014);
+        assertEq(_mToken.balanceOf(_alice), 0); // Rounding error left over.
+        assertEq(_mToken.balanceOf(_bob), 551_224_598012);
+        assertEq(_mToken.balanceOf(_vault), 1); // No change since no call to `_protocol.updateIndex()`.
 
         vm.warp(block.timestamp + 1 hours); // 1 hour later, someone updates the indices.
 
         uint256 excessActiveOwedM = _protocol.excessActiveOwedM();
+        assertEq(excessActiveOwedM, 6_292555);
 
         _protocol.updateIndex();
 
@@ -304,14 +305,13 @@ contract IntegrationTests is Test {
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_102354258597);
-        assertEq(_mToken.currentIndex(), 1_102354258597);
+        assertEq(_mToken.latestIndex(), 1_102461781133);
+        assertEq(_mToken.currentIndex(), 1_102461781133);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_230_890566);
-        assertEq(_mToken.balanceOf(_bob), 551_170_837358); // Bob is not earning, so no change.
-        assertEq(_mToken.balanceOf(_vault), 60_053207);
-        assertEq(_mToken.balanceOf(_vault), excessActiveOwedM); // Excess active owed M is distributed to vault.
+        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_230_890568);
+        assertEq(_mToken.balanceOf(_bob), 551_224_598012); // Bob is not earning, so no change.
+        assertEq(_mToken.balanceOf(_vault), 6_292556); // Excess active owed M is distributed to vault.
 
         excessActiveOwedM = _protocol.excessActiveOwedM();
         assertEq(excessActiveOwedM, 0);
@@ -330,13 +330,13 @@ contract IntegrationTests is Test {
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_102656314836);
-        assertEq(_mToken.currentIndex(), 1_102656314836);
+        assertEq(_mToken.latestIndex(), 1_102763866834);
+        assertEq(_mToken.currentIndex(), 1_102763866834);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_381_933416);
-        assertEq(_mToken.balanceOf(_bob), 551_170_837357);
-        assertEq(_mToken.balanceOf(_vault), 60_053207); // No change since no call to `_protocol.updateIndex()`.
+        assertEq(_protocol.activeOwedMOf(_minters[0]), 551_381_933418);
+        assertEq(_mToken.balanceOf(_bob), 551_224_598011);
+        assertEq(_mToken.balanceOf(_vault), 6_292556); // No change since no call to `_protocol.updateIndex()`.
 
         vm.warp(block.timestamp + 30 days); // 30 days later, the unresponsive minter is deactivated.
 
@@ -346,13 +346,13 @@ contract IntegrationTests is Test {
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_102656314836);
-        assertEq(_mToken.currentIndex(), 1_111756590613);
+        assertEq(_mToken.latestIndex(), 1_102763866834);
+        assertEq(_mToken.currentIndex(), 1_111865030243);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_protocol.activeOwedMOf(_minters[0]), 555_932_515121);
-        assertEq(_mToken.balanceOf(_bob), 555_719_676875);
-        assertEq(_mToken.balanceOf(_vault), 60_053207); // No change since no call to `_protocol.updateIndex()`.
+        assertEq(_protocol.activeOwedMOf(_minters[0]), 555_932_515123);
+        assertEq(_mToken.balanceOf(_bob), 555_773_881219);
+        assertEq(_mToken.balanceOf(_vault), 6_292556); // No change since no call to `_protocol.updateIndex()`.
 
         _registrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minters[0]);
 
@@ -368,17 +368,17 @@ contract IntegrationTests is Test {
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0); // Dropped to zero due to drastic change in utilization.
-        assertEq(_mToken.latestIndex(), 1_111756590613);
-        assertEq(_mToken.currentIndex(), 1_111756590613);
+        assertEq(_mToken.latestIndex(), 1_111865030243);
+        assertEq(_mToken.currentIndex(), 1_111865030243);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         assertEq(_protocol.activeOwedMOf(_minters[0]), 0);
-        assertEq(_protocol.inactiveOwedMOf(_minters[0]), 555_932_515121);
-        assertEq(_mToken.balanceOf(_bob), 555_719_676875);
+        assertEq(_protocol.inactiveOwedMOf(_minters[0]), 555_932_515123);
+        assertEq(_mToken.balanceOf(_bob), 555_773_881219);
 
         // Note: No change here since when `_protocol.updateIndex()` was called, the `_protocol.totalActiveM` was 0, and
         //       thus there was no `_protocol.activeOwedM` in excess of `_mToken.totalSupply` to distribute to `_vault`.
-        assertEq(_mToken.balanceOf(_vault), 60_053207);
+        assertEq(_mToken.balanceOf(_vault), 6_292556);
 
         vm.warp(block.timestamp + 30 days); // 30 more days pass without any changes to the system.
 
@@ -388,14 +388,14 @@ contract IntegrationTests is Test {
         assertEq(_protocol.latestUpdateTimestamp(), latestProtocolUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_111756590613);
-        assertEq(_mToken.currentIndex(), 1_111756590613); // No change due to no earner rate in last 30 days.
+        assertEq(_mToken.latestIndex(), 1_111865030243);
+        assertEq(_mToken.currentIndex(), 1_111865030243); // No change due to no earner rate in last 30 days.
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         assertEq(_protocol.activeOwedMOf(_minters[0]), 0);
-        assertEq(_protocol.inactiveOwedMOf(_minters[0]), 555_932_515121);
-        assertEq(_mToken.balanceOf(_bob), 555_719_676875); // No change due to no earner rate in last 30 days.
-        assertEq(_mToken.balanceOf(_vault), 60_053207); // No change since conditions did not change.
+        assertEq(_protocol.inactiveOwedMOf(_minters[0]), 555_932_515123);
+        assertEq(_mToken.balanceOf(_bob), 555_773_881219); // No change due to no earner rate in last 30 days.
+        assertEq(_mToken.balanceOf(_vault), 6_292556); // No change since conditions did not change.
     }
 
     function _makeKey(string memory name) internal returns (uint256 privateKey) {

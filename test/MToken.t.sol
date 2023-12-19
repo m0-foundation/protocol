@@ -72,7 +72,28 @@ contract MTokenTests is Test {
         _mToken.setIsEarning(_alice, true);
 
         vm.prank(_protocol);
-        _mToken.mint(_alice, 1_000);
+        _mToken.mint(_alice, 999);
+
+        assertEq(_mToken.internalBalanceOf(_alice), 908);
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertEq(_mToken.totalPrincipalOfEarningSupply(), 908);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+
+        vm.prank(_protocol);
+        _mToken.mint(_alice, 1);
+
+        // No change due to principal round down on mint.
+        assertEq(_mToken.internalBalanceOf(_alice), 908);
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertEq(_mToken.totalPrincipalOfEarningSupply(), 908);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+
+        vm.prank(_protocol);
+        _mToken.mint(_alice, 2);
 
         assertEq(_mToken.internalBalanceOf(_alice), 909);
         assertEq(_mToken.totalNonEarningSupply(), 0);
@@ -140,17 +161,18 @@ contract MTokenTests is Test {
         _mToken.setInternalBalanceOf(_alice, 909);
 
         vm.prank(_protocol);
-        _mToken.burn(_alice, 500);
+        _mToken.burn(_alice, 1);
 
-        assertEq(_mToken.internalBalanceOf(_alice), 454);
+        // Change due to principal round up on burn.
+        assertEq(_mToken.internalBalanceOf(_alice), 908);
         assertEq(_mToken.totalNonEarningSupply(), 0);
-        assertEq(_mToken.totalPrincipalOfEarningSupply(), 454);
+        assertEq(_mToken.totalPrincipalOfEarningSupply(), 908);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
 
         vm.prank(_protocol);
-        _mToken.burn(_alice, 499);
+        _mToken.burn(_alice, 998);
 
         assertEq(_mToken.internalBalanceOf(_alice), 0);
         assertEq(_mToken.totalNonEarningSupply(), 0);
@@ -221,6 +243,20 @@ contract MTokenTests is Test {
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+
+        vm.prank(_alice);
+        _mToken.transfer(_bob, 1);
+
+        // Change due to principal round up on burn.
+        assertEq(_mToken.internalBalanceOf(_alice), 453);
+
+        assertEq(_mToken.internalBalanceOf(_bob), 1_001);
+
+        assertEq(_mToken.totalNonEarningSupply(), 1_001);
+        assertEq(_mToken.totalPrincipalOfEarningSupply(), 453);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
     function test_transfer_fromNonEarner_toEarner() external {
@@ -261,9 +297,9 @@ contract MTokenTests is Test {
         vm.prank(_alice);
         _mToken.transfer(_bob, 500);
 
-        assertEq(_mToken.internalBalanceOf(_alice), 455);
+        assertEq(_mToken.internalBalanceOf(_alice), 454);
 
-        assertEq(_mToken.internalBalanceOf(_bob), 908);
+        assertEq(_mToken.internalBalanceOf(_bob), 909);
 
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 1_364);

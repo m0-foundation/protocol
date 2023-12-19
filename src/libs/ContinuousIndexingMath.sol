@@ -10,7 +10,6 @@ import { UIntMath } from "./UIntMath.sol";
 /// @author M^ZERO Labs
 library ContinuousIndexingMath {
     error DivisionByZero();
-    error PowerTooHigh(uint128 power);
 
     uint32 internal constant SECONDS_PER_YEAR = 31_536_000;
 
@@ -21,8 +20,8 @@ library ContinuousIndexingMath {
     uint56 internal constant EXP_SCALED_ONE = 1e12;
 
     /**
-     * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `y` rounded down.
-     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol
+     * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `y`, rounded down.
+     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
     function divideDown(uint128 x, uint128 y) internal pure returns (uint128 z) {
         if (y == 0) revert DivisionByZero();
@@ -33,22 +32,20 @@ library ContinuousIndexingMath {
     }
 
     /**
-     * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `y` rounded up.
-     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol
+     * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `y`, rounded up.
+     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
     function divideUp(uint128 x, uint128 y) internal pure returns (uint128 z) {
         if (y == 0) revert DivisionByZero();
 
-        z = uint128(uint256(x) * EXP_SCALED_ONE + y);
         unchecked {
-            z -= 1;
+            return uint128(((uint256(x) * EXP_SCALED_ONE) + y - 1) / y);
         }
-        z /= y;
     }
 
     /**
-     * @notice Helper function to calculate (`x` * `y`) / `EXP_SCALED_ONE` rounded down.
-     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol
+     * @notice Helper function to calculate (`x` * `y`) / `EXP_SCALED_ONE`, rounded down.
+     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
     function multiplyDown(uint128 x, uint128 y) internal pure returns (uint128 z) {
         unchecked {
@@ -57,12 +54,12 @@ library ContinuousIndexingMath {
     }
 
     /**
-     * @notice Helper function to calculate (`x` * `y`) / `EXP_SCALED_ONE` rounded up.
-     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol
+     * @notice Helper function to calculate (`x` * `y`) / `EXP_SCALED_ONE`, rounded up.
+     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
     function multiplyUp(uint128 x, uint128 y) internal pure returns (uint128 z) {
         unchecked {
-            return UIntMath.safe128((uint256(x) * y + (EXP_SCALED_ONE - 1)) / EXP_SCALED_ONE);
+            return UIntMath.safe128(((uint256(x) * y) + (EXP_SCALED_ONE - 1)) / EXP_SCALED_ONE);
         }
     }
 
