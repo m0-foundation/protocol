@@ -155,12 +155,21 @@ contract MTokenTest is Test {
         assertTrue(_mToken.hasOptedOutOfEarning(_aliceAddress));
     }
 
-    function test_startEarning() public {
+    function test_startEarning() public 
+    {
+        vm.expectEmit(true, false, false, false, address(_mToken));
+        emit IMToken.StartedEarning(_aliceAddress);
+        _mToken.external_startEarning(_aliceAddress);
 
+        assertTrue(_mToken.getter_isEarning(_aliceAddress));
     }
 
-    function test_startEarningForAddress() public {
+    function test_startEarning_alreadyEarning() public 
+    { 
+        _mToken.setter_isEarning(_aliceAddress, true);
 
+        vm.expectRevert(IMToken.AlreadyEarning.selector);
+        _mToken.external_startEarning(_aliceAddress);
     }
 
     function test_stopEarning_AliceEarning() public {
@@ -196,15 +205,14 @@ contract MTokenTest is Test {
         assertTrue(_mToken.hasOptedOutOfEarning(_aliceAddress));
     }
 
-
     function test_stopEarning_AliceNotEarning() public {
         _mToken.setter_isEarning(_aliceAddress, false);
         vm.prank(_aliceAddress);
         vm.expectEmit(true, false, false, false, address(_mToken));
         emit IMToken.OptedOutOfEarning(_aliceAddress);
-        vm.expectRevert();
-        revert IMToken.AlreadyNotEarning();
-        vm.prank(_aliceAddress);
+        vm.expectRevert(IMToken.AlreadyNotEarning.selector); // todo: adam (florian: added IMToken.AlreadyNotEarning as param)
+        //revert IMToken.AlreadyNotEarning(); // todo: adam (florian: I commented out since following code will not be executed, and it's not necessary)
+        //vm.prank(_aliceAddress); // todo: adam (florian: should not be necessary?!)
         _mToken.stopEarning();
     }
 
@@ -249,7 +257,7 @@ contract MTokenTest is Test {
         emit IContinuousIndexing.IndexUpdated(1_010_000_000_518_485_533, 100);
         vm.expectEmit(true, false, false, false);
         emit IMToken.StoppedEarning(_aliceAddress);
-        _mToken.stopEarning(_aliceAddress);
+        _mToken.stopEarning(_aliceAddress); // todo: adam (florian: no params implemented, should be done by prank, or?)
 
         assertEq(_mToken.getter_totalPrincipalOfEarningSupply(), 0);
         assertApproxEqAbs(_mToken.balanceOf(_aliceAddress), 1_246_340, 1);
@@ -275,12 +283,26 @@ contract MTokenTest is Test {
 
     function test_hasOptedOutOfEarning() public 
     {
-        // todo: florian
+        _mToken.external_startEarning(_aliceAddress);
+        vm.prank(_aliceAddress);
+        _mToken.stopEarning();
+        assertTrue(_mToken.hasOptedOutOfEarning(_aliceAddress));
+    }
+
+    function test_hasOptedOutOfEarning_not() public 
+    {
+        assertFalse(_mToken.hasOptedOutOfEarning(_aliceAddress));
     }
 
     function test_isEarning() public 
     {
-        // todo: florian
+        _mToken.setter_isEarning(_aliceAddress, true);
+        assertTrue(_mToken.isEarning(_aliceAddress));
+    }
+
+    function test_isEarning_not() public 
+    {
+        assertFalse(_mToken.isEarning(_aliceAddress));
     }
 
     function test_rateModel() public 
