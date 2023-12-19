@@ -12,7 +12,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     uint40 internal _latestUpdateTimestamp;
 
     constructor() {
-        _latestIndex = uint128(1 * ContinuousIndexingMath.EXP_ONE);
+        _latestIndex = uint128(1 * ContinuousIndexingMath.EXP_SCALED_ONE);
         _latestUpdateTimestamp = uint40(block.timestamp);
     }
 

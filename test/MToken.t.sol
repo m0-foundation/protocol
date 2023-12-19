@@ -23,7 +23,7 @@ contract MTokenTests is Test {
 
     address[] internal _accounts = [_alice, _bob, _charlie, _david];
 
-    uint32 internal _earnerRate = ContinuousIndexingMath.BPS_ONE / 10; // 10% APY
+    uint32 internal _earnerRate = ContinuousIndexingMath.BPS_SCALED_ONE / 10; // 10% APY
     uint256 internal _start = block.timestamp;
 
     uint128 internal _expectedCurrentIndex;
@@ -63,7 +63,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.totalNonEarningSupply(), 1_000);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
         assertEq(_mToken.earnerRate(), _earnerRate);
-        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_ONE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
@@ -117,7 +117,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.internalBalanceOf(_alice), 500);
         assertEq(_mToken.totalNonEarningSupply(), 500);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
-        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_ONE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
@@ -128,7 +128,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
         assertEq(_mToken.earnerRate(), _earnerRate);
-        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_ONE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
@@ -195,7 +195,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.totalNonEarningSupply(), 1_500);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
         assertEq(_mToken.earnerRate(), _earnerRate);
-        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_ONE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
@@ -268,7 +268,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 1_364);
         assertEq(_mToken.earnerRate(), _earnerRate);
-        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_ONE);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
@@ -383,7 +383,7 @@ contract MTokenTests is Test {
     function test_updateIndex() external {
         _mToken.setLatestRate(_earnerRate);
 
-        uint256 expectedLatestIndex_ = ContinuousIndexingMath.EXP_ONE;
+        uint256 expectedLatestIndex_ = ContinuousIndexingMath.EXP_SCALED_ONE;
         uint256 expectedLatestUpdateTimestamp_ = _start;
 
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
@@ -394,7 +394,7 @@ contract MTokenTests is Test {
         vm.warp(block.timestamp + 365 days);
 
         _expectedCurrentIndex = ContinuousIndexingMath.multiply(
-            ContinuousIndexingMath.EXP_ONE,
+            ContinuousIndexingMath.EXP_SCALED_ONE,
             ContinuousIndexingMath.getContinuousIndex(
                 ContinuousIndexingMath.convertFromBasisPoints(_earnerRate),
                 uint32(block.timestamp - _start)

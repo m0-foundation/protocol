@@ -46,7 +46,7 @@ describe('MToken', () => {
     await mToken.updateIndex();
   });
 
-  it.skip('tests minting to non-earners', async () => {
+  it('tests minting to non-earners', async () => {
     await time.increase(31_536_000); // 1 year
 
     await mToken.connect(protocol).mint(alice.address, 100);
@@ -62,7 +62,7 @@ describe('MToken', () => {
     expect(await mToken.balanceOf(elise.address)).to.equal(1600);
   });
 
-  it.skip('tests minting to earners', async () => {
+  it('tests minting to earners', async () => {
     expect(await mToken.earnerRate()).to.equal(1_000);
 
     await registrar['updateConfig(bytes32, uint256)'](EARNERS_LIST_IGNORED_KEY, 1);

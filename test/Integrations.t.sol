@@ -47,8 +47,8 @@ contract IntegrationTests is Test {
     uint256[] internal _validatorKeys = [_idaKey, _johnKey, _kenKey, _lisaKey];
     address[] internal _validators = [_ida, _john, _ken, _lisa];
 
-    uint256 internal _baseEarnerRate = ContinuousIndexingMath.BPS_ONE / 10; // 10% APY
-    uint256 internal _baseMinterRate = ContinuousIndexingMath.BPS_ONE / 10; // 10% APY
+    uint256 internal _baseEarnerRate = ContinuousIndexingMath.BPS_SCALED_ONE / 10; // 10% APY
+    uint256 internal _baseMinterRate = ContinuousIndexingMath.BPS_SCALED_ONE / 10; // 10% APY
     uint256 internal _updateInterval = 24 hours;
     uint256 internal _mintDelay = 12 hours;
     uint256 internal _mintTtl = 24 hours;
