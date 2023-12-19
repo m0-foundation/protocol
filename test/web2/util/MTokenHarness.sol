@@ -35,6 +35,10 @@ contract MTokenHarness is MToken {
         _totalPrincipalOfEarningSupply = totalPrincipalOfEarningSupply;
     }
 
+    function setter_totalNonEarningSupply(uint256 totalNonEarningSupply) external {
+        _totalNonEarningSupply = totalNonEarningSupply;
+    }
+
     function external_getPresentAmountAndUpdateIndex(uint256 principalAmount_) external returns (uint256 presentAmount_) {
         return _getPresentAmountAndUpdateIndex(principalAmount_);
     }
