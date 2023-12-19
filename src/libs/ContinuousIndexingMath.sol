@@ -60,10 +60,13 @@ library ContinuousIndexingMath {
         //       less than `(2 << 167) - 1` (i.e. the max 167-bit number). Then `additiveTerms` is multiplied by 1e12,
         //       which is less than `(2 << 208) - 1` (i.e. the max 208-bit number).
         unchecked {
-            // `additiveTerms` is `(1 + 3(x^2)/28 + x^4/1680)`, but scaled by `84e36`.
-            uint256 additiveTerms = 84e36 + ((uint256(y) * y) / 20e12) + (uint256(9e12) * (y = uint128(x) * x));
+            // Set `y` to be `x^2` for now.
+            y = uint128(x) * x;
 
-            // `differentTerms` is `(x/2 - x^3/84)`, but scaled by `84e36`.
+            // `additiveTerms` is `(1 + 3(x^2)/28 + x^4/1680)`, but scaled by `84e36`.
+            uint256 additiveTerms = 84e36 + (uint256(9e12) * y) + ((uint256(y) * y) / 20e12);
+
+            // `differentTerms` is `(- x/2 - x^3/84)`, but positive (will be subtracted later) and scaled by `84e36`.
             uint256 differentTerms = (42e24 * uint256(x)) + (uint256(x) * y);
 
             // Result needs to be scaled by `1e12`.
