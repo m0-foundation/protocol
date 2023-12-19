@@ -295,7 +295,16 @@ contract MTokenTest is Test {
 
     function test_totalEarningSupply() public 
     {
-        // todo: adam
+        _mToken.setter_latestRate(_earnerRate);
+        assertEq(_mToken.totalEarningSupply(), 0);
+
+        _mToken.setter_totalPrincipalOfEarningSupply(1_234_000);
+
+        assertEq(_mToken.totalEarningSupply(), 1_234_000);
+
+        vm.warp(_start + 31_379_364);
+
+        assertApproxEqAbs(_mToken.totalEarningSupply(), 1_246_340, 1);
     }
 
     function test_totalNonEarningSupply() public 
