@@ -269,7 +269,8 @@ contract MTokenTest is Test {
 
     function test_earnerRate() public 
     {
-        // todo: adam
+        _mToken.setter_latestRate(12345);
+        assertEq(_mToken.earnerRate(), 12345);
     }
 
     function test_hasOptedOutOfEarning() public 
