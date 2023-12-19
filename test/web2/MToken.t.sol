@@ -214,7 +214,51 @@ contract MTokenTest is Test {
 
     function test_stopEarningForAddress() public 
     {
-        // todo: adam
+        _mToken.setter_latestRate(_earnerRate);
+        _mToken.setter_isEarning(_aliceAddress, true);
+
+        vm.warp(_start + 31_379_364);
+        _mToken.updateIndex();
+        vm.warp(_start + 31_379_365);
+
+        _mToken.setter_balance(_aliceAddress, 1_234_000);
+        _mToken.setter_totalPrincipalOfEarningSupply(1_234_000);
+
+        assertEq(_mToken.getter_totalPrincipalOfEarningSupply(), 1_234_000);
+        assertApproxEqAbs(_mToken.balanceOf(_aliceAddress), 1_246_340, 1);
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertApproxEqAbs(_mToken.totalSupply(),  1_246_340, 1);
+        assertApproxEqAbs(_mToken.totalEarningSupply(), 1_246_340, 1);
+        assertTrue(_mToken.isEarning(_aliceAddress));
+        assertFalse(_mToken.hasOptedOutOfEarning(_aliceAddress));
+
+        // set EARNERS_LIST_IGNORED false
+        vm.mockCall(
+            _spogRegistrarAddress,
+            abi.encodeWithSelector(ISPOGRegistrar.get.selector, SPOGRegistrarReader.EARNERS_LIST_IGNORED),
+            abi.encode(false)
+        );
+        // set Alice NOT approved earner (anymore)
+        vm.mockCall(
+            _spogRegistrarAddress,
+            abi.encodeWithSelector(ISPOGRegistrar.listContains.selector, SPOGRegistrarReader.EARNERS_LIST, _aliceAddress),
+            abi.encode(false)
+        );
+
+        vm.expectEmit(true, true, false, false);
+        emit IContinuousIndexing.IndexUpdated(1_010_000_000_518_485_533, 100);
+        vm.expectEmit(true, false, false, false);
+        emit IMToken.StoppedEarning(_aliceAddress);
+        _mToken.stopEarning(_aliceAddress);
+
+        assertEq(_mToken.getter_totalPrincipalOfEarningSupply(), 0);
+        assertApproxEqAbs(_mToken.balanceOf(_aliceAddress), 1_246_340, 1);
+        assertEq(_mToken.totalNonEarningSupply(), 1_246_340);
+        assertApproxEqAbs(_mToken.totalSupply(),  1_246_340, 1);
+        assertApproxEqAbs(_mToken.totalEarningSupply(), 0, 1);
+        assertFalse(_mToken.isEarning(_aliceAddress));
+        // caution: has NOT opted out of earning
+        assertFalse(_mToken.hasOptedOutOfEarning(_aliceAddress));
     }
 
 
