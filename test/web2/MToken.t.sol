@@ -319,6 +319,11 @@ contract MTokenTest is Test {
         assertEq(_mToken.spogRegistrar(), _spogRegistrarAddress);
     }
 
+    function test_protocol() public
+    {
+        assertEq(_mToken.protocol(), _protocolAddress);
+    }
+
     function test_totalEarningSupply() public 
     {
         _mToken.setter_latestRate(_earnerRate);
