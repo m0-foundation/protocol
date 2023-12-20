@@ -23,6 +23,12 @@ interface IMToken is IContinuousIndexing, IERC20Permit {
     /// @notice Emitted when calling `mint`, `burn` not by Protocol.
     error NotProtocol();
 
+    ///  @notice Emitted in constructor if SPOG Registrar is 0x0.
+    error ZeroSpogRegistrar();
+
+    ///  @notice Emitted in constructor if Minter Gateway is 0x0.
+    error ZeroMinterGateway();
+
     /******************************************************************************************************************\
     |                                                     Events                                                       |
     \******************************************************************************************************************/

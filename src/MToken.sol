@@ -58,8 +58,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
      * @param  protocol_      The address of Protocol.
      */
     constructor(address spogRegistrar_, address protocol_) ContinuousIndexing() ERC20Permit("M Token", "M", 6) {
-        spogRegistrar = spogRegistrar_;
-        protocol = protocol_;
+        if ((spogRegistrar = spogRegistrar_) == address(0)) revert ZeroSpogRegistrar();
+        if ((protocol = protocol_) == address(0)) revert ZeroMinterGateway();
     }
 
     /******************************************************************************************************************\
