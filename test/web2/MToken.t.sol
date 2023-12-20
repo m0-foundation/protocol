@@ -210,9 +210,7 @@ contract MTokenTest is Test {
         vm.prank(_aliceAddress);
         vm.expectEmit(true, false, false, false, address(_mToken));
         emit IMToken.OptedOutOfEarning(_aliceAddress);
-        vm.expectRevert(IMToken.AlreadyNotEarning.selector); // todo: adam (florian: added IMToken.AlreadyNotEarning as param)
-        //revert IMToken.AlreadyNotEarning(); // todo: adam (florian: I commented out since following code will not be executed, and it's not necessary)
-        //vm.prank(_aliceAddress); // todo: adam (florian: should not be necessary?!)
+        vm.expectRevert(IMToken.AlreadyNotEarning.selector);
         _mToken.stopEarning();
     }
 
@@ -307,7 +305,13 @@ contract MTokenTest is Test {
 
     function test_rateModel() public 
     {
-        // todo: florian
+        address test_address = SPOGRegistrarReader.toAddress(SPOGRegistrarReader.EARNER_RATE_MODEL);
+        vm.mockCall(
+            _spogRegistrarAddress,
+            abi.encodeWithSelector(ISPOGRegistrar.get.selector, SPOGRegistrarReader.EARNER_RATE_MODEL),
+            abi.encode(test_address)
+        );
+        assertEq(_mToken.rateModel(), test_address);
     }
 
     function test_spogRegistrar() public 
