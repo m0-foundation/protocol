@@ -710,7 +710,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /**
      * @dev   Returns the present value (rounded up) given the principal value, using the current index.
-     *        All present values are rounded up in favour of the protocol, since they are owed.
+     *        All present values are rounded up in favor of the protocol, since they are owed.
      * @param principalAmount_ The principal value
      */
     function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128 amount_) {
