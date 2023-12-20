@@ -39,6 +39,11 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     \******************************************************************************************************************/
 
     function currentIndex() public view virtual returns (uint128 currentIndex_) {
+        // NOTE: While `multiplyUp` can mostly result in additional continuous compounding accuracy (mainly because Padė
+        //       exponent approximations always results in a lower value, and `multiplyUp` artificially increase that
+        //       value), for some smaller `r*t` values, it results in a higher effective index than the "ideal". While
+        //       not really an issue, this "often lower than, but sometimes higher than, ideal index" may no be a good
+        //       characteristic, and `multiplyUp` does costs a tiny bit more gas.
         return
             ContinuousIndexingMath.multiplyDown(
                 _latestIndex,

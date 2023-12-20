@@ -253,7 +253,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         emit MintExecuted(id_);
 
         // Adjust principal of active owed M for minter.
-        // NOTE: When minting a present amount, round the principal up to favour of the protocol.
+        // NOTE: When minting a present amount, round the principal up in favor of the protocol.
         uint128 principalAmount_ = _getPrincipalAmountRoundedUp(amount_);
         _owedM[msg.sender].principalOfActive += principalAmount_;
         _totalPrincipalOfActiveOwedM += principalAmount_;
@@ -561,7 +561,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     function _imposePenalty(address minter_, uint128 penaltyBase_) internal {
         uint128 penalty_ = uint128((penaltyBase_ * penaltyRate()) / ONE);
 
-        // NOTE: When imposing a present amount penalty, round the principal up to favour of the protocol.
+        // NOTE: When imposing a present amount penalty, round the principal up in favor of the protocol.
         uint128 penaltyPrincipal_ = _getPrincipalAmountRoundedUp(penalty_);
 
         // Calculate and add penalty principal to total minter's principal of active owed M
@@ -614,7 +614,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     function _repayForActiveMinter(address minter_, uint128 maxAmount_) internal returns (uint128 amount_) {
         amount_ = UIntMath.min128(activeOwedMOf(minter_), maxAmount_);
 
-        // NOTE: When subtracting a present amount, round the principal down to favour of the protocol.
+        // NOTE: When subtracting a present amount, round the principal down in favor of the protocol.
         uint128 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
 
         _owedM[minter_].principalOfActive -= principalAmount_;
@@ -709,11 +709,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /**
-     * @dev   Returns the present value (rounded down) given the principal value, using the current index.
+     * @dev   Returns the present value (rounded up) given the principal value, using the current index.
      *        All present values are rounded up in favour of the protocol, since they are owed.
      * @param principalAmount_ The principal value
      */
-    function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128 presentValue_) {
+    function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128 amount_) {
         return _getPresentAmountRoundedUp(principalAmount_, currentIndex());
     }
 
