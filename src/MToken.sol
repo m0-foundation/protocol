@@ -15,12 +15,9 @@ import { IRateModel } from "./interfaces/IRateModel.sol";
 import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 
 // TODO: Consider an socially/optically "safer" `burn` via `burn(uint amount_)` where the account is `msg.sender`.
-// TODO: Some mechanism that allows a UI/script to determine how much an account or the system stands to gain from
-//       calling `updateIndex()`.
-// TODO: Some increased/decreased earning supply event(s)? Might be useful for a UI/script, or useless in general.
 
 /**
- * @title MToken
+ * @title  MToken
  * @author M^ZERO LABS_
  * @notice ERC20 M Token.
  */
@@ -199,10 +196,13 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     function _burn(address account_, uint256 amount_) internal {
         emit Transfer(account_, address(0), amount_);
 
-        // NOTE: When burning a present amount, round the principal up in favor of the protocol.
-        _balances[account_].isEarning
-            ? _subtractEarningAmount(account_, _getPrincipalAmountRoundedUp(UIntMath.safe128(amount_), updateIndex()))
-            : _subtractNonEarningAmount(account_, UIntMath.safe128(amount_));
+        if (_balances[account_].isEarning) {
+            // NOTE: When burning a present amount, round the principal up in favor of the protocol.
+            _subtractEarningAmount(account_, _getPrincipalAmountRoundedUp(UIntMath.safe128(amount_)));
+            updateIndex();
+        } else {
+            _subtractNonEarningAmount(account_, UIntMath.safe128(amount_));
+        }
     }
 
     /**
@@ -213,10 +213,13 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     function _mint(address recipient_, uint256 amount_) internal {
         emit Transfer(address(0), recipient_, amount_);
 
-        // NOTE: When minting a present amount, round the principal down in favor of the protocol.
-        _balances[recipient_].isEarning
-            ? _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(UIntMath.safe128(amount_), updateIndex()))
-            : _addNonEarningAmount(recipient_, UIntMath.safe128(amount_));
+        if (_balances[recipient_].isEarning) {
+            // NOTE: When minting a present amount, round the principal down in favor of the protocol.
+            _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(UIntMath.safe128(amount_)));
+            updateIndex();
+        } else {
+            _addNonEarningAmount(recipient_, UIntMath.safe128(amount_));
+        }
     }
 
     /**
@@ -236,9 +239,9 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
         if (amount_ == 0) return;
 
-        // NOTE: When converting a non-earning balance into an earning balance, round the principal down in favour of
+        // NOTE: When converting a non-earning balance into an earning balance, round the principal down in favor of
         //       the protocol.
-        uint128 principalAmount_ = _getPrincipalAmountRoundedDown(amount_, updateIndex());
+        uint128 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
 
         _balances[account_].rawBalance = principalAmount_;
 
@@ -246,6 +249,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
             _totalPrincipalOfEarningSupply += principalAmount_;
             _totalNonEarningSupply -= amount_;
         }
+
+        updateIndex();
     }
 
     /**
@@ -265,7 +270,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
         if (principalAmount_ == 0) return;
 
-        uint128 amount_ = _getPresentAmount(principalAmount_, updateIndex());
+        uint128 amount_ = _getPresentAmount(principalAmount_);
 
         _balances[account_].rawBalance = amount_;
 
@@ -273,6 +278,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
             _totalNonEarningSupply += amount_;
             _totalPrincipalOfEarningSupply -= principalAmount_;
         }
+
+        updateIndex();
     }
 
     /**
@@ -316,7 +323,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
         // If this is an in-kind transfer, then...
         if (senderIsEarning_ == _balances[recipient_].isEarning) {
-            // NOTE: When subtracting a present value from an earner, round the principal up in favour of the protocol.
+            // NOTE: When subtracting a present value from an earner, round the principal up in favor of the protocol.
             return
                 _transferAmountInKind( // perform an in-kind transfer with...
                     sender_,
@@ -328,15 +335,17 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         // If this is not an in-kind transfer, then...
         if (senderIsEarning_) {
             // either the sender is earning and the recipient is not, or...
-            // NOTE: When subtracting a present value from an earner, round the principal up in favour of the protocol.
-            _subtractEarningAmount(sender_, _getPrincipalAmountRoundedUp(safeAmount_, updateIndex()));
+            // NOTE: When subtracting a present value from an earner, round the principal up in favor of the protocol.
+            _subtractEarningAmount(sender_, _getPrincipalAmountRoundedUp(safeAmount_));
             _addNonEarningAmount(recipient_, safeAmount_);
         } else {
             // the sender is not earning and the recipient is.
-            // NOTE: When adding a present value to an earner, round the principal down in favour of the protocol.
+            // NOTE: When adding a present value to an earner, round the principal down in favor of the protocol.
             _subtractNonEarningAmount(sender_, safeAmount_);
-            _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(safeAmount_, updateIndex()));
+            _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(safeAmount_));
         }
+
+        updateIndex();
     }
 
     /**
@@ -359,7 +368,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     /**
      * @dev   Returns the present value (rounded down) given the principal value, using the current index.
-     *        All present values are rounded down in favour of the protocol.
+     *        All present values are rounded down in favor of the protocol.
      * @param principalAmount_ The principal value.
      */
     function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128 amount_) {
@@ -368,7 +377,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
     /**
      * @dev   Returns the present value (rounded down) given the principal value and an index.
-     *        All present values are rounded down in favour of the protocol, since they are assets.
+     *        All present values are rounded down in favor of the protocol, since they are assets.
      * @param principalAmount_ The principal value.
      * @param index_           An index
      */

@@ -94,47 +94,51 @@ describe('MToken', () => {
     await registrar['updateConfig(bytes32, uint256)'](EARNERS_LIST_IGNORED_KEY, 1);
 
     for (let i = 0; i < 4_000; i++) {
-      await time.increase(getRandomInt(0, 86_400)); // jump up to a day
+      const randomNumber1 = getRandomInt(-0.2 * 86_400, 86_400);
 
-      const randomNumber1 = getRandomInt(0, 10);
-      const randomNumber2 = getRandomInt(0, accounts.length);
+      if (randomNumber1 >= 0) {
+        await time.increase(randomNumber1); // jump up to a day, 20% chance no jump
+      }
 
-      const account = accounts[randomNumber2];
+      const randomNumber2 = getRandomInt(0, 10);
+      const randomNumber3 = getRandomInt(0, accounts.length);
+
+      const account = accounts[randomNumber3];
 
       const isEarning = await mToken.isEarning(account.address);
 
-      if (!isEarning && randomNumber1 <= 1) {
+      if (!isEarning && randomNumber2 <= 1) {
         await mToken.connect(account)['startEarning()']();
         continue;
       }
 
-      if (isEarning && randomNumber1 <= 2) {
+      if (isEarning && randomNumber2 <= 2) {
         await mToken.connect(account)['stopEarning()']();
         continue;
       }
 
       const hasOptedOutOfEarning = await mToken.hasOptedOutOfEarning(account.address);
 
-      if (!hasOptedOutOfEarning && randomNumber1 <= 4) {
+      if (!hasOptedOutOfEarning && randomNumber2 <= 4) {
         await mToken.connect(account).optOutOfEarning();
         continue;
       }
 
       const currentBalance = Number(await mToken.balanceOf(account.address));
 
-      if (randomNumber1 <= 4 || currentBalance == 0) {
+      if (randomNumber2 <= 4 || currentBalance == 0) {
         await mToken.connect(protocol).mint(account.address, getRandomInt(5_000, 100_000));
         continue;
       }
 
-      const randomNumber3 = 1 + getRandomInt(0, accounts.length - 1);
+      const randomNumber4 = 1 + getRandomInt(0, accounts.length - 1);
 
-      const recipient = accounts[(randomNumber2 + randomNumber3) % accounts.length];
+      const recipient = accounts[(randomNumber3 + randomNumber4) % accounts.length];
 
-      const randomNumber4 = getRandomInt(2_000, 7_000);
+      const randomNumber5 = getRandomInt(2_000, 7_000);
 
       // Never transfer all
-      const amount = Math.floor((randomNumber4 * currentBalance) / 10_000);
+      const amount = Math.floor((randomNumber5 * currentBalance) / 10_000);
 
       await mToken.connect(account).transfer(recipient.address, amount >= currentBalance ? currentBalance : amount);
     }

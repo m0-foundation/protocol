@@ -86,7 +86,7 @@ library ContinuousIndexingMath {
      * @dev    Output `y` for a `uint72` input `x` will fit in `uint128`
      */
     function exponent(uint72 x) internal pure returns (uint128 y) {
-        // NOTE: This can be done unchecked because the largest value is `additiveTerms`, and it's largest possible
+        // NOTE: This can be done unchecked because the largest value is `additiveTerms`, and its largest possible
         //       value for `x = type(uint72).max` is `287484773207181047759990985259706344810000000000000`, which is
         //       less than `(2 << 167) - 1` (i.e. the max 167-bit number). Then `additiveTerms` is multiplied by 1e12,
         //       which is less than `(2 << 208) - 1` (i.e. the max 208-bit number).
