@@ -207,7 +207,89 @@ contract ProtocolTest is Test {
 
     function test_freezeMinter() public {}
 
-    function test_mintM() public {}
+    function test_mintM_not_active_minter() public {
+        vm.prank(_aliceAddress);
+        vm.expectRevert(IProtocol.InactiveMinter.selector);
+        _protocol.mintM(123);
+    }
+
+    function test_mintM_frozen_minter() public {
+        _protocol.setter_isActiveMinter(_aliceAddress, true);
+        _protocol.setter_unfrozenTimestamp(_aliceAddress, block.timestamp + 1);
+        vm.expectRevert(IProtocol.FrozenMinter.selector);
+        vm.prank(_aliceAddress);
+        _protocol.mintM(123);
+    }
+
+    function test_mintM_invalid_mint_id() public {
+        _protocol.setter_isActiveMinter(_aliceAddress, true);
+        _protocol.setter_unfrozenTimestamp(_aliceAddress, block.timestamp);
+        vm.expectRevert(IProtocol.InvalidMintProposal.selector);
+        vm.prank(_aliceAddress);
+        _protocol.mintM(123);
+    }
+
+    function test_mintM_pending() public {
+        _setValue(SPOGRegistrarReader.MINT_DELAY, 12345);
+        uint256 mintId = _protocol.setter_mintProposals(_aliceAddress, 1234, block.timestamp - _protocol.mintDelay() + 1, _aliceAddress);
+        _protocol.external_mintProposal(_aliceAddress);
+        _protocol.setter_isActiveMinter(_aliceAddress, true);
+        _protocol.setter_unfrozenTimestamp(_aliceAddress, block.timestamp);
+        vm.expectRevert(abi.encodeWithSelector(IProtocol.PendingMintProposal.selector, block.timestamp + 1));
+        vm.prank(_aliceAddress);
+        _protocol.mintM(mintId);
+    }
+
+    function test_mintM_expired() public {
+        _setValue(SPOGRegistrarReader.MINT_DELAY, 12345);
+        _setValue(SPOGRegistrarReader.MINT_TTL, 12345);
+        _setValue(SPOGRegistrarReader.MINT_RATIO, 12);
+        uint256 mintId = _protocol.setter_mintProposals(_aliceAddress, 1234, block.timestamp - _protocol.mintDelay() - _protocol.mintDelay() - 1, _aliceAddress);
+        _protocol.external_mintProposal(_aliceAddress);
+        _protocol.setter_isActiveMinter(_aliceAddress, true);
+        _protocol.setter_unfrozenTimestamp(_aliceAddress, block.timestamp);
+        vm.expectRevert(abi.encodeWithSelector(IProtocol.ExpiredMintProposal.selector, block.timestamp - 1));
+        vm.prank(_aliceAddress);
+        _protocol.mintM(mintId);
+
+    }
+
+    function test_mintM_undercollateralized() public {
+        _setValue(SPOGRegistrarReader.MINT_DELAY, 12345);
+        _setValue(SPOGRegistrarReader.MINT_TTL, 12345);
+        _setValue(SPOGRegistrarReader.MINT_RATIO, 12);
+        _protocol.setter_collateral(_aliceAddress, 123);
+        uint256 mintId = _protocol.setter_mintProposals(_aliceAddress, 1234, block.timestamp - _protocol.mintDelay() - _protocol.mintDelay(), _aliceAddress);
+        _protocol.external_mintProposal(_aliceAddress);
+        _protocol.setter_isActiveMinter(_aliceAddress, true);
+        _protocol.setter_unfrozenTimestamp(_aliceAddress, block.timestamp);
+        vm.expectRevert(abi.encodeWithSelector(IProtocol.Undercollateralized.selector, 1234, 0));
+        vm.prank(_aliceAddress);
+        _protocol.mintM(mintId);
+    }
+
+    function test_mintM_positive() public {
+        _setValue(SPOGRegistrarReader.MINT_DELAY, 12345);
+        _setValue(SPOGRegistrarReader.MINT_TTL, 12345);
+        _setValue(SPOGRegistrarReader.MINT_RATIO, 1);
+        _protocol.setter_collateral(_aliceAddress, 1e10);
+        _protocol.setter_lastUpdateTimestamp(_aliceAddress, block.timestamp);
+        _protocol.setter_lastUpdateInterval(_aliceAddress, block.timestamp);
+        uint256 mintId = _protocol.setter_mintProposals(_aliceAddress, 1234, block.timestamp - _protocol.mintDelay() - _protocol.mintDelay(), _aliceAddress);
+        _protocol.external_mintProposal(_aliceAddress);
+        _protocol.setter_isActiveMinter(_aliceAddress, true);
+        _protocol.setter_unfrozenTimestamp(_aliceAddress, block.timestamp);
+        // TODO: not working yet
+//        vm.mockCall(
+//            _mTokenAddress,
+//            abi.encodeWithSelector(Mtoken.mint.selector, _aliceAddress, 1234),
+//            abi.encode(true)
+//        );
+        vm.expectEmit(true, false, false, false);
+        emit IProtocol.MintExecuted(mintId);
+        vm.prank(_aliceAddress);
+        _protocol.mintM(mintId);
+    }
 
     function test_proposeMint() public {}
 
