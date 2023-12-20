@@ -6,9 +6,10 @@ import { UIntMath } from "./UIntMath.sol";
 
 // TODO: Consider R(5,5) Padé approximation with some divisions if needed to maintain input range.
 
+/// @notice Arithmetic library with operations for calculating continuous indexing.
+/// @author M^ZERO Labs
 library ContinuousIndexingMath {
     error DivisionByZero();
-    error PowerTooHigh(uint128 power);
 
     uint32 internal constant SECONDS_PER_YEAR = 31_536_000;
 
@@ -18,7 +19,11 @@ library ContinuousIndexingMath {
     /// @notice The scaling of rates in for exponent math.
     uint56 internal constant EXP_SCALED_ONE = 1e12;
 
-    function divide(uint128 x, uint128 y) internal pure returns (uint128 z) {
+    /**
+     * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `y`, rounded down.
+     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
+     */
+    function divideDown(uint128 x, uint128 y) internal pure returns (uint128 z) {
         if (y == 0) revert DivisionByZero();
 
         unchecked {
@@ -26,9 +31,35 @@ library ContinuousIndexingMath {
         }
     }
 
-    function multiply(uint128 x, uint128 y) internal pure returns (uint128 z) {
+    /**
+     * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `y`, rounded up.
+     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
+     */
+    function divideUp(uint128 x, uint128 y) internal pure returns (uint128 z) {
+        if (y == 0) revert DivisionByZero();
+
+        unchecked {
+            return uint128(((uint256(x) * EXP_SCALED_ONE) + y - 1) / y);
+        }
+    }
+
+    /**
+     * @notice Helper function to calculate (`x` * `y`) / `EXP_SCALED_ONE`, rounded down.
+     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
+     */
+    function multiplyDown(uint128 x, uint128 y) internal pure returns (uint128 z) {
         unchecked {
             return UIntMath.safe128((uint256(x) * y) / EXP_SCALED_ONE);
+        }
+    }
+
+    /**
+     * @notice Helper function to calculate (`x` * `y`) / `EXP_SCALED_ONE`, rounded up.
+     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
+     */
+    function multiplyUp(uint128 x, uint128 y) internal pure returns (uint128 z) {
+        unchecked {
+            return UIntMath.safe128(((uint256(x) * y) + (EXP_SCALED_ONE - 1)) / EXP_SCALED_ONE);
         }
     }
 
