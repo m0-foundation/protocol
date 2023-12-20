@@ -95,8 +95,39 @@ contract ProtocolTest is Test {
         // TODO test _imposePenaltyIfMissedCollateralUpdates first
     }
 
+    function test_cancelMint_invalid_mint_id() public {
+        _allowList(SPOGRegistrarReader.VALIDATORS_LIST, _bobAddress);
+        vm.prank(_bobAddress);
+        vm.expectRevert(IProtocol.InvalidMintProposal.selector);
+        _protocol.cancelMint(_aliceAddress, 123);
+    }
+
+    function test_cancelMint_not_approved_validator() public {
+        uint256 mintId = _protocol.setter_mintProposals(_aliceAddress, 1234, 777666555, _aliceAddress);
+        _denyList(SPOGRegistrarReader.VALIDATORS_LIST, _bobAddress);
+        vm.prank(_bobAddress);
+        vm.expectRevert(IProtocol.NotApprovedValidator.selector);
+        _protocol.cancelMint(_aliceAddress, mintId);
+    }
+
     function test_cancelMint() public {
-        // TODO
+        uint256 mintId = _protocol.setter_mintProposals(_aliceAddress, 1234, 777666555, _aliceAddress);
+        (uint256 mintId_, address destination_, uint256 amount_, uint256 timestamp_) = _protocol.external_mintProposal(
+            _aliceAddress
+        );
+
+        assertEq(mintId_, mintId);
+        assertEq(destination_, _aliceAddress);
+        assertEq(amount_, 1234);
+        assertEq(timestamp_, 777666555);
+
+        // set Bob approved validator
+        _allowList(SPOGRegistrarReader.VALIDATORS_LIST, _bobAddress);
+
+        vm.expectEmit(true, true, false, false);
+        emit IProtocol.MintCanceled(mintId, _bobAddress);
+        vm.prank(_bobAddress);
+        _protocol.cancelMint(_aliceAddress, mintId);
     }
 
     function test_deactivateMinter_RevertStillApprovedMinter() public {

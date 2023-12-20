@@ -69,9 +69,16 @@ contract ProtocolHarness is Protocol {
         _unfrozenTimestamps[minter_] = unfrozenTime_;
     }
 
-    // function setter_mintProposals(address minter_, MintProposal proposal_) external {
-    //     _mintProposals[minter_] = proposal_;
-    // }
+    function setter_mintProposals(
+        address minter_,
+        uint256 amount_,
+        uint256 createdAt_,
+        address destination_
+    ) external returns (uint256 mintId_) {
+        mintId_ = uint256(keccak256(abi.encodePacked(minter_, amount_, destination_, createdAt_)));
+
+        _mintProposals[minter_] = MintProposal(mintId_, destination_, amount_, createdAt_);
+    }
 
     function setter_totalInactiveOwedM(uint256 totalInactiveOwedM_) external {
         _totalInactiveOwedM = totalInactiveOwedM_;
@@ -115,6 +122,13 @@ contract ProtocolHarness is Protocol {
 
     function external_imposePenalty(address minter_, uint256 penaltyBase_) external {
         _imposePenalty(minter_, penaltyBase_);
+    }
+
+    function external_mintProposal(address minter_) external view returns (uint256 mintId_, address destination_, uint256 amount_, uint256 createdAt_) {
+        mintId_ = _mintProposals[minter_].id;
+        destination_ = _mintProposals[minter_].destination;
+        amount_ = _mintProposals[minter_].amount;
+        createdAt_ = _mintProposals[minter_].createdAt;
     }
 
     // overwritten compunding functions functions to set expected values
