@@ -316,7 +316,7 @@ contract MTokenTest is Test {
 
     function test_spogRegistrar() public 
     {
-        // todo: florian
+        assertEq(_mToken.spogRegistrar(), _spogRegistrarAddress);
     }
 
     function test_totalEarningSupply() public 
