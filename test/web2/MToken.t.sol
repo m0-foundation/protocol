@@ -118,8 +118,66 @@ contract MTokenTest is Test {
         assertFalse(_mToken.hasOptedOutOfEarning(_aliceAddress));
     }
 
-    function test_burn() public {
+    function test_burn_aliceNonEarning() public {
+        _mToken.setter_balance(_aliceAddress, 1338);
+        _mToken.setter_totalNonEarningSupply(2000);
 
+        vm.expectEmit(true, true, false, true, address(_mToken));
+        emit IERC20.Transfer(_aliceAddress, address(0), 1337);
+        vm.prank(_protocolAddress);
+        _mToken.burn(_aliceAddress, 1337);
+
+        // balance for alice decreased
+        assertEq(_mToken.balanceOf(_aliceAddress), 1);
+        // totalNonEarningSupply decreased
+        assertEq(_mToken.totalNonEarningSupply(), 663);
+
+        assertEq(_mToken.totalSupply(), 663);
+        assertEq(_mToken.totalEarningSupply(), 0);
+        assertFalse(_mToken.isEarning(_aliceAddress));
+    }
+
+    function test_burn_aliceEarning() public {
+        _mToken.setter_latestRate(_earnerRate);
+        _mToken.setter_balance(_aliceAddress, 1_234_456);
+        _mToken.setter_totalNonEarningSupply(2_000_000);
+        _mToken.external_startEarning(_aliceAddress);
+        vm.warp(_start + 31_379_364);
+
+        vm.expectEmit(true, true, false, true, address(_mToken));
+        emit IERC20.Transfer(_aliceAddress, address(0), 1_246_800);
+        vm.expectEmit(true, true, false, false);
+        emit IContinuousIndexing.IndexUpdated(1_010_000_000_198_216_635, 100);
+        vm.prank(_protocolAddress);
+        _mToken.burn(_aliceAddress, 1_246_800);
+
+        // balance for alice decreased
+        assertEq(_mToken.balanceOf(_aliceAddress), 1);
+        // totalNonEarningSupply decreased
+        assertEq(_mToken.totalNonEarningSupply(), 765544);
+//
+        assertEq(_mToken.totalSupply(), 765545);
+        assertEq(_mToken.totalEarningSupply(), 1);
+        assertTrue(_mToken.isEarning(_aliceAddress));
+    }
+
+    function test_burn_aliceNonEarning_overflow() public {
+        _mToken.setter_balance(_aliceAddress, 1338);
+        _mToken.setter_totalNonEarningSupply(2000);
+
+        // this fails now with panic: arithmetic underflow or overflow (0x11)
+        vm.prank(_protocolAddress);
+        _mToken.burn(_aliceAddress, 2000);
+    }
+
+    function test_burn_alicaeEarning_overflow() public {
+        _mToken.setter_balance(_aliceAddress, 1338);
+        _mToken.setter_totalNonEarningSupply(2000);
+        _mToken.external_startEarning(_aliceAddress);
+
+        // this fails now with panic: arithmetic underflow or overflow (0x11)
+        vm.prank(_protocolAddress);
+        _mToken.burn(_aliceAddress, 2000);
     }
 
     function test_optOutOfEarning() public {
