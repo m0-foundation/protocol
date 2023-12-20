@@ -78,6 +78,7 @@ interface IProtocol is IContinuousIndexing {
      * @param  minter       Address of the minter
      * @param  collateral   The latest amount of collateral
      * @param  retrievalIds The list of outstanding proposeRetrieval requests to close
+     * @param  totalResolvedRetrievals The total amount of resolved pending proposeRetrieval requests
      * @param  metadataHash The hash of metadata of the collateral update, reserved for future informational use
      * @param  timestamp    The timestamp of the collateral update, minimum of given validators' signatures
      */
@@ -85,6 +86,7 @@ interface IProtocol is IContinuousIndexing {
         address indexed minter,
         uint128 collateral,
         uint256[] indexed retrievalIds,
+        uint128 totalResolvedRetrievals,
         bytes32 indexed metadataHash,
         uint40 timestamp
     );

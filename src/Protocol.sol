@@ -159,20 +159,20 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         uint128 safeCollateral_ = UIntMath.safe128(collateral_);
 
-        emit CollateralUpdated(msg.sender, safeCollateral_, retrievalIds_, metadataHash_, minTimestamp_);
+        uint128 totalResolvedRetrievals_ = _resolvePendingRetrievals(msg.sender, retrievalIds_);
 
-        _resolvePendingRetrievals(msg.sender, retrievalIds_);
-
-        uint32 updateCollateralInterval_ = updateCollateralInterval();
-
-        _imposePenaltyIfMissedCollateralUpdates(msg.sender, updateCollateralInterval_);
+        _imposePenaltyIfMissedCollateralUpdates(msg.sender, updateCollateralInterval());
 
         _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
 
-        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if SPOG changes it.
-        if (updateCollateralInterval_ != 0) {
-            _minterStates[msg.sender].lastUpdateInterval = updateCollateralInterval_;
-        }
+        emit CollateralUpdated(
+            msg.sender,
+            safeCollateral_,
+            retrievalIds_,
+            totalResolvedRetrievals_,
+            metadataHash_,
+            minTimestamp_
+        );
 
         _imposePenaltyIfUndercollateralized(msg.sender);
 
@@ -572,6 +572,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
             minter_,
             updateCollateralInterval_
         );
+
+        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if SPOG changes it.
+        if (updateCollateralInterval_ != 0) {
+            _minterStates[msg.sender].lastUpdateInterval = updateCollateralInterval_;
+        }
 
         if (penaltyBase_ == 0) return;
 

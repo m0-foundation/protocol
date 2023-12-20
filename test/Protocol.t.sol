@@ -101,7 +101,7 @@ contract ProtocolTests is Test {
         );
 
         vm.expectEmit();
-        emit IProtocol.CollateralUpdated(_minter1, collateral, retrievalIds, bytes32(0), signatureTimestamp);
+        emit IProtocol.CollateralUpdated(_minter1, collateral, retrievalIds, 0, bytes32(0), signatureTimestamp);
 
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
@@ -1297,7 +1297,7 @@ contract ProtocolTests is Test {
         );
 
         vm.expectEmit();
-        emit IProtocol.CollateralUpdated(_minter1, collateral, retrievalIds, bytes32(0), signatureTimestamp2);
+        emit IProtocol.CollateralUpdated(_minter1, collateral, retrievalIds, 0, bytes32(0), signatureTimestamp2);
 
         vm.prank(_minter1);
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
