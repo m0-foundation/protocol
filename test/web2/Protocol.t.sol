@@ -269,24 +269,41 @@ contract ProtocolTest is Test {
     }
 
     function test_mintM_positive() public {
+        _protocol.setter_latestRate(100);
         _setValue(SPOGRegistrarReader.MINT_DELAY, 12345);
         _setValue(SPOGRegistrarReader.MINT_TTL, 12345);
         _setValue(SPOGRegistrarReader.MINT_RATIO, 1);
         _protocol.setter_collateral(_aliceAddress, 1e10);
         _protocol.setter_lastUpdateTimestamp(_aliceAddress, block.timestamp);
         _protocol.setter_lastUpdateInterval(_aliceAddress, block.timestamp);
+        // create a mint proposal
         uint256 mintId = _protocol.setter_mintProposals(_aliceAddress, 1234, block.timestamp - _protocol.mintDelay() - _protocol.mintDelay(), _aliceAddress);
         _protocol.external_mintProposal(_aliceAddress);
+
         _protocol.setter_isActiveMinter(_aliceAddress, true);
         _protocol.setter_unfrozenTimestamp(_aliceAddress, block.timestamp);
-        // TODO: not working yet
-//        vm.mockCall(
-//            _mTokenAddress,
-//            abi.encodeWithSelector(Mtoken.mint.selector, _aliceAddress, 1234),
-//            abi.encode(true)
-//        );
+        vm.mockCall(
+            _mTokenAddress,
+            abi.encodeWithSelector(IMToken.mint.selector, _aliceAddress, 1234),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            _protocolAddress,
+            abi.encodeWithSelector(IContinuousIndexing.currentIndex.selector),
+            abi.encode(1e18)
+        );
+        vm.mockCall(
+            _mTokenAddress,
+            abi.encodeWithSelector(IContinuousIndexing.updateIndex.selector),
+            abi.encode(1e18)
+        );
+        _setValue(SPOGRegistrarReader.MINTER_RATE_MODEL, _minterRateModelAddress);
+        _minterRateModelRate(20);
+        _mTokenTotalSupply(1234);
         vm.expectEmit(true, false, false, false);
         emit IProtocol.MintExecuted(mintId);
+        vm.expectEmit(true, true, false, false);
+        emit IContinuousIndexing.IndexUpdated(1e18, 20);
         vm.prank(_aliceAddress);
         _protocol.mintM(mintId);
     }
