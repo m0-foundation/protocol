@@ -163,10 +163,9 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         uint128 safeCollateral_ = UIntMath.safe128(collateral_);
 
-        // TODO: Consider adding the `totalResolvedRetrievals_` to the event.
-        emit CollateralUpdated(msg.sender, safeCollateral_, retrievalIds_, metadataHash_, minTimestamp_);
+        uint128 totalResolvedRetrievals_ = _resolvePendingRetrievals(msg.sender, retrievalIds_);
 
-        _resolvePendingRetrievals(msg.sender, retrievalIds_);
+        emit CollateralUpdated(msg.sender, safeCollateral_, totalResolvedRetrievals_, metadataHash_, minTimestamp_);
 
         uint32 updateCollateralInterval_ = updateCollateralInterval();
 
@@ -649,10 +648,15 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     ) internal returns (uint128 totalResolvedRetrievals_) {
         for (uint256 index_; index_ < retrievalIds_.length; ++index_) {
             uint48 retrievalId_ = UIntMath.safe48(retrievalIds_[index_]);
+            uint128 pendingCollateralRetrieval_ = _pendingCollateralRetrievals[minter_][retrievalId_];
 
-            totalResolvedRetrievals_ += _pendingCollateralRetrievals[minter_][retrievalId_];
+            if (pendingCollateralRetrieval_ == 0) continue;
+
+            totalResolvedRetrievals_ += pendingCollateralRetrieval_;
 
             delete _pendingCollateralRetrievals[minter_][retrievalId_];
+
+            emit RetrievalResolved(retrievalId_, minter_);
         }
 
         _minterStates[minter_].totalPendingRetrievals -= totalResolvedRetrievals_;

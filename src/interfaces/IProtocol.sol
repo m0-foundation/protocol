@@ -75,16 +75,16 @@ interface IProtocol is IContinuousIndexing {
 
     /**
      * @notice Emitted when a minter's collateral is updated.
-     * @param  minter       Address of the minter
-     * @param  collateral   The latest amount of collateral
-     * @param  retrievalIds The list of outstanding proposeRetrieval requests to close
-     * @param  metadataHash The hash of metadata of the collateral update, reserved for future informational use
-     * @param  timestamp    The timestamp of the collateral update, minimum of given validators' signatures
+     * @param  minter                  Address of the minter
+     * @param  collateral              The latest amount of collateral
+     * @param  totalResolvedRetrievals The total collateral amount of outstanding retrievals resolved.
+     * @param  metadataHash            The hash of some metadata  reserved for future informational use.
+     * @param  timestamp               The timestamp of the collateral update, minimum of given validators' signatures.
      */
     event CollateralUpdated(
         address indexed minter,
         uint128 collateral,
-        uint256[] indexed retrievalIds,
+        uint256 totalResolvedRetrievals,
         bytes32 indexed metadataHash,
         uint40 timestamp
     );
@@ -155,6 +155,13 @@ interface IProtocol is IContinuousIndexing {
      * @param  amount      The amount of collateral to retrieve.
      */
     event RetrievalCreated(uint48 indexed retrievalId, address indexed minter, uint128 amount);
+
+    /**
+     * @notice Emitted when a collateral retrieval proposal is resolved.
+     * @param  retrievalId The id of retrieval proposal.
+     * @param  minter      The address of the minter.
+     */
+    event RetrievalResolved(uint48 indexed retrievalId, address indexed minter);
 
     /******************************************************************************************************************\
     |                                          External Interactive Functions                                          |
