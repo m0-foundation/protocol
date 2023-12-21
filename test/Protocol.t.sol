@@ -1177,8 +1177,13 @@ contract ProtocolTests is Test {
         _protocol.activateMinter(makeAddr("notApprovedMinter"));
     }
 
-    function test_activateMinter_alreadyActiveMinter() external {
-        vm.expectRevert(IProtocol.AlreadyActiveMinter.selector);
+    function test_activateMinter_deactivatedMinter() external {
+        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+        _protocol.deactivateMinter(_minter1);
+
+        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+
+        vm.expectRevert(IProtocol.DeactivatedMinter.selector);
         _protocol.activateMinter(_minter1);
     }
 

@@ -9,9 +9,6 @@ interface IProtocol is IContinuousIndexing {
     |                                                      Errors                                                      |
     \******************************************************************************************************************/
 
-    /// @notice Emitted when calling `activeMinter` with an already active minter.
-    error AlreadyActiveMinter();
-
     /// @notice Emitted when calling `mintM` with a proposal that was created more than `mintDelay + mintTTL` time ago.
     error ExpiredMintProposal(uint40 deadline);
 
@@ -29,6 +26,9 @@ interface IProtocol is IContinuousIndexing {
 
     /// @notice Emitted when calling `deactivateMinter` with an inactive minter.
     error InactiveMinter();
+
+    /// @notice Emitted when calling `activateMinter` with a minter who was previously deactivated.
+    error DeactivatedMinter();
 
     /// @notice Emitted when calling `activateMinter` if minter was not approved by SPOG.
     error NotApprovedMinter();
