@@ -117,19 +117,6 @@ contract ProtocolTests is Test {
         assertEq(_protocol.maxAllowedActiveOwedMOf(_minter1), (collateral * _mintRatio) / ONE);
     }
 
-    function test_updateCollateral_InactiveMinter() external {
-        uint256[] memory retrievalIds = new uint256[](0);
-        address[] memory validators = new address[](0);
-        uint256[] memory timestamps = new uint256[](0);
-        bytes[] memory signatures = new bytes[](0);
-
-        _protocol.setActiveMinter(_minter1, false);
-
-        vm.prank(_validator1);
-        vm.expectRevert(IProtocol.InactiveMinter.selector);
-        _protocol.updateCollateral(100e18, retrievalIds, bytes32(0), validators, timestamps, signatures);
-    }
-
     function test_updateCollateral_signatureArrayLengthsMismatch() external {
         vm.expectRevert(IProtocol.SignatureArrayLengthsMismatch.selector);
 
@@ -668,15 +655,6 @@ contract ProtocolTests is Test {
         _protocol.freezeMinter(_minter1);
     }
 
-    function test_freezeMinter_InactiveMinter() external {
-        _protocol.setActiveMinter(_minter1, false);
-
-        vm.expectRevert(IProtocol.InactiveMinter.selector);
-
-        vm.prank(_validator1);
-        _protocol.freezeMinter(_minter1);
-    }
-
     function test_burnM() external {
         uint256 mintAmount = 1000000e18;
         uint48 mintId = 1;
@@ -1175,17 +1153,74 @@ contract ProtocolTests is Test {
     }
 
     function test_isActiveMinter() external {
-        _protocol.setActiveMinter(_minter1, false);
-        assertEq(_protocol.isActiveMinter(_minter1), false);
+        assertEq(_protocol.isActiveMinter(_minter1), true);
+        assertEq(_protocol.isActiveMinter(makeAddr("someMinter")), false);
+    }
 
-        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+    function test_activateMinter() external {
+        address minter_ = makeAddr("someMinter");
+
+        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, minter_);
+
+        _protocol.setCollateralOf(minter_, 100e18);
+        _protocol.setLastCollateralUpdateIntervalOf(minter_, 1 days);
+        _protocol.setUpdateTimestampOf(minter_, block.timestamp - 4 hours);
+        _protocol.setUnfrozenTimeOf(minter_, block.timestamp + 4 days);
 
         vm.expectEmit();
-        emit IProtocol.MinterActivated(_minter1, address(this));
+        emit IProtocol.MinterActivated(minter_, 0, address(this));
 
-        _protocol.activateMinter(_minter1);
+        uint128 principalOfActiveOwedM_ = _protocol.activateMinter(minter_);
 
-        assertEq(_protocol.isActiveMinter(_minter1), true);
+        assertEq(principalOfActiveOwedM_, 0);
+
+        assertEq(_protocol.internalCollateralOf(minter_), 100e18);
+        assertEq(_protocol.lastCollateralUpdateIntervalOf(minter_), 1 days);
+        assertEq(_protocol.collateralUpdateTimestampOf(minter_), block.timestamp - 4 hours);
+        assertEq(_protocol.frozenUntilOf(minter_), block.timestamp + 4 days);
+        assertEq(_protocol.isActiveMinter(minter_), true);
+        assertEq(_protocol.principalOfActiveOwedMOf(minter_), 0);
+        assertEq(_protocol.inactiveOwedMOf(minter_), 0);
+
+        assertEq(_protocol.totalPrincipalOfActiveOwedM(), 0);
+        assertEq(_protocol.totalInactiveOwedM(), 0);
+
+        // TODO: check that `updateIndex()` was called.
+    }
+
+    function test_activateMinter_previouslyInactive() external {
+        address minter_ = makeAddr("someMinter");
+
+        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, minter_);
+
+        _protocol.setCollateralOf(minter_, 100e18);
+        _protocol.setLastCollateralUpdateIntervalOf(minter_, 1 days);
+        _protocol.setUpdateTimestampOf(minter_, block.timestamp - 4 hours);
+        _protocol.setUnfrozenTimeOf(minter_, block.timestamp + 4 days);
+
+        _protocol.setInactiveOwedMOf(minter_, 1_000_000);
+        _protocol.setTotalInactiveOwedM(1_000_000);
+        _protocol.setLatestIndex(ContinuousIndexingMath.EXP_SCALED_ONE + ContinuousIndexingMath.EXP_SCALED_ONE / 10);
+
+        vm.expectEmit();
+        emit IProtocol.MinterActivated(minter_, 909_091, address(this));
+
+        uint128 principalOfActiveOwedM_ = _protocol.activateMinter(minter_);
+
+        assertEq(principalOfActiveOwedM_, 909_091);
+
+        assertEq(_protocol.internalCollateralOf(minter_), 100e18);
+        assertEq(_protocol.lastCollateralUpdateIntervalOf(minter_), 1 days);
+        assertEq(_protocol.collateralUpdateTimestampOf(minter_), block.timestamp - 4 hours);
+        assertEq(_protocol.frozenUntilOf(minter_), block.timestamp + 4 days);
+        assertEq(_protocol.isActiveMinter(minter_), true);
+        assertEq(_protocol.principalOfActiveOwedMOf(minter_), 909_091);
+        assertEq(_protocol.inactiveOwedMOf(minter_), 0);
+
+        assertEq(_protocol.totalPrincipalOfActiveOwedM(), 909_091);
+        assertEq(_protocol.totalInactiveOwedM(), 0);
+
+        // TODO: check that `updateIndex()` was called.
     }
 
     function test_activateMinter_notApprovedMinter() external {
@@ -1193,13 +1228,8 @@ contract ProtocolTests is Test {
         _protocol.activateMinter(makeAddr("notApprovedMinter"));
     }
 
-    function test_activateMinter_deactivatedMinter() external {
-        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
-        _protocol.deactivateMinter(_minter1);
-
-        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
-
-        vm.expectRevert(IProtocol.DeactivatedMinter.selector);
+    function test_activateMinter_alreadyActivatedMinter() external {
+        vm.expectRevert(IProtocol.ActiveMinter.selector);
         _protocol.activateMinter(_minter1);
     }
 

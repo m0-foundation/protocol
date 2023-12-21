@@ -9,6 +9,9 @@ interface IProtocol is IContinuousIndexing {
     |                                                      Errors                                                      |
     \******************************************************************************************************************/
 
+    /// @notice Emitted when calling a function only allowed for inactive minters.
+    error ActiveMinter();
+
     /// @notice Emitted when calling `mintM` with a proposal that was created more than `mintDelay + mintTTL` time ago.
     error ExpiredMintProposal(uint40 deadline);
 
@@ -26,9 +29,6 @@ interface IProtocol is IContinuousIndexing {
 
     /// @notice Emitted when calling a function only allowed for active minters.
     error InactiveMinter();
-
-    /// @notice Emitted when calling `activateMinter` with a minter who was previously deactivated.
-    error DeactivatedMinter();
 
     /// @notice Emitted when calling `activateMinter` if minter was not approved by SPOG.
     error NotApprovedMinter();
@@ -91,10 +91,11 @@ interface IProtocol is IContinuousIndexing {
 
     /**
      * @notice Emitted when a minter is activated.
-     * @param  minter Address of the minter that was activated
-     * @param  caller Address who called the function
+     * @param  minter                 Address of the minter that was activated.
+     * @param  principalOfActiveOwedM Principal amount of M tokens owed by the minter (in an active state).
+     * @param  caller                 Address who called the function.
      */
-    event MinterActivated(address indexed minter, address indexed caller);
+    event MinterActivated(address indexed minter, uint128 principalOfActiveOwedM, address indexed caller);
 
     /**
      * @notice Emitted when a minter is deactivated.
@@ -233,9 +234,10 @@ interface IProtocol is IContinuousIndexing {
      * @notice Activate an approved minter.
      * @dev    MUST revert if `minter` is not recorded as an approved minter in SPOG Registrar.
      * @dev    SHOULD revert if the minter is already active.
-     * @param  minter The address of the minter to activate
+     * @param  minter                 The address of the minter to activate.
+     * @return principalOfActiveOwedM The principal of active owed M for the activated minter.
      */
-    function activateMinter(address minter) external;
+    function activateMinter(address minter) external returns (uint128 principalOfActiveOwedM);
 
     /**
      * @notice Deactivates an active minter.

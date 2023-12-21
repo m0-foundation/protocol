@@ -45,8 +45,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint40 updateTimestamp;
         uint40 penalizedUntilTimestamp;
         uint40 frozenUntilTimestamp;
+        uint48 lowestValidRetrievalId;
         bool isActive;
-        bool wasDeactivated;
     }
 
     struct OwedM {
@@ -104,6 +104,13 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @notice Only allow function for active minter.
     modifier onlyActiveMinter(address minter_) {
         _revertIfInactiveMinter(minter_);
+
+        _;
+    }
+
+    /// @notice Only allow function for inactive minter.
+    modifier onlyInactiveMinter(address minter_) {
+        _revertIfActiveMinter(minter_);
 
         _;
     }
@@ -305,22 +312,38 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function freezeMinter(
-        address minter_
-    ) external onlyApprovedValidator onlyActiveMinter(minter_) returns (uint40 frozenUntil_) {
+    function freezeMinter(address minter_) external onlyApprovedValidator returns (uint40 frozenUntil_) {
         _minterStates[minter_].frozenUntilTimestamp = frozenUntil_ = uint40(block.timestamp) + minterFreezeTime();
 
         emit MinterFrozen(minter_, frozenUntil_);
     }
 
     /// @inheritdoc IProtocol
-    function activateMinter(address minter_) external {
+    function activateMinter(
+        address minter_
+    ) external onlyInactiveMinter(minter_) returns (uint128 principalOfActiveOwedM_) {
         if (!isMinterApprovedBySPOG(minter_)) revert NotApprovedMinter();
-        if (_minterStates[minter_].wasDeactivated) revert DeactivatedMinter();
 
+        uint128 inactiveOwedM_ = _owedM[minter_].inactive;
+
+        // NOTE: When activating a present amount on inactive owed M, round the principal up in favor of the protocol.
+        principalOfActiveOwedM_ = _getPrincipalAmountRoundedUp(inactiveOwedM_);
+
+        emit MinterActivated(minter_, principalOfActiveOwedM_, msg.sender);
+
+        // Adjust totals of owed M.
+        _totalPrincipalOfActiveOwedM += principalOfActiveOwedM_;
+        _totalInactiveOwedM -= inactiveOwedM_;
+
+        // Set values of minter's OwedM struct.
+        _owedM[minter_] = OwedM({ principalOfActive: principalOfActiveOwedM_, inactive: 0 });
+
+        // Set relevant minter state values.
         _minterStates[minter_].isActive = true;
 
-        emit MinterActivated(minter_, msg.sender);
+        // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the
+        //       deactivation can result in a new rate, we should update the index here to lock in that rate.
+        updateIndex();
     }
 
     /// @inheritdoc IProtocol
@@ -341,10 +364,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         delete _mintProposals[minter_];
 
-        _minterStates[minter_].wasDeactivated = true;
         // Set and reset relevant minter state values.
         _minterStates[minter_].totalPendingRetrievals = 0;
         _minterStates[minter_].penalizedUntilTimestamp = 0;
+        _minterStates[minter_].lowestValidRetrievalId = _retrievalNonce + 1;
         _minterStates[minter_].isActive = false;
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the
@@ -772,6 +795,14 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      */
     function _revertIfFrozenMinter(address minter_) internal view {
         if (block.timestamp < _minterStates[minter_].frozenUntilTimestamp) revert FrozenMinter();
+    }
+
+    /**
+     * @dev   Reverts if minter is active.
+     * @param minter_ The address of the minter
+     */
+    function _revertIfActiveMinter(address minter_) internal view {
+        if (_minterStates[minter_].isActive) revert ActiveMinter();
     }
 
     /**
