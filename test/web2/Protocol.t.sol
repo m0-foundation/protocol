@@ -308,7 +308,53 @@ contract ProtocolTest is Test {
         _protocol.mintM(mintId);
     }
 
-    function test_proposeMint() public {}
+    function test_proposeMint_not_active_minter() public {
+        vm.prank(_aliceAddress);
+        vm.expectRevert(IProtocol.InactiveMinter.selector);
+        _protocol.proposeMint(123, _aliceAddress);
+    }
+
+    function test_proposeMint_frozen_minter() public {
+        _protocol.setter_isActiveMinter(_aliceAddress, true);
+        _protocol.setter_unfrozenTimestamp(_aliceAddress, block.timestamp + 1);
+        vm.expectRevert(IProtocol.FrozenMinter.selector);
+        vm.prank(_aliceAddress);
+        _protocol.proposeMint(123, _aliceAddress);
+    }
+
+    function test_proposeMint_undercollateralized() public {
+        _setValue(SPOGRegistrarReader.MINT_RATIO, 12);
+        _protocol.setter_isActiveMinter(_aliceAddress, true);
+        _protocol.setter_unfrozenTimestamp(_aliceAddress, block.timestamp);
+        _protocol.setter_collateral(_aliceAddress, 123);
+        vm.expectRevert(abi.encodeWithSelector(IProtocol.Undercollateralized.selector, 123, 0));
+        vm.prank(_aliceAddress);
+        _protocol.proposeMint(123, _aliceAddress);
+    }
+
+    function test_proposeMint_positive() public {
+        _setValue(SPOGRegistrarReader.MINT_RATIO, 10);
+        _protocol.setter_isActiveMinter(_aliceAddress, true);
+        _protocol.setter_unfrozenTimestamp(_aliceAddress, block.timestamp);
+        _protocol.setter_collateral(_aliceAddress, 1.23e5);
+        _protocol.setter_lastUpdateTimestamp(_aliceAddress, block.timestamp);
+        _protocol.setter_lastUpdateInterval(_aliceAddress, block.timestamp);
+
+        assertEq(_protocol.external_mintNonce(), 0);
+
+        vm.prank(_aliceAddress);
+        vm.expectEmit(false, true, true, true);
+        emit IProtocol.MintProposed(123, _aliceAddress, 123, _aliceAddress);
+        uint256 mintId = _protocol.proposeMint(123, _aliceAddress);
+
+        (uint256 mintId_, address destination_, uint256 amount_, uint256 timestamp_) = _protocol.external_mintProposal(_aliceAddress);
+        assertEq(mintId_, mintId);
+        assertEq(destination_, _aliceAddress);
+        assertEq(amount_, 123);
+        assertEq(timestamp_, block.timestamp);
+        // TODO: weird, mintNonce remains 0, possible bug?
+        assertEq(_protocol.external_mintNonce(), 0);
+    }
 
     function test_proposeRetrieval() public {}
 

@@ -131,6 +131,10 @@ contract ProtocolHarness is Protocol {
         createdAt_ = _mintProposals[minter_].createdAt;
     }
 
+    function external_mintNonce() external view returns(uint256 _mintNonce) {
+        return _mintNonce;
+    }
+
     // overwritten compunding functions functions to set expected values
     function override_fixedIndex(uint256 fixedIndex_) external {
         _fixedIndex = fixedIndex_;
