@@ -13,6 +13,10 @@ import { DigestHelper } from "./utils/DigestHelper.sol";
 import { MockMToken, MockRateModel, MockSPOGRegistrar } from "./utils/Mocks.sol";
 import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
 
+// TODO: add tests for `updateIndex` being called.
+// TODO: more end state tests of `deactivateMinter`.
+// TODO: `activeOwedMOf` and `inactiveOwedMOf` tests.
+
 contract ProtocolTests is Test {
     uint256 internal constant ONE = 10000;
 
@@ -75,7 +79,7 @@ contract ProtocolTests is Test {
 
         _protocol = new ProtocolHarness(address(_spogRegistrar), address(_mToken));
 
-        _protocol.activateMinter(_minter1);
+        _protocol.setActiveMinter(_minter1, true);
         _protocol.setLatestRate(_minterRate); // This can be `protocol.updateIndex()`, but is not necessary.
     }
 
@@ -108,7 +112,7 @@ contract ProtocolTests is Test {
 
         assertEq(_protocol.collateralOf(_minter1), collateral);
         assertEq(_protocol.lastCollateralUpdateIntervalOf(_minter1), _updateCollateralInterval);
-        assertEq(_protocol.collateralUpdateOf(_minter1), signatureTimestamp);
+        assertEq(_protocol.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
         assertEq(_protocol.collateralUpdateDeadlineOf(_minter1), signatureTimestamp + _updateCollateralInterval);
         assertEq(_protocol.maxAllowedActiveOwedMOf(_minter1), (collateral * _mintRatio) / ONE);
     }
@@ -186,7 +190,7 @@ contract ProtocolTests is Test {
         vm.prank(_minter1);
         _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        uint256 lastUpdateTimestamp = _protocol.collateralUpdateOf(_minter1);
+        uint256 lastUpdateTimestamp = _protocol.collateralUpdateTimestampOf(_minter1);
         uint256 newTimestamp = lastUpdateTimestamp - 1;
 
         timestamps[0] = newTimestamp;
@@ -327,7 +331,7 @@ contract ProtocolTests is Test {
         uint128 amount = 60e18;
 
         _protocol.setCollateralOf(_minter1, 100e18);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
         uint48 expectedMintId = _protocol.mintNonce() + 1;
@@ -360,7 +364,7 @@ contract ProtocolTests is Test {
         _protocol.proposeMint(100e18, makeAddr("to"));
     }
 
-    function test_proposeMint_InactiveMinter() external {
+    function test_proposeMint_inactiveMinter() external {
         _protocol.setActiveMinter(_minter1, false);
 
         vm.expectRevert(IProtocol.InactiveMinter.selector);
@@ -370,7 +374,7 @@ contract ProtocolTests is Test {
 
     function test_proposeMint_undercollateralizedMint() external {
         _protocol.setCollateralOf(_minter1, 100e18);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
         vm.warp(block.timestamp + _mintDelay);
@@ -383,12 +387,13 @@ contract ProtocolTests is Test {
 
     function test_mintM() external {
         uint256 amount = 80e18;
+        uint48 mintId = 1;
 
         _protocol.setCollateralOf(_minter1, 100e18);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint48 mintId = _protocol.setMintProposalOf(_minter1, amount, block.timestamp, _alice);
+        _protocol.setMintProposalOf(_minter1, mintId, amount, block.timestamp, _alice);
 
         vm.warp(block.timestamp + _mintDelay);
 
@@ -418,12 +423,13 @@ contract ProtocolTests is Test {
     function test_mintM_outstandingValue() external {
         uint256 mintAmount = 1000000e6;
         uint256 timestamp = block.timestamp;
+        uint48 mintId = 1;
 
         _protocol.setCollateralOf(_minter1, 10000e18);
-        _protocol.setCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, mintAmount, timestamp, _alice);
+        _protocol.setMintProposalOf(_minter1, mintId, mintAmount, timestamp, _alice);
 
         vm.warp(timestamp + _mintDelay);
 
@@ -465,32 +471,27 @@ contract ProtocolTests is Test {
         assertEq(_protocol.activeOwedMOf(_minter1), expectedResult, "c");
     }
 
-    function test_mintM_InactiveMinter() external {
-        _protocol.setActiveMinter(_minter1, false);
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100e18, block.timestamp, _alice);
-
+    function test_mintM_inactiveMinter() external {
         vm.expectRevert(IProtocol.InactiveMinter.selector);
-
-        vm.prank(_bob);
-        _protocol.mintM(mintId);
+        vm.prank(makeAddr("someInactiveMinter"));
+        _protocol.mintM(1);
     }
 
     function test_mintM_frozenMinter() external {
         vm.prank(_validator1);
-        _protocol.freezeMinter(_minter1);
-
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100e18, block.timestamp, _minter1);
+        _protocol.freezeMinter(_minter1); // TODO: replace with harness setter
 
         vm.expectRevert(IProtocol.FrozenMinter.selector);
-
         vm.prank(_minter1);
-        _protocol.mintM(mintId);
+        _protocol.mintM(1);
     }
 
     function test_mintM_pendingMintRequest() external {
         uint256 timestamp = block.timestamp;
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, timestamp, _alice);
         uint256 activeTimestamp_ = timestamp + _mintDelay;
+        uint48 mintId = 1;
+
+        _protocol.setMintProposalOf(_minter1, mintId, 100, timestamp, _alice);
 
         vm.warp(activeTimestamp_ - 10);
 
@@ -502,8 +503,10 @@ contract ProtocolTests is Test {
 
     function test_mintM_expiredMintRequest() external {
         uint256 timestamp = block.timestamp;
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, timestamp, _alice);
         uint256 deadline_ = timestamp + _mintDelay + _mintTTL;
+        uint48 mintId = 1;
+
+        _protocol.setMintProposalOf(_minter1, mintId, 100, timestamp, _alice);
 
         vm.warp(deadline_ + 1);
 
@@ -514,11 +517,13 @@ contract ProtocolTests is Test {
     }
 
     function test_mintM_undercollateralizedMint() external {
+        uint48 mintId = 1;
+
         _protocol.setCollateralOf(_minter1, 100e18);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 95e18, block.timestamp, _alice);
+        _protocol.setMintProposalOf(_minter1, mintId, 95e18, block.timestamp, _alice);
 
         vm.warp(block.timestamp + _mintDelay + 1);
 
@@ -529,11 +534,13 @@ contract ProtocolTests is Test {
     }
 
     function test_mintM_undercollateralizedMint_outdatedCollateral() external {
+        uint48 mintId = 1;
+
         _protocol.setCollateralOf(_minter1, 100e18);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp - _updateCollateralInterval);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp - _updateCollateralInterval);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 95e18, block.timestamp, _alice);
+        _protocol.setMintProposalOf(_minter1, mintId, 95e18, block.timestamp, _alice);
 
         vm.warp(block.timestamp + _mintDelay + 1);
 
@@ -552,8 +559,9 @@ contract ProtocolTests is Test {
     function test_mintM_invalidMintRequest_mismatchOfIds() external {
         uint256 amount = 95e18;
         uint256 timestamp = block.timestamp;
+        uint48 mintId = 1;
 
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, amount, timestamp, _alice);
+        _protocol.setMintProposalOf(_minter1, mintId, amount, timestamp, _alice);
 
         vm.expectRevert(IProtocol.InvalidMintProposal.selector);
 
@@ -562,7 +570,9 @@ contract ProtocolTests is Test {
     }
 
     function test_cancelMint_byValidator() external {
-        uint48 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, _alice);
+        uint48 mintId = 1;
+
+        _protocol.setMintProposalOf(_minter1, mintId, 100, block.timestamp, _alice);
 
         vm.expectEmit();
         emit IProtocol.MintCanceled(mintId, _validator1);
@@ -581,20 +591,9 @@ contract ProtocolTests is Test {
     }
 
     function test_cancelMint_notApprovedValidator() external {
-        uint256 mintId = _protocol.setMintProposalOf(_minter1, 100, block.timestamp, _alice);
-
         vm.expectRevert(IProtocol.NotApprovedValidator.selector);
-        vm.prank(_alice);
-        _protocol.cancelMint(_minter1, mintId);
-
-        (uint256 mintId_, uint256 timestamp_, address destination_, uint256 amount_) = _protocol.mintProposalOf(
-            _minter1
-        );
-
-        assertEq(mintId_, mintId);
-        assertEq(destination_, _alice);
-        assertEq(amount_, 100);
-        assertEq(timestamp_, block.timestamp);
+        vm.prank(makeAddr("someNonApprovedValidator"));
+        _protocol.cancelMint(_minter1, 1);
     }
 
     function test_cancelMint_invalidMintProposal() external {
@@ -611,7 +610,7 @@ contract ProtocolTests is Test {
         uint128 amount = 60e18;
 
         _protocol.setCollateralOf(_minter1, 100e18);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
         uint40 frozenUntil = uint40(block.timestamp) + _minterFreezeTime;
@@ -622,7 +621,7 @@ contract ProtocolTests is Test {
         vm.prank(_validator1);
         _protocol.freezeMinter(_minter1);
 
-        assertEq(_protocol.unfrozenTimeOf(_minter1), frozenUntil);
+        assertEq(_protocol.frozenUntilOf(_minter1), frozenUntil);
 
         vm.expectRevert(IProtocol.FrozenMinter.selector);
 
@@ -680,13 +679,15 @@ contract ProtocolTests is Test {
 
     function test_burnM() external {
         uint256 mintAmount = 1000000e18;
+        uint48 mintId = 1;
 
         // initiate harness functions
         _protocol.setCollateralOf(_minter1, 10000000e18);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint48 mintId = _protocol.setMintProposalOf(_minter1, mintAmount, block.timestamp, _alice);
+        // TODO: Replace entire mint process with harness setters.
+        _protocol.setMintProposalOf(_minter1, mintId, mintAmount, block.timestamp, _alice);
 
         vm.warp(block.timestamp + _mintDelay);
 
@@ -712,11 +713,12 @@ contract ProtocolTests is Test {
 
     function test_burnM_repayHalfOfOutstandingValue() external {
         _protocol.setCollateralOf(_minter1, 1000e18);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
 
         uint256 principalOfActiveOwedM = 100e18;
 
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, principalOfActiveOwedM);
+        _protocol.setTotalPrincipalOfActiveOwedM(principalOfActiveOwedM);
 
         uint128 activeOwedM = _protocol.activeOwedMOf(_minter1);
 
@@ -745,6 +747,7 @@ contract ProtocolTests is Test {
         uint256 principalOfActiveOwedM = 100e18;
 
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, principalOfActiveOwedM);
+        _protocol.setTotalPrincipalOfActiveOwedM(principalOfActiveOwedM);
 
         uint256 activeOwedM = _protocol.activeOwedMOf(_minter1);
 
@@ -760,9 +763,10 @@ contract ProtocolTests is Test {
         uint256 collateral = 100e18;
 
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _protocol.setTotalPrincipalOfActiveOwedM(60e18);
 
         vm.warp(block.timestamp + 3 * _updateCollateralInterval);
 
@@ -828,6 +832,7 @@ contract ProtocolTests is Test {
         _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, amount);
+        _protocol.setTotalPrincipalOfActiveOwedM(amount);
 
         vm.warp(block.timestamp + _updateCollateralInterval - 1);
 
@@ -862,9 +867,10 @@ contract ProtocolTests is Test {
 
     function test_updateCollateral_accrueBothPenalties() external {
         _protocol.setCollateralOf(_minter1, 100e18);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _protocol.setTotalPrincipalOfActiveOwedM(60e18);
 
         vm.warp(block.timestamp + 2 * _updateCollateralInterval);
 
@@ -904,16 +910,17 @@ contract ProtocolTests is Test {
 
         assertEq(_protocol.activeOwedMOf(_minter1), activeOwedM + penalty + expectedPenalty + 1 wei);
 
-        assertEq(_protocol.collateralUpdateOf(_minter1), signatureTimestamp);
+        assertEq(_protocol.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
         assertEq(_protocol.lastCollateralUpdateIntervalOf(_minter1), _updateCollateralInterval);
         assertEq(_protocol.penalizedUntilOf(_minter1), signatureTimestamp);
     }
 
     function test_burnM_imposePenaltyForExpiredCollateralValue() external {
         _protocol.setCollateralOf(_minter1, 100e18);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _protocol.setTotalPrincipalOfActiveOwedM(60e18);
 
         vm.warp(block.timestamp + 3 * _updateCollateralInterval);
 
@@ -938,9 +945,10 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _protocol.setTotalPrincipalOfActiveOwedM(60e18);
 
         vm.warp(timestamp + _updateCollateralInterval - 10);
 
@@ -977,13 +985,13 @@ contract ProtocolTests is Test {
 
         uint256 penalizedUntil = _protocol.penalizedUntilOf(_minter1);
 
-        assertEq(_protocol.collateralUpdateOf(_minter1), signatureTimestamp);
+        assertEq(_protocol.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
         assertEq(penalizedUntil, timestamp + _updateCollateralInterval);
 
         vm.prank(_alice);
         _protocol.burnM(_minter1, 10e18);
 
-        assertEq(_protocol.collateralUpdateOf(_minter1), signatureTimestamp);
+        assertEq(_protocol.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
         assertEq(_protocol.penalizedUntilOf(_minter1), penalizedUntil);
     }
 
@@ -992,9 +1000,10 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _protocol.setTotalPrincipalOfActiveOwedM(60e18);
 
         // Change update collateral interval, more frequent updates are required
         _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
@@ -1026,9 +1035,10 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _protocol.setTotalPrincipalOfActiveOwedM(60e18);
 
         vm.warp(timestamp + _updateCollateralInterval - 10);
 
@@ -1041,9 +1051,10 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _protocol.setTotalPrincipalOfActiveOwedM(60e18);
 
         vm.warp(timestamp + _updateCollateralInterval - 10);
 
@@ -1061,9 +1072,10 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _protocol.setTotalPrincipalOfActiveOwedM(60e18);
 
         vm.warp(timestamp + _updateCollateralInterval + 10);
 
@@ -1076,9 +1088,10 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _protocol.setTotalPrincipalOfActiveOwedM(60e18);
 
         vm.warp(timestamp + _updateCollateralInterval + 10);
 
@@ -1096,9 +1109,10 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _protocol.setTotalPrincipalOfActiveOwedM(60e18);
 
         vm.warp(timestamp + (3 * _updateCollateralInterval) + 10);
 
@@ -1111,9 +1125,10 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _protocol.setTotalPrincipalOfActiveOwedM(60e18);
 
         // Change update collateral interval, more frequent updates are required
         _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
@@ -1133,9 +1148,10 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _protocol.setTotalPrincipalOfActiveOwedM(60e18);
 
         vm.warp(timestamp + _updateCollateralInterval - 10);
 
@@ -1191,8 +1207,9 @@ contract ProtocolTests is Test {
         uint256 mintAmount = 1000000e18;
 
         _protocol.setCollateralOf(_minter1, mintAmount * 2);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, mintAmount);
+        _protocol.setTotalPrincipalOfActiveOwedM(mintAmount);
 
         uint128 activeOwedM = _protocol.activeOwedMOf(_minter1);
 
@@ -1201,23 +1218,14 @@ contract ProtocolTests is Test {
         vm.expectEmit();
         emit IProtocol.MinterDeactivated(_minter1, activeOwedM, _alice);
 
-        uint256 totalInactiveOwedM = _protocol.totalInactiveOwedM();
-        uint256 totalActiveOwedM = _protocol.totalActiveOwedM();
-        uint256 totalOwedM = _protocol.totalOwedM();
-        assertEq(totalInactiveOwedM, 0);
-        assertEq(totalActiveOwedM, activeOwedM);
-        assertEq(totalOwedM, totalActiveOwedM);
+        assertEq(_protocol.totalInactiveOwedM(), 0);
+        assertEq(_protocol.totalActiveOwedM(), activeOwedM);
 
         vm.prank(_alice);
         _protocol.deactivateMinter(_minter1);
 
-        totalInactiveOwedM = _protocol.totalInactiveOwedM();
-        totalActiveOwedM = _protocol.totalActiveOwedM();
-        totalOwedM = _protocol.totalOwedM();
-
-        assertEq(totalInactiveOwedM, activeOwedM);
-        assertEq(totalActiveOwedM, 0);
-        assertEq(totalOwedM, totalInactiveOwedM);
+        assertEq(_protocol.totalInactiveOwedM(), activeOwedM);
+        assertEq(_protocol.totalActiveOwedM(), 0);
 
         assertEq(_protocol.principalOfActiveOwedMOf(_minter1), 0);
         assertEq(_protocol.activeOwedMOf(_minter1), 0);
@@ -1228,14 +1236,17 @@ contract ProtocolTests is Test {
 
         vm.prank(_alice);
         _protocol.burnM(_minter1, activeOwedM);
+
+        // TODO: check that `updateIndex()` was called.
     }
 
     function test_deactivateMinter_imposePenaltyForExpiredCollateralValue() external {
         uint256 mintAmount = 1000000e18;
 
         _protocol.setCollateralOf(_minter1, mintAmount * 2);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp - _updateCollateralInterval);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp - _updateCollateralInterval);
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, mintAmount);
+        _protocol.setTotalPrincipalOfActiveOwedM(mintAmount);
 
         uint128 activeOwedM = _protocol.activeOwedMOf(_minter1);
         uint128 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
@@ -1247,6 +1258,8 @@ contract ProtocolTests is Test {
 
         vm.prank(_alice);
         _protocol.deactivateMinter(_minter1);
+
+        // TODO: check that `updateIndex()` was called.
     }
 
     function test_deactivateMinter_stillApprovedMinter() external {
@@ -1254,12 +1267,9 @@ contract ProtocolTests is Test {
         _protocol.deactivateMinter(_minter1);
     }
 
-    function test_deactivateMinter_InactiveMinter() external {
-        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
-        _protocol.deactivateMinter(_minter1);
-
+    function test_deactivateMinter_alreadyInactiveMinter() external {
         vm.expectRevert(IProtocol.InactiveMinter.selector);
-        _protocol.deactivateMinter(_minter1);
+        _protocol.deactivateMinter(makeAddr("someInactiveMinter"));
     }
 
     function test_proposeRetrieval() external {
@@ -1355,7 +1365,7 @@ contract ProtocolTests is Test {
         assertEq(_protocol.maxAllowedActiveOwedMOf(_minter1), ((collateral / 2) * _mintRatio) / ONE);
     }
 
-    function test_proposeRetrieval_InactiveMinter() external {
+    function test_proposeRetrieval_inactiveMinter() external {
         _protocol.setActiveMinter(_minter1, false);
 
         vm.expectRevert(IProtocol.InactiveMinter.selector);
@@ -1364,13 +1374,16 @@ contract ProtocolTests is Test {
         _protocol.proposeRetrieval(100);
     }
 
-    function test_proposeRetrieval_Undercollateralized() external {
+    function test_proposeRetrieval_undercollateralized() external {
         uint256 collateral = 100e18;
 
+        uint256 principalOfActiveOwedM = (collateral * _mintRatio) / ONE;
+
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
-        _protocol.setPrincipalOfActiveOwedMOf(_minter1, (collateral * _mintRatio) / ONE);
+        _protocol.setPrincipalOfActiveOwedMOf(_minter1, principalOfActiveOwedM);
+        _protocol.setTotalPrincipalOfActiveOwedM(principalOfActiveOwedM);
 
         uint256 retrievalAmount = 10e18;
         uint256 expectedMaxAllowedOwedM = ((collateral - retrievalAmount) * _mintRatio) / ONE;
@@ -1391,7 +1404,7 @@ contract ProtocolTests is Test {
         uint256 collateral = 100e18;
 
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setTotalPendingRetrievalsOf(_minter1, collateral);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
@@ -1414,10 +1427,11 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         _protocol.setCollateralOf(_minter1, collateral);
-        _protocol.setCollateralUpdateOf(_minter1, block.timestamp);
+        _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
         _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, amount);
+        _protocol.setTotalPrincipalOfActiveOwedM(amount);
 
         uint128 retrievalAmount = 10e18;
         uint48 expectedRetrievalId = _protocol.retrievalNonce() + 1;
@@ -1526,7 +1540,7 @@ contract ProtocolTests is Test {
         _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         assertEq(_protocol.collateralOf(_minter1), 100);
-        assertEq(_protocol.collateralUpdateOf(_minter1), block.timestamp);
+        assertEq(_protocol.collateralUpdateTimestampOf(_minter1), block.timestamp);
     }
 
     function test_updateCollateral_someSignaturesAreInvalid() external {
@@ -1577,7 +1591,7 @@ contract ProtocolTests is Test {
         _protocol.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         assertEq(_protocol.collateralOf(_minter1), 100);
-        assertEq(_protocol.collateralUpdateOf(_minter1), block.timestamp);
+        assertEq(_protocol.collateralUpdateTimestampOf(_minter1), block.timestamp);
     }
 
     function test_emptyRateModel() external {
@@ -1628,6 +1642,30 @@ contract ProtocolTests is Test {
     function test_updateCollateralInterval() external {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 10);
         assertEq(_protocol.updateCollateralInterval(), 10);
+    }
+
+    function test_totalActiveOwedM() external {
+        _protocol.setTotalPrincipalOfActiveOwedM(1_000_000);
+        assertEq(_protocol.totalActiveOwedM(), 1_000_000);
+
+        _protocol.setLatestIndex(ContinuousIndexingMath.EXP_SCALED_ONE + ContinuousIndexingMath.EXP_SCALED_ONE / 10);
+
+        assertEq(_protocol.totalActiveOwedM(), 1_100_000);
+    }
+
+    function test_totalInactiveOwedM() external {
+        _protocol.setTotalInactiveOwedM(1_000_000);
+        assertEq(_protocol.totalInactiveOwedM(), 1_000_000);
+    }
+
+    function test_totalOwedM() external {
+        _protocol.setTotalInactiveOwedM(500_000);
+        _protocol.setTotalPrincipalOfActiveOwedM(1_000_000);
+        assertEq(_protocol.totalOwedM(), 1_500_000);
+
+        _protocol.setLatestIndex(ContinuousIndexingMath.EXP_SCALED_ONE + ContinuousIndexingMath.EXP_SCALED_ONE / 10);
+
+        assertEq(_protocol.totalOwedM(), 1_600_000);
     }
 
     function _getCollateralUpdateSignature(

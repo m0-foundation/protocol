@@ -24,7 +24,7 @@ interface IProtocol is IContinuousIndexing {
     /// @notice Emitted when calling `updateCollateral` if `validators` addresses are not ordered in ascending order.
     error InvalidSignatureOrder();
 
-    /// @notice Emitted when calling `deactivateMinter` with an inactive minter.
+    /// @notice Emitted when calling a function only allowed for active minters.
     error InactiveMinter();
 
     /// @notice Emitted when calling `activateMinter` with a minter who was previously deactivated.
@@ -98,9 +98,9 @@ interface IProtocol is IContinuousIndexing {
 
     /**
      * @notice Emitted when a minter is deactivated.
-     * @param  minter        Address of the minter that was deactivated
-     * @param  inactiveOwedM Amount of M tokens owed by the minter
-     * @param  caller        Address who called the function
+     * @param  minter        Address of the minter that was deactivated.
+     * @param  inactiveOwedM Amount of M tokens owed by the minter (in an inactive state).
+     * @param  caller        Address who called the function.
      */
     event MinterDeactivated(address indexed minter, uint128 inactiveOwedM, address indexed caller);
 
@@ -149,10 +149,10 @@ interface IProtocol is IContinuousIndexing {
     event PenaltyImposed(address indexed minter, uint128 amount);
 
     /**
-     * @notice Emitted when collateral retrieval proposal is created.
-     * @param  retrievalId The id of retrieval proposal
-     * @param  minter      The address of the minter
-     * @param  amount      The amount of collateral to retrieve
+     * @notice Emitted when a collateral retrieval proposal is created.
+     * @param  retrievalId The id of retrieval proposal.
+     * @param  minter      The address of the minter.
+     * @param  amount      The amount of collateral to retrieve.
      */
     event RetrievalCreated(uint48 indexed retrievalId, address indexed minter, uint128 amount);
 
@@ -162,13 +162,13 @@ interface IProtocol is IContinuousIndexing {
 
     /**
      * @notice Updates collateral for minters
-     * @param  collateral    The amount of collateral
-     * @param  retrievalIds  The list of active proposeRetrieval requests to close
-     * @param  metadataHash  The hash of metadata of the collateral update, reserved for future informational use
-     * @param  validators    The list of validators
-     * @param  timestamps    The list of timestamps of validators' signatures
-     * @param  signatures    The list of signatures
-     * @return minTimestamp  The minimum timestamp of all validators' signatures
+     * @param  collateral   The amount of collateral
+     * @param  retrievalIds The list of active proposeRetrieval requests to close
+     * @param  metadataHash The hash of metadata of the collateral update, reserved for future informational use
+     * @param  validators   The list of validators
+     * @param  timestamps   The list of timestamps of validators' signatures
+     * @param  signatures   The list of signatures
+     * @return minTimestamp The minimum timestamp of all validators' signatures
      */
     function updateCollateral(
         uint256 collateral,
@@ -234,8 +234,8 @@ interface IProtocol is IContinuousIndexing {
      * @notice Deactivates an active minter.
      * @dev    MUST revert if the minter is not an approved minter.
      * @dev    SHOULD revert if the minter is not active.
-     * @param  minter The address of the minter to deactivate
-     * @return inactiveOwedM The inactive owed M for the deactivated minter
+     * @param  minter        The address of the minter to deactivate.
+     * @return inactiveOwedM The inactive owed M for the deactivated minter.
      */
     function deactivateMinter(address minter) external returns (uint128 inactiveOwedM);
 
@@ -286,7 +286,7 @@ interface IProtocol is IContinuousIndexing {
     function collateralOf(address minter) external view returns (uint128);
 
     /// @notice The timestamp of the last collateral update of minter.
-    function collateralUpdateOf(address minter) external view returns (uint40);
+    function collateralUpdateTimestampOf(address minter) external view returns (uint40);
 
     /// @notice The timestamp of the deadline for the next collateral update of minter.
     function collateralUpdateDeadlineOf(address minter) external view returns (uint40);
@@ -312,7 +312,7 @@ interface IProtocol is IContinuousIndexing {
     function totalPendingCollateralRetrievalsOf(address minter) external view returns (uint128);
 
     /// @notice The timestamp when minter becomes unfrozen after being frozen by validator.
-    function unfrozenTimeOf(address minter) external view returns (uint40);
+    function frozenUntilOf(address minter) external view returns (uint40);
 
     /// @notice Checks if minter was activated after approval by SPOG
     function isActiveMinter(address minter) external view returns (bool);

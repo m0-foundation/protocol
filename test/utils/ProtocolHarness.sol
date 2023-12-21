@@ -7,6 +7,10 @@ import { Protocol } from "../../src/Protocol.sol";
 contract ProtocolHarness is Protocol {
     constructor(address spogRegistrar_, address mToken_) Protocol(spogRegistrar_, mToken_) {}
 
+    /******************************************************************************************************************\
+    |                                                     Getters                                                      |
+    \******************************************************************************************************************/
+
     function mintNonce() external view returns (uint48) {
         return _mintNonce;
     }
@@ -15,18 +19,41 @@ contract ProtocolHarness is Protocol {
         return _retrievalNonce;
     }
 
+    function principalOfActiveOwedMOf(address minter_) external view returns (uint128 principalOfActiveOwedM_) {
+        return _owedM[minter_].principalOfActive;
+    }
+
+    function rate() external view returns (uint32 rate_) {
+        return _rate();
+    }
+
+    function internalCollateralOf(address minter_) external view returns (uint128 collateral_) {
+        return _minterStates[minter_].collateral;
+    }
+
+    function totalPrincipalOfActiveOwedM() external view returns (uint128 totalPrincipalOfActiveOwedM_) {
+        return _totalPrincipalOfActiveOwedM;
+    }
+
+    /******************************************************************************************************************\
+    |                                                     Setters                                                      |
+    \******************************************************************************************************************/
+
     function setActiveMinter(address minter_, bool isActive_) external {
         _minterStates[minter_].isActive = isActive_;
     }
 
+    function setMintNonce(uint256 nonce_) external {
+        _mintNonce = uint48(nonce_);
+    }
+
     function setMintProposalOf(
         address minter_,
+        uint256 mintId_,
         uint256 amount_,
         uint256 createdAt_,
         address destination_
-    ) external returns (uint48 mintId_) {
-        mintId_ = ++_mintNonce;
-
+    ) external {
         _mintProposals[minter_] = MintProposal(uint48(mintId_), uint40(createdAt_), destination_, uint128(amount_));
     }
 
@@ -34,8 +61,12 @@ contract ProtocolHarness is Protocol {
         _minterStates[minter_].collateral = uint128(collateral_);
     }
 
-    function setCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
+    function setUpdateTimestampOf(address minter_, uint256 lastUpdated_) external {
         _minterStates[minter_].updateTimestamp = uint40(lastUpdated_);
+    }
+
+    function setUnfrozenTimeOf(address minter_, uint256 frozenTime_) external {
+        _minterStates[minter_].frozenUntilTimestamp = uint40(frozenTime_);
     }
 
     function setLastCollateralUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
@@ -48,7 +79,18 @@ contract ProtocolHarness is Protocol {
 
     function setPrincipalOfActiveOwedMOf(address minter_, uint256 amount_) external {
         _owedM[minter_].principalOfActive = uint128(amount_);
+    }
+
+    function setTotalPrincipalOfActiveOwedM(uint256 amount_) external {
         _totalPrincipalOfActiveOwedM += uint128(amount_);
+    }
+
+    function setInactiveOwedMOf(address minter_, uint256 amount_) external {
+        _owedM[minter_].inactive = uint128(amount_);
+    }
+
+    function setTotalInactiveOwedM(uint256 amount_) external {
+        _totalInactiveOwedM = uint128(amount_);
     }
 
     function setTotalPendingRetrievalsOf(address minter_, uint256 amount_) external {
@@ -61,13 +103,5 @@ contract ProtocolHarness is Protocol {
 
     function setLatestRate(uint256 rate_) external {
         _latestRate = uint32(rate_);
-    }
-
-    function principalOfActiveOwedMOf(address minter_) external view returns (uint128 principalOfActiveOwedM_) {
-        return _owedM[minter_].principalOfActive;
-    }
-
-    function rate() external view returns (uint32 rate_) {
-        return _rate();
     }
 }

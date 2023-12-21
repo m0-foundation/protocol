@@ -18,6 +18,7 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 // TODO: Revisit storage slot and struct ordering once accurate gas reporting is achieved.
 // TODO: Consider `totalPendingCollateralRetrievalOf` or `totalCollateralPendingRetrievalOf`.
 // TODO: Consider `totalResolvedCollateralRetrieval` or `totalCollateralRetrievalResolved`.
+// TODO: Evaluate the gas savings across protocol of an `activateValidator`/`deactivateValidator`.
 
 /**
  * @title Protocol
@@ -43,7 +44,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint32 lastUpdateInterval;
         uint40 updateTimestamp;
         uint40 penalizedUntilTimestamp;
-        uint40 unfrozenTimestamp;
+        uint40 frozenUntilTimestamp;
         bool isActive;
         bool wasDeactivated;
     }
@@ -100,9 +101,9 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     |                                            Modifiers and Constructor                                             |
     \******************************************************************************************************************/
 
-    /// @notice Only allow active minter to call function.
-    modifier onlyActiveMinter() {
-        _revertIfInactiveMinter(msg.sender);
+    /// @notice Only allow function for active minter.
+    modifier onlyActiveMinter(address minter_) {
+        _revertIfInactiveMinter(minter_);
 
         _;
     }
@@ -116,7 +117,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @notice Only allow unfrozen minter to call function.
     modifier onlyUnfrozenMinter() {
-        _revertIfMinterFrozen(msg.sender);
+        _revertIfFrozenMinter(msg.sender);
 
         _;
     }
@@ -144,7 +145,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         address[] calldata validators_,
         uint256[] calldata timestamps_,
         bytes[] calldata signatures_
-    ) external onlyActiveMinter returns (uint40 minTimestamp_) {
+    ) external onlyActiveMinter(msg.sender) returns (uint40 minTimestamp_) {
         if (validators_.length != signatures_.length || signatures_.length != timestamps_.length) {
             revert SignatureArrayLengthsMismatch();
         }
@@ -186,7 +187,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function proposeRetrieval(uint256 collateral_) external onlyActiveMinter returns (uint48 retrievalId_) {
+    function proposeRetrieval(uint256 collateral_) external onlyActiveMinter(msg.sender) returns (uint48 retrievalId_) {
         unchecked {
             retrievalId_ = ++_retrievalNonce;
         }
@@ -213,7 +214,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     function proposeMint(
         uint256 amount_,
         address destination_
-    ) external onlyActiveMinter onlyUnfrozenMinter returns (uint48 mintId_) {
+    ) external onlyActiveMinter(msg.sender) onlyUnfrozenMinter returns (uint48 mintId_) {
         uint128 safeAmount_ = UIntMath.safe128(amount_);
 
         _revertIfUndercollateralized(msg.sender, safeAmount_); // Ensure minter remains sufficiently collateralized.
@@ -228,7 +229,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function mintM(uint256 mintId_) external onlyActiveMinter onlyUnfrozenMinter {
+    function mintM(uint256 mintId_) external onlyActiveMinter(msg.sender) onlyUnfrozenMinter {
         MintProposal storage mintProposal_ = _mintProposals[msg.sender];
 
         (uint48 id_, uint40 createdAt_, address destination_, uint128 amount_) = (
@@ -305,10 +306,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function freezeMinter(address minter_) external onlyApprovedValidator returns (uint40 frozenUntil_) {
-        _revertIfInactiveMinter(minter_);
-
-        _minterStates[minter_].unfrozenTimestamp = frozenUntil_ = uint40(block.timestamp) + minterFreezeTime();
+    function freezeMinter(
+        address minter_
+    ) external onlyApprovedValidator onlyActiveMinter(minter_) returns (uint40 frozenUntil_) {
+        _minterStates[minter_].frozenUntilTimestamp = frozenUntil_ = uint40(block.timestamp) + minterFreezeTime();
 
         emit MinterFrozen(minter_, frozenUntil_);
     }
@@ -324,28 +325,28 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function deactivateMinter(address minter_) external returns (uint128 inactiveOwedM_) {
+    function deactivateMinter(address minter_) external onlyActiveMinter(minter_) returns (uint128 inactiveOwedM_) {
         if (isMinterApprovedBySPOG(minter_)) revert StillApprovedMinter();
-
-        _revertIfInactiveMinter(minter_);
 
         // NOTE: Instead of imposing, calculate penalty and add it to `_inactiveOwedM` to save gas.
         inactiveOwedM_ = activeOwedMOf(minter_) + getPenaltyForMissedCollateralUpdates(minter_);
 
         emit MinterDeactivated(minter_, inactiveOwedM_, msg.sender);
 
-        _owedM[minter_].inactive += inactiveOwedM_;
+        // Adjust totals of owed M.
+        _totalPrincipalOfActiveOwedM -= _owedM[minter_].principalOfActive;
         _totalInactiveOwedM += inactiveOwedM_;
 
-        // Adjust total principal of owed M.
-        _totalPrincipalOfActiveOwedM -= _owedM[minter_].principalOfActive;
+        // Set values of minter's OwedM struct.
+        _owedM[minter_] = OwedM({ principalOfActive: 0, inactive: inactiveOwedM_ });
 
-        // Reset reasonable aspects of minter's state.
-        delete _minterStates[minter_];
         delete _mintProposals[minter_];
-        delete _owedM[minter_].principalOfActive;
 
         _minterStates[minter_].wasDeactivated = true;
+        // Set and reset relevant minter state values.
+        _minterStates[minter_].totalPendingRetrievals = 0;
+        _minterStates[minter_].penalizedUntilTimestamp = 0;
+        _minterStates[minter_].isActive = false;
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the
         //       deactivation can result in a new rate, we should update the index here to lock in that rate.
@@ -439,7 +440,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function collateralUpdateOf(address minter_) external view returns (uint40 lastUpdate_) {
+    function collateralUpdateTimestampOf(address minter_) external view returns (uint40 updateTimestamp_) {
         return _minterStates[minter_].updateTimestamp;
     }
 
@@ -492,8 +493,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function unfrozenTimeOf(address minter_) external view returns (uint40 unfrozenTime_) {
-        return _minterStates[minter_].unfrozenTimestamp;
+    function frozenUntilOf(address minter_) external view returns (uint40 frozenUntil_) {
+        return _minterStates[minter_].frozenUntilTimestamp;
     }
 
     /******************************************************************************************************************\
@@ -765,8 +766,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @dev   Reverts if minter is frozen by validator.
      * @param minter_ The address of the minter
      */
-    function _revertIfMinterFrozen(address minter_) internal view {
-        if (block.timestamp < _minterStates[minter_].unfrozenTimestamp) revert FrozenMinter();
+    function _revertIfFrozenMinter(address minter_) internal view {
+        if (block.timestamp < _minterStates[minter_].frozenUntilTimestamp) revert FrozenMinter();
     }
 
     /**
