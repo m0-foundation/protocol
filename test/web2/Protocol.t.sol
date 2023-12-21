@@ -356,11 +356,61 @@ contract ProtocolTest is Test {
         assertEq(_protocol.external_mintNonce(), 0);
     }
 
-    function test_proposeRetrieval() public {}
+    function test_proposeRetrieval_not_active_minter() public {
+        _protocol.setter_isActiveMinter(_aliceAddress, false);
+        vm.expectRevert(IProtocol.InactiveMinter.selector);
+        vm.prank(_aliceAddress);
+        _protocol.proposeRetrieval(1234);
+    }
+
+    function test_proposeRetrieval_undercollateralized() public {
+        _protocol.setter_isActiveMinter(_aliceAddress, true);
+        _setValue(SPOGRegistrarReader.MINT_RATIO, 1);
+        _protocol.setter_collateral(_aliceAddress, 1);
+        _protocol.setter_principalOfActiveOwedM(_aliceAddress, 2); // current amount 100
+        vm.prank(_aliceAddress);
+        vm.expectRevert(abi.encodeWithSelector(IProtocol.Undercollateralized.selector, 2, 0));
+        _protocol.proposeRetrieval(1234);
+    }
+
+    function test_proposeRetrieval_positive() public {
+        _protocol.setter_isActiveMinter(_aliceAddress, true);
+        _setValue(SPOGRegistrarReader.MINT_RATIO, 1);
+        _protocol.setter_collateral(_aliceAddress, 1e10);
+        vm.prank(_aliceAddress);
+        vm.expectEmit(false, true, true, false);
+        emit IProtocol.RetrievalCreated(111, _aliceAddress, 1234);
+        _protocol.proposeRetrieval(1234);
+    }
 
     function test_updateCollateral() public {}
 
-    function test_updateIndex() public {}
+    function test_updateIndex() public {
+        vm.mockCall(
+            _protocolAddress,
+            abi.encodeWithSelector(IContinuousIndexing.currentIndex.selector),
+            abi.encode(1e18)
+        );
+        vm.mockCall(
+            _mTokenAddress,
+            abi.encodeWithSelector(IContinuousIndexing.updateIndex.selector),
+            abi.encode(1e18)
+        );
+
+        _protocol.setter_lastUpdateTimestamp(_aliceAddress, block.timestamp);
+        _protocol.setter_lastUpdateInterval(_aliceAddress, block.timestamp);
+
+        _minterRateModelRate(20);
+        _mTokenTotalSupply(1234);
+        _setValue(SPOGRegistrarReader.MINTER_RATE_MODEL, _minterRateModelAddress);
+        _protocol.setter_totalPrincipalOfActiveOwedM(12345);
+        // TODO: this should also emit Transfer from MToken._mint function but does not
+        // vm.expectEmit(true, true, true, false);
+        // emit IERC20.Transfer(address(0), _vaultAddress, 11111);
+        vm.expectEmit(true, true, false, false);
+        emit IContinuousIndexing.IndexUpdated(1e18, 20);
+        _protocol.updateIndex();
+    }
 
     /******************************************************************************************************************\
     |                                           External View/Pure Functions                                           |
@@ -372,13 +422,57 @@ contract ProtocolTest is Test {
         assertEq(200e18, _protocol.activeOwedMOf(_aliceAddress));
     }
 
-    function test_collateralOf() public {}
+    function test_collateralOf_after_deadline() public {
+        _protocol.setter_lastUpdateTimestamp(_aliceAddress, 0);
+        _protocol.setter_lastUpdateInterval(_aliceAddress, 0);
+        assertEq(_protocol.collateralOf(_aliceAddress), 0);
+    }
 
-    function test_collateralUpdateDeadlineOf() public {}
+    function test_collateralOf() public {
+        _protocol.setter_lastUpdateTimestamp(_aliceAddress, block.timestamp);
+        _protocol.setter_lastUpdateInterval(_aliceAddress, block.timestamp);
+        assertEq(_protocol.collateralOf(_aliceAddress), 0);
+        _protocol.setter_collateral(_aliceAddress, 12345);
+        assertEq(_protocol.collateralOf(_aliceAddress), 12345);
+    }
 
-    function test_excessActiveOwedM() public {}
+    function test_collateralUpdateDeadlineOf() public {
+        _protocol.setter_lastUpdateTimestamp(_aliceAddress, 60);
+        _protocol.setter_lastUpdateInterval(_aliceAddress, 8);
+        assertEq(_protocol.collateralUpdateDeadlineOf(_aliceAddress), 68);
+        assertEq(_protocol.collateralUpdateDeadlineOf(_bobAddress), 0);
+    }
 
-    function test_getMaxAllowedOwedM() public {}
+    function test_excessActiveOwedM_none() public {
+        _mTokenTotalSupply(1234);
+        _protocol.setter_totalPrincipalOfActiveOwedM(123);
+        uint256 result = _protocol.excessActiveOwedM();
+        assertEq(result, 0);
+    }
+
+    function test_excessActiveOwedM() public {
+       _mTokenTotalSupply(1234);
+        _protocol.setter_totalPrincipalOfActiveOwedM(12345);
+        uint256 result = _protocol.excessActiveOwedM();
+        assertEq(result, 11111);
+    }
+
+    function test_getMaxAllowedOwedM_before_deadline() public {
+        _setValue(SPOGRegistrarReader.MINT_RATIO, 10);
+        _protocol.setter_collateral(_aliceAddress, 1.23e5);
+        _protocol.setter_lastUpdateTimestamp(_aliceAddress, 0);
+        _protocol.setter_lastUpdateInterval(_aliceAddress, block.timestamp);
+        assertEq(_protocol.getMaxAllowedOwedM(_aliceAddress), 0);
+    }
+
+    function test_getMaxAllowedOwedM() public {
+        _setValue(SPOGRegistrarReader.MINT_RATIO, 10);
+        _protocol.setter_collateral(_aliceAddress, 1.23e5);
+        _protocol.setter_lastUpdateTimestamp(_aliceAddress, block.timestamp);
+        _protocol.setter_lastUpdateInterval(_aliceAddress, block.timestamp);
+        assertEq(_protocol.getMaxAllowedOwedM(_aliceAddress), 123);
+
+    }
 
     function test_getPenaltyForMissedCollateralUpdates_fixedIndex() public {
         _setValue(SPOGRegistrarReader.PENALTY_RATE, 500); // 5%
