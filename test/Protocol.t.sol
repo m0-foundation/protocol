@@ -692,6 +692,7 @@ contract ProtocolTests is Test {
     function test_burnM_repayHalfOfOutstandingValue() external {
         _protocol.setCollateralOf(_minter1, 1000e18);
         _protocol.setUpdateTimestampOf(_minter1, block.timestamp);
+        _protocol.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
         uint256 principalOfActiveOwedM = 100e18;
 
@@ -1738,6 +1739,181 @@ contract ProtocolTests is Test {
     function test_inactiveOwedMOf() external {
         _protocol.setInactiveOwedMOf(_minter1, 1_000_000);
         assertEq(_protocol.inactiveOwedMOf(_minter1), 1_000_000);
+    }
+
+    function test_getMissedCollateralUpdateParameters_zeroNewUpdateInterval() external {
+        (uint40 missedIntervals_, uint40 missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 365 days, // This does not matter
+            lastUpdate_: uint40(block.timestamp) - 48 hours, // This does not matter
+            lastPenalizedUntil_: uint40(block.timestamp) - 24 hours, // This does not matter
+            newUpdateInterval_: 0
+        });
+
+        assertEq(missedIntervals_, 0);
+        assertEq(missedUntil_, block.timestamp);
+    }
+
+    function test_getMissedCollateralUpdateParameters_newMinter() external {
+        (uint40 missedIntervals_, uint40 missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 0,
+            lastUpdate_: 0,
+            lastPenalizedUntil_: 0,
+            newUpdateInterval_: 24 hours
+        });
+
+        assertEq(missedIntervals_, 0);
+        assertEq(missedUntil_, block.timestamp + 24 hours);
+    }
+
+    function test_getMissedCollateralUpdateParameters_noMissedIntervals() external {
+        uint40 missedIntervals_;
+        uint40 missedUntil_;
+
+        // Minter with no missed intervals according to their last update and last update interval.
+        (missedIntervals_, missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 24 hours,
+            lastUpdate_: uint40(block.timestamp) - 12 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 25 hours,
+            newUpdateInterval_: 4 hours
+        });
+
+        assertEq(missedIntervals_, 0);
+        assertEq(missedUntil_, uint40(block.timestamp) - 12 hours); // lastUpdate_
+
+        // Minter with no missed intervals according to their last update and new update interval.
+        (missedIntervals_, missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 4 hours,
+            lastUpdate_: uint40(block.timestamp) - 12 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 25 hours,
+            newUpdateInterval_: 24 hours
+        });
+
+        assertEq(missedIntervals_, 0);
+        assertEq(missedUntil_, uint40(block.timestamp) - 12 hours); // lastUpdate_
+
+        // Minter with no missed intervals according to their last penalized until and last update interval.
+        (missedIntervals_, missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 24 hours,
+            lastUpdate_: uint40(block.timestamp) - 25 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 12 hours,
+            newUpdateInterval_: 4 hours
+        });
+
+        assertEq(missedIntervals_, 0);
+        assertEq(missedUntil_, uint40(block.timestamp) - 12 hours); // lastPenalizedUntil_
+
+        // Minter with no missed intervals according to their last penalized until and last update interval.
+        (missedIntervals_, missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 4 hours,
+            lastUpdate_: uint40(block.timestamp) - 25 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 12 hours,
+            newUpdateInterval_: 24 hours
+        });
+
+        assertEq(missedIntervals_, 0);
+        assertEq(missedUntil_, uint40(block.timestamp) - 12 hours); // lastPenalizedUntil_
+    }
+
+    function test_getMissedCollateralUpdateParameters_firstMissedIntervals() external {
+        uint40 missedIntervals_;
+        uint40 missedUntil_;
+
+        // Minter with 1 missed interval according to their last update and last update interval.
+        (missedIntervals_, missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 24 hours,
+            lastUpdate_: uint40(block.timestamp) - 25 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 26 hours,
+            newUpdateInterval_: 4 hours
+        });
+
+        assertEq(missedIntervals_, 1);
+        assertEq(missedUntil_, uint40(block.timestamp) - 1 hours); // lastUpdate_ + lastUpdateInterval_
+
+        // Minter with 1 missed interval according to their last update and new update interval.
+        (missedIntervals_, missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 4 hours,
+            lastUpdate_: uint40(block.timestamp) - 25 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 26 hours,
+            newUpdateInterval_: 24 hours
+        });
+
+        assertEq(missedIntervals_, 1);
+        assertEq(missedUntil_, uint40(block.timestamp) - 1 hours); // lastUpdate_ + lastUpdateInterval_
+
+        // Minter with 1 missed interval according to their last penalized until and last update interval.
+        (missedIntervals_, missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 24 hours,
+            lastUpdate_: uint40(block.timestamp) - 26 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 25 hours,
+            newUpdateInterval_: 4 hours
+        });
+
+        assertEq(missedIntervals_, 1);
+        assertEq(missedUntil_, uint40(block.timestamp) - 1 hours); // lastUpdate_ + lastUpdateInterval_
+
+        // Minter with 1 missed interval according to their last penalized until and new update interval.
+        (missedIntervals_, missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 4 hours,
+            lastUpdate_: uint40(block.timestamp) - 26 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 25 hours,
+            newUpdateInterval_: 24 hours
+        });
+
+        assertEq(missedIntervals_, 1);
+        assertEq(missedUntil_, uint40(block.timestamp) - 1 hours); // lastUpdate_ + lastUpdateInterval_
+    }
+
+    function test_getMissedCollateralUpdateParameters_additionalMissedIntervals() external {
+        uint40 missedIntervals_;
+        uint40 missedUntil_;
+
+        // Minter with 1 missed interval according to their last update and last update interval and 1 missed interval
+        // according to the new update interval.
+        (missedIntervals_, missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 24 hours,
+            lastUpdate_: uint40(block.timestamp) - 29 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 30 hours,
+            newUpdateInterval_: 4 hours
+        });
+
+        assertEq(missedIntervals_, 2);
+        assertEq(missedUntil_, uint40(block.timestamp) - 1 hours); // lastUpdate_ + lastUpdateInterval_ + newUpdateInterval_
+
+        // Minter with 1 missed interval according to their last update and new update interval and 1 missed interval
+        // according to the new update interval (effectively, 2 missed intervals according to the new update interval).
+        (missedIntervals_, missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 4 hours,
+            lastUpdate_: uint40(block.timestamp) - 49 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 50 hours,
+            newUpdateInterval_: 24 hours
+        });
+
+        assertEq(missedIntervals_, 2);
+        assertEq(missedUntil_, uint40(block.timestamp) - 1 hours); // lastUpdate_ + lastUpdateInterval_ + newUpdateInterval_
+
+        // Minter with 1 missed interval according to their last penalized until and last update interval and 1 missed
+        // interval according to the new update interval.
+        (missedIntervals_, missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 24 hours,
+            lastUpdate_: uint40(block.timestamp) - 29 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 30 hours,
+            newUpdateInterval_: 4 hours
+        });
+
+        assertEq(missedIntervals_, 2);
+        assertEq(missedUntil_, uint40(block.timestamp) - 1 hours); // lastPenalizedUntil_ + lastUpdateInterval_ + newUpdateInterval_
+
+        // Minter with 1 missed interval according to their last penalized until and new update interval and 1 missed
+        // interval according to the new update interval (effectively, 2 missed intervals according to the new update interval).
+        (missedIntervals_, missedUntil_) = _protocol.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 4 hours,
+            lastUpdate_: uint40(block.timestamp) - 50 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 49 hours,
+            newUpdateInterval_: 24 hours
+        });
+
+        assertEq(missedIntervals_, 2);
+        assertEq(missedUntil_, uint40(block.timestamp) - 1 hours); // lastPenalizedUntil_ + lastUpdateInterval_ + newUpdateInterval_
     }
 
     function _getCollateralUpdateSignature(

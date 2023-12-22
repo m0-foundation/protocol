@@ -39,6 +39,21 @@ contract ProtocolHarness is Protocol {
         return _getPrincipalAmountRoundedUp(amount_);
     }
 
+    function getMissedCollateralUpdateParameters(
+        uint32 lastUpdateInterval_,
+        uint40 lastUpdate_,
+        uint40 lastPenalizedUntil_,
+        uint32 newUpdateInterval_
+    ) external view returns (uint40 missedIntervals_, uint40 missedUntil_) {
+        return
+            _getMissedCollateralUpdateParameters(
+                lastUpdateInterval_,
+                lastUpdate_,
+                lastPenalizedUntil_,
+                newUpdateInterval_
+            );
+    }
+
     /******************************************************************************************************************\
     |                                                     Setters                                                      |
     \******************************************************************************************************************/
