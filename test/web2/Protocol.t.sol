@@ -524,25 +524,75 @@ contract ProtocolTest is Test {
         assertFalse(_protocol.isMinterApprovedByRegistrar(_aliceAddress));
     }
 
-    function test_isValidatorApprovedByRegistrar() public {}
+    function test_isValidatorApprovedByRegistrar() public {
+        _denyList(SPOGRegistrarReader.VALIDATORS_LIST, _aliceAddress);
+        assertFalse(_protocol.isValidatorApprovedByRegistrar(_aliceAddress));
+        _allowList(SPOGRegistrarReader.VALIDATORS_LIST, _aliceAddress);
+        assertTrue(_protocol.isValidatorApprovedByRegistrar(_aliceAddress));
 
-    function test_lastUpdateIntervalOf() public {}
+    }
 
-    function test_lastUpdateOf() public {}
+    function test_lastUpdateIntervalOf() public {
+        assertEq(_protocol.lastUpdateIntervalOf(_aliceAddress), 0);
+        _protocol.setter_lastUpdateInterval(_aliceAddress, 123456);
+        assertEq(_protocol.lastUpdateIntervalOf(_aliceAddress), 123456);
+    }
 
-    function test_mintDelay() public {}
+    function test_lastUpdateOf() public {
+        assertEq(_protocol.lastUpdateOf(_aliceAddress), 0);
+        _protocol.setter_lastUpdateTimestamp(_aliceAddress, 123456);
+        assertEq(_protocol.lastUpdateOf(_aliceAddress), 123456);
+    }
 
-    function test_minterFreezeTime() public {}
+    function test_mintDelay() public {
+        _setValue(SPOGRegistrarReader.MINT_DELAY, 12345);
+        assertEq(_protocol.mintDelay(), 12345);
+    }
 
-    function test_minterRate() public {}
+    function test_minterFreezeTime() public {
+        _setValue(SPOGRegistrarReader.MINTER_FREEZE_TIME, 12345);
+        assertEq(_protocol.minterFreezeTime(), 12345);
+    }
 
-    function test_mintProposalOf() public {}
+    function test_minterRate() public {
+        assertEq(_protocol.minterRate(), 0);
+        _protocol.setter_latestRate(100);
+        assertEq(_protocol.minterRate(), 100);
+    }
 
-    function test_mintRatio() public {}
+    function test_mintProposalOf() public {
+        (uint256 mintId_, address destination_, uint256 amount_, uint256 timestamp_) = _protocol.mintProposalOf(_aliceAddress);
+        assertEq(mintId_, 0);
+        assertEq(destination_, address(0));
+        assertEq(amount_, 0);
+        assertEq(timestamp_, 0);
+        uint256 mintId = _protocol.setter_mintProposals(_aliceAddress, 1234, 1234567, _aliceAddress);
+        (mintId_, destination_, amount_, timestamp_) = _protocol.mintProposalOf(_aliceAddress);
+        assertEq(mintId_, mintId);
+        assertEq(destination_, _aliceAddress);
+        assertEq(amount_, 1234);
+        assertEq(timestamp_, 1234567);
+    }
 
-    function test_mintTTL() public {}
+    function test_mintRatio() public {
+        _setValue(SPOGRegistrarReader.MINT_RATIO, 12);
+        assertEq(_protocol.mintRatio(), 12);
+    }
 
-    function test_penalizedUntilOf() public {}
+    function test_mintTTL() public {
+        _setValue(SPOGRegistrarReader.MINT_TTL, 12345);
+        assertEq(_protocol.mintTTL(), 12345);
+    }
+
+    function test_penalizedUntilOf() public {
+        (uint256 penaltyBase_, uint256 penalizedUntil_) = _protocol
+            .external_getPenaltyBaseAndTimeForMissedCollateralUpdates(_aliceAddress);
+        assertEq(penalizedUntil_, 0);
+        _protocol.setter_penalizedUntilTimestamp(_aliceAddress, 1234567); // last penalized on day 12
+        (penaltyBase_, penalizedUntil_) = _protocol
+            .external_getPenaltyBaseAndTimeForMissedCollateralUpdates(_aliceAddress);
+        assertEq(penalizedUntil_, 1234567);
+    }
 
     function test_penaltyRate() public {
         _setValue(SPOGRegistrarReader.PENALTY_RATE, 123);
