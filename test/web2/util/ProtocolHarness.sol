@@ -131,7 +131,7 @@ contract ProtocolHarness is Protocol {
         createdAt_ = _mintProposals[minter_].createdAt;
     }
 
-    function external_mintNonce() external view returns(uint256 _mintNonce) {
+    function external_mintNonce() external view returns(uint256 mintNonce_) {
         return _mintNonce;
     }
 

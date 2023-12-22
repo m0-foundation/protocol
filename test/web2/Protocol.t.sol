@@ -352,8 +352,7 @@ contract ProtocolTest is Test {
         assertEq(destination_, _aliceAddress);
         assertEq(amount_, 123);
         assertEq(timestamp_, block.timestamp);
-        // TODO: weird, mintNonce remains 0, possible bug?
-        assertEq(_protocol.external_mintNonce(), 0);
+        assertEq(_protocol.external_mintNonce(), 1);
     }
 
     function test_proposeRetrieval_not_active_minter() public {
@@ -404,11 +403,6 @@ contract ProtocolTest is Test {
         _mTokenTotalSupply(1234);
         _setValue(SPOGRegistrarReader.MINTER_RATE_MODEL, _minterRateModelAddress);
         _protocol.setter_totalPrincipalOfActiveOwedM(12345);
-        // TODO: this should also emit Transfer from MToken._mint function but does not
-        // vm.expectEmit(true, true, true, false);
-        // emit IERC20.Transfer(address(0), _vaultAddress, 11111);
-        vm.expectEmit(true, true, false, false);
-        emit IContinuousIndexing.IndexUpdated(1e18, 20);
         _protocol.updateIndex();
     }
 
