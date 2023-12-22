@@ -2,8 +2,10 @@
 
 pragma solidity 0.8.23;
 
-import { SignatureChecker } from "../lib/common/src/SignatureChecker.sol";
-import { ERC712 } from "../lib/common/src/ERC712.sol";
+import { SignatureChecker } from "../lib/common/src/libs/SignatureChecker.sol";
+import { ERC712 } from "../lib/common/src/libs/ERC712.sol";
+
+import { ERC712Domain } from "../lib/common/src/ERC712Domain.sol";
 
 import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
 import { UIntMath } from "./libs/UIntMath.sol";
@@ -25,7 +27,7 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
  * @notice Core protocol of M^ZERO ecosystem.
            Minting Gateway of M Token for all approved by SPOG and activated minters.
  */
-contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
+contract Protocol is IProtocol, ContinuousIndexing, ERC712Domain {
     struct MintProposal {
         // 1st slot
         uint48 id;
@@ -126,7 +128,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @param  spogRegistrar_ The address of the SPOG Registrar contract.
      * @param  mToken_        The address of the M Token.
      */
-    constructor(address spogRegistrar_, address mToken_) ContinuousIndexing() ERC712("Protocol") {
+    constructor(address spogRegistrar_, address mToken_) ContinuousIndexing() ERC712Domain("Protocol") {
         if ((spogRegistrar = spogRegistrar_) == address(0)) revert ZeroSpogRegistrar();
         if ((spogVault = SPOGRegistrarReader.getVault(spogRegistrar_)) == address(0)) revert ZeroSpogVault();
         if ((mToken = mToken_) == address(0)) revert ZeroMToken();
@@ -741,7 +743,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint256 timestamp_
     ) internal view returns (bytes32) {
         return
-            _getDigest(
+            ERC712.getDigest(
+                DOMAIN_SEPARATOR(),
                 keccak256(
                     abi.encode(
                         UPDATE_COLLATERAL_TYPEHASH,
