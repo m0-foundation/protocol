@@ -19,6 +19,8 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 // TODO: Consider `totalPendingCollateralRetrievalOf` or `totalCollateralPendingRetrievalOf`.
 // TODO: Consider `totalResolvedCollateralRetrieval` or `totalCollateralRetrievalResolved`.
 // TODO: Evaluate the gas savings across protocol of an `activateValidator`/`deactivateValidator`.
+// TODO: Test penalize until and deadline stuff entirely separately.
+// TODO: Handle in-flight issue with deactivation and pending retrievals.
 
 /**
  * @title Protocol
@@ -365,7 +367,6 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         delete _mintProposals[minter_];
 
         // Set and reset relevant minter state values.
-        _minterStates[minter_].totalPendingRetrievals = 0;
         _minterStates[minter_].penalizedUntilTimestamp = 0;
         _minterStates[minter_].lowestValidRetrievalId = _retrievalNonce + 1;
         _minterStates[minter_].isActive = false;
@@ -474,6 +475,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @inheritdoc IProtocol
     function lastCollateralUpdateIntervalOf(address minter_) external view returns (uint32 lastUpdateInterval_) {
         return _minterStates[minter_].lastUpdateInterval;
+    }
+
+    /// @inheritdoc IProtocol
+    function lowestValidRetrievalIdOf(address minter_) external view returns (uint48 lowestValidRetrievalId_) {
+        return _minterStates[minter_].lowestValidRetrievalId;
     }
 
     /// @inheritdoc IProtocol

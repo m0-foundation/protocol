@@ -35,6 +35,10 @@ contract ProtocolHarness is Protocol {
         return _totalPrincipalOfActiveOwedM;
     }
 
+    function getPrincipalAmountRoundedUp(uint128 amount_) external view returns (uint128 principalAmount_) {
+        return _getPrincipalAmountRoundedUp(amount_);
+    }
+
     /******************************************************************************************************************\
     |                                                     Setters                                                      |
     \******************************************************************************************************************/
@@ -103,5 +107,13 @@ contract ProtocolHarness is Protocol {
 
     function setLatestRate(uint256 rate_) external {
         _latestRate = uint32(rate_);
+    }
+
+    function setRetrievalNonce(uint256 nonce_) external {
+        _retrievalNonce = uint48(nonce_);
+    }
+
+    function setLowestValidRetrievalIdOf(address minter_, uint256 retrievalId_) external {
+        _minterStates[minter_].lowestValidRetrievalId = uint48(retrievalId_);
     }
 }

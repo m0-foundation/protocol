@@ -303,6 +303,9 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The length of the last collateral interval for minter in case SPOG changes this parameter.
     function lastCollateralUpdateIntervalOf(address minter) external view returns (uint32);
 
+    /// @notice The lowest retrieval id that can be considered valid for `minter`.
+    function lowestValidRetrievalIdOf(address minter_) external view returns (uint48);
+
     /// @notice The timestamp until which minter is already penalized for missed collateral updates.
     function penalizedUntilOf(address minter) external view returns (uint40);
 
