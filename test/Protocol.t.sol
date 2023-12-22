@@ -1254,7 +1254,6 @@ contract ProtocolTests is Test {
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 1_000_000);
         _protocol.setTotalPendingRetrievalsOf(_minter1, 500_000);
         _protocol.setPenalizedUntilOf(_minter1, block.timestamp - 4 hours);
-        _protocol.setLowestValidRetrievalIdOf(_minter1, 10);
 
         _protocol.setTotalPrincipalOfActiveOwedM(1_000_000);
         _protocol.setLatestIndex(ContinuousIndexingMath.EXP_SCALED_ONE + ContinuousIndexingMath.EXP_SCALED_ONE / 10);
@@ -1277,7 +1276,6 @@ contract ProtocolTests is Test {
         assertEq(_protocol.inactiveOwedMOf(_minter1), 1_100_000);
         assertEq(_protocol.totalPendingCollateralRetrievalsOf(_minter1), 500_000);
         assertEq(_protocol.penalizedUntilOf(_minter1), 0);
-        assertEq(_protocol.lowestValidRetrievalIdOf(_minter1), 21);
 
         assertEq(_protocol.totalPrincipalOfActiveOwedM(), 0);
         assertEq(_protocol.totalInactiveOwedM(), 1_100_000);

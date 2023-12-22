@@ -19,7 +19,6 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 // TODO: Consider `totalPendingCollateralRetrievalOf` or `totalCollateralPendingRetrievalOf`.
 // TODO: Consider `totalResolvedCollateralRetrieval` or `totalCollateralRetrievalResolved`.
 // TODO: Evaluate the gas savings across protocol of an `activateValidator`/`deactivateValidator`.
-// TODO: Handle in-flight issue with deactivation and pending retrievals.
 // TODO: A change in `penaltyRate()` can retroactively change minters more.
 // TODO: Consider maximum decrease in collateral update interval from last update interval.
 
@@ -48,7 +47,6 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint40 updateTimestamp;
         uint40 penalizedUntilTimestamp;
         uint40 frozenUntilTimestamp;
-        uint48 lowestValidRetrievalId;
         bool isActive;
     }
 
@@ -355,7 +353,6 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         // Set and reset relevant minter state values.
         _minterStates[minter_].penalizedUntilTimestamp = 0;
-        _minterStates[minter_].lowestValidRetrievalId = _retrievalNonce + 1;
         _minterStates[minter_].isActive = false;
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the
@@ -462,11 +459,6 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @inheritdoc IProtocol
     function lastCollateralUpdateIntervalOf(address minter_) external view returns (uint32 lastUpdateInterval_) {
         return _minterStates[minter_].lastUpdateInterval;
-    }
-
-    /// @inheritdoc IProtocol
-    function lowestValidRetrievalIdOf(address minter_) external view returns (uint48 lowestValidRetrievalId_) {
-        return _minterStates[minter_].lowestValidRetrievalId;
     }
 
     /// @inheritdoc IProtocol

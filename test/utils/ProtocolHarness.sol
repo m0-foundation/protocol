@@ -127,8 +127,4 @@ contract ProtocolHarness is Protocol {
     function setRetrievalNonce(uint256 nonce_) external {
         _retrievalNonce = uint48(nonce_);
     }
-
-    function setLowestValidRetrievalIdOf(address minter_, uint256 retrievalId_) external {
-        _minterStates[minter_].lowestValidRetrievalId = uint48(retrievalId_);
-    }
 }
