@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.23;
 
-import { IERC712Domain } from "../../lib/common/src/interfaces/IERC712Domain.sol";
+import { IERC712 } from "../../lib/common/src/interfaces/IERC712.sol";
 
 import { IProtocol } from "../../src/interfaces/IProtocol.sol";
 
@@ -23,7 +23,7 @@ library DigestHelper {
     }
 
     function getUpdateCollateralDigest(address protocol, bytes32 internalDigest) public view returns (bytes32 digest_) {
-        return keccak256(abi.encodePacked("\x19\x01", IERC712Domain(protocol).DOMAIN_SEPARATOR(), internalDigest));
+        return keccak256(abi.encodePacked("\x19\x01", IERC712(protocol).DOMAIN_SEPARATOR(), internalDigest));
     }
 
     function getUpdateCollateralInternalDigest(

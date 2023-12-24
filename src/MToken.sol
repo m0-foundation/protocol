@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.23;
 
-import { ERC20Permit } from "../lib/common/src/ERC20Permit.sol";
+import { ERC20Extended } from "../lib/common/src/ERC20Extended.sol";
 
 import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 
@@ -21,7 +21,7 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
  * @author M^ZERO LABS_
  * @notice ERC20 M Token.
  */
-contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
+contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     struct MBalance {
         bool isEarning;
         bool hasOptedOutOfEarning;
@@ -54,7 +54,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
      * @param  spogRegistrar_ The address of the SPOG Registrar contract.
      * @param  protocol_      The address of Protocol.
      */
-    constructor(address spogRegistrar_, address protocol_) ContinuousIndexing() ERC20Permit("M Token", "M", 6) {
+    constructor(address spogRegistrar_, address protocol_) ContinuousIndexing() ERC20Extended("M Token", "M", 6) {
         spogRegistrar = spogRegistrar_;
         protocol = protocol_;
     }
