@@ -14,7 +14,7 @@ import { IMToken } from "./interfaces/IMToken.sol";
 import { IProtocol } from "./interfaces/IProtocol.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
-import { ContinuousIndexing } from "./ContinuousIndexing.sol";
+import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 
 // TODO: Revisit storage slot and struct ordering once accurate gas reporting is achieved.
 // TODO: Consider `totalPendingCollateralRetrievalOf` or `totalCollateralPendingRetrievalOf`.
