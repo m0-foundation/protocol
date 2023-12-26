@@ -45,7 +45,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint40 penalizedUntilTimestamp;
         uint40 unfrozenTimestamp;
         bool isActive;
-        bool wasDeactivated;
+        bool isDeactivated;
     }
 
     struct OwedM {
@@ -316,7 +316,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @inheritdoc IProtocol
     function activateMinter(address minter_) external {
         if (!isMinterApprovedBySPOG(minter_)) revert NotApprovedMinter();
-        if (_minterStates[minter_].wasDeactivated) revert DeactivatedMinter();
+        if (_minterStates[minter_].isDeactivated) revert DeactivatedMinter();
 
         _minterStates[minter_].isActive = true;
 
@@ -345,7 +345,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         delete _mintProposals[minter_];
         delete _owedM[minter_].principalOfActive;
 
-        _minterStates[minter_].wasDeactivated = true;
+        _minterStates[minter_].isDeactivated = true;
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the
         //       deactivation can result in a new rate, we should update the index here to lock in that rate.
@@ -409,6 +409,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @inheritdoc IProtocol
     function isActiveMinter(address minter_) external view returns (bool isActive_) {
         return _minterStates[minter_].isActive;
+    }
+
+    /// @inheritdoc IProtocol
+    function isDeactivatedMinter(address minter_) external view returns (bool isDeactivated_) {
+        return _minterStates[minter_].isDeactivated;
     }
 
     /// @inheritdoc IProtocol
