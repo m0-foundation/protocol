@@ -4,6 +4,7 @@ pragma solidity 0.8.23;
 
 import { IContinuousIndexing } from "./IContinuousIndexing.sol";
 
+/// @title Protocol Interface.
 interface IProtocol is IContinuousIndexing {
     /******************************************************************************************************************\
     |                                                      Errors                                                      |
