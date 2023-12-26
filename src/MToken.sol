@@ -25,7 +25,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     struct MBalance {
         bool isEarning;
         bool hasOptedOutOfEarning;
-        uint128 rawBalance;
+        uint128 rawBalance; // the principal balance + any accrued interest
     }
 
     /// @inheritdoc IMToken
@@ -43,6 +43,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /// @notice The balance of M for non-earner or principal of earning M balance for earners.
     mapping(address account => MBalance balance) internal _balances;
 
+    /// @dev Modifier to check if caller is protocol.
     modifier onlyProtocol() {
         if (msg.sender != protocol) revert NotProtocol();
 
@@ -323,7 +324,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
         // If this is an in-kind transfer, then...
         if (senderIsEarning_ == _balances[recipient_].isEarning) {
-            // NOTE: When subtracting a present value from an earner, round the principal up in favor of the protocol.
+            // NOTE: When subtracting a present amount from an earner, round the principal up in favor of the protocol.
             return
                 _transferAmountInKind( // perform an in-kind transfer with...
                     sender_,
@@ -335,12 +336,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         // If this is not an in-kind transfer, then...
         if (senderIsEarning_) {
             // either the sender is earning and the recipient is not, or...
-            // NOTE: When subtracting a present value from an earner, round the principal up in favor of the protocol.
+            // NOTE: When subtracting a present amount from an earner, round the principal up in favor of the protocol.
             _subtractEarningAmount(sender_, _getPrincipalAmountRoundedUp(safeAmount_));
             _addNonEarningAmount(recipient_, safeAmount_);
         } else {
             // the sender is not earning and the recipient is.
-            // NOTE: When adding a present value to an earner, round the principal down in favor of the protocol.
+            // NOTE: When adding a present amount to an earner, round the principal down in favor of the protocol.
             _subtractNonEarningAmount(sender_, safeAmount_);
             _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(safeAmount_));
         }
@@ -367,18 +368,18 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     \******************************************************************************************************************/
 
     /**
-     * @dev   Returns the present value (rounded down) given the principal value, using the current index.
-     *        All present values are rounded down in favor of the protocol.
-     * @param principalAmount_ The principal value.
+     * @dev   Returns the present amount (rounded down) given the principal amount, using the current index.
+     *        All present amounts are rounded down in favor of the protocol.
+     * @param principalAmount_ The principal amount.
      */
     function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128 amount_) {
         return _getPresentAmount(principalAmount_, currentIndex());
     }
 
     /**
-     * @dev   Returns the present value (rounded down) given the principal value and an index.
-     *        All present values are rounded down in favor of the protocol, since they are assets.
-     * @param principalAmount_ The principal value.
+     * @dev   Returns the present amount (rounded down) given the principal amount and an index.
+     *        All present amounts are rounded down in favor of the protocol, since they are assets.
+     * @param principalAmount_ The principal amount.
      * @param index_           An index
      */
     function _getPresentAmount(uint128 principalAmount_, uint128 index_) internal pure returns (uint128 amount_) {
