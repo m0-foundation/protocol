@@ -1208,8 +1208,12 @@ contract ProtocolTests is Test {
         assertEq(totalActiveOwedM, activeOwedM);
         assertEq(totalOwedM, totalActiveOwedM);
 
+        assertEq(_protocol.isDeactivatedMinter(_minter1), false);
+
         vm.prank(_alice);
         _protocol.deactivateMinter(_minter1);
+
+        assertEq(_protocol.isDeactivatedMinter(_minter1), true);
 
         totalInactiveOwedM = _protocol.totalInactiveOwedM();
         totalActiveOwedM = _protocol.totalActiveOwedM();

@@ -317,6 +317,9 @@ interface IProtocol is IContinuousIndexing {
     /// @notice Checks if minter was activated after approval by SPOG
     function isActiveMinter(address minter) external view returns (bool);
 
+    /// @notice Checks if minter was deactivated after removal by SPOG
+    function isDeactivatedMinter(address minter) external view returns (bool);
+
     /// @notice Checks if minter was approved by SPOG
     function isMinterApprovedBySPOG(address minter) external view returns (bool);
 
