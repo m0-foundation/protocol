@@ -51,6 +51,15 @@ contract ProtocolHarness is Protocol {
         _totalPrincipalOfActiveOwedM += uint128(amount_);
     }
 
+    function setInactiveOwedMOf(address minter_, uint256 amount_) external {
+        _owedM[minter_].inactive = uint128(amount_);
+        _totalInactiveOwedM += uint128(amount_);
+    }
+
+    function setTotalPrincipalOfActiveOwedM(uint256 amount_) external {
+        _totalPrincipalOfActiveOwedM = uint128(amount_);
+    }
+
     function setTotalPendingRetrievalsOf(address minter_, uint256 amount_) external {
         _minterStates[minter_].totalPendingRetrievals = uint128(amount_);
     }
