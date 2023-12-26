@@ -27,19 +27,17 @@ contract Handler is CommonBase, StdCheats, StdUtils {
     MTokenHarness internal _mToken;
     MockSPOGRegistrar internal _spogRegistrar;
 
-    address[] public minters;
-
-    uint256 public numCalls;
-    uint256 public activeMinters;
+    uint256 internal constant _MAX_MINTERS_NUM = 256;
+    address[] internal _minters;
+    uint256 internal _numMinters;
 
     /// @dev Simulates the passage of time. The time jump is upper bounded so that streams don't settle too quickly.
     /// See https://github.com/foundry-rs/foundry/issues/4994.
     /// @param timeJumpSeed_ A fuzzed value needed for generating random time warps.
     modifier adjustTimestamp(uint256 timeJumpSeed_) {
-        uint256 timeJump_ = bound(timeJumpSeed_, 1 seconds, 1 days);
+        uint256 timeJump_ = bound(timeJumpSeed_, 2 minutes, 10 days);
         console2.log("Time jump = ", timeJump_);
         _timestampStore.increaseCurrentTimestamp(timeJump_);
-        // _timestampStore.increaseCurrentTimestamp(timeJump_);
         vm.warp(_timestampStore.currentTimestamp());
         _;
     }
@@ -61,10 +59,9 @@ contract Handler is CommonBase, StdCheats, StdUtils {
         _protocol = protocol_;
         _mToken = mToken_;
         _spogRegistrar = spogRegistrar_;
-        _timestampStore = new TimestampStore();
-        // _timestampStore = timestampStore_;
+        _timestampStore = timestampStore_;
 
-        minters = new address[](256);
+        _minters = new address[](_MAX_MINTERS_NUM);
     }
 
     function updateMinterRate(uint256 timeJumpSeed, uint32 rate_) external adjustTimestamp(timeJumpSeed) {
@@ -84,8 +81,7 @@ contract Handler is CommonBase, StdCheats, StdUtils {
         address minter_,
         uint128 principal_
     ) external adjustTimestamp(timeJumpSeed) checkUser(minter_) {
-        // vm.assume(principal_ <= type(uint128).max / 100);
-        if (activeMinters == 256) return;
+        if (_numMinters == _MAX_MINTERS_NUM) return;
 
         principal_ = uint128(bound(principal_, 1, 1e15));
 
@@ -96,8 +92,7 @@ contract Handler is CommonBase, StdCheats, StdUtils {
 
         _protocol.setPrincipalOfActiveOwedMOf(minter_, principal_);
 
-        minters[activeMinters] = minter_;
-        activeMinters = activeMinters + 1;
+        _minters[_numMinters++] = minter_;
 
         _protocol.updateIndex();
     }
@@ -107,7 +102,7 @@ contract Handler is CommonBase, StdCheats, StdUtils {
         address earner_,
         uint128 principal_
     ) external adjustTimestamp(timeJumpSeed) checkUser(earner_) {
-        uint256 maxPrincipal_ = ContinuousIndexingMath.divide(
+        uint256 maxPrincipal_ = ContinuousIndexingMath.divideDown(
             (_protocol.totalOwedM() - uint128(_mToken.totalSupply())),
             _mToken.latestIndex()
         );
@@ -142,10 +137,10 @@ contract Handler is CommonBase, StdCheats, StdUtils {
     }
 
     function deactivateMinter(uint256 timeJumpSeed, uint256 minterIndexSeed_) external adjustTimestamp(timeJumpSeed) {
-        if (activeMinters == 0) return;
+        if (_numMinters == 0) return;
 
-        uint256 minterIndex_ = bound(minterIndexSeed_, 0, activeMinters - 1);
-        address minter_ = minters[minterIndex_];
+        uint256 minterIndex_ = bound(minterIndexSeed_, 0, _numMinters - 1);
+        address minter_ = _minters[minterIndex_];
 
         if (!_protocol.isActiveMinter(minter_)) return;
 
@@ -166,18 +161,18 @@ contract Handler is CommonBase, StdCheats, StdUtils {
         uint256 maxAmount_
     ) external adjustTimestamp(timeJumpSeed) {
         maxAmount_ = uint128(bound(maxAmount_, 1, 1e15));
-        address minter_ = minters[bound(minterIndexSeed_, 0, activeMinters - 1)];
+        address minter_ = _minters[bound(minterIndexSeed_, 0, _numMinters - 1)];
 
         // _printMinters();
-        // console2.log("active minters = ", activeMinters);
         console2.log("Burning %s M from minter %s at %s", maxAmount_, minter_, block.timestamp);
 
-        // _protocol.burnM(minter_, maxAmount_);
+        // TODO min M to user
+        _protocol.burnM(minter_, maxAmount_);
     }
 
     function _printMinters() internal {
-        for (uint256 i = 0; i < activeMinters; i++) {
-            console2.log("minter %s = %s", i, minters[i]);
+        for (uint256 i = 0; i < _numMinters; i++) {
+            console2.log("minter %s = %s", i, _minters[i]);
         }
     }
 }
@@ -237,8 +232,8 @@ contract Protocol_Handler_Based_Invariant_Tests is Test {
     }
 
     function invariant_main() public {
-        assertTrue(Invariants.checkInvariant1(address(_protocol), address(_mToken)), "Invariant 1");
+        assertTrue(Invariants.checkInvariant1(address(_protocol), address(_mToken)), "total owed M >= total supply");
         _protocol.updateIndex();
-        assertTrue(Invariants.checkInvariant2(address(_protocol), address(_mToken)), "Invariant 2");
+        assertTrue(Invariants.checkInvariant2(address(_protocol), address(_mToken)), "total owed M = total supply");
     }
 }

@@ -64,7 +64,7 @@ contract FuzzTests is Test {
         assertEq(_protocol.mToken(), address(_mToken));
     }
 
-    function testFuzz_basic(
+    function testFuzz_earnerRateGreaterThanMinterRate(
         uint256 minterRate,
         uint256 earnerRate,
         uint128 minterPrincipal,
@@ -77,6 +77,7 @@ contract FuzzTests is Test {
         earnerPrincipal = uint128(bound(earnerPrincipal, 1e6, type(uint128).max / 100));
         timeElapsed = bound(timeElapsed, 10, 5 * 24 * 60 * 60); // [10, 5 days]
 
+        // Stress test protocol - earner rate > minter rate
         vm.assume(earnerRate > minterRate);
         vm.assume(minterPrincipal >= earnerPrincipal);
 
@@ -88,35 +89,25 @@ contract FuzzTests is Test {
         _mToken.setTotalPrincipalOfEarningSupply(earnerPrincipal);
         _mToken.setIsEarning(_earner1, true);
 
-        assertTrue(Invariants.checkInvariant1(address(_protocol), address(_mToken)), "Invariant 1 failed");
-
-        _protocol.updateIndex();
-
-        assertTrue(Invariants.checkInvariant2(address(_protocol), address(_mToken)), "Invariant 2 failed");
+        _checkMainInvariant();
 
         vm.warp(block.timestamp + timeElapsed);
 
-        assertTrue(Invariants.checkInvariant1(address(_protocol), address(_mToken)), "Invariant 1 Failed.");
-        _protocol.updateIndex();
-        assertTrue(Invariants.checkInvariant2(address(_protocol), address(_mToken)), "Invariant 2 Failed.");
+        _checkMainInvariant();
 
         vm.warp(block.timestamp + timeElapsed / 2);
 
         _spogRegistrar.updateConfig(SPOGRegistrarReader.BASE_MINTER_RATE, minterRate / 2);
         _spogRegistrar.updateConfig(SPOGRegistrarReader.BASE_EARNER_RATE, earnerRate * 2);
 
-        assertTrue(Invariants.checkInvariant1(address(_protocol), address(_mToken)), "Invariant 1 Failed.");
-        _protocol.updateIndex();
-        assertTrue(Invariants.checkInvariant2(address(_protocol), address(_mToken)), "Invariant 2 Failed.");
+        _checkMainInvariant();
 
         vm.warp(block.timestamp + timeElapsed);
 
-        assertTrue(Invariants.checkInvariant1(address(_protocol), address(_mToken)), "Invariant 1 Failed.");
-        _protocol.updateIndex();
-        assertTrue(Invariants.checkInvariant2(address(_protocol), address(_mToken)), "Invariant 2 Failed.");
+        _checkMainInvariant();
     }
 
-    function testFuzz_removeMinter(
+    function testFuzz_deactivateMinter(
         uint256 minterRate,
         uint256 earnerRate,
         uint128 minterPrincipal1,
@@ -144,23 +135,25 @@ contract FuzzTests is Test {
         _mToken.setInternalBalanceOf(_earner1, earnerPrincipal);
         _mToken.setIsEarning(_earner1, true);
 
-        assertTrue(Invariants.checkInvariant1(address(_protocol), address(_mToken)), "Invariant is not set 1");
-        _protocol.updateIndex();
-        assertTrue(Invariants.checkInvariant2(address(_protocol), address(_mToken)), "Invariant is not set 1");
+        _checkMainInvariant();
 
         vm.warp(block.timestamp + timeElapsed);
 
-        assertTrue(Invariants.checkInvariant1(address(_protocol), address(_mToken)), "Invariant is not set 1.1");
+        assertTrue(Invariants.checkInvariant1(address(_protocol), address(_mToken)), "owed M > total supply");
 
         _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
         IProtocol(_protocol).deactivateMinter(_minter1);
 
-        assertTrue(Invariants.checkInvariant2(address(_protocol), address(_mToken)), "Invariant is not set 2.1");
+        assertTrue(Invariants.checkInvariant2(address(_protocol), address(_mToken)), "owed M == total supply");
 
         vm.warp(block.timestamp + timeElapsed);
 
-        assertTrue(Invariants.checkInvariant1(address(_protocol), address(_mToken)), "Invariant is not set 2.2");
+        _checkMainInvariant();
+    }
+
+    function _checkMainInvariant() internal {
+        assertTrue(Invariants.checkInvariant1(address(_protocol), address(_mToken)), "owed M > total supply");
         _protocol.updateIndex();
-        assertTrue(Invariants.checkInvariant2(address(_protocol), address(_mToken)), "Invariant is not set 3");
+        assertTrue(Invariants.checkInvariant2(address(_protocol), address(_mToken)), "owed M == total supply");
     }
 }
