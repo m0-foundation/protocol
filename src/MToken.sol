@@ -12,7 +12,7 @@ import { UIntMath } from "./libs/UIntMath.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
-import { ContinuousIndexing } from "./ContinuousIndexing.sol";
+import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 
 // TODO: Consider an socially/optically "safer" `burn` via `burn(uint amount_)` where the account is `msg.sender`.
 
