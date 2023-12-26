@@ -58,7 +58,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     |                                                    Variables                                                     |
     \******************************************************************************************************************/
 
-    uint16 public constant ONE = 10_000; // 100% in basis points.
+    /// @dev 100% in basis points.
+    uint16 public constant ONE = 10_000;
 
     // keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadataHash,uint256 timestamp)")
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
@@ -257,8 +258,12 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         // Adjust principal of active owed M for minter.
         // NOTE: When minting a present amount, round the principal up in favor of the protocol.
         uint128 principalAmount_ = _getPrincipalAmountRoundedUp(amount_);
-        _owedM[msg.sender].principalOfActive += principalAmount_;
         _totalPrincipalOfActiveOwedM += principalAmount_;
+
+        // NOTE: unchecked is used here since `_totalPrincipalOfActiveOwedM` would overflow first.
+        unchecked {
+            _owedM[msg.sender].principalOfActive += principalAmount_;
+        }
 
         IMToken(mToken).mint(destination_, amount_);
 
@@ -335,8 +340,12 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         emit MinterDeactivated(minter_, inactiveOwedM_, msg.sender);
 
-        _owedM[minter_].inactive += inactiveOwedM_;
         _totalInactiveOwedM += inactiveOwedM_;
+
+        // NOTE: unchecked is used here since `_totalInactiveOwedM` would overflow first.
+        unchecked {
+            _owedM[minter_].inactive += inactiveOwedM_;
+        }
 
         // Adjust total principal of owed M.
         _totalPrincipalOfActiveOwedM -= _owedM[minter_].principalOfActive;
@@ -378,47 +387,53 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /// @inheritdoc IProtocol
-    function totalActiveOwedM() public view returns (uint128 totalActiveOwedM_) {
+    function totalActiveOwedM() public view returns (uint128) {
         return _getPresentAmount(_totalPrincipalOfActiveOwedM);
     }
 
     /// @inheritdoc IProtocol
-    function totalInactiveOwedM() public view returns (uint128 totalInactiveOwedM_) {
+    function totalInactiveOwedM() public view returns (uint128) {
         return _totalInactiveOwedM;
     }
 
     /// @inheritdoc IProtocol
-    function totalOwedM() public view returns (uint128 totalOwedM_) {
+    function totalOwedM() public view returns (uint128) {
         return totalActiveOwedM() + totalInactiveOwedM();
     }
 
     /// @inheritdoc IProtocol
-    function excessOwedM() public view returns (uint128 excessOwedM_) {
+    function excessOwedM() public view returns (uint128) {
         // TODO: Consider dropping this safe cast since if the total M supply is greater than 2^128, there are bigger
         //       issues, but also because reverts here bricks `updateIndex()`, which bricks everything else.
         uint128 totalMSupply_ = UIntMath.safe128(IMToken(mToken).totalSupply());
         uint128 totalOwedM_ = totalOwedM();
 
-        if (totalOwedM_ > totalMSupply_) return totalOwedM_ - totalMSupply_;
+        if (totalOwedM_ > totalMSupply_) {
+            unchecked {
+                return totalOwedM_ - totalMSupply_;
+            }
+        }
+
+        return 0;
     }
 
     /// @inheritdoc IProtocol
-    function minterRate() external view returns (uint32 minterRate_) {
+    function minterRate() external view returns (uint32) {
         return _latestRate;
     }
 
     /// @inheritdoc IProtocol
-    function isActiveMinter(address minter_) external view returns (bool isActive_) {
+    function isActiveMinter(address minter_) external view returns (bool) {
         return _minterStates[minter_].isActive;
     }
 
     /// @inheritdoc IProtocol
-    function isDeactivatedMinter(address minter_) external view returns (bool isDeactivated_) {
+    function isDeactivatedMinter(address minter_) external view returns (bool) {
         return _minterStates[minter_].isDeactivated;
     }
 
     /// @inheritdoc IProtocol
-    function activeOwedMOf(address minter_) public view returns (uint128 activeOwedM_) {
+    function activeOwedMOf(address minter_) public view returns (uint128) {
         // TODO: This should also include the present value of unavoidable penalities. But then it would be very, if not
         //       impossible, to determine the `totalActiveOwedM` to the same standards. Perhaps we need a `penaltiesOf`
         //       external function to provide the present value of unavoidable penalities.
@@ -426,17 +441,17 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function maxAllowedActiveOwedMOf(address minter_) public view returns (uint128 maxAllowedOwedM_) {
+    function maxAllowedActiveOwedMOf(address minter_) public view returns (uint128) {
         return (collateralOf(minter_) * mintRatio()) / ONE;
     }
 
     /// @inheritdoc IProtocol
-    function inactiveOwedMOf(address minter_) external view returns (uint128 inactiveOwedM_) {
+    function inactiveOwedMOf(address minter_) external view returns (uint128) {
         return _owedM[minter_].inactive;
     }
 
     /// @inheritdoc IProtocol
-    function collateralOf(address minter_) public view returns (uint128 collateral_) {
+    function collateralOf(address minter_) public view returns (uint128) {
         // If collateral was not updated before deadline, assume that minter's collateral is zero.
         return
             block.timestamp < collateralUpdateDeadlineOf(minter_)
@@ -445,27 +460,27 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function collateralUpdateOf(address minter_) external view returns (uint40 lastUpdate_) {
+    function collateralUpdateOf(address minter_) external view returns (uint40) {
         return _minterStates[minter_].updateTimestamp;
     }
 
     /// @inheritdoc IProtocol
-    function collateralUpdateDeadlineOf(address minter_) public view returns (uint40 updateDeadline_) {
+    function collateralUpdateDeadlineOf(address minter_) public view returns (uint40) {
         return _minterStates[minter_].updateTimestamp + _minterStates[minter_].lastUpdateInterval;
     }
 
     /// @inheritdoc IProtocol
-    function lastCollateralUpdateIntervalOf(address minter_) external view returns (uint32 lastUpdateInterval_) {
+    function lastCollateralUpdateIntervalOf(address minter_) external view returns (uint32) {
         return _minterStates[minter_].lastUpdateInterval;
     }
 
     /// @inheritdoc IProtocol
-    function penalizedUntilOf(address minter_) external view returns (uint40 penalizedUntil_) {
+    function penalizedUntilOf(address minter_) external view returns (uint40) {
         return _minterStates[minter_].penalizedUntilTimestamp;
     }
 
     /// @inheritdoc IProtocol
-    function getPenaltyForMissedCollateralUpdates(address minter_) public view returns (uint128 penalty_) {
+    function getPenaltyForMissedCollateralUpdates(address minter_) public view returns (uint128) {
         (uint128 penaltyBase_, ) = _getPenaltyBaseAndTimeForMissedCollateralUpdates(
             minter_,
             updateCollateralInterval()
@@ -485,20 +500,17 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function pendingCollateralRetrievalOf(
-        address minter_,
-        uint256 retrievalId_
-    ) external view returns (uint128 collateral) {
+    function pendingCollateralRetrievalOf(address minter_, uint256 retrievalId_) external view returns (uint128) {
         return _pendingCollateralRetrievals[minter_][UIntMath.safe48(retrievalId_)];
     }
 
     /// @inheritdoc IProtocol
-    function totalPendingCollateralRetrievalsOf(address minter_) external view returns (uint128 collateral_) {
+    function totalPendingCollateralRetrievalsOf(address minter_) external view returns (uint128) {
         return _minterStates[minter_].totalPendingRetrievals;
     }
 
     /// @inheritdoc IProtocol
-    function unfrozenTimeOf(address minter_) external view returns (uint40 unfrozenTime_) {
+    function unfrozenTimeOf(address minter_) external view returns (uint40) {
         return _minterStates[minter_].unfrozenTimestamp;
     }
 
@@ -507,53 +519,53 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /// @inheritdoc IProtocol
-    function isMinterApprovedBySPOG(address minter_) public view returns (bool isApproved_) {
+    function isMinterApprovedBySPOG(address minter_) public view returns (bool) {
         return SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_);
     }
 
     /// @inheritdoc IProtocol
-    function isValidatorApprovedBySPOG(address validator_) public view returns (bool isApproved_) {
+    function isValidatorApprovedBySPOG(address validator_) public view returns (bool) {
         return SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_);
     }
 
     /// @inheritdoc IProtocol
-    function updateCollateralInterval() public view returns (uint32 updateCollateralInterval_) {
+    function updateCollateralInterval() public view returns (uint32) {
         return UIntMath.bound32(SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar));
     }
 
     /// @inheritdoc IProtocol
-    function updateCollateralValidatorThreshold() public view returns (uint256 threshold_) {
+    function updateCollateralValidatorThreshold() public view returns (uint256) {
         return SPOGRegistrarReader.getUpdateCollateralValidatorThreshold(spogRegistrar);
     }
 
     /// @inheritdoc IProtocol
-    function mintRatio() public view returns (uint32 mintRatio_) {
+    function mintRatio() public view returns (uint32) {
         // NOTE: It is possible for the mint ratio to be greater than 100%.
         return UIntMath.bound32(SPOGRegistrarReader.getMintRatio(spogRegistrar));
     }
 
     /// @inheritdoc IProtocol
-    function mintDelay() public view returns (uint32 mintDelay_) {
+    function mintDelay() public view returns (uint32) {
         return UIntMath.bound32(SPOGRegistrarReader.getMintDelay(spogRegistrar));
     }
 
     /// @inheritdoc IProtocol
-    function mintTTL() public view returns (uint32 mintTTL_) {
+    function mintTTL() public view returns (uint32) {
         return UIntMath.bound32(SPOGRegistrarReader.getMintTTL(spogRegistrar));
     }
 
     /// @inheritdoc IProtocol
-    function minterFreezeTime() public view returns (uint32 minterFreezeTime_) {
+    function minterFreezeTime() public view returns (uint32) {
         return UIntMath.bound32(SPOGRegistrarReader.getMinterFreezeTime(spogRegistrar));
     }
 
     /// @inheritdoc IProtocol
-    function penaltyRate() public view returns (uint32 penaltyRate_) {
+    function penaltyRate() public view returns (uint32) {
         return UIntMath.bound32(SPOGRegistrarReader.getPenaltyRate(spogRegistrar));
     }
 
     /// @inheritdoc IProtocol
-    function rateModel() public view returns (address rateModel_) {
+    function rateModel() public view returns (address) {
         return SPOGRegistrarReader.getMinterRateModel(spogRegistrar);
     }
 
@@ -574,8 +586,12 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint128 penaltyPrincipal_ = _getPrincipalAmountRoundedUp(penalty_);
 
         // Calculate and add penalty principal to total minter's principal of active owed M
-        _owedM[minter_].principalOfActive += penaltyPrincipal_;
         _totalPrincipalOfActiveOwedM += penaltyPrincipal_;
+
+        unchecked {
+            // NOTE: unchecked is used here since `_totalPrincipalOfActiveOwedM` would overflow first.
+            _owedM[minter_].principalOfActive += penaltyPrincipal_;
+        }
 
         emit PenaltyImposed(minter_, penalty_);
     }
@@ -611,7 +627,14 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         if (maxAllowedActiveOwedM_ >= activeOwedM_) return;
 
-        _imposePenalty(minter_, activeOwedM_ - maxAllowedActiveOwedM_);
+        uint128 penaltyBase_;
+
+        // NOTE: unchecked is used here since `activeOwedM_`is greater than or equal to `maxAllowedActiveOwedM_`.
+        unchecked {
+            penaltyBase_ = activeOwedM_ - maxAllowedActiveOwedM_;
+        }
+
+        _imposePenalty(minter_, penaltyBase_);
     }
 
     /**
@@ -627,7 +650,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint128 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
 
         _owedM[minter_].principalOfActive -= principalAmount_;
-        _totalPrincipalOfActiveOwedM -= principalAmount_;
+
+        // NOTE: unchecked is used here since `_owedM[minter_].principalOfActive` would underflow first.
+        unchecked {
+            _totalPrincipalOfActiveOwedM -= principalAmount_;
+        }
     }
 
     /**
@@ -640,7 +667,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         amount_ = UIntMath.min128(_owedM[minter_].inactive, maxAmount_);
 
         _owedM[minter_].inactive -= amount_;
-        _totalInactiveOwedM -= amount_;
+
+        // NOTE: unchecked is used here since `_owedM[minter_].inactive` would underflow first.
+        unchecked {
+            _totalInactiveOwedM -= amount_;
+        }
     }
 
     /**
@@ -652,7 +683,9 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         address minter_,
         uint256[] calldata retrievalIds_
     ) internal returns (uint128 totalResolvedRetrievals_) {
-        for (uint256 index_; index_ < retrievalIds_.length; ++index_) {
+        uint256 retrievalIdsLength_ = retrievalIds_.length;
+
+        for (uint256 index_; index_ < retrievalIdsLength_; ++index_) {
             uint48 retrievalId_ = UIntMath.safe48(retrievalIds_[index_]);
 
             totalResolvedRetrievals_ += _pendingCollateralRetrievals[minter_][retrievalId_];
@@ -711,18 +744,23 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         if (updateCollateralInterval_ == 0) return (0, penalizationDeadline_);
 
         // We charge for the first missed interval based on previous collateral interval length only once
-        uint40 missedIntervals_ = 1 + (uint40(block.timestamp) - penalizationDeadline_) / updateCollateralInterval_;
+        uint40 missedIntervals_;
+
+        // NOTE: unchecked is used here since `block.timestamp` is greater than  `penalizationDeadline_`.
+        unchecked {
+            missedIntervals_ = 1 + (uint40(block.timestamp) - penalizationDeadline_) / updateCollateralInterval_;
+        }
 
         penaltyBase_ = missedIntervals_ * activeOwedMOf(minter_);
         penalizedUntil_ = penalizationDeadline_ + ((missedIntervals_ - 1) * updateCollateralInterval_);
     }
 
     /**
-     * @dev   Returns the present value (rounded up) given the principal value, using the current index.
-     *        All present values are rounded up in favor of the protocol, since they are owed.
-     * @param principalAmount_ The principal value
+     * @dev   Returns the present amount (rounded up) given the principal amount, using the current index.
+     *        All present amounts are rounded up in favor of the protocol, since they are owed.
+     * @param principalAmount_ The principal amount
      */
-    function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128 amount_) {
+    function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128) {
         return _getPresentAmountRoundedUp(principalAmount_, currentIndex());
     }
 
@@ -838,6 +876,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
             // Check that the timestamp is not in the future.
             if (timestamps_[index_] > uint40(block.timestamp)) revert FutureTimestamp();
 
+            // NOTE: need to store the variable here to avoid a stack too deep error.
             bytes32 digest_ = _getUpdateCollateralDigest(
                 minter_,
                 collateral_,
@@ -863,8 +902,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         //       point to inevitably revert, so the gas cost is not much of a concern.
         if (threshold_ > 0) {
             uint256 requiredThreshold_ = updateCollateralValidatorThreshold();
-            uint256 validSignatures_ = requiredThreshold_ - threshold_;
-            revert NotEnoughValidSignatures(validSignatures_, requiredThreshold_);
+            revert NotEnoughValidSignatures(requiredThreshold_ - threshold_, requiredThreshold_);
         }
     }
 }
