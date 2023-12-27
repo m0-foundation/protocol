@@ -377,7 +377,7 @@ contract IntegrationTests is Test {
         assertEq(_mToken.balanceOf(_bob), 555_773_881219);
 
         assertEq(_mToken.balanceOf(_vault), 158633904); // Delta is distributed to vault.
-        
+
         // Main invariant of the system: totalActiveOwedM >= totalSupply of M Token.
         assertEq(
             _mToken.balanceOf(_bob) + _mToken.balanceOf(_vault),
