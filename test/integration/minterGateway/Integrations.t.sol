@@ -4,17 +4,8 @@ pragma solidity 0.8.23;
 
 import { console2, stdError, Test } from "../../../lib/forge-std/src/Test.sol";
 
-import { ContinuousIndexingMath } from "../../../src/libs/ContinuousIndexingMath.sol";
 import { SPOGRegistrarReader } from "../../../src/libs/SPOGRegistrarReader.sol";
 
-import { IEarnerRateModel } from "../../../src/interfaces/IEarnerRateModel.sol";
-import { IMinterRateModel } from "../../../src/interfaces/IMinterRateModel.sol";
-import { IMToken } from "../../../src/interfaces/IMToken.sol";
-import { IProtocol } from "../../../src/interfaces/IProtocol.sol";
-
-import { DeployBase } from "../../../script/DeployBase.s.sol";
-
-import { DigestHelper } from "./../../utils/DigestHelper.sol";
 import { MockSPOGRegistrar } from "./../../utils/Mocks.sol";
 
 import { IntegrationBaseSetup } from "../IntegrationBaseSetup.t.sol";
@@ -100,14 +91,14 @@ contract IntegrationTests is IntegrationBaseSetup {
         vm.prank(_alice);
         _mToken.startEarning();
 
-        vm.warp(block.timestamp + 2 hours); // 2 hours after deploy, minter collects signatures.
+        vm.warp(block.timestamp + 2 hours); // 2 hours after deploy, minters collect signatures.
 
         uint256 collateral = 1_500_000e6;
         uint256 lastUpdateTimestamp = _updateCollateral(_minters[0], collateral);
         _updateCollateral(_minters[1], collateral);
         _updateCollateral(_minters[2], collateral);
 
-        vm.warp(block.timestamp + 1 hours); // 1 hour later, minter proposes a mint.
+        vm.warp(block.timestamp + 1 hours); // 1 hour later, minters propose mints.
 
         uint256 mintAmount = 500_000e6;
         address[] memory testMinters = new address[](3);
@@ -122,6 +113,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         _batchMintM(testMinters, mintAmounts, recipients);
 
         assertEq(_protocol.activeOwedMOf(_minters[0]), _protocol.activeOwedMOf(_minters[1]));
+        assertEq(_protocol.activeOwedMOf(_minters[0]), _protocol.activeOwedMOf(_minters[2]));
 
         vm.warp(lastUpdateTimestamp + 18 hours);
         lastUpdateTimestamp = _updateCollateral(_minters[0], collateral);
@@ -178,14 +170,13 @@ contract IntegrationTests is IntegrationBaseSetup {
         uint256 totalOwedMAfterDeactivation = _protocol.totalOwedM();
         uint256 vaultBalanceAfterDeactivation = _mToken.balanceOf(_vault);
 
-        assertEq(_protocol.totalOwedM(), _mToken.totalSupply(), "a");
+        assertEq(_protocol.totalOwedM(), _mToken.totalSupply());
 
         // Vault gets penalty plus delta of cash flows before deactivation
         assertEq(
             vaultBalanceAfterDeactivation - vaultBalanceBeforeDeactivation,
             (totalOwedMAfterDeactivation - totalOwedMBeforeDeactivation) +
-                (totalOwedMBeforeDeactivation - totalMSupplyBeforeDeactivation),
-            "b"
+                (totalOwedMBeforeDeactivation - totalMSupplyBeforeDeactivation)
         );
 
         assertEq(_mToken.earnerRate(), 0); // there is no active owed M left.
