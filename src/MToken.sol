@@ -51,11 +51,14 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /**
-     * @notice Constructor.
+     * @notice Constructs the M Token contract.
      * @param  ttgRegistrar_ The address of the TTG Registrar contract.
-     * @param  protocol_      The address of Protocol.
+     * @param  protocol_     The address of Protocol.
      */
     constructor(address ttgRegistrar_, address protocol_) ContinuousIndexing() ERC20Extended("M Token", "M", 6) {
+        if (ttgRegistrar_ == address(0)) revert ZeroTTGRegistrar();
+        if (protocol_ == address(0)) revert ZeroProtocol();
+
         ttgRegistrar = ttgRegistrar_;
         protocol = protocol_;
     }

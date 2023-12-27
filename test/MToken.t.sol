@@ -50,6 +50,23 @@ contract MTokenTests is Test {
         _expectedCurrentIndex = 1_100000068703;
     }
 
+    /* ============ constructor ============ */
+    function test_constructor() external {
+        assertEq(_mToken.ttgRegistrar(), address(_registrar));
+        assertEq(_mToken.protocol(), _protocol);
+    }
+
+    function test_constructor_zeroTTGRegistrar() external {
+        vm.expectRevert(IMToken.ZeroTTGRegistrar.selector);
+        _mToken = new MTokenHarness(address(0), _protocol);
+    }
+
+    function test_constructor_zeroProtocol() external {
+        vm.expectRevert(IMToken.ZeroProtocol.selector);
+        _mToken = new MTokenHarness(address(_registrar), address(0));
+    }
+
+    /* ============ mint ============ */
     function test_mint_notProtocol() external {
         vm.expectRevert(IMToken.NotProtocol.selector);
         _mToken.mint(_alice, 0);
@@ -103,6 +120,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
+    /* ============ burn ============ */
     function test_burn_notProtocol() external {
         vm.expectRevert(IMToken.NotProtocol.selector);
         _mToken.burn(_alice, 0);
@@ -182,6 +200,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
+    /* ============ transfer ============ */
     function test_transfer_insufficientBalance_fromNonEarner_toNonEarner() external {
         _mToken.setInternalBalanceOf(_alice, 999);
 
@@ -308,6 +327,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
+    /* ============ startEarning ============ */
     function test_startEarning_onBehalfOf_notApprovedEarner() external {
         vm.expectRevert(IMToken.NotApprovedEarner.selector);
         _mToken.startEarning(_alice);
@@ -369,6 +389,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
+    /* ============ stopEarning ============ */
     function test_stopEarning_onBehalfOf_isApprovedEarner() external {
         _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
 
@@ -416,6 +437,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
+    /* ============ updateIndex ============ */
     function test_updateIndex() external {
         _mToken.setLatestRate(_earnerRate);
 
@@ -494,6 +516,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), expectedLatestUpdateTimestamp_);
     }
 
+    /* ============ balanceOf ============ */
     function test_balanceOf_nonEarner() external {
         _mToken.setInternalBalanceOf(_alice, 1_000);
 
@@ -533,6 +556,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.balanceOf(_alice), 1_202); // Is dependent on latestIndex.
     }
 
+    /* ============ totalNonEarningSupply ============ */
     function test_totalEarningSupply() external {
         _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalPrincipalOfEarningSupply(909);
@@ -570,6 +594,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.totalNonEarningSupply(), 1_000); // Is not dependent on latestIndex.
     }
 
+    /* ============ totalSupply ============ */
     function test_totalSupply_noTotalEarningSupply() external {
         _mToken.setTotalNonEarningSupply(1_000);
 
@@ -627,6 +652,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.totalSupply(), 2_202); // Is dependent on latestIndex.
     }
 
+    /* ============ earnerRate ============ */
     function test_earnerRate() external {
         assertEq(_mToken.earnerRate(), _earnerRate);
 
@@ -647,6 +673,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.earnerRate(), _earnerRate / 2);
     }
 
+    /* ============ optOutOfEarning ============ */
     function test_optOutOfEarning() external {
         vm.prank(_alice);
         _mToken.optOutOfEarning();
@@ -654,6 +681,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.hasOptedOutOfEarning(_alice), true);
     }
 
+    /* ============ emptyRateModel ============ */
     function test_emptyRateModel() external {
         _registrar.updateConfig(TTGRegistrarReader.EARNER_RATE_MODEL, address(0));
 

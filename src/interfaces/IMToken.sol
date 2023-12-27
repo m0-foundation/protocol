@@ -23,6 +23,12 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when calling `mint`, `burn` not by Protocol.
     error NotProtocol();
 
+    ///  @notice Emitted in constructor if Protocol is 0x0.
+    error ZeroProtocol();
+
+    ///  @notice Emitted in constructor if TTG Registrar is 0x0.
+    error ZeroTTGRegistrar();
+
     /******************************************************************************************************************\
     |                                                     Events                                                       |
     \******************************************************************************************************************/
