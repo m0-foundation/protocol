@@ -320,7 +320,7 @@ interface IProtocol is IContinuousIndexing {
     /// @notice Checks if minter was deactivated after removal by SPOG
     function isDeactivatedMinter(address minter) external view returns (bool);
 
-    /// @notice Checks if minter is frozen by validator
+    /// @notice Checks if minter was frozen by validator
     function isFrozenMinter(address minter) external view returns (bool);
 
     /// @notice Checks if minter was approved by SPOG
