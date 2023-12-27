@@ -148,6 +148,4 @@ library SPOGRegistrarReader {
     function _get(address registrar_, bytes32 key_) private view returns (bytes32) {
         return ISPOGRegistrar(registrar_).get(key_);
     }
-
 }
-

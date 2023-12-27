@@ -25,7 +25,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     struct MBalance {
         bool isEarning;
         bool hasOptedOutOfEarning;
-        uint128 rawBalance; // the principal balance + any accrued interest
+        uint128 rawBalance; // balance (for a non earning account) or principal balance that accrued interest
     }
 
     /// @inheritdoc IMToken
