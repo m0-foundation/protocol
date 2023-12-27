@@ -4,18 +4,7 @@ pragma solidity 0.8.23;
 
 import { console2, stdError, Test } from "../../lib/forge-std/src/Test.sol";
 
-import { ContinuousIndexingMath } from "../../src/libs/ContinuousIndexingMath.sol";
 import { SPOGRegistrarReader } from "../../src/libs/SPOGRegistrarReader.sol";
-
-import { IEarnerRateModel } from "../../src/interfaces/IEarnerRateModel.sol";
-import { IMinterRateModel } from "../../src/interfaces/IMinterRateModel.sol";
-import { IMToken } from "../../src/interfaces/IMToken.sol";
-import { IProtocol } from "../../src/interfaces/IProtocol.sol";
-
-import { DeployBase } from "../../script/DeployBase.s.sol";
-
-import { DigestHelper } from "./../utils/DigestHelper.sol";
-import { MockSPOGRegistrar } from "./../utils/Mocks.sol";
 
 import { IntegrationBaseSetup } from "./IntegrationBaseSetup.t.sol";
 
@@ -23,6 +12,13 @@ import { IntegrationBaseSetup } from "./IntegrationBaseSetup.t.sol";
 
 contract IntegrationTests is IntegrationBaseSetup {
     function test_story1() external {
+        // Set test specific parameters
+        _mintDelay = 12 hours;
+        _registrar.updateConfig(SPOGRegistrarReader.MINT_DELAY, _mintDelay);
+        _registrar.updateConfig(SPOGRegistrarReader.PENALTY_RATE, uint256(0));
+
+        _protocol.updateIndex();
+
         // Since the contracts ae deployed at the same time, these values are the same..
         uint256 latestProtocolUpdateTimestamp_ = block.timestamp;
         uint256 latestMTokenUpdateTimestamp_ = block.timestamp;
