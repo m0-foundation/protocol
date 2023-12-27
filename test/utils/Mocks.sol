@@ -87,7 +87,7 @@ contract MockMToken {
     }
 }
 
-contract MockProtocol {
+contract MockMinterGateway {
     uint256 internal _minterRate;
     uint256 internal _totalActiveOwedM;
 

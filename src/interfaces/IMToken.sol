@@ -20,11 +20,11 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when calling `startEarning` for an account not approved as earner by TTG.
     error NotApprovedEarner();
 
-    /// @notice Emitted when calling `mint`, `burn` not by Protocol.
-    error NotProtocol();
+    /// @notice Emitted when calling `mint`, `burn` not by Minter Gateway.
+    error NotMinterGateway();
 
-    ///  @notice Emitted in constructor if Protocol is 0x0.
-    error ZeroProtocol();
+    ///  @notice Emitted in constructor if Minter Gateway is 0x0.
+    error ZeroMinterGateway();
 
     ///  @notice Emitted in constructor if TTG Registrar is 0x0.
     error ZeroTTGRegistrar();
@@ -99,8 +99,8 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     |                                          External View/Pure Functions                                            |
     \******************************************************************************************************************/
 
-    /// @notice The address of the Protocol contract.
-    function protocol() external view returns (address);
+    /// @notice The address of the Minter Gateway contract.
+    function minterGateway() external view returns (address);
 
     /// @notice The address of the TTG Registrar contract.
     function ttgRegistrar() external view returns (address);

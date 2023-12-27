@@ -4,11 +4,11 @@ pragma solidity 0.8.23;
 
 import { IERC712 } from "../../lib/common/src/interfaces/IERC712.sol";
 
-import { IProtocol } from "../../src/interfaces/IProtocol.sol";
+import { IMinterGateway } from "../../src/interfaces/IMinterGateway.sol";
 
 library DigestHelper {
     function getUpdateCollateralDigest(
-        address protocol,
+        address minterGateway,
         address minter,
         uint256 collateral,
         uint256[] calldata retrievalIds,
@@ -17,17 +17,27 @@ library DigestHelper {
     ) public view returns (bytes32) {
         return
             getUpdateCollateralDigest(
-                protocol,
-                getUpdateCollateralInternalDigest(protocol, minter, collateral, retrievalIds, metadataHash, timestamp)
+                minterGateway,
+                getUpdateCollateralInternalDigest(
+                    minterGateway,
+                    minter,
+                    collateral,
+                    retrievalIds,
+                    metadataHash,
+                    timestamp
+                )
             );
     }
 
-    function getUpdateCollateralDigest(address protocol, bytes32 internalDigest) public view returns (bytes32 digest_) {
-        return keccak256(abi.encodePacked("\x19\x01", IERC712(protocol).DOMAIN_SEPARATOR(), internalDigest));
+    function getUpdateCollateralDigest(
+        address minterGateway,
+        bytes32 internalDigest
+    ) public view returns (bytes32 digest_) {
+        return keccak256(abi.encodePacked("\x19\x01", IERC712(minterGateway).DOMAIN_SEPARATOR(), internalDigest));
     }
 
     function getUpdateCollateralInternalDigest(
-        address protocol,
+        address minterGateway,
         address minter,
         uint256 collateral,
         uint256[] calldata retrievalIds,
@@ -37,7 +47,7 @@ library DigestHelper {
         return
             keccak256(
                 abi.encode(
-                    IProtocol(protocol).UPDATE_COLLATERAL_TYPEHASH(),
+                    IMinterGateway(minterGateway).UPDATE_COLLATERAL_TYPEHASH(),
                     minter,
                     collateral,
                     retrievalIds,

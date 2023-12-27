@@ -4,8 +4,8 @@ pragma solidity 0.8.23;
 
 import { IContinuousIndexing } from "./IContinuousIndexing.sol";
 
-/// @title Protocol Interface.
-interface IProtocol is IContinuousIndexing {
+/// @title Minter Gateway Interface.
+interface IMinterGateway is IContinuousIndexing {
     /******************************************************************************************************************\
     |                                                      Errors                                                      |
     \******************************************************************************************************************/
@@ -51,7 +51,7 @@ interface IProtocol is IContinuousIndexing {
     ///         If `validators`, `signatures`, `timestamps` lengths do not match.
     error SignatureArrayLengthsMismatch();
 
-    /// @notice Emitted when calling `updateCollateral` if protocol has more fresh collateral update.
+    /// @notice Emitted when calling `updateCollateral` if Minter Gateway has more fresh collateral update.
     error StaleCollateralUpdate(uint40 newTimestamp, uint40 lastCollateralUpdate);
 
     /// @notice Emitted when calling `deactivateMinter` with a minter still approved in TTG Registrar.

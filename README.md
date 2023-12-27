@@ -1,4 +1,4 @@
-# Protocol
+# Minter Gateway
 
 Install dependencies
 

@@ -10,7 +10,7 @@ describe("MToken", () => {
 
   let deployer;
 
-  let protocol;
+  let minterGateway;
   let alice;
   let bob;
   let charlie;
@@ -32,7 +32,7 @@ describe("MToken", () => {
   };
 
   beforeEach(async () => {
-    [deployer, protocol, alice, bob, charlie, dave, elise] =
+    [deployer, minterGateway, alice, bob, charlie, dave, elise] =
       await ethers.getSigners();
 
     accounts.push(alice);
@@ -45,7 +45,7 @@ describe("MToken", () => {
     registrar = await ethers.deployContract("MockTTGRegistrar");
     mToken = await ethers.deployContract("MToken", [
       await registrar.getAddress(),
-      protocol.address,
+      minterGateway.address,
     ]);
 
     await registrar["updateConfig(bytes32, address)"](
@@ -59,11 +59,11 @@ describe("MToken", () => {
   it("tests minting to non-earners", async () => {
     await time.increase(31_536_000); // 1 year
 
-    await mToken.connect(protocol).mint(alice.address, 100);
-    await mToken.connect(protocol).mint(bob.address, 200);
-    await mToken.connect(protocol).mint(charlie.address, 400);
-    await mToken.connect(protocol).mint(dave.address, 800);
-    await mToken.connect(protocol).mint(elise.address, 1600);
+    await mToken.connect(minterGateway).mint(alice.address, 100);
+    await mToken.connect(minterGateway).mint(bob.address, 200);
+    await mToken.connect(minterGateway).mint(charlie.address, 400);
+    await mToken.connect(minterGateway).mint(dave.address, 800);
+    await mToken.connect(minterGateway).mint(elise.address, 1600);
 
     expect(await mToken.balanceOf(alice.address)).to.equal(100);
     expect(await mToken.balanceOf(bob.address)).to.equal(200);
@@ -88,11 +88,11 @@ describe("MToken", () => {
 
     await time.increase(31_536_000); // 1 year
 
-    await mToken.connect(protocol).mint(alice.address, 100);
-    await mToken.connect(protocol).mint(bob.address, 200);
-    await mToken.connect(protocol).mint(charlie.address, 400);
-    await mToken.connect(protocol).mint(dave.address, 800);
-    await mToken.connect(protocol).mint(elise.address, 1600);
+    await mToken.connect(minterGateway).mint(alice.address, 100);
+    await mToken.connect(minterGateway).mint(bob.address, 200);
+    await mToken.connect(minterGateway).mint(charlie.address, 400);
+    await mToken.connect(minterGateway).mint(dave.address, 800);
+    await mToken.connect(minterGateway).mint(elise.address, 1600);
 
     expect(await mToken.balanceOf(alice.address)).to.equal(99);
     expect(await mToken.balanceOf(bob.address)).to.equal(198);
@@ -146,7 +146,7 @@ describe("MToken", () => {
 
       if (randomNumber2 <= 4 || currentBalance == 0) {
         await mToken
-          .connect(protocol)
+          .connect(minterGateway)
           .mint(account.address, getRandomInt(5_000, 100_000));
         continue;
       }

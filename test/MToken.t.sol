@@ -2,14 +2,14 @@
 
 pragma solidity 0.8.23;
 
-import { console2, stdError, Test } from "../lib/forge-std/src/Test.sol";
+import { stdError, Test } from "../lib/forge-std/src/Test.sol";
 
 import { IMToken } from "../src/interfaces/IMToken.sol";
 
 import { TTGRegistrarReader } from "../src/libs/TTGRegistrarReader.sol";
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
 
-import { MockProtocol, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
+import { MockMinterGateway, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
 import { MTokenHarness } from "./utils/MTokenHarness.sol";
 
 // TODO: Fuzz and/or invariant tests.
@@ -19,7 +19,7 @@ contract MTokenTests is Test {
     address internal _bob = makeAddr("bob");
     address internal _charlie = makeAddr("charlie");
     address internal _david = makeAddr("david");
-    address internal _protocol = makeAddr("protocol");
+    address internal _minterGateway = makeAddr("minterGateway");
 
     address[] internal _accounts = [_alice, _bob, _charlie, _david];
 
@@ -41,7 +41,7 @@ contract MTokenTests is Test {
 
         _registrar.updateConfig(TTGRegistrarReader.EARNER_RATE_MODEL, address(_earnerRateModel));
 
-        _mToken = new MTokenHarness(address(_registrar), _protocol);
+        _mToken = new MTokenHarness(address(_registrar), _minterGateway);
 
         _mToken.setLatestRate(_earnerRate);
 
@@ -53,27 +53,27 @@ contract MTokenTests is Test {
     /* ============ constructor ============ */
     function test_constructor() external {
         assertEq(_mToken.ttgRegistrar(), address(_registrar));
-        assertEq(_mToken.protocol(), _protocol);
+        assertEq(_mToken.minterGateway(), _minterGateway);
     }
 
     function test_constructor_zeroTTGRegistrar() external {
         vm.expectRevert(IMToken.ZeroTTGRegistrar.selector);
-        _mToken = new MTokenHarness(address(0), _protocol);
+        _mToken = new MTokenHarness(address(0), _minterGateway);
     }
 
-    function test_constructor_zeroProtocol() external {
-        vm.expectRevert(IMToken.ZeroProtocol.selector);
+    function test_constructor_zeroMinterGateway() external {
+        vm.expectRevert(IMToken.ZeroMinterGateway.selector);
         _mToken = new MTokenHarness(address(_registrar), address(0));
     }
 
     /* ============ mint ============ */
-    function test_mint_notProtocol() external {
-        vm.expectRevert(IMToken.NotProtocol.selector);
+    function test_mint_notMinterGateway() external {
+        vm.expectRevert(IMToken.NotMinterGateway.selector);
         _mToken.mint(_alice, 0);
     }
 
     function test_mint_toNonEarner() external {
-        vm.prank(_protocol);
+        vm.prank(_minterGateway);
         _mToken.mint(_alice, 1_000);
 
         assertEq(_mToken.internalBalanceOf(_alice), 1_000);
@@ -88,7 +88,7 @@ contract MTokenTests is Test {
         _mToken.setLatestRate(_earnerRate);
         _mToken.setIsEarning(_alice, true);
 
-        vm.prank(_protocol);
+        vm.prank(_minterGateway);
         _mToken.mint(_alice, 999);
 
         assertEq(_mToken.internalBalanceOf(_alice), 908);
@@ -98,7 +98,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
 
-        vm.prank(_protocol);
+        vm.prank(_minterGateway);
         _mToken.mint(_alice, 1);
 
         // No change due to principal round down on mint.
@@ -109,7 +109,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
 
-        vm.prank(_protocol);
+        vm.prank(_minterGateway);
         _mToken.mint(_alice, 2);
 
         assertEq(_mToken.internalBalanceOf(_alice), 909);
@@ -121,8 +121,8 @@ contract MTokenTests is Test {
     }
 
     /* ============ burn ============ */
-    function test_burn_notProtocol() external {
-        vm.expectRevert(IMToken.NotProtocol.selector);
+    function test_burn_notMinterGateway() external {
+        vm.expectRevert(IMToken.NotMinterGateway.selector);
         _mToken.burn(_alice, 0);
     }
 
@@ -130,7 +130,7 @@ contract MTokenTests is Test {
         _mToken.setInternalBalanceOf(_alice, 999);
 
         vm.expectRevert(stdError.arithmeticError);
-        vm.prank(_protocol);
+        vm.prank(_minterGateway);
         _mToken.burn(_alice, 1_000);
     }
 
@@ -141,7 +141,7 @@ contract MTokenTests is Test {
         _mToken.setInternalBalanceOf(_alice, 908);
 
         vm.expectRevert(stdError.arithmeticError);
-        vm.prank(_protocol);
+        vm.prank(_minterGateway);
         _mToken.burn(_alice, 1_000);
     }
 
@@ -150,7 +150,7 @@ contract MTokenTests is Test {
 
         _mToken.setInternalBalanceOf(_alice, 1_000);
 
-        vm.prank(_protocol);
+        vm.prank(_minterGateway);
         _mToken.burn(_alice, 500);
 
         assertEq(_mToken.internalBalanceOf(_alice), 500);
@@ -160,7 +160,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
-        vm.prank(_protocol);
+        vm.prank(_minterGateway);
         _mToken.burn(_alice, 500);
 
         assertEq(_mToken.internalBalanceOf(_alice), 0);
@@ -178,7 +178,7 @@ contract MTokenTests is Test {
         _mToken.setIsEarning(_alice, true);
         _mToken.setInternalBalanceOf(_alice, 909);
 
-        vm.prank(_protocol);
+        vm.prank(_minterGateway);
         _mToken.burn(_alice, 1);
 
         // Change due to principal round up on burn.
@@ -189,7 +189,7 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
 
-        vm.prank(_protocol);
+        vm.prank(_minterGateway);
         _mToken.burn(_alice, 998);
 
         assertEq(_mToken.internalBalanceOf(_alice), 0);

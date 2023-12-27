@@ -8,7 +8,7 @@ import { IMinterRateModel } from "./interfaces/IMinterRateModel.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
 /**
- * @title Minter Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by Protocol.
+ * @title Minter Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by Minter Gateway.
  * @author M^ZERO LABS_
  */
 contract MinterRateModel is IMinterRateModel {

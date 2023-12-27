@@ -11,7 +11,7 @@ import { UIntMath } from "./libs/UIntMath.sol";
 
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
-import { IProtocol } from "./interfaces/IProtocol.sol";
+import { IMinterGateway } from "./interfaces/IMinterGateway.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
@@ -21,12 +21,11 @@ import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 // TODO: Consider `totalResolvedCollateralRetrieval` or `totalCollateralRetrievalResolved`.
 
 /**
- * @title Protocol
+ * @title MinterGateway
  * @author M^ZERO LABS_
- * @notice Core protocol of M^ZERO ecosystem.
-           Minting Gateway of M Token for all approved by TTG and activated minters.
+ * @notice Minting Gateway of M Token for all approved by TTG and activated minters.
  */
-contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
+contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     struct MintProposal {
         // 1st slot
         uint48 id;
@@ -65,13 +64,13 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
         0x22b57ca54bd15c6234b29e87aa1d76a0841b6e65e63d7acacef989de0bc3ff9e;
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     address public immutable ttgRegistrar;
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     address public immutable ttgVault;
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     address public immutable mToken;
 
     /// @dev Nonce used to generate unique mint proposal IDs.
@@ -128,7 +127,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @param  ttgRegistrar_ The address of the TTG Registrar contract.
      * @param  mToken_        The address of the M Token.
      */
-    constructor(address ttgRegistrar_, address mToken_) ContinuousIndexing() ERC712("Protocol") {
+    constructor(address ttgRegistrar_, address mToken_) ContinuousIndexing() ERC712("MinterGateway") {
         if ((ttgRegistrar = ttgRegistrar_) == address(0)) revert ZeroTTGRegistrar();
         if ((ttgVault = TTGRegistrarReader.getVault(ttgRegistrar_)) == address(0)) revert ZeroTTGVault();
         if ((mToken = mToken_) == address(0)) revert ZeroMToken();
@@ -138,7 +137,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     |                                          External Interactive Functions                                          |
     \******************************************************************************************************************/
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function updateCollateral(
         uint256 collateral_,
         uint256[] calldata retrievalIds_,
@@ -187,7 +186,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         updateIndex();
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function proposeRetrieval(uint256 collateral_) external onlyActiveMinter returns (uint48 retrievalId_) {
         unchecked {
             retrievalId_ = ++_retrievalNonce;
@@ -211,7 +210,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         emit RetrievalCreated(retrievalId_, msg.sender, safeRetrieval_);
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function proposeMint(
         uint256 amount_,
         address destination_
@@ -229,7 +228,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         emit MintProposed(mintId_, msg.sender, safeAmount_, destination_);
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function mintM(uint256 mintId_) external onlyActiveMinter onlyUnfrozenMinter {
         MintProposal storage mintProposal_ = _mintProposals[msg.sender];
 
@@ -256,7 +255,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         emit MintExecuted(id_);
 
         // Adjust principal of active owed M for minter.
-        // NOTE: When minting a present amount, round the principal up in favor of the protocol.
+        // NOTE: When minting a present amount, round the principal up in favor of the Minter Gateway.
         uint128 principalAmount_ = _getPrincipalAmountRoundedUp(amount_);
         _totalPrincipalOfActiveOwedM += principalAmount_;
 
@@ -272,7 +271,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         updateIndex();
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function burnM(address minter_, uint256 maxAmount_) external {
         uint32 updateCollateralInterval_ = updateCollateralInterval();
 
@@ -298,7 +297,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         updateIndex();
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function cancelMint(address minter_, uint256 mintId_) external onlyApprovedValidator {
         // TODO: Possible gas optimization by getting storage pointer once and using it again for delete.
         uint48 id_ = _mintProposals[minter_].id;
@@ -310,7 +309,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         emit MintCanceled(id_, msg.sender);
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function freezeMinter(address minter_) external onlyApprovedValidator returns (uint40 frozenUntil_) {
         _revertIfInactiveMinter(minter_);
 
@@ -319,7 +318,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         emit MinterFrozen(minter_, frozenUntil_);
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function activateMinter(address minter_) external {
         if (!isMinterApprovedByTTG(minter_)) revert NotApprovedMinter();
         if (_minterStates[minter_].isDeactivated) revert DeactivatedMinter();
@@ -329,7 +328,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         emit MinterActivated(minter_, msg.sender);
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function deactivateMinter(address minter_) external returns (uint128 inactiveOwedM_) {
         if (isMinterApprovedByTTG(minter_)) revert StillApprovedMinter();
 
@@ -365,7 +364,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IContinuousIndexing
     function updateIndex() public override(IContinuousIndexing, ContinuousIndexing) returns (uint128 index_) {
-        // NOTE: Since the currentIndex of the protocol and mToken are constant thought this context's execution (since
+        // NOTE: Since the currentIndex of the Minter Gateway and mToken are constant thought this context's execution (since
         //       the block.timestamp is not changing) we can compute excessOwedM without updating the mToken index.
         uint128 excessOwedM_ = excessOwedM();
 
@@ -373,7 +372,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the collateral
         //       update can result in a new rate, we should update the index here to lock in that rate.
-        // NOTE: With the current rate models, the minter rate does not depend on anything in the protocol or mToken, so
+        // NOTE: With the current rate models, the minter rate does not depend on anything in the Minter Gateway or mToken, so
         //       we can update the minter rate and index here.
         index_ = super.updateIndex(); // Update minter index and rate.
 
@@ -387,17 +386,17 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     |                                           External View/Pure Functions                                           |
     \******************************************************************************************************************/
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function totalActiveOwedM() public view returns (uint128) {
         return _getPresentAmount(_totalPrincipalOfActiveOwedM);
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function totalInactiveOwedM() public view returns (uint128) {
         return _totalInactiveOwedM;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function totalOwedM() public view returns (uint128) {
         return totalActiveOwedM() + totalInactiveOwedM();
     }
@@ -416,22 +415,22 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         }
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function minterRate() external view returns (uint32) {
         return _latestRate;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function isActiveMinter(address minter_) external view returns (bool) {
         return _minterStates[minter_].isActive;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function isDeactivatedMinter(address minter_) external view returns (bool) {
         return _minterStates[minter_].isDeactivated;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function activeOwedMOf(address minter_) public view returns (uint128) {
         // TODO: This should also include the present value of unavoidable penalities. But then it would be very, if not
         //       impossible, to determine the `totalActiveOwedM` to the same standards. Perhaps we need a `penaltiesOf`
@@ -439,17 +438,17 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         return _getPresentAmount(_owedM[minter_].principalOfActive);
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function maxAllowedActiveOwedMOf(address minter_) public view returns (uint128) {
         return (collateralOf(minter_) * mintRatio()) / ONE;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function inactiveOwedMOf(address minter_) external view returns (uint128) {
         return _owedM[minter_].inactive;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function collateralOf(address minter_) public view returns (uint128) {
         // If collateral was not updated before deadline, assume that minter's collateral is zero.
         return
@@ -458,27 +457,27 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
                 : 0;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function collateralUpdateOf(address minter_) external view returns (uint40) {
         return _minterStates[minter_].updateTimestamp;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function collateralUpdateDeadlineOf(address minter_) public view returns (uint40) {
         return _minterStates[minter_].updateTimestamp + _minterStates[minter_].lastUpdateInterval;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function lastCollateralUpdateIntervalOf(address minter_) external view returns (uint32) {
         return _minterStates[minter_].lastUpdateInterval;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function penalizedUntilOf(address minter_) external view returns (uint40) {
         return _minterStates[minter_].penalizedUntilTimestamp;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function getPenaltyForMissedCollateralUpdates(address minter_) public view returns (uint128) {
         (uint128 penaltyBase_, ) = _getPenaltyBaseAndTimeForMissedCollateralUpdates(
             minter_,
@@ -488,7 +487,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         return (penaltyBase_ * penaltyRate()) / ONE;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function mintProposalOf(
         address minter_
     ) external view returns (uint48 mintId_, uint40 createdAt_, address destination_, uint128 amount_) {
@@ -498,17 +497,17 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         amount_ = _mintProposals[minter_].amount;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function pendingCollateralRetrievalOf(address minter_, uint256 retrievalId_) external view returns (uint128) {
         return _pendingCollateralRetrievals[minter_][UIntMath.safe48(retrievalId_)];
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function totalPendingCollateralRetrievalsOf(address minter_) external view returns (uint128) {
         return _minterStates[minter_].totalPendingRetrievals;
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function unfrozenTimeOf(address minter_) external view returns (uint40) {
         return _minterStates[minter_].unfrozenTimestamp;
     }
@@ -517,53 +516,53 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     |                                       TTG Registrar Reader Functions                                            |
     \******************************************************************************************************************/
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function isMinterApprovedByTTG(address minter_) public view returns (bool) {
         return TTGRegistrarReader.isApprovedMinter(ttgRegistrar, minter_);
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function isValidatorApprovedByTTG(address validator_) public view returns (bool) {
         return TTGRegistrarReader.isApprovedValidator(ttgRegistrar, validator_);
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function updateCollateralInterval() public view returns (uint32) {
         return UIntMath.bound32(TTGRegistrarReader.getUpdateCollateralInterval(ttgRegistrar));
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function updateCollateralValidatorThreshold() public view returns (uint256) {
         return TTGRegistrarReader.getUpdateCollateralValidatorThreshold(ttgRegistrar);
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function mintRatio() public view returns (uint32) {
         // NOTE: It is possible for the mint ratio to be greater than 100%.
         return UIntMath.bound32(TTGRegistrarReader.getMintRatio(ttgRegistrar));
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function mintDelay() public view returns (uint32) {
         return UIntMath.bound32(TTGRegistrarReader.getMintDelay(ttgRegistrar));
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function mintTTL() public view returns (uint32) {
         return UIntMath.bound32(TTGRegistrarReader.getMintTTL(ttgRegistrar));
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function minterFreezeTime() public view returns (uint32) {
         return UIntMath.bound32(TTGRegistrarReader.getMinterFreezeTime(ttgRegistrar));
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function penaltyRate() public view returns (uint32) {
         return UIntMath.bound32(TTGRegistrarReader.getPenaltyRate(ttgRegistrar));
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function rateModel() public view returns (address) {
         return TTGRegistrarReader.getMinterRateModel(ttgRegistrar);
     }
@@ -581,7 +580,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     function _imposePenalty(address minter_, uint128 penaltyBase_) internal {
         uint128 penalty_ = uint128((penaltyBase_ * penaltyRate()) / ONE);
 
-        // NOTE: When imposing a present amount penalty, round the principal up in favor of the protocol.
+        // NOTE: When imposing a present amount penalty, round the principal up in favor of the Minter Gateway.
         uint128 penaltyPrincipal_ = _getPrincipalAmountRoundedUp(penalty_);
 
         // NOTE: Unchecked can be used here.
@@ -642,7 +641,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     function _repayForActiveMinter(address minter_, uint128 maxAmount_) internal returns (uint128 amount_) {
         amount_ = UIntMath.min128(activeOwedMOf(minter_), maxAmount_);
 
-        // NOTE: When subtracting a present amount, round the principal down in favor of the protocol.
+        // NOTE: When subtracting a present amount, round the principal down in favor of the Minter Gateway.
         uint128 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
 
         // NOTE: Unchecked can be used here.
@@ -701,7 +700,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     function _updateCollateral(address minter_, uint128 amount_, uint40 newTimestamp_) internal {
         uint40 lastUpdateTimestamp_ = _minterStates[minter_].updateTimestamp;
 
-        // Protocol already has more recent collateral update
+        // MinterGateway already has more recent collateral update
         if (newTimestamp_ < lastUpdateTimestamp_) revert StaleCollateralUpdate(newTimestamp_, lastUpdateTimestamp_);
 
         _minterStates[minter_].collateral = amount_;
@@ -754,7 +753,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /**
      * @dev   Returns the present amount (rounded up) given the principal amount, using the current index.
-     *        All present amounts are rounded up in favor of the protocol, since they are owed.
+     *        All present amounts are rounded up in favor of the Minter Gateway, since they are owed.
      * @param principalAmount_ The principal amount
      */
     function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128) {
