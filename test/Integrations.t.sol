@@ -290,8 +290,8 @@ contract IntegrationTests is Test {
 
         vm.warp(block.timestamp + 1 hours); // 1 hour later, someone updates the indices.
 
-        uint256 excessActiveOwedM = _protocol.excessActiveOwedM();
-        assertEq(excessActiveOwedM, 6_292555);
+        uint256 excessOwedM = _protocol.excessOwedM();
+        assertEq(excessOwedM, 6_292555);
 
         _protocol.updateIndex();
 
@@ -313,8 +313,8 @@ contract IntegrationTests is Test {
         assertEq(_mToken.balanceOf(_bob), 551_224_598012); // Bob is not earning, so no change.
         assertEq(_mToken.balanceOf(_vault), 6_292556); // Excess active owed M is distributed to vault.
 
-        excessActiveOwedM = _protocol.excessActiveOwedM();
-        assertEq(excessActiveOwedM, 0);
+        excessOwedM = _protocol.excessOwedM();
+        assertEq(excessOwedM, 0);
 
         vm.warp(block.timestamp + 1 days); // 1 day later, bob starts earning.
 
@@ -376,9 +376,13 @@ contract IntegrationTests is Test {
         assertEq(_protocol.inactiveOwedMOf(_minters[0]), 555_932_515123);
         assertEq(_mToken.balanceOf(_bob), 555_773_881219);
 
-        // Note: No change here since when `_protocol.updateIndex()` was called, the `_protocol.totalActiveM` was 0, and
-        //       thus there was no `_protocol.activeOwedM` in excess of `_mToken.totalSupply` to distribute to `_vault`.
-        assertEq(_mToken.balanceOf(_vault), 6_292556);
+        assertEq(_mToken.balanceOf(_vault), 158633904); // Delta is distributed to vault.
+        
+        // Main invariant of the system: totalActiveOwedM >= totalSupply of M Token.
+        assertEq(
+            _mToken.balanceOf(_bob) + _mToken.balanceOf(_vault),
+            _protocol.totalActiveOwedM() + _protocol.totalInactiveOwedM()
+        );
 
         vm.warp(block.timestamp + 30 days); // 30 more days pass without any changes to the system.
 
@@ -395,7 +399,7 @@ contract IntegrationTests is Test {
         assertEq(_protocol.activeOwedMOf(_minters[0]), 0);
         assertEq(_protocol.inactiveOwedMOf(_minters[0]), 555_932_515123);
         assertEq(_mToken.balanceOf(_bob), 555_773_881219); // No change due to no earner rate in last 30 days.
-        assertEq(_mToken.balanceOf(_vault), 6_292556); // No change since conditions did not change.
+        assertEq(_mToken.balanceOf(_vault), 158633904); // No change since conditions did not change.
     }
 
     function _makeKey(string memory name) internal returns (uint256 privateKey) {

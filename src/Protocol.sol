@@ -45,7 +45,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         uint40 penalizedUntilTimestamp;
         uint40 unfrozenTimestamp;
         bool isActive;
-        bool wasDeactivated;
+        bool isDeactivated;
     }
 
     struct OwedM {
@@ -316,7 +316,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @inheritdoc IProtocol
     function activateMinter(address minter_) external {
         if (!isMinterApprovedBySPOG(minter_)) revert NotApprovedMinter();
-        if (_minterStates[minter_].wasDeactivated) revert DeactivatedMinter();
+        if (_minterStates[minter_].isDeactivated) revert DeactivatedMinter();
 
         _minterStates[minter_].isActive = true;
 
@@ -345,7 +345,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         delete _mintProposals[minter_];
         delete _owedM[minter_].principalOfActive;
 
-        _minterStates[minter_].wasDeactivated = true;
+        _minterStates[minter_].isDeactivated = true;
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the
         //       deactivation can result in a new rate, we should update the index here to lock in that rate.
@@ -356,7 +356,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     function updateIndex() public override(IContinuousIndexing, ContinuousIndexing) returns (uint128 index_) {
         // NOTE: Since the currentIndex of the protocol and mToken are constant thought this context's execution (since
         //       the block.timestamp is not changing) we can compute excessOwedM without updating the mToken index.
-        uint128 excessOwedM_ = excessActiveOwedM();
+        uint128 excessOwedM_ = excessOwedM();
 
         if (excessOwedM_ > 0) IMToken(mToken).mint(spogVault, excessOwedM_); // Mint M to SPOG Vault.
 
@@ -387,18 +387,18 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function totalOwedM() external view returns (uint128 totalOwedM_) {
+    function totalOwedM() public view returns (uint128 totalOwedM_) {
         return totalActiveOwedM() + totalInactiveOwedM();
     }
 
     /// @inheritdoc IProtocol
-    function excessActiveOwedM() public view returns (uint128 getExcessOwedM_) {
+    function excessOwedM() public view returns (uint128 excessOwedM_) {
         // TODO: Consider dropping this safe cast since if the total M supply is greater than 2^128, there are bigger
         //       issues, but also because reverts here bricks `updateIndex()`, which bricks everything else.
         uint128 totalMSupply_ = UIntMath.safe128(IMToken(mToken).totalSupply());
-        uint128 totalActiveOwedM_ = totalActiveOwedM();
+        uint128 totalOwedM_ = totalOwedM();
 
-        if (totalActiveOwedM_ > totalMSupply_) return totalActiveOwedM_ - totalMSupply_;
+        if (totalOwedM_ > totalMSupply_) return totalOwedM_ - totalMSupply_;
     }
 
     /// @inheritdoc IProtocol
@@ -409,6 +409,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     /// @inheritdoc IProtocol
     function isActiveMinter(address minter_) external view returns (bool isActive_) {
         return _minterStates[minter_].isActive;
+    }
+
+    /// @inheritdoc IProtocol
+    function isDeactivatedMinter(address minter_) external view returns (bool isDeactivated_) {
+        return _minterStates[minter_].isDeactivated;
     }
 
     /// @inheritdoc IProtocol

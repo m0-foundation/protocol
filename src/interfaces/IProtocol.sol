@@ -270,8 +270,8 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The total owed M for all minters.
     function totalOwedM() external view returns (uint128);
 
-    /// @notice The difference between total active owed M and M token total supply.
-    function excessActiveOwedM() external view returns (uint128);
+    /// @notice The difference between total owed M and M token total supply.
+    function excessOwedM() external view returns (uint128);
 
     /// @notice The active owed M of minter.
     function activeOwedMOf(address minter) external view returns (uint128);
@@ -316,6 +316,9 @@ interface IProtocol is IContinuousIndexing {
 
     /// @notice Checks if minter was activated after approval by SPOG
     function isActiveMinter(address minter) external view returns (bool);
+
+    /// @notice Checks if minter was deactivated after removal by SPOG
+    function isDeactivatedMinter(address minter) external view returns (bool);
 
     /// @notice Checks if minter was approved by SPOG
     function isMinterApprovedBySPOG(address minter) external view returns (bool);
