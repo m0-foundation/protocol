@@ -6,10 +6,10 @@ import { console2, stdError, Test } from "../lib/forge-std/src/Test.sol";
 
 import { IMToken } from "../src/interfaces/IMToken.sol";
 
-import { SPOGRegistrarReader } from "../src/libs/SPOGRegistrarReader.sol";
+import { TTGRegistrarReader } from "../src/libs/TTGRegistrarReader.sol";
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
 
-import { MockProtocol, MockRateModel, MockSPOGRegistrar } from "./utils/Mocks.sol";
+import { MockProtocol, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
 import { MTokenHarness } from "./utils/MTokenHarness.sol";
 
 // TODO: Fuzz and/or invariant tests.
@@ -29,7 +29,7 @@ contract MTokenTests is Test {
     uint128 internal _expectedCurrentIndex;
 
     MockRateModel internal _earnerRateModel;
-    MockSPOGRegistrar internal _registrar;
+    MockTTGRegistrar internal _registrar;
     MTokenHarness internal _mToken;
 
     function setUp() external {
@@ -37,9 +37,9 @@ contract MTokenTests is Test {
 
         _earnerRateModel.setRate(_earnerRate);
 
-        _registrar = new MockSPOGRegistrar();
+        _registrar = new MockTTGRegistrar();
 
-        _registrar.updateConfig(SPOGRegistrarReader.EARNER_RATE_MODEL, address(_earnerRateModel));
+        _registrar.updateConfig(TTGRegistrarReader.EARNER_RATE_MODEL, address(_earnerRateModel));
 
         _mToken = new MTokenHarness(address(_registrar), _protocol);
 
@@ -314,7 +314,7 @@ contract MTokenTests is Test {
     }
 
     function test_startEarning_onBehalfOf_hasOptedOutOfEarning() external {
-        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _alice);
+        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
 
         _mToken.setHasOptedOutOfEarning(_alice, true);
 
@@ -328,7 +328,7 @@ contract MTokenTests is Test {
 
         _mToken.setInternalBalanceOf(_alice, 1_000);
 
-        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _alice);
+        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
 
         _mToken.startEarning(_alice);
 
@@ -354,7 +354,7 @@ contract MTokenTests is Test {
 
         _mToken.setInternalBalanceOf(_alice, 1_000);
 
-        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _alice);
+        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
 
         vm.prank(_alice);
         _mToken.startEarning();
@@ -370,7 +370,7 @@ contract MTokenTests is Test {
     }
 
     function test_stopEarning_onBehalfOf_isApprovedEarner() external {
-        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _alice);
+        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
 
         vm.expectRevert(IMToken.IsApprovedEarner.selector);
         _mToken.stopEarning(_alice);
@@ -655,7 +655,7 @@ contract MTokenTests is Test {
     }
 
     function test_emptyRateModel() external {
-        _registrar.updateConfig(SPOGRegistrarReader.EARNER_RATE_MODEL, address(0));
+        _registrar.updateConfig(TTGRegistrarReader.EARNER_RATE_MODEL, address(0));
 
         assertEq(_mToken.rate(), 0);
     }

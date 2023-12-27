@@ -6,7 +6,7 @@ import { SignatureChecker } from "../lib/common/src/libs/SignatureChecker.sol";
 
 import { ERC712 } from "../lib/common/src/ERC712.sol";
 
-import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
+import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 import { UIntMath } from "./libs/UIntMath.sol";
 
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
@@ -24,7 +24,7 @@ import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
  * @title Protocol
  * @author M^ZERO LABS_
  * @notice Core protocol of M^ZERO ecosystem.
-           Minting Gateway of M Token for all approved by SPOG and activated minters.
+           Minting Gateway of M Token for all approved by TTG and activated minters.
  */
 contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     struct MintProposal {
@@ -66,10 +66,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         0x22b57ca54bd15c6234b29e87aa1d76a0841b6e65e63d7acacef989de0bc3ff9e;
 
     /// @inheritdoc IProtocol
-    address public immutable spogRegistrar;
+    address public immutable ttgRegistrar;
 
     /// @inheritdoc IProtocol
-    address public immutable spogVault;
+    address public immutable ttgVault;
 
     /// @inheritdoc IProtocol
     address public immutable mToken;
@@ -109,7 +109,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         _;
     }
 
-    /// @notice Only allow approved validator in SPOG to call function.
+    /// @notice Only allow approved validator in TTG to call function.
     modifier onlyApprovedValidator() {
         _revertIfNotApprovedValidator(msg.sender);
 
@@ -125,12 +125,12 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /**
      * @notice Constructor.
-     * @param  spogRegistrar_ The address of the SPOG Registrar contract.
+     * @param  ttgRegistrar_ The address of the TTG Registrar contract.
      * @param  mToken_        The address of the M Token.
      */
-    constructor(address spogRegistrar_, address mToken_) ContinuousIndexing() ERC712("Protocol") {
-        if ((spogRegistrar = spogRegistrar_) == address(0)) revert ZeroSpogRegistrar();
-        if ((spogVault = SPOGRegistrarReader.getVault(spogRegistrar_)) == address(0)) revert ZeroSpogVault();
+    constructor(address ttgRegistrar_, address mToken_) ContinuousIndexing() ERC712("Protocol") {
+        if ((ttgRegistrar = ttgRegistrar_) == address(0)) revert ZeroTTGRegistrar();
+        if ((ttgVault = TTGRegistrarReader.getVault(ttgRegistrar_)) == address(0)) revert ZeroTTGVault();
         if ((mToken = mToken_) == address(0)) revert ZeroMToken();
     }
 
@@ -175,7 +175,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
 
-        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if SPOG changes it.
+        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if TTG changes it.
         if (updateCollateralInterval_ != 0) {
             _minterStates[msg.sender].lastUpdateInterval = updateCollateralInterval_;
         }
@@ -280,7 +280,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         // Undercollateralization within one update interval is forgiven.
         _imposePenaltyIfMissedCollateralUpdates(minter_, updateCollateralInterval_);
 
-        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if SPOG changes it.
+        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if TTG changes it.
         if (updateCollateralInterval_ != 0) {
             _minterStates[minter_].lastUpdateInterval = updateCollateralInterval_;
         }
@@ -321,7 +321,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function activateMinter(address minter_) external {
-        if (!isMinterApprovedBySPOG(minter_)) revert NotApprovedMinter();
+        if (!isMinterApprovedByTTG(minter_)) revert NotApprovedMinter();
         if (_minterStates[minter_].isDeactivated) revert DeactivatedMinter();
 
         _minterStates[minter_].isActive = true;
@@ -331,7 +331,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function deactivateMinter(address minter_) external returns (uint128 inactiveOwedM_) {
-        if (isMinterApprovedBySPOG(minter_)) revert StillApprovedMinter();
+        if (isMinterApprovedByTTG(minter_)) revert StillApprovedMinter();
 
         _revertIfInactiveMinter(minter_);
 
@@ -369,7 +369,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         //       the block.timestamp is not changing) we can compute excessOwedM without updating the mToken index.
         uint128 excessOwedM_ = excessOwedM();
 
-        if (excessOwedM_ > 0) IMToken(mToken).mint(spogVault, excessOwedM_); // Mint M to SPOG Vault.
+        if (excessOwedM_ > 0) IMToken(mToken).mint(ttgVault, excessOwedM_); // Mint M to TTG Vault.
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the collateral
         //       update can result in a new rate, we should update the index here to lock in that rate.
@@ -514,58 +514,58 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /******************************************************************************************************************\
-    |                                       SPOG Registrar Reader Functions                                            |
+    |                                       TTG Registrar Reader Functions                                            |
     \******************************************************************************************************************/
 
     /// @inheritdoc IProtocol
-    function isMinterApprovedBySPOG(address minter_) public view returns (bool) {
-        return SPOGRegistrarReader.isApprovedMinter(spogRegistrar, minter_);
+    function isMinterApprovedByTTG(address minter_) public view returns (bool) {
+        return TTGRegistrarReader.isApprovedMinter(ttgRegistrar, minter_);
     }
 
     /// @inheritdoc IProtocol
-    function isValidatorApprovedBySPOG(address validator_) public view returns (bool) {
-        return SPOGRegistrarReader.isApprovedValidator(spogRegistrar, validator_);
+    function isValidatorApprovedByTTG(address validator_) public view returns (bool) {
+        return TTGRegistrarReader.isApprovedValidator(ttgRegistrar, validator_);
     }
 
     /// @inheritdoc IProtocol
     function updateCollateralInterval() public view returns (uint32) {
-        return UIntMath.bound32(SPOGRegistrarReader.getUpdateCollateralInterval(spogRegistrar));
+        return UIntMath.bound32(TTGRegistrarReader.getUpdateCollateralInterval(ttgRegistrar));
     }
 
     /// @inheritdoc IProtocol
     function updateCollateralValidatorThreshold() public view returns (uint256) {
-        return SPOGRegistrarReader.getUpdateCollateralValidatorThreshold(spogRegistrar);
+        return TTGRegistrarReader.getUpdateCollateralValidatorThreshold(ttgRegistrar);
     }
 
     /// @inheritdoc IProtocol
     function mintRatio() public view returns (uint32) {
         // NOTE: It is possible for the mint ratio to be greater than 100%.
-        return UIntMath.bound32(SPOGRegistrarReader.getMintRatio(spogRegistrar));
+        return UIntMath.bound32(TTGRegistrarReader.getMintRatio(ttgRegistrar));
     }
 
     /// @inheritdoc IProtocol
     function mintDelay() public view returns (uint32) {
-        return UIntMath.bound32(SPOGRegistrarReader.getMintDelay(spogRegistrar));
+        return UIntMath.bound32(TTGRegistrarReader.getMintDelay(ttgRegistrar));
     }
 
     /// @inheritdoc IProtocol
     function mintTTL() public view returns (uint32) {
-        return UIntMath.bound32(SPOGRegistrarReader.getMintTTL(spogRegistrar));
+        return UIntMath.bound32(TTGRegistrarReader.getMintTTL(ttgRegistrar));
     }
 
     /// @inheritdoc IProtocol
     function minterFreezeTime() public view returns (uint32) {
-        return UIntMath.bound32(SPOGRegistrarReader.getMinterFreezeTime(spogRegistrar));
+        return UIntMath.bound32(TTGRegistrarReader.getMinterFreezeTime(ttgRegistrar));
     }
 
     /// @inheritdoc IProtocol
     function penaltyRate() public view returns (uint32) {
-        return UIntMath.bound32(SPOGRegistrarReader.getPenaltyRate(spogRegistrar));
+        return UIntMath.bound32(TTGRegistrarReader.getPenaltyRate(ttgRegistrar));
     }
 
     /// @inheritdoc IProtocol
     function rateModel() public view returns (address) {
-        return SPOGRegistrarReader.getMinterRateModel(spogRegistrar);
+        return TTGRegistrarReader.getMinterRateModel(ttgRegistrar);
     }
 
     /******************************************************************************************************************\
@@ -634,7 +634,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /**
-     * @dev    Repays active (not deactivated, not removed from SPOG) minter's owed M.
+     * @dev    Repays active (not deactivated, not removed from TTG) minter's owed M.
      * @param  minter_    The address of the minter
      * @param  maxAmount_ The maximum amount of active owed M to repay
      * @return amount_    The amount of active owed M that was actually repaid
@@ -655,7 +655,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /**
-     * @dev    Repays inactive (deactivated, removed from SPOG) minter's owed M.
+     * @dev    Repays inactive (deactivated, removed from TTG) minter's owed M.
      * @param  minter_    The address of the minter
      * @param  maxAmount_ The maximum amount of inactive owed M to repay
      * @return amount_    The amount of inactive owed M that was actually repaid
@@ -823,7 +823,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @param validator_ The address of the validator
      */
     function _revertIfNotApprovedValidator(address validator_) internal view {
-        if (!isValidatorApprovedBySPOG(validator_)) revert NotApprovedValidator();
+        if (!isValidatorApprovedByTTG(validator_)) revert NotApprovedValidator();
     }
 
     /**
@@ -882,8 +882,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
                 timestamps_[index_]
             );
 
-            // Check that validator is approved by SPOG.
-            if (!isValidatorApprovedBySPOG(validators_[index_])) continue;
+            // Check that validator is approved by TTG.
+            if (!isValidatorApprovedByTTG(validators_[index_])) continue;
 
             // Check that ECDSA or ERC1271 signatures for given digest are valid.
             if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_])) continue;

@@ -5,7 +5,7 @@ pragma solidity 0.8.23;
 import { console2, stdError, Test } from "../lib/forge-std/src/Test.sol";
 
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
-import { SPOGRegistrarReader } from "../src/libs/SPOGRegistrarReader.sol";
+import { TTGRegistrarReader } from "../src/libs/TTGRegistrarReader.sol";
 
 import { IEarnerRateModel } from "../src/interfaces/IEarnerRateModel.sol";
 import { IMinterRateModel } from "../src/interfaces/IMinterRateModel.sol";
@@ -15,7 +15,7 @@ import { IProtocol } from "../src/interfaces/IProtocol.sol";
 import { DeployBase } from "../script/DeployBase.s.sol";
 
 import { DigestHelper } from "./utils/DigestHelper.sol";
-import { MockSPOGRegistrar } from "./utils/Mocks.sol";
+import { MockTTGRegistrar } from "./utils/Mocks.sol";
 
 // TODO: Check mints to Vault.
 
@@ -61,11 +61,11 @@ contract IntegrationTests is Test {
     IProtocol internal _protocol;
     IEarnerRateModel internal _earnerRateModel;
     IMinterRateModel internal _minterRateModel;
-    MockSPOGRegistrar internal _registrar;
+    MockTTGRegistrar internal _registrar;
 
     function setUp() external {
         _deploy = new DeployBase();
-        _registrar = new MockSPOGRegistrar();
+        _registrar = new MockTTGRegistrar();
 
         _registrar.setVault(_vault);
 
@@ -81,30 +81,30 @@ contract IntegrationTests is Test {
         _earnerRateModel = IEarnerRateModel(earnerRateModel_);
         _minterRateModel = IMinterRateModel(minterRateModel_);
 
-        _registrar.updateConfig(SPOGRegistrarReader.BASE_EARNER_RATE, _baseEarnerRate);
-        _registrar.updateConfig(SPOGRegistrarReader.BASE_MINTER_RATE, _baseMinterRate);
-        _registrar.updateConfig(SPOGRegistrarReader.EARNER_RATE_MODEL, earnerRateModel_);
-        _registrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, minterRateModel_);
-        _registrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 1);
-        _registrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateInterval);
-        _registrar.updateConfig(SPOGRegistrarReader.MINT_DELAY, _mintDelay);
-        _registrar.updateConfig(SPOGRegistrarReader.MINT_TTL, _mintTtl);
-        _registrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, _mintRatio);
+        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, _baseEarnerRate);
+        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, _baseMinterRate);
+        _registrar.updateConfig(TTGRegistrarReader.EARNER_RATE_MODEL, earnerRateModel_);
+        _registrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, minterRateModel_);
+        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 1);
+        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateInterval);
+        _registrar.updateConfig(TTGRegistrarReader.MINT_DELAY, _mintDelay);
+        _registrar.updateConfig(TTGRegistrarReader.MINT_TTL, _mintTtl);
+        _registrar.updateConfig(TTGRegistrarReader.MINT_RATIO, _mintRatio);
 
-        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _mHolders[0]);
-        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _mHolders[1]);
-        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _mHolders[2]);
-        _registrar.addToList(SPOGRegistrarReader.EARNERS_LIST, _mHolders[3]);
+        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _mHolders[0]);
+        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _mHolders[1]);
+        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _mHolders[2]);
+        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _mHolders[3]);
 
-        _registrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validators[0]);
-        _registrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validators[1]);
-        _registrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validators[2]);
-        _registrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validators[3]);
+        _registrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validators[0]);
+        _registrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validators[1]);
+        _registrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validators[2]);
+        _registrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validators[3]);
 
-        _registrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minters[0]);
-        _registrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minters[1]);
-        _registrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minters[2]);
-        _registrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minters[3]);
+        _registrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
+        _registrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minters[1]);
+        _registrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minters[2]);
+        _registrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minters[3]);
 
         _protocol.updateIndex();
     }
@@ -354,7 +354,7 @@ contract IntegrationTests is Test {
         assertEq(_mToken.balanceOf(_bob), 555_773_881219);
         assertEq(_mToken.balanceOf(_vault), 6_292556); // No change since no call to `_protocol.updateIndex()`.
 
-        _registrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minters[0]);
+        _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
 
         _protocol.deactivateMinter(_minters[0]);
 

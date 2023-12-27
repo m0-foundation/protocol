@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.23;
 
-import "../../src/interfaces/ISPOGRegistrar.sol";
+import "../../src/interfaces/ITTGRegistrar.sol";
 
-contract MockSPOGRegistrar is ISPOGRegistrar {
+contract MockTTGRegistrar is ITTGRegistrar {
     address internal _vault;
 
     mapping(bytes32 key => bytes32 value) internal _valueAt;

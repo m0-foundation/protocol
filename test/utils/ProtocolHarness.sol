@@ -5,7 +5,7 @@ pragma solidity 0.8.23;
 import { Protocol } from "../../src/Protocol.sol";
 
 contract ProtocolHarness is Protocol {
-    constructor(address spogRegistrar_, address mToken_) Protocol(spogRegistrar_, mToken_) {}
+    constructor(address ttgRegistrar_, address mToken_) Protocol(ttgRegistrar_, mToken_) {}
 
     function mintNonce() external view returns (uint48) {
         return _mintNonce;

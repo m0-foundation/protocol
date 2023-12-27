@@ -6,11 +6,11 @@ import { IRateModel } from "./IRateModel.sol";
 
 /// @title Minter Rate Model Interface.
 interface IMinterRateModel is IRateModel {
-    /// @notice Emitted when SPOG Registrar contract address is zero.
-    error ZeroSpogRegistrar();
+    /// @notice Emitted when TTG Registrar contract address is zero.
+    error ZeroTTGRegistrar();
 
-    /// @notice The SPOG Registrar contract address.
-    function spogRegistrar() external view returns (address);
+    /// @notice The TTG Registrar contract address.
+    function ttgRegistrar() external view returns (address);
 
     /// @notice The base rate of the Earner Rate Model.
     function baseRate() external view returns (uint256);

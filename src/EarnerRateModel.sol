@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.23;
 
-import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
+import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 import { UIntMath } from "./libs/UIntMath.sol";
 
 import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
@@ -15,9 +15,6 @@ import { IRateModel } from "./interfaces/IRateModel.sol";
  * @author M^ZERO LABS_
  */
 contract EarnerRateModel is IEarnerRateModel {
-    /// @dev 100% in basis points.
-    uint256 internal constant _ONE = 10_000;
-
     /// @inheritdoc IEarnerRateModel
     address public immutable mToken;
 
@@ -25,7 +22,7 @@ contract EarnerRateModel is IEarnerRateModel {
     address public immutable protocol;
 
     /// @inheritdoc IEarnerRateModel
-    address public immutable spogRegistrar;
+    address public immutable ttgRegistrar;
 
     /**
      * @notice Constructs the EarnerRateModel contract.
@@ -33,7 +30,7 @@ contract EarnerRateModel is IEarnerRateModel {
      */
     constructor(address protocol_) {
         if ((protocol = protocol_) == address(0)) revert ZeroProtocol();
-        if ((spogRegistrar = IProtocol(protocol_).spogRegistrar()) == address(0)) revert ZeroSpogRegistrar();
+        if ((ttgRegistrar = IProtocol(protocol_).ttgRegistrar()) == address(0)) revert ZeroTTGRegistrar();
         if ((mToken = IProtocol(protocol_).mToken()) == address(0)) revert ZeroMToken();
     }
 
@@ -55,6 +52,6 @@ contract EarnerRateModel is IEarnerRateModel {
 
     /// @inheritdoc IEarnerRateModel
     function baseRate() public view returns (uint256 baseRate_) {
-        return SPOGRegistrarReader.getBaseEarnerRate(spogRegistrar);
+        return TTGRegistrarReader.getBaseEarnerRate(ttgRegistrar);
     }
 }

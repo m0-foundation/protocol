@@ -5,12 +5,12 @@ pragma solidity 0.8.23;
 import { console2, stdError, Test } from "../lib/forge-std/src/Test.sol";
 
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
-import { SPOGRegistrarReader } from "../src/libs/SPOGRegistrarReader.sol";
+import { TTGRegistrarReader } from "../src/libs/TTGRegistrarReader.sol";
 
 import { IProtocol } from "../src/interfaces/IProtocol.sol";
 
 import { DigestHelper } from "./utils/DigestHelper.sol";
-import { MockMToken, MockRateModel, MockSPOGRegistrar } from "./utils/Mocks.sol";
+import { MockMToken, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
 import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
 
 contract ProtocolTests is Test {
@@ -18,7 +18,7 @@ contract ProtocolTests is Test {
 
     address internal _alice = makeAddr("alice");
     address internal _bob = makeAddr("bob");
-    address internal _spogVault = makeAddr("spogVault");
+    address internal _ttgVault = makeAddr("ttgVault");
 
     address internal _minter1 = makeAddr("minter1");
 
@@ -39,7 +39,7 @@ contract ProtocolTests is Test {
 
     MockMToken internal _mToken;
     MockRateModel internal _minterRateModel;
-    MockSPOGRegistrar internal _spogRegistrar;
+    MockTTGRegistrar internal _ttgRegistrar;
     ProtocolHarness internal _protocol;
 
     function setUp() external {
@@ -52,28 +52,28 @@ contract ProtocolTests is Test {
 
         _mToken = new MockMToken();
 
-        _spogRegistrar = new MockSPOGRegistrar();
+        _ttgRegistrar = new MockTTGRegistrar();
 
-        _spogRegistrar.setVault(_spogVault);
+        _ttgRegistrar.setVault(_ttgVault);
 
-        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
-        _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validator1);
-        _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validator2);
+        _ttgRegistrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minter1);
+        _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validator1);
+        _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validator2);
 
-        _spogRegistrar.updateConfig(
-            SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD,
+        _ttgRegistrar.updateConfig(
+            TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD,
             _updateCollateralThreshold
         );
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval);
 
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_FREEZE_TIME, _minterFreezeTime);
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_DELAY, _mintDelay);
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_TTL, _mintTTL);
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, _mintRatio);
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, address(_minterRateModel));
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.PENALTY_RATE, _penaltyRate);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_FREEZE_TIME, _minterFreezeTime);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_DELAY, _mintDelay);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_TTL, _mintTTL);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_RATIO, _mintRatio);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, address(_minterRateModel));
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.PENALTY_RATE, _penaltyRate);
 
-        _protocol = new ProtocolHarness(address(_spogRegistrar), address(_mToken));
+        _protocol = new ProtocolHarness(address(_ttgRegistrar), address(_mToken));
 
         _protocol.activateMinter(_minter1);
         _protocol.setLatestRate(_minterRate); // This can be `protocol.updateIndex()`, but is not necessary.
@@ -242,7 +242,7 @@ contract ProtocolTests is Test {
     }
 
     function test_updateCollateral_invalidSignatureOrder() external {
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
 
         uint256 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
@@ -288,7 +288,7 @@ contract ProtocolTests is Test {
     }
 
     function test_updateCollateral_notEnoughValidSignatures() external {
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
 
         uint256 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
@@ -323,7 +323,7 @@ contract ProtocolTests is Test {
         );
 
         (address validator4_, uint256 validator4Pk_) = makeAddrAndKey("validator4");
-        _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, validator4_);
+        _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, validator4_);
         bytes memory signature4_ = _getCollateralUpdateSignature(
             _minter1,
             collateral,
@@ -1031,7 +1031,7 @@ contract ProtocolTests is Test {
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
 
         // Change update collateral interval, more frequent updates are required
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
 
         uint256 threeMissedIntervals = _updateCollateralInterval + (2 * _updateCollateralInterval) / 4;
         vm.warp(timestamp + threeMissedIntervals + 10);
@@ -1082,7 +1082,7 @@ contract ProtocolTests is Test {
         vm.warp(timestamp + _updateCollateralInterval - 10);
 
         // Change update collateral interval, more frequent updates are required
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
 
         uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
 
@@ -1117,7 +1117,7 @@ contract ProtocolTests is Test {
         vm.warp(timestamp + _updateCollateralInterval + 10);
 
         // Change update collateral interval, more frequent updates are required
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
 
         uint256 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
 
@@ -1150,7 +1150,7 @@ contract ProtocolTests is Test {
         _protocol.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
 
         // Change update collateral interval, more frequent updates are required
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
 
         vm.warp(timestamp + (3 * _updateCollateralInterval) + 10);
 
@@ -1177,7 +1177,7 @@ contract ProtocolTests is Test {
         assertEq(penalty, 0);
 
         // Change update collateral interval, more frequent updates are required
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 2);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 2);
 
         vm.warp(timestamp + _updateCollateralInterval + 10);
 
@@ -1196,7 +1196,7 @@ contract ProtocolTests is Test {
         _protocol.setActiveMinter(_minter1, false);
         assertEq(_protocol.isActiveMinter(_minter1), false);
 
-        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+        _ttgRegistrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minter1);
 
         vm.expectEmit();
         emit IProtocol.MinterActivated(_minter1, address(this));
@@ -1212,10 +1212,10 @@ contract ProtocolTests is Test {
     }
 
     function test_activateMinter_deactivatedMinter() external {
-        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+        _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
         _protocol.deactivateMinter(_minter1);
 
-        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+        _ttgRegistrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minter1);
 
         vm.expectRevert(IProtocol.DeactivatedMinter.selector);
         _protocol.activateMinter(_minter1);
@@ -1230,7 +1230,7 @@ contract ProtocolTests is Test {
 
         uint128 activeOwedM = _protocol.activeOwedMOf(_minter1);
 
-        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+        _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
 
         vm.expectEmit();
         emit IProtocol.MinterDeactivated(_minter1, activeOwedM, _alice);
@@ -1278,7 +1278,7 @@ contract ProtocolTests is Test {
         uint128 activeOwedM = _protocol.activeOwedMOf(_minter1);
         uint128 penalty = _protocol.getPenaltyForMissedCollateralUpdates(_minter1);
 
-        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+        _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
 
         vm.expectEmit();
         emit IProtocol.MinterDeactivated(_minter1, activeOwedM + penalty, _alice);
@@ -1293,7 +1293,7 @@ contract ProtocolTests is Test {
     }
 
     function test_deactivateMinter_InactiveMinter() external {
-        _spogRegistrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minter1);
+        _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
         _protocol.deactivateMinter(_minter1);
 
         vm.expectRevert(IProtocol.InactiveMinter.selector);
@@ -1301,7 +1301,7 @@ contract ProtocolTests is Test {
     }
 
     function test_proposeRetrieval() external {
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(2)));
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(2)));
 
         uint128 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
@@ -1553,7 +1553,7 @@ contract ProtocolTests is Test {
     }
 
     function test_updateCollateral_zeroThreshold() external {
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(0)));
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(0)));
 
         uint256[] memory retrievalIds = new uint256[](0);
         address[] memory validators = new address[](0);
@@ -1568,7 +1568,7 @@ contract ProtocolTests is Test {
     }
 
     function test_updateCollateral_someSignaturesAreInvalid() external {
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(1)));
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(1)));
 
         uint256[] memory retrievalIds = new uint256[](0);
 
@@ -1619,52 +1619,52 @@ contract ProtocolTests is Test {
     }
 
     function test_emptyRateModel() external {
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, address(0));
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, address(0));
 
         assertEq(_protocol.rate(), 0);
     }
 
-    function test_readSPOGParameters() external {
+    function test_readTTGParameters() external {
         address peter = makeAddr("peter");
 
-        assertEq(_protocol.isMinterApprovedBySPOG(peter), false);
-        _spogRegistrar.addToList(SPOGRegistrarReader.MINTERS_LIST, peter);
-        assertEq(_protocol.isMinterApprovedBySPOG(peter), true);
+        assertEq(_protocol.isMinterApprovedByTTG(peter), false);
+        _ttgRegistrar.addToList(TTGRegistrarReader.MINTERS_LIST, peter);
+        assertEq(_protocol.isMinterApprovedByTTG(peter), true);
 
-        assertEq(_protocol.isValidatorApprovedBySPOG(peter), false);
-        _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, peter);
-        assertEq(_protocol.isValidatorApprovedBySPOG(peter), true);
+        assertEq(_protocol.isValidatorApprovedByTTG(peter), false);
+        _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, peter);
+        assertEq(_protocol.isValidatorApprovedByTTG(peter), true);
 
-        _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, _validator1);
+        _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validator1);
 
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, 8000);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_RATIO, 8000);
         assertEq(_protocol.mintRatio(), 8000);
 
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
         assertEq(_protocol.updateCollateralValidatorThreshold(), 3);
 
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 12 * 60 * 60);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 12 * 60 * 60);
         assertEq(_protocol.updateCollateralInterval(), 12 * 60 * 60);
 
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_FREEZE_TIME, 2 * 60 * 60);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_FREEZE_TIME, 2 * 60 * 60);
         assertEq(_protocol.minterFreezeTime(), 2 * 60 * 60);
 
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_DELAY, 3 * 60 * 60);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_DELAY, 3 * 60 * 60);
         assertEq(_protocol.mintDelay(), 3 * 60 * 60);
 
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_TTL, 4 * 60 * 60);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_TTL, 4 * 60 * 60);
         assertEq(_protocol.mintTTL(), 4 * 60 * 60);
 
         MockRateModel minterRateModel = new MockRateModel();
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, address(minterRateModel));
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, address(minterRateModel));
         assertEq(_protocol.rateModel(), address(minterRateModel));
 
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.PENALTY_RATE, 100);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.PENALTY_RATE, 100);
         assertEq(_protocol.penaltyRate(), 100);
     }
 
     function test_updateCollateralInterval() external {
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 10);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 10);
         assertEq(_protocol.updateCollateralInterval(), 10);
     }
 

@@ -14,23 +14,23 @@ contract DeployBase is Script {
     function deploy(
         address deployer_,
         uint256 deployerNonce_,
-        address spogRegistrar_
+        address ttgRegistrar_
     ) public returns (address protocol_, address minterRateModel_, address earnerRateModel_) {
         console.log("deployer: ", deployer_);
 
-        // M token needs protocol and `spogRegistrar_` addresses.
-        // Protocol needs `spogRegistrar_` and M token addresses and for `spogRegistrar_` to be deployed.
+        // M token needs protocol and `ttgRegistrar_` addresses.
+        // Protocol needs `ttgRegistrar_` and M token addresses and for `ttgRegistrar_` to be deployed.
         // EarnerRateModel needs protocol address and for protocol to be deployed.
-        // MinterRateModel needs `spogRegistrar_` address.
+        // MinterRateModel needs `ttgRegistrar_` address.
 
         address expectedProtocol_ = ContractHelper.getContractFrom(deployer_, deployerNonce_ + 1);
 
         vm.startBroadcast(deployer_);
 
-        address mToken_ = address(new MToken(spogRegistrar_, expectedProtocol_));
+        address mToken_ = address(new MToken(ttgRegistrar_, expectedProtocol_));
 
-        protocol_ = address(new Protocol(spogRegistrar_, mToken_));
-        minterRateModel_ = address(new MinterRateModel(spogRegistrar_));
+        protocol_ = address(new Protocol(ttgRegistrar_, mToken_));
+        minterRateModel_ = address(new MinterRateModel(ttgRegistrar_));
         earnerRateModel_ = address(new EarnerRateModel(protocol_));
 
         vm.stopBroadcast();

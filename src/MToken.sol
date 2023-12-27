@@ -6,7 +6,7 @@ import { ERC20Extended } from "../lib/common/src/ERC20Extended.sol";
 
 import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 
-import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
+import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 import { UIntMath } from "./libs/UIntMath.sol";
 
 import { IMToken } from "./interfaces/IMToken.sol";
@@ -32,7 +32,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     address public immutable protocol;
 
     /// @inheritdoc IMToken
-    address public immutable spogRegistrar;
+    address public immutable ttgRegistrar;
 
     /// @dev The total amount of non earning M supply.
     uint128 internal _totalNonEarningSupply;
@@ -52,11 +52,11 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /**
      * @notice Constructor.
-     * @param  spogRegistrar_ The address of the SPOG Registrar contract.
+     * @param  ttgRegistrar_ The address of the TTG Registrar contract.
      * @param  protocol_      The address of Protocol.
      */
-    constructor(address spogRegistrar_, address protocol_) ContinuousIndexing() ERC20Extended("M Token", "M", 6) {
-        spogRegistrar = spogRegistrar_;
+    constructor(address ttgRegistrar_, address protocol_) ContinuousIndexing() ERC20Extended("M Token", "M", 6) {
+        ttgRegistrar = ttgRegistrar_;
         protocol = protocol_;
     }
 
@@ -119,7 +119,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /// @inheritdoc IMToken
     function rateModel() public view returns (address rateModel_) {
-        return SPOGRegistrarReader.getEarnerRateModel(spogRegistrar);
+        return TTGRegistrarReader.getEarnerRateModel(ttgRegistrar);
     }
 
     /// @inheritdoc IMToken
@@ -387,18 +387,18 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /**
-     * @dev    Checks if earner was approved by SPOG.
+     * @dev    Checks if earner was approved by TTG.
      * @param  account_    The account to check.
      * @return isApproved_ True if approved, false otherwise.
      */
     function _isApprovedEarner(address account_) internal view returns (bool isApproved_) {
         return
-            SPOGRegistrarReader.isEarnersListIgnored(spogRegistrar) ||
-            SPOGRegistrarReader.isApprovedEarner(spogRegistrar, account_);
+            TTGRegistrarReader.isEarnersListIgnored(ttgRegistrar) ||
+            TTGRegistrarReader.isApprovedEarner(ttgRegistrar, account_);
     }
 
     /**
-     * @dev    Gets the current earner rate from Spog approved rate model contract.
+     * @dev    Gets the current earner rate from Ttg approved rate model contract.
      * @return rate_ The current earner rate.
      */
     function _rate() internal view override returns (uint32 rate_) {
