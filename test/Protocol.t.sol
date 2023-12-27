@@ -12,8 +12,9 @@ import { IProtocol } from "../src/interfaces/IProtocol.sol";
 import { DigestHelper } from "./utils/DigestHelper.sol";
 import { MockMToken, MockRateModel, MockSPOGRegistrar } from "./utils/Mocks.sol";
 import { ProtocolHarness } from "./utils/ProtocolHarness.sol";
+import { TestUtils } from "./utils/TestUtils.sol";
 
-contract ProtocolTests is Test {
+contract ProtocolTests is TestUtils {
     uint256 internal constant ONE = 10000;
 
     address internal _alice = makeAddr("alice");
@@ -92,6 +93,7 @@ contract ProtocolTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -175,6 +177,7 @@ contract ProtocolTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             100,
             retrievalIds,
@@ -191,6 +194,7 @@ contract ProtocolTests is Test {
 
         timestamps[0] = newTimestamp;
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             100,
             retrievalIds,
@@ -215,6 +219,7 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         bytes memory signature1_ = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -224,6 +229,7 @@ contract ProtocolTests is Test {
         );
 
         bytes memory signature2_ = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -261,6 +267,7 @@ contract ProtocolTests is Test {
         uint256 timestamp = block.timestamp;
 
         bytes memory signature1_ = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -270,6 +277,7 @@ contract ProtocolTests is Test {
         );
 
         bytes memory signature2_ = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -280,6 +288,7 @@ contract ProtocolTests is Test {
 
         (address validator3_, uint256 validator3Pk_) = makeAddrAndKey("validator3");
         bytes memory signature3_ = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -291,6 +300,7 @@ contract ProtocolTests is Test {
         (address validator4_, uint256 validator4Pk_) = makeAddrAndKey("validator4");
         _spogRegistrar.addToList(SPOGRegistrarReader.VALIDATORS_LIST, validator4_);
         bytes memory signature4_ = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -622,6 +632,7 @@ contract ProtocolTests is Test {
         vm.prank(_validator1);
         _protocol.freezeMinter(_minter1);
 
+        assertEq(_protocol.isFrozenMinter(_minter1), true);
         assertEq(_protocol.unfrozenTimeOf(_minter1), frozenUntil);
 
         vm.expectRevert(IProtocol.FrozenMinter.selector);
@@ -783,6 +794,7 @@ contract ProtocolTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -816,6 +828,7 @@ contract ProtocolTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -839,6 +852,7 @@ contract ProtocolTests is Test {
         timestamps[0] = signatureTimestamp;
 
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -886,6 +900,7 @@ contract ProtocolTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             newCollateral,
             retrievalIds,
@@ -964,6 +979,7 @@ contract ProtocolTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -1285,6 +1301,7 @@ contract ProtocolTests is Test {
         bytes[] memory signatures = new bytes[](2);
 
         signatures[1] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -1294,6 +1311,7 @@ contract ProtocolTests is Test {
         );
 
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -1334,6 +1352,7 @@ contract ProtocolTests is Test {
         timestamps[1] = signatureTimestamp2;
 
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral / 2,
             newRetrievalIds,
@@ -1343,6 +1362,7 @@ contract ProtocolTests is Test {
         );
 
         signatures[1] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral / 2,
             newRetrievalIds,
@@ -1456,6 +1476,7 @@ contract ProtocolTests is Test {
         bytes[] memory signatures = new bytes[](1);
 
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -1475,6 +1496,7 @@ contract ProtocolTests is Test {
         validators[0] = _validator1;
 
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             collateral,
             retrievalIds,
@@ -1504,6 +1526,7 @@ contract ProtocolTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             100,
             retrievalIds,
@@ -1551,6 +1574,7 @@ contract ProtocolTests is Test {
 
         bytes[] memory signatures = new bytes[](3);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             100,
             retrievalIds,
@@ -1560,6 +1584,7 @@ contract ProtocolTests is Test {
         ); // valid signature
 
         signatures[1] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             200,
             retrievalIds,
@@ -1569,6 +1594,7 @@ contract ProtocolTests is Test {
         );
 
         signatures[2] = _getCollateralUpdateSignature(
+            address(_protocol),
             _minter1,
             100,
             retrievalIds,
@@ -1632,33 +1658,5 @@ contract ProtocolTests is Test {
     function test_updateCollateralInterval() external {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 10);
         assertEq(_protocol.updateCollateralInterval(), 10);
-    }
-
-    function _getCollateralUpdateSignature(
-        address minter,
-        uint256 collateral,
-        uint256[] memory retrievalIds,
-        bytes32 metadataHash,
-        uint256 timestamp,
-        uint256 privateKey
-    ) internal view returns (bytes memory) {
-        return
-            _getSignature(
-                DigestHelper.getUpdateCollateralDigest(
-                    address(_protocol),
-                    minter,
-                    collateral,
-                    retrievalIds,
-                    metadataHash,
-                    timestamp
-                ),
-                privateKey
-            );
-    }
-
-    function _getSignature(bytes32 digest, uint256 privateKey) internal pure returns (bytes memory) {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
-
-        return abi.encodePacked(r, s, v);
     }
 }

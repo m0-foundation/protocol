@@ -417,6 +417,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
+    function isFrozenMinter(address minter_) external view returns (bool isFrozen_) {
+        return block.timestamp < _minterStates[minter_].unfrozenTimestamp;
+    }
+
+    /// @inheritdoc IProtocol
     function activeOwedMOf(address minter_) public view returns (uint128 activeOwedM_) {
         // TODO: This should also include the present value of unavoidable penalities. But then it would be very, if not
         //       impossible, to determine the `totalActiveOwedM` to the same standards. Perhaps we need a `penaltiesOf`
