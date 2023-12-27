@@ -124,6 +124,4 @@ library UIntMath {
     function min40IgnoreZero(uint40 a_, uint40 b_) internal pure returns (uint40) {
         return a_ == 0 ? b_ : (b_ == 0 ? a_ : min40(a_, b_));
     }
-
 }
-
