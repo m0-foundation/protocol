@@ -5,4 +5,3 @@
 [submodule "lib/common"]
 	path = lib/common
 	url = git@github.com:MZero-Labs/common.git
-	branch = feat/WEB3-586-add-EIP2098-support
