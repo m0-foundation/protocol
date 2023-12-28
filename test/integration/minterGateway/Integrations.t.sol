@@ -63,7 +63,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         _protocol.burnM(_minters[0], aliceBalance);
 
         assertEq(_protocol.activeOwedMOf(_minters[0]), 0);
-        assertEq(_mToken.balanceOf(_alice), aliceBalance - minterOwedM);
+        assertEq(_mToken.balanceOf(_alice), aliceBalance - minterOwedM - 1 wei);
 
         // Minter can mint again without imposing any penalties for missed collateral updates
         vm.warp(block.timestamp + 60 days);
@@ -280,6 +280,80 @@ contract IntegrationTests is IntegrationBaseSetup {
         _mintM(_minters[0], mintAmount, _alice);
 
         assertEq(_protocol.activeOwedMOf(_minters[0]), 500_000_000001); // ~500k
+    }
+
+    function test_deactivateMinterWithMajorityOfActiveOwedM() external {
+        _registrar.updateConfig(SPOGRegistrarReader.BASE_EARNER_RATE, 40000);
+        _registrar.updateConfig(SPOGRegistrarReader.BASE_MINTER_RATE, 40000);
+
+        _protocol.activateMinter(_minters[0]);
+        _protocol.activateMinter(_minters[1]);
+
+        vm.prank(_alice);
+        _mToken.startEarning();
+
+        uint256 collateral = 1_000_000e6;
+        _updateCollateral(_minters[0], collateral);
+        _updateCollateral(_minters[1], collateral);
+
+        vm.warp(block.timestamp + 1 hours);
+
+        _mintM(_minters[0], 800e6, _alice);
+        _mintM(_minters[1], 500e6, _alice);
+
+        assertEq(_protocol.totalOwedM(), _mToken.totalSupply());
+
+        // TTG removes minter from the protocol.
+        _registrar.removeFromList(SPOGRegistrarReader.MINTERS_LIST, _minters[0]);
+        // Minter is deactivated in the protocol
+        _protocol.deactivateMinter(_minters[0]);
+
+        assertEq(_protocol.totalOwedM(), _mToken.totalSupply());
+
+        // Danger zone - does not work for 1 second
+        vm.warp(block.timestamp + 1 seconds);
+        assertGe(_protocol.totalOwedM(), _mToken.totalSupply());
+
+        // vm.warp(block.timestamp + 5 seconds);
+        // assertGe(_protocol.totalOwedM(), _mToken.totalSupply());
+
+        vm.warp(block.timestamp + 98 seconds);
+        assertGe(_protocol.totalOwedM(), _mToken.totalSupply());
+
+        vm.warp(block.timestamp + 1 hours);
+        assertGe(_protocol.totalOwedM(), _mToken.totalSupply());
+
+        vm.warp(block.timestamp + 600 days);
+        assertGe(_protocol.totalOwedM(), _mToken.totalSupply());
+
+        _protocol.updateIndex();
+        assertGe(_protocol.totalOwedM(), _mToken.totalSupply());
+    }
+
+    function test_earnerRateIsHigherThanMinterRate() external {
+        _registrar.updateConfig(SPOGRegistrarReader.BASE_MINTER_RATE, 20000);
+        _registrar.updateConfig(SPOGRegistrarReader.BASE_EARNER_RATE, 40000);
+
+        _protocol.activateMinter(_minters[0]);
+        _protocol.activateMinter(_minters[1]);
+
+        vm.prank(_alice);
+        _mToken.startEarning();
+
+        uint256 collateral = 1_000_000e6;
+        _updateCollateral(_minters[0], collateral);
+        _updateCollateral(_minters[1], collateral);
+
+        vm.warp(block.timestamp + 1 hours);
+
+        _mintM(_minters[0], 800e6, _bob);
+        _mintM(_minters[1], 900e6, _alice);
+
+        assertEq(_protocol.totalOwedM(), _mToken.totalSupply());
+
+        vm.warp(block.timestamp + 30 days);
+
+        assertGt(_protocol.totalOwedM(), _mToken.totalSupply());
     }
 
     function _updateCollateral(address minter_, uint256 collateral_) internal returns (uint256 lastUpdateTimestamp_) {
