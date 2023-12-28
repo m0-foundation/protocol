@@ -321,6 +321,9 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice Checks if minter was deactivated after removal by TTG
     function isDeactivatedMinter(address minter) external view returns (bool);
 
+    /// @notice Checks if minter was frozen by validator
+    function isFrozenMinter(address minter) external view returns (bool);
+
     /// @notice Checks if minter was approved by TTG
     function isMinterApprovedByTTG(address minter) external view returns (bool);
 
