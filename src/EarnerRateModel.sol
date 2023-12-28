@@ -2,12 +2,12 @@
 
 pragma solidity 0.8.23;
 
-import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
+import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 import { UIntMath } from "./libs/UIntMath.sol";
 
 import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
-import { IProtocol } from "./interfaces/IProtocol.sol";
+import { IMinterGateway } from "./interfaces/IMinterGateway.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
 /**
@@ -15,31 +15,28 @@ import { IRateModel } from "./interfaces/IRateModel.sol";
  * @author M^ZERO LABS_
  */
 contract EarnerRateModel is IEarnerRateModel {
-    /// @dev 100% in basis points.
-    uint256 internal constant _ONE = 10_000;
-
     /// @inheritdoc IEarnerRateModel
     address public immutable mToken;
 
     /// @inheritdoc IEarnerRateModel
-    address public immutable protocol;
+    address public immutable minterGateway;
 
     /// @inheritdoc IEarnerRateModel
-    address public immutable spogRegistrar;
+    address public immutable ttgRegistrar;
 
     /**
      * @notice Constructs the EarnerRateModel contract.
-     * @param protocol_ The address of the protocol contract.
+     * @param minterGateway_ The address of the Minter Gateway contract.
      */
-    constructor(address protocol_) {
-        if ((protocol = protocol_) == address(0)) revert ZeroProtocol();
-        if ((spogRegistrar = IProtocol(protocol_).spogRegistrar()) == address(0)) revert ZeroSpogRegistrar();
-        if ((mToken = IProtocol(protocol_).mToken()) == address(0)) revert ZeroMToken();
+    constructor(address minterGateway_) {
+        if ((minterGateway = minterGateway_) == address(0)) revert ZeroMinterGateway();
+        if ((ttgRegistrar = IMinterGateway(minterGateway_).ttgRegistrar()) == address(0)) revert ZeroTTGRegistrar();
+        if ((mToken = IMinterGateway(minterGateway_).mToken()) == address(0)) revert ZeroMToken();
     }
 
     /// @inheritdoc IRateModel
     function rate() external view returns (uint256) {
-        uint256 totalActiveOwedM_ = IProtocol(protocol).totalActiveOwedM();
+        uint256 totalActiveOwedM_ = IMinterGateway(minterGateway).totalActiveOwedM();
 
         if (totalActiveOwedM_ == 0) return 0;
 
@@ -50,11 +47,14 @@ contract EarnerRateModel is IEarnerRateModel {
         // NOTE: Calculate safety guard rate that prevents overprinting of M.
         // TODO: Discuss the pros/cons of moving this into M Token after all integration/invariants tests are done.
         return
-            UIntMath.min256(baseRate(), (IProtocol(protocol).minterRate() * totalActiveOwedM_) / totalEarningSupply_);
+            UIntMath.min256(
+                baseRate(),
+                (IMinterGateway(minterGateway).minterRate() * totalActiveOwedM_) / totalEarningSupply_
+            );
     }
 
     /// @inheritdoc IEarnerRateModel
     function baseRate() public view returns (uint256 baseRate_) {
-        return SPOGRegistrarReader.getBaseEarnerRate(spogRegistrar);
+        return TTGRegistrarReader.getBaseEarnerRate(ttgRegistrar);
     }
 }

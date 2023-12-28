@@ -6,7 +6,7 @@ import { ERC20Extended } from "../lib/common/src/ERC20Extended.sol";
 
 import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 
-import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
+import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 import { UIntMath } from "./libs/UIntMath.sol";
 
 import { IMToken } from "./interfaces/IMToken.sol";
@@ -29,10 +29,10 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /// @inheritdoc IMToken
-    address public immutable protocol;
+    address public immutable minterGateway;
 
     /// @inheritdoc IMToken
-    address public immutable spogRegistrar;
+    address public immutable ttgRegistrar;
 
     /// @dev The total amount of non earning M supply.
     uint128 internal _totalNonEarningSupply;
@@ -43,21 +43,21 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /// @notice The balance of M for non-earner or principal of earning M balance for earners.
     mapping(address account => MBalance balance) internal _balances;
 
-    /// @dev Modifier to check if caller is protocol.
-    modifier onlyProtocol() {
-        if (msg.sender != protocol) revert NotProtocol();
+    /// @dev Modifier to check if caller is Minter Gateway.
+    modifier onlyMinterGateway() {
+        if (msg.sender != minterGateway) revert NotMinterGateway();
 
         _;
     }
 
     /**
-     * @notice Constructor.
-     * @param  spogRegistrar_ The address of the SPOG Registrar contract.
-     * @param  protocol_      The address of Protocol.
+     * @notice Constructs the M Token contract.
+     * @param  ttgRegistrar_ The address of the TTG Registrar contract.
+     * @param  minterGateway_     The address of Minter Gateway.
      */
-    constructor(address spogRegistrar_, address protocol_) ContinuousIndexing() ERC20Extended("M Token", "M", 6) {
-        spogRegistrar = spogRegistrar_;
-        protocol = protocol_;
+    constructor(address ttgRegistrar_, address minterGateway_) ContinuousIndexing() ERC20Extended("M Token", "M", 6) {
+        if ((ttgRegistrar = ttgRegistrar_) == address(0)) revert ZeroTTGRegistrar();
+        if ((minterGateway = minterGateway_) == address(0)) revert ZeroMinterGateway();
     }
 
     /******************************************************************************************************************\
@@ -65,12 +65,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     \******************************************************************************************************************/
 
     /// @inheritdoc IMToken
-    function mint(address account_, uint256 amount_) external onlyProtocol {
+    function mint(address account_, uint256 amount_) external onlyMinterGateway {
         _mint(account_, amount_);
     }
 
     /// @inheritdoc IMToken
-    function burn(address account_, uint256 amount_) external onlyProtocol {
+    function burn(address account_, uint256 amount_) external onlyMinterGateway {
         _burn(account_, amount_);
     }
 
@@ -119,7 +119,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /// @inheritdoc IMToken
     function rateModel() public view returns (address rateModel_) {
-        return SPOGRegistrarReader.getEarnerRateModel(spogRegistrar);
+        return TTGRegistrarReader.getEarnerRateModel(ttgRegistrar);
     }
 
     /// @inheritdoc IMToken
@@ -198,7 +198,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         emit Transfer(account_, address(0), amount_);
 
         if (_balances[account_].isEarning) {
-            // NOTE: When burning a present amount, round the principal up in favor of the protocol.
+            // NOTE: When burning a present amount, round the principal up in favor of the Minter Gateway.
             _subtractEarningAmount(account_, _getPrincipalAmountRoundedUp(UIntMath.safe128(amount_)));
             updateIndex();
         } else {
@@ -215,7 +215,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         emit Transfer(address(0), recipient_, amount_);
 
         if (_balances[recipient_].isEarning) {
-            // NOTE: When minting a present amount, round the principal down in favor of the protocol.
+            // NOTE: When minting a present amount, round the principal down in favor of the Minter Gateway.
             _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(UIntMath.safe128(amount_)));
             updateIndex();
         } else {
@@ -241,7 +241,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         if (amount_ == 0) return;
 
         // NOTE: When converting a non-earning balance into an earning balance, round the principal down in favor of
-        //       the protocol.
+        //       the Minter Gateway.
         uint128 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
 
         _balances[account_].rawBalance = principalAmount_;
@@ -324,7 +324,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
         // If this is an in-kind transfer, then...
         if (senderIsEarning_ == _balances[recipient_].isEarning) {
-            // NOTE: When subtracting a present amount from an earner, round the principal up in favor of the protocol.
+            // NOTE: When subtracting a present amount from an earner, round the principal up in favor of the Minter Gateway.
             return
                 _transferAmountInKind( // perform an in-kind transfer with...
                     sender_,
@@ -336,12 +336,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         // If this is not an in-kind transfer, then...
         if (senderIsEarning_) {
             // either the sender is earning and the recipient is not, or...
-            // NOTE: When subtracting a present amount from an earner, round the principal up in favor of the protocol.
+            // NOTE: When subtracting a present amount from an earner, round the principal up in favor of the Minter Gateway.
             _subtractEarningAmount(sender_, _getPrincipalAmountRoundedUp(safeAmount_));
             _addNonEarningAmount(recipient_, safeAmount_);
         } else {
             // the sender is not earning and the recipient is.
-            // NOTE: When adding a present amount to an earner, round the principal down in favor of the protocol.
+            // NOTE: When adding a present amount to an earner, round the principal down in favor of the Minter Gateway.
             _subtractNonEarningAmount(sender_, safeAmount_);
             _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(safeAmount_));
         }
@@ -369,7 +369,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /**
      * @dev   Returns the present amount (rounded down) given the principal amount, using the current index.
-     *        All present amounts are rounded down in favor of the protocol.
+     *        All present amounts are rounded down in favor of the Minter Gateway.
      * @param principalAmount_ The principal amount.
      */
     function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128 amount_) {
@@ -378,7 +378,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /**
      * @dev   Returns the present amount (rounded down) given the principal amount and an index.
-     *        All present amounts are rounded down in favor of the protocol, since they are assets.
+     *        All present amounts are rounded down in favor of the Minter Gateway, since they are assets.
      * @param principalAmount_ The principal amount.
      * @param index_           An index
      */
@@ -387,18 +387,18 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /**
-     * @dev    Checks if earner was approved by SPOG.
+     * @dev    Checks if earner was approved by TTG.
      * @param  account_    The account to check.
      * @return isApproved_ True if approved, false otherwise.
      */
     function _isApprovedEarner(address account_) internal view returns (bool isApproved_) {
         return
-            SPOGRegistrarReader.isEarnersListIgnored(spogRegistrar) ||
-            SPOGRegistrarReader.isApprovedEarner(spogRegistrar, account_);
+            TTGRegistrarReader.isEarnersListIgnored(ttgRegistrar) ||
+            TTGRegistrarReader.isApprovedEarner(ttgRegistrar, account_);
     }
 
     /**
-     * @dev    Gets the current earner rate from Spog approved rate model contract.
+     * @dev    Gets the current earner rate from TTG approved rate model contract.
      * @return rate_ The current earner rate.
      */
     function _rate() internal view override returns (uint32 rate_) {

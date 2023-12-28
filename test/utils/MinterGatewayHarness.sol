@@ -2,10 +2,10 @@
 
 pragma solidity 0.8.23;
 
-import { Protocol } from "../../src/Protocol.sol";
+import { MinterGateway } from "../../src/MinterGateway.sol";
 
-contract ProtocolHarness is Protocol {
-    constructor(address spogRegistrar_, address mToken_) Protocol(spogRegistrar_, mToken_) {}
+contract MinterGatewayHarness is MinterGateway {
+    constructor(address ttgRegistrar_, address mToken_) MinterGateway(ttgRegistrar_, mToken_) {}
 
     function mintNonce() external view returns (uint48) {
         return _mintNonce;

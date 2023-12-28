@@ -14,14 +14,20 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when calling `startEarning` for an account that has opted out of earning.
     error HasOptedOut();
 
-    /// @notice Emitted when calling `stopEarning` for an account approved as earner by SPOG.
+    /// @notice Emitted when calling `stopEarning` for an account approved as earner by TTG.
     error IsApprovedEarner();
 
-    /// @notice Emitted when calling `startEarning` for an account not approved as earner by SPOG.
+    /// @notice Emitted when calling `startEarning` for an account not approved as earner by TTG.
     error NotApprovedEarner();
 
-    /// @notice Emitted when calling `mint`, `burn` not by Protocol.
-    error NotProtocol();
+    /// @notice Emitted when calling `mint`, `burn` not by Minter Gateway.
+    error NotMinterGateway();
+
+    ///  @notice Emitted in constructor if Minter Gateway is 0x0.
+    error ZeroMinterGateway();
+
+    ///  @notice Emitted in constructor if TTG Registrar is 0x0.
+    error ZeroTTGRegistrar();
 
     /******************************************************************************************************************\
     |                                                     Events                                                       |
@@ -58,12 +64,12 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     function burn(address account, uint256 amount) external;
 
     /**
-     * @notice Starts earning for caller if allowed by SPOG.
+     * @notice Starts earning for caller if allowed by TTG.
      */
     function startEarning() external;
 
     /**
-     * @notice Starts earning for account if allowed by SPOG.
+     * @notice Starts earning for account if allowed by TTG.
      * @param account The address of account to start earning for.
      */
     function startEarning(address account) external;
@@ -93,13 +99,13 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     |                                          External View/Pure Functions                                            |
     \******************************************************************************************************************/
 
-    /// @notice The address of the Protocol contract.
-    function protocol() external view returns (address);
+    /// @notice The address of the Minter Gateway contract.
+    function minterGateway() external view returns (address);
 
-    /// @notice The address of the SPOG Registrar contract.
-    function spogRegistrar() external view returns (address);
+    /// @notice The address of the TTG Registrar contract.
+    function ttgRegistrar() external view returns (address);
 
-    /// @notice The address of SPOG approved earner rate model.
+    /// @notice The address of TTG approved earner rate model.
     function rateModel() external view returns (address);
 
     /// @notice The current value of earner rate in basis points.

@@ -2,30 +2,30 @@
 
 pragma solidity 0.8.23;
 
-import { SPOGRegistrarReader } from "./libs/SPOGRegistrarReader.sol";
+import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 
 import { IMinterRateModel } from "./interfaces/IMinterRateModel.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
 /**
- * @title Minter Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by Protocol.
+ * @title Minter Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by Minter Gateway.
  * @author M^ZERO LABS_
  */
 contract MinterRateModel is IMinterRateModel {
     /// @inheritdoc IMinterRateModel
-    address public immutable spogRegistrar;
+    address public immutable ttgRegistrar;
 
     /**
      * @notice Constructs the MinterRateModel contract.
-     * @param spogRegistrar_ The address of the SPOG Registrar contract.
+     * @param ttgRegistrar_ The address of the TTG Registrar contract.
      */
-    constructor(address spogRegistrar_) {
-        if ((spogRegistrar = spogRegistrar_) == address(0)) revert ZeroSpogRegistrar();
+    constructor(address ttgRegistrar_) {
+        if ((ttgRegistrar = ttgRegistrar_) == address(0)) revert ZeroTTGRegistrar();
     }
 
     /// @inheritdoc IMinterRateModel
     function baseRate() public view returns (uint256 baseRate_) {
-        return SPOGRegistrarReader.getBaseMinterRate(spogRegistrar);
+        return TTGRegistrarReader.getBaseMinterRate(ttgRegistrar);
     }
 
     /// @inheritdoc IRateModel

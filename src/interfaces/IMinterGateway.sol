@@ -4,8 +4,8 @@ pragma solidity 0.8.23;
 
 import { IContinuousIndexing } from "./IContinuousIndexing.sol";
 
-/// @title Protocol Interface.
-interface IProtocol is IContinuousIndexing {
+/// @title Minter Gateway Interface.
+interface IMinterGateway is IContinuousIndexing {
     /******************************************************************************************************************\
     |                                                      Errors                                                      |
     \******************************************************************************************************************/
@@ -31,10 +31,10 @@ interface IProtocol is IContinuousIndexing {
     /// @notice Emitted when calling `activateMinter` with a minter who was previously deactivated.
     error DeactivatedMinter();
 
-    /// @notice Emitted when calling `activateMinter` if minter was not approved by SPOG.
+    /// @notice Emitted when calling `activateMinter` if minter was not approved by TTG.
     error NotApprovedMinter();
 
-    /// @notice Emitted when calling `cancelMint` or `freezeMinter` if validator was not approved by SPOG.
+    /// @notice Emitted when calling `cancelMint` or `freezeMinter` if validator was not approved by TTG.
     error NotApprovedValidator();
 
     /// @notice Emitted when calling `updateCollateral` if `validatorThreshold` of signatures was not reached.
@@ -51,10 +51,10 @@ interface IProtocol is IContinuousIndexing {
     ///         If `validators`, `signatures`, `timestamps` lengths do not match.
     error SignatureArrayLengthsMismatch();
 
-    /// @notice Emitted when calling `updateCollateral` if protocol has more fresh collateral update.
+    /// @notice Emitted when calling `updateCollateral` if Minter Gateway has more fresh collateral update.
     error StaleCollateralUpdate(uint40 newTimestamp, uint40 lastCollateralUpdate);
 
-    /// @notice Emitted when calling `deactivateMinter` with a minter still approved in SPOG Registrar.
+    /// @notice Emitted when calling `deactivateMinter` with a minter still approved in TTG Registrar.
     error StillApprovedMinter();
 
     /// @notice Emitted when calling `proposeMint`, `mintM`, `proposeRetrieval`
@@ -64,11 +64,11 @@ interface IProtocol is IContinuousIndexing {
     ///  @notice Emitted in constructor if M Token is 0x0.
     error ZeroMToken();
 
-    ///  @notice Emitted in constructor if SPOG Registrar is 0x0.
-    error ZeroSpogRegistrar();
+    ///  @notice Emitted in constructor if TTG Registrar is 0x0.
+    error ZeroTTGRegistrar();
 
-    ///  @notice Emitted in constructor if SPOG Distribution Vault is set to 0x0 in SPOG Registrar.
-    error ZeroSpogVault();
+    ///  @notice Emitted in constructor if TTG Distribution Vault is set to 0x0 in TTG Registrar.
+    error ZeroTTGVault();
 
     /******************************************************************************************************************\
     |                                                      Events                                                      |
@@ -225,7 +225,7 @@ interface IProtocol is IContinuousIndexing {
 
     /**
      * @notice Activate an approved minter.
-     * @dev    MUST revert if `minter` is not recorded as an approved minter in SPOG Registrar.
+     * @dev    MUST revert if `minter` is not recorded as an approved minter in TTG Registrar.
      * @dev    SHOULD revert if the minter is already active.
      * @param  minter The address of the minter to activate
      */
@@ -253,11 +253,11 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The address of M token
     function mToken() external view returns (address);
 
-    /// @notice The address of SPOG Registrar contract.
-    function spogRegistrar() external view returns (address);
+    /// @notice The address of TTG Registrar contract.
+    function ttgRegistrar() external view returns (address);
 
-    /// @notice The address of SPOG Vault contract.
-    function spogVault() external view returns (address);
+    /// @notice The address of TTG Vault contract.
+    function ttgVault() external view returns (address);
 
     /// @notice The last saved value of Minter rate.
     function minterRate() external view returns (uint32);
@@ -292,7 +292,7 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The timestamp of the deadline for the next collateral update of minter.
     function collateralUpdateDeadlineOf(address minter) external view returns (uint40);
 
-    /// @notice The length of the last collateral interval for minter in case SPOG changes this parameter.
+    /// @notice The length of the last collateral interval for minter in case TTG changes this parameter.
     function lastCollateralUpdateIntervalOf(address minter) external view returns (uint32);
 
     /// @notice The timestamp until which minter is already penalized for missed collateral updates.
@@ -315,17 +315,17 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The timestamp when minter becomes unfrozen after being frozen by validator.
     function unfrozenTimeOf(address minter) external view returns (uint40);
 
-    /// @notice Checks if minter was activated after approval by SPOG
+    /// @notice Checks if minter was activated after approval by TTG
     function isActiveMinter(address minter) external view returns (bool);
 
-    /// @notice Checks if minter was deactivated after removal by SPOG
+    /// @notice Checks if minter was deactivated after removal by TTG
     function isDeactivatedMinter(address minter) external view returns (bool);
 
-    /// @notice Checks if minter was approved by SPOG
-    function isMinterApprovedBySPOG(address minter) external view returns (bool);
+    /// @notice Checks if minter was approved by TTG
+    function isMinterApprovedByTTG(address minter) external view returns (bool);
 
-    /// @notice Checks if validator was approved by SPOG
-    function isValidatorApprovedBySPOG(address validator) external view returns (bool);
+    /// @notice Checks if validator was approved by TTG
+    function isValidatorApprovedByTTG(address validator) external view returns (bool);
 
     /// @notice The delay between mint proposal creation and its earliest execution.
     function mintDelay() external view returns (uint32);

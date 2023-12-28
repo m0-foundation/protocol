@@ -3,5 +3,5 @@
 pragma solidity 0.8.23;
 
 import { MockRateModel } from "../../test/utils/Mocks.sol";
-import { MockSPOGRegistrar } from "../../test/utils/Mocks.sol";
+import { MockTTGRegistrar } from "../../test/utils/Mocks.sol";
 import { MToken } from "../../src/MToken.sol";

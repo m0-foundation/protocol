@@ -1,9 +1,9 @@
 {
-  "name": "@mzero-labs/protocol",
+  "name": "@mzero-labs/minter-gateway",
   "version": "1.0.0",
-  "description": "Protocol contract ABIs",
+  "description": "M^0 Minter Gateway contracts",
   "main": "index.js",
-  "author": "mZero Labs <contact@m0.xyz>",
+  "author": "M^ZERO LABS_ <contact@m0.xyz>",
   "license": "GPL-3.0",
   "scripts": {
     "coverage": "forge coverage --report lcov && lcov --extract lcov.info -o lcov.info 'src/*'",
