@@ -17,7 +17,7 @@ interface IContinuousIndexing {
 
     /**
      * @notice Updates the latest index and latest accrual time in storage.
-k    * @return index The new stored index for computing present amounts from principal amounts.
+     * @return index The new stored index for computing present amounts from principal amounts.
      */
-    function updateIndex() external returns (uint128 index);
+    function updateIndex() external returns (uint128);
 }

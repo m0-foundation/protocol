@@ -17,7 +17,7 @@ library UIntMath {
     error InvalidUInt128();
 
     /**
-     * @notice Checks if a given value is lower than the maximum value of uint40.
+     * @notice Casts a given uint256 value to a uint40, ensuring that it is less than or equal to the maximum uint40 value.
      * @param  n The value to check.
      * @return The value casted to uint40.
      */
@@ -27,7 +27,7 @@ library UIntMath {
     }
 
     /**
-     * @notice Checks if a given value is lower than the maximum value of uint48.
+     * @notice Casts a given uint256 value to a uint48, ensuring that it is less than or equal to the maximum uint48 value.
      * @param  n The value to check.
      * @return The value casted to uint48.
      */
@@ -37,7 +37,7 @@ library UIntMath {
     }
 
     /**
-     * @notice Checks if a given value is lower than the maximum value of uint128.
+     * @notice Casts a given uint256 value to a uint128, ensuring that it is less than or equal to the maximum uint128 value.
      * @param  n The value to check.
      * @return The value casted to uint128.
      */
@@ -47,79 +47,79 @@ library UIntMath {
     }
 
     /**
-     * @notice Checks if a given value is lower than uint32, otherwise returns uint32 max value.
+     * @notice Limits a given uint256 value to the maximum uint32 value.
      * @param  n The value to check.
-     * @return The value casted to uint32.
+     * @return The value limited to within uint32 bounds.
      */
     function bound32(uint256 n) internal pure returns (uint32) {
         return uint32(min256(n, uint256(type(uint32).max)));
     }
 
     /**
-     * @notice Compares two uint40 values and returns the biggest one.
+     * @notice Compares two uint40 values and returns the larger one.
      * @param  a_  Value to check.
      * @param  b_  Value to check.
-     * @return The biggest value.
+     * @return The larger value.
      */
     function max40(uint40 a_, uint40 b_) internal pure returns (uint40) {
         return a_ > b_ ? a_ : b_;
     }
 
     /**
-     * @notice Compares two uint256 values and returns the biggest one.
+     * @notice Compares two uint256 values and returns the larger one.
      * @param  a_  Value to check.
      * @param  b_  Value to check.
-     * @return The biggest value.
+     * @return The larger value.
      */
     function max256(uint256 a_, uint256 b_) internal pure returns (uint256) {
         return a_ > b_ ? a_ : b_;
     }
 
     /**
-     * @notice Compares two uint32 values and returns the smallest one.
+     * @notice Compares two uint32 values and returns the lesser one.
      * @param  a_  Value to check.
      * @param  b_  Value to check.
-     * @return The biggest value.
+     * @return The lesser value.
      */
     function min32(uint32 a_, uint32 b_) internal pure returns (uint32) {
         return a_ < b_ ? a_ : b_;
     }
 
     /**
-     * @notice Compares two uint40 values and returns the smallest one.
+     * @notice Compares two uint40 values and returns the lesser one.
      * @param  a_  Value to check.
      * @param  b_  Value to check.
-     * @return The biggest value.
+     * @return The lesser value.
      */
     function min40(uint40 a_, uint40 b_) internal pure returns (uint40) {
         return a_ < b_ ? a_ : b_;
     }
 
     /**
-     * @notice Compares two uint128 values and returns the smallest one.
+     * @notice Compares two uint128 values and returns the lesser one.
      * @param  a_  Value to check.
      * @param  b_  Value to check.
-     * @return The biggest value.
+     * @return The lesser value.
      */
     function min128(uint128 a_, uint128 b_) internal pure returns (uint128) {
         return a_ < b_ ? a_ : b_;
     }
 
     /**
-     * @notice Compares two uint256 values and returns the smallest one.
+     * @notice Compares two uint256 values and returns the lesser one.
      * @param  a_  Value to check.
      * @param  b_  Value to check.
-     * @return The biggest value.
+     * @return The lesser value.
      */
     function min256(uint256 a_, uint256 b_) internal pure returns (uint256) {
         return a_ < b_ ? a_ : b_;
     }
 
     /**
-     * @notice Compares two uint40 values and returns the smallest one while ignoring zero values.
+     * @notice Compares two uint40 values and returns the lesser one while ignoring zero values.
      * @param  a_  Value to check.
      * @param  b_  Value to check.
-     * @return The biggest value.
+     * @return The lesser value.
      */
     function min40IgnoreZero(uint40 a_, uint40 b_) internal pure returns (uint40) {
         return a_ == 0 ? b_ : (b_ == 0 ? a_ : min40(a_, b_));

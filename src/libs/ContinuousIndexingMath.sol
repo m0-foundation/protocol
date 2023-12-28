@@ -110,8 +110,8 @@ library ContinuousIndexingMath {
     }
 
     /**
-     * @notice Helper function to convert decimal represention to basis points.
-     * @param  input The input in decimal representation.
+     * @notice Helper function to convert 12-decimal representation to basis points.
+     * @param  input The input in 12-decimal representation.
      * @return The output in basis points.
      */
     function convertToBasisPoints(uint64 input) internal pure returns (uint32) {
@@ -121,9 +121,9 @@ library ContinuousIndexingMath {
     }
 
     /**
-     * @notice Helper function to convert basis points to decimal.
+     * @notice Helper function to convert basis points to 12-decimal representation.
      * @param  input The input in basis points.
-     * @return The output in decimal representation.
+     * @return The output in 12-decimal representation.
      */
     function convertFromBasisPoints(uint32 input) internal pure returns (uint64) {
         unchecked {

@@ -873,7 +873,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
             // Check that the timestamp is not in the future.
             if (timestamps_[index_] > uint40(block.timestamp)) revert FutureTimestamp();
 
-            // NOTE: need to store the variable here to avoid a stack too deep error.
+            // NOTE: Need to store the variable here to avoid a stack too deep error.
             bytes32 digest_ = _getUpdateCollateralDigest(
                 minter_,
                 collateral_,
