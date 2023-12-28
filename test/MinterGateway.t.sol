@@ -653,8 +653,12 @@ contract MinterGatewayTests is Test {
         vm.expectEmit();
         emit IMinterGateway.MinterFrozen(_minter1, frozenUntil);
 
+        assertEq(_minterGateway.isFrozenMinter(_minter1), false);
+
         vm.prank(_validator1);
         _minterGateway.freezeMinter(_minter1);
+
+        assertEq(_minterGateway.isFrozenMinter(_minter1), true);
 
         assertEq(_minterGateway.unfrozenTimeOf(_minter1), frozenUntil);
 
