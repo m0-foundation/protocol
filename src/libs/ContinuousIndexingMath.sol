@@ -6,11 +6,15 @@ import { UIntMath } from "./UIntMath.sol";
 
 // TODO: Consider R(5,5) Padé approximation with some divisions if needed to maintain input range.
 
-/// @notice Arithmetic library with operations for calculating continuous indexing.
-/// @author M^ZERO Labs
+/**
+ * @title Arithmetic library with operations for calculating continuous indexing.
+ * @author M^ZERO Labs
+ */
 library ContinuousIndexingMath {
+    /// @notice Emitted when a division by zero occurs.
     error DivisionByZero();
 
+    /// @notice The number of seconds in a year.
     uint32 internal constant SECONDS_PER_YEAR = 31_536_000;
 
     /// @notice 100% in basis points.
@@ -105,13 +109,23 @@ library ContinuousIndexingMath {
         }
     }
 
-    function convertToBasisPoints(uint64 input) internal pure returns (uint32 output) {
+    /**
+     * @notice Helper function to convert 12-decimal representation to basis points.
+     * @param  input The input in 12-decimal representation.
+     * @return The output in basis points.
+     */
+    function convertToBasisPoints(uint64 input) internal pure returns (uint32) {
         unchecked {
             return uint32((uint256(input) * BPS_SCALED_ONE) / EXP_SCALED_ONE);
         }
     }
 
-    function convertFromBasisPoints(uint32 input) internal pure returns (uint64 output) {
+    /**
+     * @notice Helper function to convert basis points to 12-decimal representation.
+     * @param  input The input in basis points.
+     * @return The output in 12-decimal representation.
+     */
+    function convertFromBasisPoints(uint32 input) internal pure returns (uint64) {
         unchecked {
             return uint64((uint256(input) * EXP_SCALED_ONE) / BPS_SCALED_ONE);
         }

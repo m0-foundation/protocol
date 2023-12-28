@@ -113,6 +113,40 @@ contract ProtocolTests is Test {
         assertEq(_protocol.maxAllowedActiveOwedMOf(_minter1), (collateral * _mintRatio) / ONE);
     }
 
+    function test_updateCollateral_shortSignature() external {
+        uint128 collateral = 100;
+        uint256[] memory retrievalIds = new uint256[](0);
+        uint40 signatureTimestamp = uint40(block.timestamp);
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+
+        uint256[] memory timestamps = new uint256[](1);
+        timestamps[0] = signatureTimestamp;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getCollateralUpdateShortSignature(
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp,
+            _validator1Pk
+        );
+
+        vm.expectEmit();
+        emit IProtocol.CollateralUpdated(_minter1, collateral, retrievalIds, bytes32(0), signatureTimestamp);
+
+        vm.prank(_minter1);
+        _protocol.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
+
+        assertEq(_protocol.collateralOf(_minter1), collateral);
+        assertEq(_protocol.lastCollateralUpdateIntervalOf(_minter1), _updateCollateralInterval);
+        assertEq(_protocol.collateralUpdateOf(_minter1), signatureTimestamp);
+        assertEq(_protocol.collateralUpdateDeadlineOf(_minter1), signatureTimestamp + _updateCollateralInterval);
+        assertEq(_protocol.maxAllowedActiveOwedMOf(_minter1), (collateral * _mintRatio) / ONE);
+    }
+
     function test_updateCollateral_InactiveMinter() external {
         uint256[] memory retrievalIds = new uint256[](0);
         address[] memory validators = new address[](0);
@@ -1656,9 +1690,44 @@ contract ProtocolTests is Test {
             );
     }
 
+    function _getCollateralUpdateShortSignature(
+        address minter,
+        uint256 collateral,
+        uint256[] memory retrievalIds,
+        bytes32 metadataHash,
+        uint256 timestamp,
+        uint256 privateKey
+    ) internal view returns (bytes memory) {
+        return
+            _getShortSignature(
+                DigestHelper.getUpdateCollateralDigest(
+                    address(_protocol),
+                    minter,
+                    collateral,
+                    retrievalIds,
+                    metadataHash,
+                    timestamp
+                ),
+                privateKey
+            );
+    }
+
     function _getSignature(bytes32 digest, uint256 privateKey) internal pure returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
 
         return abi.encodePacked(r, s, v);
+    }
+
+    function _getShortSignature(bytes32 digest, uint256 privateKey) internal pure returns (bytes memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+
+        bytes32 vs = s;
+
+        if (v == 28) {
+            // then left-most bit of s has to be flipped to 1 to get vs
+            vs = s | bytes32(uint256(1) << 255);
+        }
+
+        return abi.encodePacked(r, vs);
     }
 }

@@ -4,6 +4,10 @@ pragma solidity 0.8.23;
 
 import { ISPOGRegistrar } from "../interfaces/ISPOGRegistrar.sol";
 
+/**
+ * @title Library to read SPOG Registrar contract parameters.
+ * @author M^ZERO Labs
+ */
 library SPOGRegistrarReader {
     /// @notice The name of parameter in SPOG that defines the base earner rate.
     bytes32 internal constant BASE_EARNER_RATE = "base_earner_rate";
@@ -50,79 +54,98 @@ library SPOGRegistrarReader {
     /// @notice The validators list name in SPOG.
     bytes32 internal constant VALIDATORS_LIST = "validators";
 
-    function getBaseEarnerRate(address registrar_) internal view returns (uint256 rate_) {
+    /// @notice Gets the base earner rate.
+    function getBaseEarnerRate(address registrar_) internal view returns (uint256) {
         return uint256(_get(registrar_, BASE_EARNER_RATE));
     }
 
-    function getBaseMinterRate(address registrar_) internal view returns (uint256 rate_) {
+    /// @notice Gets the base minter rate.
+    function getBaseMinterRate(address registrar_) internal view returns (uint256) {
         return uint256(_get(registrar_, BASE_MINTER_RATE));
     }
 
-    function getEarnerRateModel(address registrar_) internal view returns (address rateModel_) {
+    /// @notice Gets the earner rate model contract address.
+    function getEarnerRateModel(address registrar_) internal view returns (address) {
         return toAddress(_get(registrar_, EARNER_RATE_MODEL));
     }
 
-    function getMintDelay(address registrar_) internal view returns (uint256 queueTime_) {
+    /// @notice Gets the mint delay.
+    function getMintDelay(address registrar_) internal view returns (uint256) {
         return uint256(_get(registrar_, MINT_DELAY));
     }
 
-    function getMinterFreezeTime(address registrar_) internal view returns (uint256 freezeTime_) {
+    /// @notice Gets the minter freeze time.
+    function getMinterFreezeTime(address registrar_) internal view returns (uint256) {
         return uint256(_get(registrar_, MINTER_FREEZE_TIME));
     }
 
-    function getMinterRateModel(address registrar_) internal view returns (address rateModel_) {
+    /// @notice Gets the minter rate model contract address.
+    function getMinterRateModel(address registrar_) internal view returns (address) {
         return toAddress(_get(registrar_, MINTER_RATE_MODEL));
     }
 
-    function getMintTTL(address registrar_) internal view returns (uint256 timeToLive_) {
+    /// @notice Gets the mint TTL.
+    function getMintTTL(address registrar_) internal view returns (uint256) {
         return uint256(_get(registrar_, MINT_TTL));
     }
 
-    function getMintRatio(address registrar_) internal view returns (uint256 ratio_) {
+    /// @notice Gets the mint ratio.
+    function getMintRatio(address registrar_) internal view returns (uint256) {
         return uint256(_get(registrar_, MINT_RATIO));
     }
 
-    function getUpdateCollateralInterval(address registrar_) internal view returns (uint256 interval_) {
+    /// @notice Gets the update collateral interval.
+    function getUpdateCollateralInterval(address registrar_) internal view returns (uint256) {
         return uint256(_get(registrar_, UPDATE_COLLATERAL_INTERVAL));
     }
 
-    function getUpdateCollateralValidatorThreshold(address registrar_) internal view returns (uint256 quorum_) {
+    /// @notice Gets the update collateral validator threshold.
+    function getUpdateCollateralValidatorThreshold(address registrar_) internal view returns (uint256) {
         return uint256(_get(registrar_, UPDATE_COLLATERAL_VALIDATOR_THRESHOLD));
     }
 
-    function isApprovedEarner(address registrar_, address earner_) internal view returns (bool isApproved_) {
+    /// @notice Checks if the given earner is approved.
+    function isApprovedEarner(address registrar_, address earner_) internal view returns (bool) {
         return _contains(registrar_, EARNERS_LIST, earner_);
     }
 
-    function isEarnersListIgnored(address registrar_) internal view returns (bool isIgnored_) {
+    /// @notice Checks if the `earners_list_ignored` exists.
+    function isEarnersListIgnored(address registrar_) internal view returns (bool) {
         return _get(registrar_, EARNERS_LIST_IGNORED) != bytes32(0);
     }
 
-    function isApprovedMinter(address registrar_, address minter_) internal view returns (bool isApproved_) {
+    /// @notice Checks if the given minter is approved.
+    function isApprovedMinter(address registrar_, address minter_) internal view returns (bool) {
         return _contains(registrar_, MINTERS_LIST, minter_);
     }
 
-    function isApprovedValidator(address registrar_, address validator_) internal view returns (bool isApproved_) {
+    /// @notice Checks if the given validator is approved.
+    function isApprovedValidator(address registrar_, address validator_) internal view returns (bool) {
         return _contains(registrar_, VALIDATORS_LIST, validator_);
     }
 
-    function getPenaltyRate(address registrar_) internal view returns (uint256 penalty_) {
+    /// @notice Gets the penalty rate.
+    function getPenaltyRate(address registrar_) internal view returns (uint256) {
         return uint256(_get(registrar_, PENALTY_RATE));
     }
 
-    function getVault(address registrar_) internal view returns (address vault_) {
+    /// @notice Gets the vault contract address.
+    function getVault(address registrar_) internal view returns (address) {
         return ISPOGRegistrar(registrar_).vault();
     }
 
-    function toAddress(bytes32 input_) internal pure returns (address output_) {
+    /// @notice Converts given bytes32 to address.
+    function toAddress(bytes32 input_) internal pure returns (address) {
         return address(uint160(uint256(input_)));
     }
 
-    function _contains(address registrar_, bytes32 listName_, address account_) private view returns (bool contains_) {
+    /// @notice Checks if the given list contains the given account.
+    function _contains(address registrar_, bytes32 listName_, address account_) private view returns (bool) {
         return ISPOGRegistrar(registrar_).listContains(listName_, account_);
     }
 
-    function _get(address registrar_, bytes32 key_) private view returns (bytes32 value_) {
+    /// @notice Gets the value of the given key.
+    function _get(address registrar_, bytes32 key_) private view returns (bytes32) {
         return ISPOGRegistrar(registrar_).get(key_);
     }
 }

@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.23;
 
-import { ERC20Permit } from "../lib/common/src/ERC20Permit.sol";
+import { ERC20Extended } from "../lib/common/src/ERC20Extended.sol";
 
 import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 
@@ -12,7 +12,7 @@ import { UIntMath } from "./libs/UIntMath.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
-import { ContinuousIndexing } from "./ContinuousIndexing.sol";
+import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 
 // TODO: Consider an socially/optically "safer" `burn` via `burn(uint amount_)` where the account is `msg.sender`.
 
@@ -21,11 +21,11 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
  * @author M^ZERO LABS_
  * @notice ERC20 M Token.
  */
-contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
+contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     struct MBalance {
         bool isEarning;
         bool hasOptedOutOfEarning;
-        uint128 rawBalance;
+        uint128 rawBalance; // balance (for a non earning account) or principal balance that accrued interest
     }
 
     /// @inheritdoc IMToken
@@ -43,6 +43,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     /// @notice The balance of M for non-earner or principal of earning M balance for earners.
     mapping(address account => MBalance balance) internal _balances;
 
+    /// @dev Modifier to check if caller is protocol.
     modifier onlyProtocol() {
         if (msg.sender != protocol) revert NotProtocol();
 
@@ -54,7 +55,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
      * @param  spogRegistrar_ The address of the SPOG Registrar contract.
      * @param  protocol_      The address of Protocol.
      */
-    constructor(address spogRegistrar_, address protocol_) ContinuousIndexing() ERC20Permit("M Token", "M", 6) {
+    constructor(address spogRegistrar_, address protocol_) ContinuousIndexing() ERC20Extended("M Token", "M", 6) {
         spogRegistrar = spogRegistrar_;
         protocol = protocol_;
     }
@@ -323,7 +324,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
 
         // If this is an in-kind transfer, then...
         if (senderIsEarning_ == _balances[recipient_].isEarning) {
-            // NOTE: When subtracting a present value from an earner, round the principal up in favor of the protocol.
+            // NOTE: When subtracting a present amount from an earner, round the principal up in favor of the protocol.
             return
                 _transferAmountInKind( // perform an in-kind transfer with...
                     sender_,
@@ -335,12 +336,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
         // If this is not an in-kind transfer, then...
         if (senderIsEarning_) {
             // either the sender is earning and the recipient is not, or...
-            // NOTE: When subtracting a present value from an earner, round the principal up in favor of the protocol.
+            // NOTE: When subtracting a present amount from an earner, round the principal up in favor of the protocol.
             _subtractEarningAmount(sender_, _getPrincipalAmountRoundedUp(safeAmount_));
             _addNonEarningAmount(recipient_, safeAmount_);
         } else {
             // the sender is not earning and the recipient is.
-            // NOTE: When adding a present value to an earner, round the principal down in favor of the protocol.
+            // NOTE: When adding a present amount to an earner, round the principal down in favor of the protocol.
             _subtractNonEarningAmount(sender_, safeAmount_);
             _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(safeAmount_));
         }
@@ -367,18 +368,18 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Permit {
     \******************************************************************************************************************/
 
     /**
-     * @dev   Returns the present value (rounded down) given the principal value, using the current index.
-     *        All present values are rounded down in favor of the protocol.
-     * @param principalAmount_ The principal value.
+     * @dev   Returns the present amount (rounded down) given the principal amount, using the current index.
+     *        All present amounts are rounded down in favor of the protocol.
+     * @param principalAmount_ The principal amount.
      */
     function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128 amount_) {
         return _getPresentAmount(principalAmount_, currentIndex());
     }
 
     /**
-     * @dev   Returns the present value (rounded down) given the principal value and an index.
-     *        All present values are rounded down in favor of the protocol, since they are assets.
-     * @param principalAmount_ The principal value.
+     * @dev   Returns the present amount (rounded down) given the principal amount and an index.
+     *        All present amounts are rounded down in favor of the protocol, since they are assets.
+     * @param principalAmount_ The principal amount.
      * @param index_           An index
      */
     function _getPresentAmount(uint128 principalAmount_, uint128 index_) internal pure returns (uint128 amount_) {
