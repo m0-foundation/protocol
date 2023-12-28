@@ -340,10 +340,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         emit MinterDeactivated(minter_, inactiveOwedM_, msg.sender);
 
-        _totalInactiveOwedM += inactiveOwedM_;
-
-        // NOTE: unchecked is used here since `_totalInactiveOwedM` would overflow first.
+        // NOTE: Unchecked can be used here.
+        //       If `_totalInactiveOwedM` overflows, the protocol would be in a broken state.
+        //       Minters could no longer be deactivated.
         unchecked {
+            _totalInactiveOwedM += inactiveOwedM_;
             _owedM[minter_].inactive += inactiveOwedM_;
         }
 
@@ -402,19 +403,17 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function excessOwedM() public view returns (uint128) {
+    function excessOwedM() public view returns (uint128 excessOwedM_) {
         // TODO: Consider dropping this safe cast since if the total M supply is greater than 2^128, there are bigger
         //       issues, but also because reverts here bricks `updateIndex()`, which bricks everything else.
         uint128 totalMSupply_ = UIntMath.safe128(IMToken(mToken).totalSupply());
         uint128 totalOwedM_ = totalOwedM();
 
-        if (totalOwedM_ > totalMSupply_) {
-            unchecked {
+        unchecked {
+            if (totalOwedM_ > totalMSupply_) {
                 return totalOwedM_ - totalMSupply_;
             }
         }
-
-        return 0;
     }
 
     /// @inheritdoc IProtocol
@@ -585,11 +584,12 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         // NOTE: When imposing a present amount penalty, round the principal up in favor of the protocol.
         uint128 penaltyPrincipal_ = _getPrincipalAmountRoundedUp(penalty_);
 
-        // Calculate and add penalty principal to total minter's principal of active owed M
-        _totalPrincipalOfActiveOwedM += penaltyPrincipal_;
-
+        // NOTE: Unchecked can be used here.
+        //       If `_totalPrincipalOfActiveOwedM` overflows, the protocol would be in a broken state.
+        //       Minters could no longer be penalized and update their collateral.
         unchecked {
-            // NOTE: unchecked is used here since `_totalPrincipalOfActiveOwedM` would overflow first.
+            // Calculate and add penalty principal to total minter's principal of active owed M
+            _totalPrincipalOfActiveOwedM += penaltyPrincipal_;
             _owedM[minter_].principalOfActive += penaltyPrincipal_;
         }
 
@@ -627,14 +627,10 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         if (maxAllowedActiveOwedM_ >= activeOwedM_) return;
 
-        uint128 penaltyBase_;
-
         // NOTE: unchecked is used here since `activeOwedM_`is greater than or equal to `maxAllowedActiveOwedM_`.
         unchecked {
-            penaltyBase_ = activeOwedM_ - maxAllowedActiveOwedM_;
+            _imposePenalty(minter_, activeOwedM_ - maxAllowedActiveOwedM_);
         }
-
-        _imposePenalty(minter_, penaltyBase_);
     }
 
     /**
@@ -649,10 +645,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         // NOTE: When subtracting a present amount, round the principal down in favor of the protocol.
         uint128 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
 
-        _owedM[minter_].principalOfActive -= principalAmount_;
-
-        // NOTE: unchecked is used here since `_owedM[minter_].principalOfActive` would underflow first.
+        // NOTE: Unchecked can be used here.
+        //       If `_owedM[minter_].principalOfActive` underflows, the protocol would be in a broken state.
+        //       Minters could no longer repay.
         unchecked {
+            _owedM[minter_].principalOfActive -= principalAmount_;
             _totalPrincipalOfActiveOwedM -= principalAmount_;
         }
     }
@@ -666,10 +663,11 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     function _repayForInactiveMinter(address minter_, uint128 maxAmount_) internal returns (uint128 amount_) {
         amount_ = UIntMath.min128(_owedM[minter_].inactive, maxAmount_);
 
-        _owedM[minter_].inactive -= amount_;
-
-        // NOTE: unchecked is used here since `_owedM[minter_].inactive` would underflow first.
+        // NOTE: Unchecked can be used here.
+        //       If `_owedM[minter_].inactive` underflows, the protocol would be in a broken state.
+        //       Minters could no longer repay.
         unchecked {
+            _owedM[minter_].inactive -= amount_;
             _totalInactiveOwedM -= amount_;
         }
     }
@@ -683,9 +681,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         address minter_,
         uint256[] calldata retrievalIds_
     ) internal returns (uint128 totalResolvedRetrievals_) {
-        uint256 retrievalIdsLength_ = retrievalIds_.length;
-
-        for (uint256 index_; index_ < retrievalIdsLength_; ++index_) {
+        for (uint256 index_; index_ < retrievalIds_.length; ++index_) {
             uint48 retrievalId_ = UIntMath.safe48(retrievalIds_[index_]);
 
             totalResolvedRetrievals_ += _pendingCollateralRetrievals[minter_][retrievalId_];
@@ -746,13 +742,14 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         // We charge for the first missed interval based on previous collateral interval length only once
         uint40 missedIntervals_;
 
-        // NOTE: unchecked is used here since `block.timestamp` is greater than  `penalizationDeadline_`.
+        // NOTE: Unchecked can be used here.
+        //       If `penaltyBase_` or `penalizedUntil_` overflows, the protocol would be in a broken state.
+        //       Minters could no longer be penalized.
         unchecked {
             missedIntervals_ = 1 + (uint40(block.timestamp) - penalizationDeadline_) / updateCollateralInterval_;
+            penaltyBase_ = missedIntervals_ * activeOwedMOf(minter_);
+            penalizedUntil_ = penalizationDeadline_ + ((missedIntervals_ - 1) * updateCollateralInterval_);
         }
-
-        penaltyBase_ = missedIntervals_ * activeOwedMOf(minter_);
-        penalizedUntil_ = penalizationDeadline_ + ((missedIntervals_ - 1) * updateCollateralInterval_);
     }
 
     /**
