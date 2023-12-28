@@ -52,26 +52,22 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
 
     /// @inheritdoc IContinuousIndexing
     function currentIndex() public view virtual returns (uint128) {
-        uint32 time_;
-
         // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `_latestUpdateTimestamp`.
         unchecked {
-            time_ = uint32(block.timestamp - _latestUpdateTimestamp);
+            // NOTE: While `multiplyUp` can mostly result in additional continuous compounding accuracy (mainly because Padé
+            //       exponent approximations always results in a lower value, and `multiplyUp` artificially increases that
+            //       value), for some smaller `r*t` values, it results in a higher effective index than the "ideal". While
+            //       not really an issue, this "often lower than, but sometimes higher than, ideal index" may no be a good
+            //       characteristic, and `multiplyUp` does costs a tiny bit more gas.
+            return
+                ContinuousIndexingMath.multiplyDown(
+                    _latestIndex,
+                    ContinuousIndexingMath.getContinuousIndex(
+                        ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
+                        uint32(block.timestamp - _latestUpdateTimestamp)
+                    )
+                );
         }
-
-        // NOTE: While `multiplyUp` can mostly result in additional continuous compounding accuracy (mainly because Padé
-        //       exponent approximations always results in a lower value, and `multiplyUp` artificially increases that
-        //       value), for some smaller `r*t` values, it results in a higher effective index than the "ideal". While
-        //       not really an issue, this "often lower than, but sometimes higher than, ideal index" may no be a good
-        //       characteristic, and `multiplyUp` does costs a tiny bit more gas.
-        return
-            ContinuousIndexingMath.multiplyDown(
-                _latestIndex,
-                ContinuousIndexingMath.getContinuousIndex(
-                    ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
-                    time_
-                )
-            );
     }
 
     /// @inheritdoc IContinuousIndexing
