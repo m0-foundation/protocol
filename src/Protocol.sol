@@ -19,7 +19,7 @@ import { ContinuousIndexing } from "./ContinuousIndexing.sol";
 // TODO: Consider `totalPendingCollateralRetrievalOf` or `totalCollateralPendingRetrievalOf`.
 // TODO: Consider `totalResolvedCollateralRetrieval` or `totalCollateralRetrievalResolved`.
 // TODO: Evaluate the gas savings across protocol of an `activateValidator`/`deactivateValidator`.
-// TODO: A change in `penaltyRate()` can retroactively change minters more.
+// TODO: A change in `missedIntervalPenaltyRate()` can retroactively change minters more.
 // TODO: Consider maximum decrease in collateral update interval from last update interval.
 
 /**
@@ -175,11 +175,9 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         emit CollateralUpdated(msg.sender, safeCollateral_, totalResolvedRetrievals_, metadataHash_, minTimestamp_);
 
-        _imposePenaltyIfMissedCollateralUpdates(msg.sender);
+        _imposePenalties(msg.sender);
 
         _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
-
-        _imposePenaltyIfUndercollateralized(msg.sender);
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the collateral
         //       update can result in a new rate, we should update the index here to lock in that rate.
@@ -269,9 +267,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IProtocol
     function burnM(address minter_, uint256 maxAmount_) external {
-        // NOTE: Penalize only for missed collateral updates, not for undercollateralization.
-        // Undercollateralization within one update interval is forgiven.
-        _imposePenaltyIfMissedCollateralUpdates(minter_);
+        _imposePenalties(minter_);
 
         uint128 amount_ = _minterStates[minter_].isActive
             ? _repayForActiveMinter(minter_, UIntMath.safe128(maxAmount_))
@@ -472,7 +468,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
 
         if (activeOwedM_ == 0) return 0;
 
-        uint32 penaltyRate_ = penaltyRate();
+        uint32 penaltyRate_ = missedIntervalPenaltyRate();
 
         if (penaltyRate_ == 0) return 0;
 
@@ -564,8 +560,8 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IProtocol
-    function penaltyRate() public view returns (uint32 penaltyRate_) {
-        return UIntMath.bound32(SPOGRegistrarReader.getPenaltyRate(spogRegistrar));
+    function missedIntervalPenaltyRate() public view returns (uint32 penaltyRate_) {
+        return UIntMath.bound32(SPOGRegistrarReader.getMissedIntervalPenaltyRate(spogRegistrar));
     }
 
     /// @inheritdoc IProtocol
@@ -573,9 +569,19 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
         return SPOGRegistrarReader.getMinterRateModel(spogRegistrar);
     }
 
+    /// @inheritdoc IProtocol
+    function undercollateralizedPenaltyRate() public view returns (uint32 penaltyRate_) {
+        return UIntMath.bound32(SPOGRegistrarReader.getUndercollateralizedPenaltyRate(spogRegistrar));
+    }
+
     /******************************************************************************************************************\
     |                                          Internal Interactive Functions                                          |
     \******************************************************************************************************************/
+
+    function _imposePenalties(address minter_) internal {
+        _imposePenaltyIfMissedCollateralUpdates(minter_);
+        _imposePenaltyIfUndercollateralized(minter_);
+    }
 
     /**
      * @dev   Imposes penalty on minter.
@@ -584,7 +590,7 @@ contract Protocol is IProtocol, ContinuousIndexing, ERC712 {
      * @param penaltyBase_ The total penalization base
      */
     function _imposePenalty(address minter_, uint128 penaltyBase_) internal {
-        uint128 penalty_ = uint128((penaltyBase_ * penaltyRate()) / ONE);
+        uint128 penalty_ = uint128((penaltyBase_ * missedIntervalPenaltyRate()) / ONE);
 
         // NOTE: When imposing a present amount penalty, round the principal up in favor of the protocol.
         uint128 penaltyPrincipal_ = _getPrincipalAmountRoundedUp(penalty_);

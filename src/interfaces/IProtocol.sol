@@ -344,11 +344,14 @@ interface IProtocol is IContinuousIndexing {
     /// @notice The allowed activeOwedM to collateral ratio.
     function mintRatio() external view returns (uint32);
 
-    /// @notice The % that defines penalty amount for missed collateral updates or excessive owedM value
-    function penaltyRate() external view returns (uint32);
+    /// @notice The penalty rate (in bps) imposed against a minter's active owedM for each missed collateral update.
+    function missedIntervalPenaltyRate() external view returns (uint32);
 
     /// @notice The smart contract that defines the minter rate.
     function rateModel() external view returns (address);
+
+    /// @notice The penalty rate (in bps, as an apr) imposed against a minter's undercollateralized amount.
+    function undercollateralizedPenaltyRate() external view returns (uint32);
 
     /// @notice The interval that defines the required frequency of collateral updates.
     function updateCollateralInterval() external view returns (uint32);

@@ -38,8 +38,11 @@ library SPOGRegistrarReader {
     /// @notice The minters list name in SPOG.
     bytes32 internal constant MINTERS_LIST = "minters";
 
-    /// @notice The name of parameter in SPOG that defines the penalty rate.
-    bytes32 internal constant PENALTY_RATE = "penalty_rate";
+    /// @notice The name of parameter in SPOG that defines the penalty rate (discrete) for a missed interval.
+    bytes32 internal constant MISSED_INTERVAL_PENALTY_RATE = "missed_interval_penalty_rate";
+
+    /// @notice The name of parameter in SPOG that defines the penalty rate (apr) for undercollateralization.
+    bytes32 internal constant UNDERCOLLATERALIZED_PENALTY_RATE = "undercollateralized_penalty_rate";
 
     /// @notice The name of parameter in SPOG that required interval to update collateral.
     bytes32 internal constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
@@ -106,8 +109,12 @@ library SPOGRegistrarReader {
         return _contains(registrar_, VALIDATORS_LIST, validator_);
     }
 
-    function getPenaltyRate(address registrar_) internal view returns (uint256 penalty_) {
-        return uint256(_get(registrar_, PENALTY_RATE));
+    function getMissedIntervalPenaltyRate(address registrar_) internal view returns (uint256 penalty_) {
+        return uint256(_get(registrar_, MISSED_INTERVAL_PENALTY_RATE));
+    }
+
+    function getUndercollateralizedPenaltyRate(address registrar_) internal view returns (uint256 penalty_) {
+        return uint256(_get(registrar_, UNDERCOLLATERALIZED_PENALTY_RATE));
     }
 
     function getVault(address registrar_) internal view returns (address vault_) {

@@ -76,7 +76,7 @@ contract ProtocolTests is Test {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_TTL, _mintTTL);
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINT_RATIO, _mintRatio);
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, address(_minterRateModel));
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.PENALTY_RATE, _penaltyRate);
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MISSED_INTERVAL_PENALTY_RATE, _penaltyRate);
 
         _protocol = new ProtocolHarness(address(_spogRegistrar), address(_mToken));
 
@@ -1692,8 +1692,8 @@ contract ProtocolTests is Test {
         _spogRegistrar.updateConfig(SPOGRegistrarReader.MINTER_RATE_MODEL, address(minterRateModel));
         assertEq(_protocol.rateModel(), address(minterRateModel));
 
-        _spogRegistrar.updateConfig(SPOGRegistrarReader.PENALTY_RATE, 100);
-        assertEq(_protocol.penaltyRate(), 100);
+        _spogRegistrar.updateConfig(SPOGRegistrarReader.MISSED_INTERVAL_PENALTY_RATE, 100);
+        assertEq(_protocol.missedIntervalPenaltyRate(), 100);
     }
 
     function test_updateCollateralInterval() external {
