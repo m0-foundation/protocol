@@ -401,7 +401,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         return totalActiveOwedM() + totalInactiveOwedM();
     }
 
-    /// @inheritdoc IProtocol
+    /// @inheritdoc IMinterGateway
     function excessOwedM() public view returns (uint128 excessOwedM_) {
         // TODO: Consider dropping this safe cast since if the total M supply is greater than 2^128, there are bigger
         //       issues, but also because reverts here bricks `updateIndex()`, which bricks everything else.

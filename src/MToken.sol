@@ -56,11 +56,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param  minterGateway_     The address of Minter Gateway.
      */
     constructor(address ttgRegistrar_, address minterGateway_) ContinuousIndexing() ERC20Extended("M Token", "M", 6) {
-        if (ttgRegistrar_ == address(0)) revert ZeroTTGRegistrar();
-        if (minterGateway_ == address(0)) revert ZeroMinterGateway();
-
-        ttgRegistrar = ttgRegistrar_;
-        minterGateway = minterGateway_;
+        if ((ttgRegistrar = ttgRegistrar_) == address(0)) revert ZeroTTGRegistrar();
+        if ((minterGateway = minterGateway_) == address(0)) revert ZeroMinterGateway();
     }
 
     /******************************************************************************************************************\
@@ -401,7 +398,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /**
-     * @dev    Gets the current earner rate from Ttg approved rate model contract.
+     * @dev    Gets the current earner rate from TTG approved rate model contract.
      * @return rate_ The current earner rate.
      */
     function _rate() internal view override returns (uint32 rate_) {
