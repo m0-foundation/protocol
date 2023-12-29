@@ -46,8 +46,11 @@ contract MinterGatewayHarness is MinterGateway {
         _minterStates[minter_].penalizedUntilTimestamp = uint40(penalizedUntil_);
     }
 
-    function setPrincipalOfActiveOwedMOf(address minter_, uint256 amount_) external {
-        _owedM[minter_].principalOfActive = uint128(amount_);
+    function setRawOwedMOf(address minter_, uint256 amount_) external {
+        _rawOwedM[minter_] = amount_;
+    }
+
+    function setTotalPrincipalOfActiveOwedM(uint256 amount_) external {
         _totalPrincipalOfActiveOwedM += uint128(amount_);
     }
 
@@ -63,8 +66,12 @@ contract MinterGatewayHarness is MinterGateway {
         _latestRate = uint32(rate_);
     }
 
-    function principalOfActiveOwedMOf(address minter_) external view returns (uint128 principalOfActiveOwedM_) {
-        return _owedM[minter_].principalOfActive;
+    function setIsDeactivated(address minter_, bool isDeactivated_) external {
+        _minterStates[minter_].isDeactivated = isDeactivated_;
+    }
+
+    function rawOwedMOf(address minter_) external view returns (uint256 rawOwedMOf_) {
+        return _rawOwedM[minter_];
     }
 
     function rate() external view returns (uint32 rate_) {

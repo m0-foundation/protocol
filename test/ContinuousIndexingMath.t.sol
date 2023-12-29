@@ -167,6 +167,14 @@ contract ContinuousIndexingMathTests is Test {
         assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE / 2), 1_648721270572); // actual 1.6487212707001282
         assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE), 2_718281718281); // actual 2.718281828459045
         assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE * 2), 7_388888888888); // actual 7.3890560989306495
+
+        // Demonstrate maximum of ~200e12.
+        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE * 5), 128_619047619047);
+        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE * 6), 196_000000000000);
+        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE * 7), 159_260869565217);
+
+        // If `unchecked` is removed from `exponent`, it will not overflow (lot's of error nonetheless).
+        assertEq(ContinuousIndexingMath.exponent(type(uint72).max), 1_000000008470);
     }
 
     function test_getContinuousIndex() external {

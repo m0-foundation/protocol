@@ -3,7 +3,7 @@
 pragma solidity 0.8.23;
 
 /**
- * @title Library to perform safe math operations on uint types
+ * @title  Library to perform safe math operations on uint types
  * @author M^ZERO Labs
  */
 library UIntMath {

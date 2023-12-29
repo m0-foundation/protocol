@@ -451,11 +451,13 @@ contract MTokenTests is Test {
 
         vm.warp(block.timestamp + 365 days);
 
-        _expectedCurrentIndex = ContinuousIndexingMath.multiplyDown(
-            ContinuousIndexingMath.EXP_SCALED_ONE,
-            ContinuousIndexingMath.getContinuousIndex(
-                ContinuousIndexingMath.convertFromBasisPoints(_earnerRate),
-                uint32(block.timestamp - _start)
+        _expectedCurrentIndex = uint128(
+            ContinuousIndexingMath.multiplyDown(
+                ContinuousIndexingMath.EXP_SCALED_ONE,
+                ContinuousIndexingMath.getContinuousIndex(
+                    ContinuousIndexingMath.convertFromBasisPoints(_earnerRate),
+                    uint32(block.timestamp - _start)
+                )
             )
         );
 
@@ -491,11 +493,13 @@ contract MTokenTests is Test {
 
         vm.warp(block.timestamp + 365 days);
 
-        _expectedCurrentIndex = ContinuousIndexingMath.multiplyDown(
-            _expectedCurrentIndex,
-            ContinuousIndexingMath.getContinuousIndex(
-                ContinuousIndexingMath.convertFromBasisPoints(_earnerRate / 2),
-                365 days
+        _expectedCurrentIndex = uint128(
+            ContinuousIndexingMath.multiplyDown(
+                _expectedCurrentIndex,
+                ContinuousIndexingMath.getContinuousIndex(
+                    ContinuousIndexingMath.convertFromBasisPoints(_earnerRate / 2),
+                    365 days
+                )
             )
         );
 
