@@ -45,7 +45,7 @@ interface IMinterGateway is IContinuousIndexing {
 
     /// @notice Emitted when calling `proposeRetrieval` if sum of all outstanding retrievals
     ///         Plus new proposed retrieval amount is greater than collateral.
-    error RetrievalsExceedCollateral(uint128 totalPendingRetrievals, uint128 collateral);
+    error RetrievalsExceedCollateral(uint256 totalPendingRetrievals, uint256 collateral);
 
     /// @notice Emitted when calling `updateCollateral`
     ///         If `validators`, `signatures`, `timestamps` lengths do not match.
@@ -84,7 +84,7 @@ interface IMinterGateway is IContinuousIndexing {
      */
     event CollateralUpdated(
         address indexed minter,
-        uint128 collateral,
+        uint256 collateral,
         uint256[] indexed retrievalIds,
         bytes32 indexed metadataHash,
         uint40 timestamp
@@ -119,7 +119,7 @@ interface IMinterGateway is IContinuousIndexing {
      * @param  amount      The amount of M tokens to mint
      * @param  destination The address to mint to
      */
-    event MintProposed(uint48 indexed mintId, address indexed minter, uint128 amount, address indexed destination);
+    event MintProposed(uint48 indexed mintId, address indexed minter, uint256 amount, address indexed destination);
 
     /**
      * @notice Emitted when mint proposal is canceled.
@@ -155,7 +155,7 @@ interface IMinterGateway is IContinuousIndexing {
      * @param  minter      The address of the minter
      * @param  amount      The amount of collateral to retrieve
      */
-    event RetrievalCreated(uint48 indexed retrievalId, address indexed minter, uint128 amount);
+    event RetrievalCreated(uint48 indexed retrievalId, address indexed minter, uint256 amount);
 
     /******************************************************************************************************************\
     |                                          External Interactive Functions                                          |
@@ -290,7 +290,7 @@ interface IMinterGateway is IContinuousIndexing {
     function inactiveOwedMOf(address minter) external view returns (uint256);
 
     /// @notice The collateral of a given minter.
-    function collateralOf(address minter) external view returns (uint128);
+    function collateralOf(address minter) external view returns (uint256);
 
     /// @notice The timestamp of the last collateral update of minter.
     function collateralUpdateOf(address minter) external view returns (uint40);
@@ -310,13 +310,13 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice The mint proposal of minters, only 1 active proposal per minter
     function mintProposalOf(
         address minter
-    ) external view returns (uint48 mintId, uint40 createdAt, address destination, uint128 amount);
+    ) external view returns (uint48 mintId, uint40 createdAt, address destination, uint256 amount);
 
     /// @notice The minter's proposeRetrieval proposal amount
-    function pendingCollateralRetrievalOf(address minter, uint256 retrievalId) external view returns (uint128);
+    function pendingCollateralRetrievalOf(address minter, uint256 retrievalId) external view returns (uint256);
 
     /// @notice The total amount of active proposeRetrieval requests per minter
-    function totalPendingCollateralRetrievalsOf(address minter) external view returns (uint128);
+    function totalPendingCollateralRetrievalsOf(address minter) external view returns (uint256);
 
     /// @notice The timestamp when minter becomes unfrozen after being frozen by validator.
     function unfrozenTimeOf(address minter) external view returns (uint40);
