@@ -5,9 +5,10 @@ pragma solidity 0.8.23;
 import { IContinuousIndexing } from "../interfaces/IContinuousIndexing.sol";
 
 import { ContinuousIndexingMath } from "../libs/ContinuousIndexingMath.sol";
+import { UIntMath } from "../libs/UIntMath.sol";
 
 /**
- * @title Abstract Continuous Indexing Contract to handle rate/index updates in inheriting contracts.
+ * @title  Abstract Continuous Indexing Contract to handle rate/index updates in inheriting contracts.
  * @author M^ZERO LABS_
  */
 abstract contract ContinuousIndexing is IContinuousIndexing {
@@ -54,17 +55,22 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     function currentIndex() public view virtual returns (uint128) {
         // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `_latestUpdateTimestamp`.
         unchecked {
-            // NOTE: While `multiplyUp` can mostly result in additional continuous compounding accuracy (mainly because Padé
-            //       exponent approximations always results in a lower value, and `multiplyUp` artificially increases that
-            //       value), for some smaller `r*t` values, it results in a higher effective index than the "ideal". While
-            //       not really an issue, this "often lower than, but sometimes higher than, ideal index" may no be a good
-            //       characteristic, and `multiplyUp` does costs a tiny bit more gas.
+            // NOTE: While `multiplyUp` can mostly result in additional continuous compounding accuracy (mainly because
+            //       Padé exponent approximations always results in a lower value, and `multiplyUp` artificially
+            //       increases that value), for some smaller `r*t` values, it results in a higher effective index than
+            //       the "ideal". While not really an issue, this "often lower than, but sometimes higher than, ideal
+            //       index" may no be a good characteristic, and `multiplyUp` does costs a tiny bit more gas.
+            // NOTE: While technically possible for the result of `multiplyDown` to be greater than `type(uint128).max`,
+            //       having an index greater than `type(uint128).max` is just not possible to support with this protocol
+            //       and we can safely assume such an index will never occur.
             return
-                ContinuousIndexingMath.multiplyDown(
-                    _latestIndex,
-                    ContinuousIndexingMath.getContinuousIndex(
-                        ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
-                        uint32(block.timestamp - _latestUpdateTimestamp)
+                UIntMath.safe128(
+                    ContinuousIndexingMath.multiplyDown(
+                        _latestIndex,
+                        ContinuousIndexingMath.getContinuousIndex(
+                            ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
+                            uint32(block.timestamp - _latestUpdateTimestamp)
+                        )
                     )
                 );
         }
@@ -90,7 +96,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
      * @param  index_           An index.
      * @return The present amount rounded down.
      */
-    function _getPresentAmountRoundedDown(uint128 principalAmount_, uint128 index_) internal pure returns (uint128) {
+    function _getPresentAmountRoundedDown(uint128 principalAmount_, uint128 index_) internal pure returns (uint256) {
         return ContinuousIndexingMath.multiplyDown(principalAmount_, index_);
     }
 
@@ -100,7 +106,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
      * @param  index_           An index.
      * @return The present amount rounded up.
      */
-    function _getPresentAmountRoundedUp(uint128 principalAmount_, uint128 index_) internal pure returns (uint128) {
+    function _getPresentAmountRoundedUp(uint128 principalAmount_, uint128 index_) internal pure returns (uint256) {
         return ContinuousIndexingMath.multiplyUp(principalAmount_, index_);
     }
 
@@ -109,7 +115,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
      * @param  presentAmount_ The present amount.
      * @return The principal amount rounded down.
      */
-    function _getPrincipalAmountRoundedDown(uint128 presentAmount_) internal view returns (uint128) {
+    function _getPrincipalAmountRoundedDown(uint256 presentAmount_) internal view returns (uint128) {
         return _getPrincipalAmountRoundedDown(presentAmount_, currentIndex());
     }
 
@@ -119,7 +125,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
      * @param  index_         An index.
      * @return The principal amount rounded down.
      */
-    function _getPrincipalAmountRoundedDown(uint128 presentAmount_, uint128 index_) internal pure returns (uint128) {
+    function _getPrincipalAmountRoundedDown(uint256 presentAmount_, uint128 index_) internal pure returns (uint128) {
         return ContinuousIndexingMath.divideDown(presentAmount_, index_);
     }
 
@@ -128,7 +134,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
      * @param  presentAmount_ The present amount.
      * @return The principal amount rounded up.
      */
-    function _getPrincipalAmountRoundedUp(uint128 presentAmount_) internal view returns (uint128) {
+    function _getPrincipalAmountRoundedUp(uint256 presentAmount_) internal view returns (uint128) {
         return _getPrincipalAmountRoundedUp(presentAmount_, currentIndex());
     }
 
@@ -138,10 +144,10 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
      * @param  index_         An index.
      * @return The principal amount rounded up.
      */
-    function _getPrincipalAmountRoundedUp(uint128 presentAmount_, uint128 index_) internal pure returns (uint128) {
+    function _getPrincipalAmountRoundedUp(uint256 presentAmount_, uint128 index_) internal pure returns (uint128) {
         return ContinuousIndexingMath.divideUp(presentAmount_, index_);
     }
 
-    /// @dev Overriden in the inheriting contract to return the current rate.
+    /// @dev To be overridden by the inheriting contract to return the current rate.
     function _rate() internal view virtual returns (uint32);
 }

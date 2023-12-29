@@ -59,7 +59,7 @@ interface IMinterGateway is IContinuousIndexing {
 
     /// @notice Emitted when calling `proposeMint`, `mintM`, `proposeRetrieval`
     ///         If minter position becomes undercollateralized.
-    error Undercollateralized(uint128 activeOwedM, uint128 maxAllowedOwedM);
+    error Undercollateralized(uint256 activeOwedM, uint256 maxAllowedOwedM);
 
     ///  @notice Emitted in constructor if M Token is 0x0.
     error ZeroMToken();
@@ -103,7 +103,7 @@ interface IMinterGateway is IContinuousIndexing {
      * @param  inactiveOwedM Amount of M tokens owed by the minter
      * @param  caller        Address who called the function
      */
-    event MinterDeactivated(address indexed minter, uint128 inactiveOwedM, address indexed caller);
+    event MinterDeactivated(address indexed minter, uint256 inactiveOwedM, address indexed caller);
 
     /**
      * @notice Emitted when a minter is frozen.
@@ -140,14 +140,14 @@ interface IMinterGateway is IContinuousIndexing {
      * @param  amount The amount of M tokens to burn
      * @param  payer  The address of the payer
      */
-    event BurnExecuted(address indexed minter, uint128 amount, address indexed payer);
+    event BurnExecuted(address indexed minter, uint256 amount, address indexed payer);
 
     /**
      * @notice Emitted when penalty is imposed on minter.
      * @param  minter The address of the minter
      * @param  amount The amount of penalty charge
      */
-    event PenaltyImposed(address indexed minter, uint128 amount);
+    event PenaltyImposed(address indexed minter, uint256 amount);
 
     /**
      * @notice Emitted when collateral retrieval proposal is created.
@@ -238,7 +238,7 @@ interface IMinterGateway is IContinuousIndexing {
      * @param  minter The address of the minter to deactivate
      * @return inactiveOwedM The inactive owed M for the deactivated minter
      */
-    function deactivateMinter(address minter) external returns (uint128 inactiveOwedM);
+    function deactivateMinter(address minter) external returns (uint256 inactiveOwedM);
 
     /******************************************************************************************************************\
     |                                           External View/Pure Functions                                           |
@@ -262,26 +262,32 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice The last saved value of Minter rate.
     function minterRate() external view returns (uint32);
 
+    /// @notice The principal of total owed M for all active minters.
+    function principalOfTotalActiveOwedM() external view returns (uint128);
+
     /// @notice The total owed M for all active minters.
-    function totalActiveOwedM() external view returns (uint128);
+    function totalActiveOwedM() external view returns (uint256);
 
     /// @notice The total owed M for all inactive minters.
-    function totalInactiveOwedM() external view returns (uint128);
+    function totalInactiveOwedM() external view returns (uint256);
 
     /// @notice The total owed M for all minters.
-    function totalOwedM() external view returns (uint128);
+    function totalOwedM() external view returns (uint256);
 
     /// @notice The difference between total owed M and M token total supply.
-    function excessOwedM() external view returns (uint128);
+    function excessOwedM() external view returns (uint256);
+
+    /// @notice The principal of active owed M of minter.
+    function principalOfActiveOwedMOf(address minter_) external view returns (uint128);
 
     /// @notice The active owed M of minter.
-    function activeOwedMOf(address minter) external view returns (uint128);
+    function activeOwedMOf(address minter) external view returns (uint256);
 
     /// @notice The max allowed active owed M of minter taking into account collateral amount and retrieval proposals.
-    function maxAllowedActiveOwedMOf(address minter) external view returns (uint128);
+    function maxAllowedActiveOwedMOf(address minter) external view returns (uint256);
 
     /// @notice The inactive owed M of deactivated minter.
-    function inactiveOwedMOf(address minter) external view returns (uint128);
+    function inactiveOwedMOf(address minter) external view returns (uint256);
 
     /// @notice The collateral of a given minter.
     function collateralOf(address minter) external view returns (uint128);
@@ -299,7 +305,7 @@ interface IMinterGateway is IContinuousIndexing {
     function penalizedUntilOf(address minter) external view returns (uint40);
 
     /// @notice The penalty for missed collateral updates. Penalized once per missed interval.
-    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint128);
+    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint256);
 
     /// @notice The mint proposal of minters, only 1 active proposal per minter
     function mintProposalOf(

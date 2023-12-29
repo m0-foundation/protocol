@@ -2,9 +2,7 @@
 
 pragma solidity 0.8.23;
 
-/**
- * @title TTG (Two Token Governance) Registrar interface.
- */
+/// @title TTG (Two Token Governance) Registrar interface.
 interface ITTGRegistrar {
     /**
      * @notice Key value pair getter.
