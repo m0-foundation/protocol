@@ -280,7 +280,7 @@ contract InvariantTests is Test {
         assertEq(
             IMinterGateway(_minterGateway).totalOwedM(),
             IMToken(_mToken).totalSupply(),
-            "total owed M >= total M supply"
+            "total owed M == total M supply"
         );
     }
 }
