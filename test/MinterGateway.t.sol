@@ -12,8 +12,9 @@ import { IMinterGateway } from "../src/interfaces/IMinterGateway.sol";
 import { DigestHelper } from "./utils/DigestHelper.sol";
 import { MockMToken, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
 import { MinterGatewayHarness } from "./utils/MinterGatewayHarness.sol";
+import { TestUtils } from "./utils/TestUtils.sol";
 
-contract MinterGatewayTests is Test {
+contract MinterGatewayTests is TestUtils {
     uint256 internal constant ONE = 10000;
 
     address internal _alice = makeAddr("alice");
@@ -92,6 +93,7 @@ contract MinterGatewayTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -126,6 +128,7 @@ contract MinterGatewayTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateShortSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -209,6 +212,7 @@ contract MinterGatewayTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             100,
             retrievalIds,
@@ -225,6 +229,7 @@ contract MinterGatewayTests is Test {
 
         timestamps[0] = newTimestamp;
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             100,
             retrievalIds,
@@ -249,6 +254,7 @@ contract MinterGatewayTests is Test {
         uint256 timestamp = block.timestamp;
 
         bytes memory signature1_ = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -258,6 +264,7 @@ contract MinterGatewayTests is Test {
         );
 
         bytes memory signature2_ = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -295,6 +302,7 @@ contract MinterGatewayTests is Test {
         uint256 timestamp = block.timestamp;
 
         bytes memory signature1_ = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -304,6 +312,7 @@ contract MinterGatewayTests is Test {
         );
 
         bytes memory signature2_ = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -314,6 +323,7 @@ contract MinterGatewayTests is Test {
 
         (address validator3_, uint256 validator3Pk_) = makeAddrAndKey("validator3");
         bytes memory signature3_ = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -325,6 +335,7 @@ contract MinterGatewayTests is Test {
         (address validator4_, uint256 validator4Pk_) = makeAddrAndKey("validator4");
         _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, validator4_);
         bytes memory signature4_ = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -653,8 +664,12 @@ contract MinterGatewayTests is Test {
         vm.expectEmit();
         emit IMinterGateway.MinterFrozen(_minter1, frozenUntil);
 
+        assertEq(_minterGateway.isFrozenMinter(_minter1), false);
+
         vm.prank(_validator1);
         _minterGateway.freezeMinter(_minter1);
+
+        assertEq(_minterGateway.isFrozenMinter(_minter1), true);
 
         assertEq(_minterGateway.unfrozenTimeOf(_minter1), frozenUntil);
 
@@ -817,6 +832,7 @@ contract MinterGatewayTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -850,6 +866,7 @@ contract MinterGatewayTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -873,6 +890,7 @@ contract MinterGatewayTests is Test {
         timestamps[0] = signatureTimestamp;
 
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -920,6 +938,7 @@ contract MinterGatewayTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             newCollateral,
             retrievalIds,
@@ -998,6 +1017,7 @@ contract MinterGatewayTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -1319,6 +1339,7 @@ contract MinterGatewayTests is Test {
         bytes[] memory signatures = new bytes[](2);
 
         signatures[1] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -1328,6 +1349,7 @@ contract MinterGatewayTests is Test {
         );
 
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -1368,6 +1390,7 @@ contract MinterGatewayTests is Test {
         timestamps[1] = signatureTimestamp2;
 
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral / 2,
             newRetrievalIds,
@@ -1377,6 +1400,7 @@ contract MinterGatewayTests is Test {
         );
 
         signatures[1] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral / 2,
             newRetrievalIds,
@@ -1497,6 +1521,7 @@ contract MinterGatewayTests is Test {
         bytes[] memory signatures = new bytes[](1);
 
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -1516,6 +1541,7 @@ contract MinterGatewayTests is Test {
         validators[0] = _validator1;
 
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             collateral,
             retrievalIds,
@@ -1545,6 +1571,7 @@ contract MinterGatewayTests is Test {
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             100,
             retrievalIds,
@@ -1592,6 +1619,7 @@ contract MinterGatewayTests is Test {
 
         bytes[] memory signatures = new bytes[](3);
         signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             100,
             retrievalIds,
@@ -1601,6 +1629,7 @@ contract MinterGatewayTests is Test {
         ); // valid signature
 
         signatures[1] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             200,
             retrievalIds,
@@ -1610,6 +1639,7 @@ contract MinterGatewayTests is Test {
         );
 
         signatures[2] = _getCollateralUpdateSignature(
+            address(_minterGateway),
             _minter1,
             100,
             retrievalIds,
@@ -1673,68 +1703,5 @@ contract MinterGatewayTests is Test {
     function test_updateCollateralInterval() external {
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 10);
         assertEq(_minterGateway.updateCollateralInterval(), 10);
-    }
-
-    function _getCollateralUpdateSignature(
-        address minter,
-        uint256 collateral,
-        uint256[] memory retrievalIds,
-        bytes32 metadataHash,
-        uint256 timestamp,
-        uint256 privateKey
-    ) internal view returns (bytes memory) {
-        return
-            _getSignature(
-                DigestHelper.getUpdateCollateralDigest(
-                    address(_minterGateway),
-                    minter,
-                    collateral,
-                    retrievalIds,
-                    metadataHash,
-                    timestamp
-                ),
-                privateKey
-            );
-    }
-
-    function _getCollateralUpdateShortSignature(
-        address minter,
-        uint256 collateral,
-        uint256[] memory retrievalIds,
-        bytes32 metadataHash,
-        uint256 timestamp,
-        uint256 privateKey
-    ) internal view returns (bytes memory) {
-        return
-            _getShortSignature(
-                DigestHelper.getUpdateCollateralDigest(
-                    address(_minterGateway),
-                    minter,
-                    collateral,
-                    retrievalIds,
-                    metadataHash,
-                    timestamp
-                ),
-                privateKey
-            );
-    }
-
-    function _getSignature(bytes32 digest, uint256 privateKey) internal pure returns (bytes memory) {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
-
-        return abi.encodePacked(r, s, v);
-    }
-
-    function _getShortSignature(bytes32 digest, uint256 privateKey) internal pure returns (bytes memory) {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
-
-        bytes32 vs = s;
-
-        if (v == 28) {
-            // then left-most bit of s has to be flipped to 1 to get vs
-            vs = s | bytes32(uint256(1) << 255);
-        }
-
-        return abi.encodePacked(r, vs);
     }
 }
