@@ -103,7 +103,7 @@ contract FuzzTests is IntegrationBaseSetup {
         timeElapsed = bound(timeElapsed, 10, 10 days); // [10, 10 days]
 
         // Stress test protocol - earner rate >= minter rate
-        vm.assume(earnerRate > minterRate);
+        vm.assume(earnerRate >= minterRate);
 
         _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, minterRate);
         _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, earnerRate);
