@@ -1352,6 +1352,16 @@ contract MinterGatewayTests is TestUtils {
             _validator1Pk
         );
 
+        vm.expectEmit();
+        emit IMinterGateway.CollateralUpdated(
+            _minter1,
+            collateral / 2,
+            newRetrievalIds,
+            collateral,
+            bytes32(0),
+            signatureTimestamp1
+        );
+
         vm.prank(_minter1);
         _minterGateway.updateCollateral(
             collateral / 2,

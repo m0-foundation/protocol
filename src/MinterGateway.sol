@@ -194,6 +194,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             revert RetrievalsExceedCollateral(updatedTotalPendingRetrievals_, currentCollateral_);
         }
 
+        unchecked {
+            retrievalId_ = ++_retrievalNonce;
+        }
+
         minterState_.totalPendingRetrievals = updatedTotalPendingRetrievals_;
         _pendingCollateralRetrievals[msg.sender][retrievalId_] = safeCollateral_;
 
