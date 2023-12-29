@@ -31,7 +31,7 @@ contract MinterGatewayHarness is MinterGateway {
     }
 
     function setCollateralOf(address minter_, uint256 collateral_) external {
-        _minterStates[minter_].collateral = uint128(collateral_);
+        _minterStates[minter_].collateral = collateral_;
     }
 
     function setCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
