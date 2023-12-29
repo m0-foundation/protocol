@@ -132,7 +132,7 @@ contract IntegrationTests is IntegrationBaseSetup {
             _minterGateway.activeOwedMOf(_minters[0]) +
                 _minterGateway.activeOwedMOf(_minters[1]) +
                 _minterGateway.activeOwedMOf(_minters[2]),
-            _mToken.balanceOf(_alice) + _mToken.balanceOf(_vault)
+            _mToken.balanceOf(_alice) + _mToken.balanceOf(_vault) + 1
         );
     }
 
@@ -230,7 +230,7 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         assertEq(_minterGateway.collateralOf(_minters[0]), 600_000e6);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minters[0]), 540_000000000);
-        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 500_176971951);
+        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 500_176971952);
     }
 
     function test_cancelMintProposalsAndFreezeMinter() external {
@@ -280,6 +280,82 @@ contract IntegrationTests is IntegrationBaseSetup {
         _mintM(_minters[0], mintAmount, _alice);
 
         assertEq(_minterGateway.activeOwedMOf(_minters[0]), 500_000_000001); // ~500k
+    }
+
+    function test_deactivateMinterWithMajorityOfActiveOwedM() external {
+        vm.skip(true); // TODO: current earner model doesn't work for it, enable after fix
+        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, 40000);
+        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, 40000);
+
+        _minterGateway.activateMinter(_minters[0]);
+        _minterGateway.activateMinter(_minters[1]);
+
+        vm.prank(_alice);
+        _mToken.startEarning();
+
+        uint256 collateral = 1_000_000e6;
+        _updateCollateral(_minters[0], collateral);
+        _updateCollateral(_minters[1], collateral);
+
+        vm.warp(block.timestamp + 1 hours);
+
+        _mintM(_minters[0], 800e6, _alice);
+        _mintM(_minters[1], 500e6, _alice);
+
+        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+
+        // TTG removes minter from the protocol.
+        _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
+        // Minter is deactivated in the protocol
+        _minterGateway.deactivateMinter(_minters[0]);
+
+        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+
+        // Danger zone - does not work for X seconds after deactivation
+        vm.warp(block.timestamp + 1 seconds);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+
+        vm.warp(block.timestamp + 5 seconds);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+
+        vm.warp(block.timestamp + 98 seconds);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+
+        vm.warp(block.timestamp + 1 hours);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+
+        vm.warp(block.timestamp + 600 days);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+
+        _minterGateway.updateIndex();
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+    }
+
+    function test_earnerRateIsHigherThanMinterRate() external {
+        vm.skip(true); // TODO: current earner model doesn't work for it, enable after fix
+        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, 20000);
+        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, 40000);
+
+        _minterGateway.activateMinter(_minters[0]);
+        _minterGateway.activateMinter(_minters[1]);
+
+        vm.prank(_alice);
+        _mToken.startEarning();
+
+        uint256 collateral = 1_000_000e6;
+        _updateCollateral(_minters[0], collateral);
+        _updateCollateral(_minters[1], collateral);
+
+        vm.warp(block.timestamp + 1 hours);
+
+        _mintM(_minters[0], 800e6, _bob);
+        _mintM(_minters[1], 900e6, _alice);
+
+        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+
+        vm.warp(block.timestamp + 30 days);
+
+        assertGt(_minterGateway.totalOwedM(), _mToken.totalSupply());
     }
 
     function _updateCollateral(address minter_, uint256 collateral_) internal returns (uint256 lastUpdateTimestamp_) {

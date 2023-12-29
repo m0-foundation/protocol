@@ -3,11 +3,12 @@
 pragma solidity 0.8.23;
 
 import { console2, Test } from "../lib/forge-std/src/Test.sol";
+import { wadExp, wadLn } from "../lib/solmate/src/utils/SignedWadMath.sol";
 
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
 
 contract ContinuousIndexingMathTests is Test {
-    uint56 internal constant _EXP_SCALED_ONE = ContinuousIndexingMath.EXP_SCALED_ONE;
+    uint64 internal constant _EXP_SCALED_ONE = ContinuousIndexingMath.EXP_SCALED_ONE;
 
     function test_divideDown() external {
         // Set 1a
@@ -157,23 +158,11 @@ contract ContinuousIndexingMathTests is Test {
         assertEq(ContinuousIndexingMath.multiplyUp(2, (_EXP_SCALED_ONE / 2) - 1), 1); // Different than multiplyDown
     }
 
-    function test_exponent() external {
-        assertEq(ContinuousIndexingMath.exponent(0), 1_000000000000); // actual 1
-
-        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE / 10000), 1_000100005000); // actual 1.0001000050001667
-        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE / 1000), 1_001000500166); // actual 1.0010005001667084
-        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE / 100), 1_010050167084); // actual 1.010050167084168
-        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE / 10), 1_105170918075); // actual 1.1051709180756477
-        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE / 2), 1_648721270572); // actual 1.6487212707001282
-        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE), 2_718281718281); // actual 2.718281828459045
-        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE * 2), 7_388888888888); // actual 7.3890560989306495
-    }
-
     function test_getContinuousIndex() external {
-        assertEq(ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 0), 1_000000000000); // 1
-        assertEq(ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 1 days), 1_002743482506); // 1.00274348
-        assertEq(ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 10 days), 1_027776016255); // 1.02777602
-        assertEq(ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 365 days), 2718281718281); // 2.71828183
+        assertEq(ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 0), 1_000000000000000000); // 1
+        assertEq(ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 1 days), 1_002743482506541040); // 1.00274348
+        assertEq(ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 10 days), 1_027776016256419323); // 1.02777602
+        assertEq(ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 365 days), 2_718281828459045235); // 2.71828183
     }
 
     function test_multiplyContinuousRates() external {
@@ -197,10 +186,10 @@ contract ContinuousIndexingMathTests is Test {
         assertEqPrecision(
             (fourHourRate * fourHourRate * fourHourRate * fourHourRate) / (oneInExp * oneInExp * oneInExp),
             sixteenHourRate,
-            1e1
+            1e2
         );
 
-        assertEqPrecision((sixteenHourRate * fourHourRate * fourHourRate) / (oneInExp * oneInExp), oneDayRate, 1e1);
+        assertEqPrecision((sixteenHourRate * fourHourRate * fourHourRate) / (oneInExp * oneInExp), oneDayRate, 1e2);
 
         assertEqPrecision(
             (sixteenHourRate * sixteenHourRate * sixteenHourRate) / (oneInExp * oneInExp),

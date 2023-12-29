@@ -47,7 +47,7 @@ contract MTokenTests is Test {
 
         vm.warp(_start + 30_057_038); // Just enough time for the index to be ~1.1.
 
-        _expectedCurrentIndex = 1_100000068703;
+        _expectedCurrentIndex = 1_100000068704336630;
     }
 
     /* ============ constructor ============ */
@@ -551,7 +551,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.balanceOf(_alice), 1_002); // Is dependent on latestRate.
 
-        _mToken.setLatestIndex(1_200_000_000_000);
+        _mToken.setLatestIndex(1_200_000_000_000_000_000);
 
         assertEq(_mToken.balanceOf(_alice), 1_202); // Is dependent on latestIndex.
     }
@@ -571,7 +571,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalEarningSupply(), 1_002); // Is dependent on latestRate.
 
-        _mToken.setLatestIndex(1_200_000_000_000);
+        _mToken.setLatestIndex(1_200_000_000_000_000_000);
 
         assertEq(_mToken.totalEarningSupply(), 1_202); // Is dependent on latestIndex.
     }
@@ -627,7 +627,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalSupply(), 1_002); // Is dependent on latestRate.
 
-        _mToken.setLatestIndex(1_200_000_000_000);
+        _mToken.setLatestIndex(1_200_000_000_000_000_000);
 
         assertEq(_mToken.totalSupply(), 1_202); // Is dependent on latestIndex.
     }
@@ -647,7 +647,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalSupply(), 2_002); // Is dependent on latestRate.
 
-        _mToken.setLatestIndex(1_200_000_000_000);
+        _mToken.setLatestIndex(1_200_000_000_000_000_000);
 
         assertEq(_mToken.totalSupply(), 2_202); // Is dependent on latestIndex.
     }

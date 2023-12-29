@@ -1,4 +1,5 @@
 .
+.
 ├── Integrations.t.sol
 │   └── Compliant Minter lifecycle
 │       ├── Two Minters are activated - Minter1 and Minter2
@@ -53,12 +54,37 @@
 │       ├── Allowed owed M reflects retrieval amount
 │       ├── After 18 hours since last collateral update Minter1 starts new collateral update
 │       └── After 18 hours since last update Minter1 updates collateral again and closes pending retrieval
+├── 
+│   └── Validator cancels mint proposal and freezes Minter
+│       ├── Minter1 is activated
+│       ├── Minter1 updates collateral
+│       ├── Minter1 creates mint proposal
+│       ├── After 1 hour Validator 1 cancels mint proposal
+│       ├── Every hour for 12 hours Validator freezes Minter1, delaying his unfreezing period
+│       ├── Minter1 updates collateral while being frozen to avoid penalization
+│       └── Minter1 starts minting M process as soon as they are unfrozen again
+├── 
+│   └── Deactivate Minter1 that owed majority of active owed M
+│       ├── Minter1 is activated
+│       ├── Minter2 is activated
+│       ├── Alice starts earning
+│       ├── Minter1 updates collateral
+│       ├── Minter2 updates collateral
+│       ├── Minter1 mints 800e6 to Alice
+│       ├── Minter2 mints 500e6 to Alice
+│       ├── Main invariant is valid: totalOwedM >= totalMSupply
+│       ├── Minter1 is removed from TTG
+│       ├── Minter1 is deactivated
+│       └── Main invariant is valid: totalOwedM >= totalMSupply
 └── 
-    └── Validator cancels mint proposal and freezes Minter
+    └── Set earnerRate > minterRate
+        ├── Set earnerRate == 2 * minterRate
         ├── Minter1 is activated
+        ├── Minter2 is activated
+        ├── Alice starts earning
         ├── Minter1 updates collateral
-        ├── Minter1 creates mint proposal
-        ├── After 1 hour Validator 1 cancels mint proposal
-        ├── Every hour for 12 hours Validator freezes Minter1, delaying his unfreezing period
-        ├── Minter1 updates collateral while being frozen to avoid penalization
-        └── Minter1 starts minting M process as soon as they are unfrozen again
+        ├── Minter2 updates collateral
+        ├── Minter1 mints M to Bob
+        ├── Minter2 mints M to Alice
+        ├── Main invariant is valid: totalOwedM >= totalMSupply
+        └── After 30 days main invariant is valid: totalOwedM >= totalMSupply

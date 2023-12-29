@@ -955,7 +955,7 @@ contract MinterGatewayTests is TestUtils {
 
         uint256 expectedPenalty = (((activeOwedM + penalty) - (newCollateral * _mintRatio) / ONE) * _penaltyRate) / ONE;
 
-        assertEq(_minterGateway.activeOwedMOf(_minter1), activeOwedM + penalty + expectedPenalty + 1 wei);
+        assertEq(_minterGateway.activeOwedMOf(_minter1), activeOwedM + penalty + expectedPenalty + 2 wei);
 
         assertEq(_minterGateway.collateralUpdateOf(_minter1), signatureTimestamp);
         assertEq(_minterGateway.lastCollateralUpdateIntervalOf(_minter1), _updateCollateralInterval);

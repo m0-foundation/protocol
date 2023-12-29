@@ -25,15 +25,15 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         assertEq(_minterGateway.minterRate(), 1_000);
         assertEq(_minterRateModel.baseRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_000000000000);
-        assertEq(_minterGateway.currentIndex(), 1_000000000000);
+        assertEq(_minterGateway.latestIndex(), 1000000000000000000);
+        assertEq(_minterGateway.currentIndex(), 1000000000000000000);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
         assertEq(_earnerRateModel.baseRate(), 1_000);
         assertEq(_mToken.rateModel(), address(_earnerRateModel));
-        assertEq(_mToken.latestIndex(), 1_000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000);
+        assertEq(_mToken.latestIndex(), 1000000000000000000);
+        assertEq(_mToken.currentIndex(), 1000000000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.warp(block.timestamp + 2 hours); // 2 hours after deploy, minter collects signatures.
@@ -63,13 +63,13 @@ contract IntegrationTests is IntegrationBaseSetup {
         vm.warp(block.timestamp + 1 hours); // 1 hour after collecting signatures, minter updateCollateral is mined.
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_000000000000);
-        assertEq(_minterGateway.currentIndex(), 1_000034247161);
+        assertEq(_minterGateway.latestIndex(), 1000000000000000000);
+        assertEq(_minterGateway.currentIndex(), 1000034247161763120);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000);
+        assertEq(_mToken.latestIndex(), 1000000000000000000);
+        assertEq(_mToken.currentIndex(), 1000000000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.prank(_minters[0]);
@@ -85,13 +85,13 @@ contract IntegrationTests is IntegrationBaseSetup {
         latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_000034247161);
-        assertEq(_minterGateway.currentIndex(), 1_000034247161);
+        assertEq(_minterGateway.latestIndex(), 1000034247161763120);
+        assertEq(_minterGateway.currentIndex(), 1000034247161763120);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000);
+        assertEq(_mToken.latestIndex(), 1000000000000000000);
+        assertEq(_mToken.currentIndex(), 1000000000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.warp(block.timestamp + 1 hours); // 1 hour later, minter proposes a mint.
@@ -102,38 +102,38 @@ contract IntegrationTests is IntegrationBaseSetup {
         // No index values are updated since nothing relevant changed.
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_000034247161);
-        assertEq(_minterGateway.currentIndex(), 1_000045663141);
+        assertEq(_minterGateway.latestIndex(), 1000034247161763120);
+        assertEq(_minterGateway.currentIndex(), 1000045663142986195);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000);
+        assertEq(_mToken.latestIndex(), 1000000000000000000);
+        assertEq(_mToken.currentIndex(), 1000000000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.prank(_minters[0]);
         uint256 mintId = _minterGateway.proposeMint(mintAmount, _alice);
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_000034247161);
-        assertEq(_minterGateway.currentIndex(), 1_000045663141);
+        assertEq(_minterGateway.latestIndex(), 1000034247161763120);
+        assertEq(_minterGateway.currentIndex(), 1000045663142986195);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000);
+        assertEq(_mToken.latestIndex(), 1000000000000000000);
+        assertEq(_mToken.currentIndex(), 1000000000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.warp(block.timestamp + _mintDelay + 1 hours); // 1 hour after the mint delay, the minter mints M.
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_000034247161);
-        assertEq(_minterGateway.currentIndex(), 1_000194082756);
+        assertEq(_minterGateway.latestIndex(), 1000034247161763120);
+        assertEq(_minterGateway.currentIndex(), 1000194082758562666);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000);
+        assertEq(_mToken.latestIndex(), 1000000000000000000);
+        assertEq(_mToken.currentIndex(), 1000000000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         vm.prank(_minters[0]);
@@ -144,13 +144,13 @@ contract IntegrationTests is IntegrationBaseSetup {
         latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_000194082756);
-        assertEq(_minterGateway.currentIndex(), 1_000194082756);
+        assertEq(_minterGateway.latestIndex(), 1000194082758562666);
+        assertEq(_minterGateway.currentIndex(), 1000194082758562666);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_000000000000);
-        assertEq(_mToken.currentIndex(), 1_000000000000);
+        assertEq(_mToken.latestIndex(), 1000000000000000000);
+        assertEq(_mToken.currentIndex(), 1000000000000000000);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         assertEq(_minterGateway.activeOwedMOf(_minters[0]), 500_000_000001); // ~500k
@@ -160,17 +160,17 @@ contract IntegrationTests is IntegrationBaseSetup {
         vm.warp(block.timestamp + 356 days); // 1 year later, Alice transfers all all her M to Bob, who is not earning.
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_000194082756);
-        assertEq(_minterGateway.currentIndex(), 1_102663162403);
+        assertEq(_minterGateway.latestIndex(), 1000194082758562666);
+        assertEq(_minterGateway.currentIndex(), 1102663162407434818);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_000000000000);
-        assertEq(_mToken.currentIndex(), 1_102449196025);
+        assertEq(_mToken.latestIndex(), 1000000000000000000);
+        assertEq(_mToken.currentIndex(), 1102449196026294842);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 551_224_598014); // ~500k with 10% APY compounded continuously.
-        assertEq(_mToken.balanceOf(_alice), 551_224_598012); // ~500k with 10% APY compounded continuously.
+        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 551_224_598015); // ~500k with 10% APY compounded continuously.
+        assertEq(_mToken.balanceOf(_alice), 551_224_598013); // ~500k with 10% APY compounded continuously.
         assertEq(_mToken.balanceOf(_vault), 1); // Still 0 since no call to `_minterGateway.updateIndex()`.
 
         uint256 transferAmount_ = _mToken.balanceOf(_alice);
@@ -182,18 +182,18 @@ contract IntegrationTests is IntegrationBaseSetup {
         latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_000194082756);
-        assertEq(_minterGateway.currentIndex(), 1_102663162403);
+        assertEq(_minterGateway.latestIndex(), 1000194082758562666);
+        assertEq(_minterGateway.currentIndex(), 1102663162407434818);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_102449196025);
-        assertEq(_mToken.currentIndex(), 1_102449196025);
+        assertEq(_mToken.latestIndex(), 1102449196026294842);
+        assertEq(_mToken.currentIndex(), 1102449196026294842);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 551_224_598014);
+        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 551_224_598015);
         assertEq(_mToken.balanceOf(_alice), 0); // Rounding error left over.
-        assertEq(_mToken.balanceOf(_bob), 551_224_598012);
+        assertEq(_mToken.balanceOf(_bob), 551_224_598013);
         assertEq(_mToken.balanceOf(_vault), 1); // No change since no call to `_minterGateway.updateIndex()`.
 
         vm.warp(block.timestamp + 1 hours); // 1 hour later, someone updates the indices.
@@ -208,17 +208,17 @@ contract IntegrationTests is IntegrationBaseSetup {
         latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_102675749954);
-        assertEq(_minterGateway.currentIndex(), 1_102675749954);
+        assertEq(_minterGateway.latestIndex(), 1102675749958304349);
+        assertEq(_minterGateway.currentIndex(), 1102675749958304349);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_102461781133);
-        assertEq(_mToken.currentIndex(), 1_102461781133);
+        assertEq(_mToken.latestIndex(), 1102461781134611832);
+        assertEq(_mToken.currentIndex(), 1102461781134611832);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 551_230_890568);
-        assertEq(_mToken.balanceOf(_bob), 551_224_598012); // Bob is not earning, so no change.
+        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 551230890569);
+        assertEq(_mToken.balanceOf(_bob), 551_224_598013); // Bob is not earning, so no change.
         assertEq(_mToken.balanceOf(_vault), 6_292556); // Excess active owed M is distributed to vault.
 
         excessOwedM = _minterGateway.excessOwedM();
@@ -233,33 +233,33 @@ contract IntegrationTests is IntegrationBaseSetup {
         latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_102675749954);
-        assertEq(_minterGateway.currentIndex(), 1_102977894285);
+        assertEq(_minterGateway.latestIndex(), 1102675749958304349);
+        assertEq(_minterGateway.currentIndex(), 1102977894291243116);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_102763866834);
-        assertEq(_mToken.currentIndex(), 1_102763866834);
+        assertEq(_mToken.latestIndex(), 1102763866837923978);
+        assertEq(_mToken.currentIndex(), 1102763866837923978);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 551_381_933418);
-        assertEq(_mToken.balanceOf(_bob), 551_224_598011);
+        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 551381933420);
+        assertEq(_mToken.balanceOf(_bob), 551224598012);
         assertEq(_mToken.balanceOf(_vault), 6_292556); // No change since no call to `_minterGateway.updateIndex()`.
 
         vm.warp(block.timestamp + 30 days); // 30 days later, the unresponsive minter is deactivated.
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_102675749954);
-        assertEq(_minterGateway.currentIndex(), 1_112080824074);
+        assertEq(_minterGateway.latestIndex(), 1102675749958304349);
+        assertEq(_minterGateway.currentIndex(), 1112080824080086411);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(), 1_102763866834);
-        assertEq(_mToken.currentIndex(), 1_111865030243);
+        assertEq(_mToken.latestIndex(), 1102763866837923978);
+        assertEq(_mToken.currentIndex(), 1111865030247866541);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
-        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 555_932_515123);
-        assertEq(_mToken.balanceOf(_bob), 555_773_881219);
+        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 555932515125);
+        assertEq(_mToken.balanceOf(_bob), 555773881220);
         assertEq(_mToken.balanceOf(_vault), 6_292556); // No change since no call to `_minterGateway.updateIndex()`.
 
         _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
@@ -271,20 +271,20 @@ contract IntegrationTests is IntegrationBaseSetup {
         latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_112080824074);
-        assertEq(_minterGateway.currentIndex(), 1_112080824074);
+        assertEq(_minterGateway.latestIndex(), 1112080824080086411);
+        assertEq(_minterGateway.currentIndex(), 1112080824080086411);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0); // Dropped to zero due to drastic change in utilization.
-        assertEq(_mToken.latestIndex(), 1_111865030243);
-        assertEq(_mToken.currentIndex(), 1_111865030243);
+        assertEq(_mToken.latestIndex(), 1111865030247866541);
+        assertEq(_mToken.currentIndex(), 1111865030247866541);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         assertEq(_minterGateway.activeOwedMOf(_minters[0]), 0);
-        assertEq(_minterGateway.inactiveOwedMOf(_minters[0]), 555_932_515123);
-        assertEq(_mToken.balanceOf(_bob), 555_773_881219);
+        assertEq(_minterGateway.inactiveOwedMOf(_minters[0]), 555932515125);
+        assertEq(_mToken.balanceOf(_bob), 555773881220);
 
-        assertEq(_mToken.balanceOf(_vault), 158633904); // Delta is distributed to vault.
+        assertEq(_mToken.balanceOf(_vault), 158633905); // Delta is distributed to vault.
 
         // Main invariant of the system: totalActiveOwedM >= totalSupply of M Token.
         assertEq(
@@ -295,18 +295,18 @@ contract IntegrationTests is IntegrationBaseSetup {
         vm.warp(block.timestamp + 30 days); // 30 more days pass without any changes to the system.
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterGateway.latestIndex(), 1_112080824074);
-        assertEq(_minterGateway.currentIndex(), 1_121258880780); // Incased due to nonzero minter rate.
+        assertEq(_minterGateway.latestIndex(), 1112080824080086411);
+        assertEq(_minterGateway.currentIndex(), 1121258880787764155); // Incased due to nonzero minter rate.
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_mToken.latestIndex(), 1_111865030243);
-        assertEq(_mToken.currentIndex(), 1_111865030243); // No change due to no earner rate in last 30 days.
+        assertEq(_mToken.latestIndex(), 1111865030247866541);
+        assertEq(_mToken.currentIndex(), 1111865030247866541); // No change due to no earner rate in last 30 days.
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         assertEq(_minterGateway.activeOwedMOf(_minters[0]), 0);
-        assertEq(_minterGateway.inactiveOwedMOf(_minters[0]), 555_932_515123);
-        assertEq(_mToken.balanceOf(_bob), 555_773_881219); // No change due to no earner rate in last 30 days.
-        assertEq(_mToken.balanceOf(_vault), 158633904); // No change since conditions did not change.
+        assertEq(_minterGateway.inactiveOwedMOf(_minters[0]), 555932515125);
+        assertEq(_mToken.balanceOf(_bob), 555773881220); // No change due to no earner rate in last 30 days.
+        assertEq(_mToken.balanceOf(_vault), 158633905); // No change since conditions did not change.
     }
 }
