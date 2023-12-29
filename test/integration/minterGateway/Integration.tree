@@ -1,0 +1,90 @@
+.
+.
+├── Integrations.t.sol
+│   └── Compliant Minter lifecycle
+│       ├── Two Minters are activated - Minter1 and Minter2
+│       ├── Alice starts earning
+│       ├── After 2 hours Minter1 collects signatures to update collateral
+│       ├── After 1 hour Minter1 updates collateral
+│       ├── After 1 hour Minter1 proposes to mint M to Alice
+│       ├── After mintDelay + 1 hour Minter1 mints M to Alice
+│       ├── Minter1 updates collateral after 19 hours since last collateral update
+│       ├── Minter1 completes new minting process and mints M to Bob
+│       ├── Minter2 updates collateral and mints M to Alice
+│       ├── Alice repays the whole amount of totalOwedMOf of Minter1
+│       ├── Minter1 does not update collateral for 60 days
+│       ├── Minter1 imposes no penalties because their owedM == 0
+│       ├── Minter1 updates collateral
+│       └── Minter1 mints M amount equal to 90% * collateral value to Alice
+├── 
+│   └── Non-compliant Minters pay penalties
+│       ├── Three Minters are activated - Minter1, Minter2, and Minter3
+│       ├── Alice starts earning
+│       ├── 3 hours later Minters updateCollateral
+│       ├── 1 hour later Minters proposeMint to Alice. Their mint amounts are the same
+│       ├── After minting delays all three Minters successfully mint M to Alice
+│       ├── totalOwedM of all three Minters are the same
+│       ├── 18 hours later Minter1 and Minter2 start collateral update process, Minter3 doesn't do Integrations
+│       ├── 15 hours after previous collateral update timestamp all three Minters update collateral
+│       │   ├── Minter1 collateral amount covers their outstanding owed M
+│       │   ├── Minter2 is undercollateralized, collateral amount is less than required
+│       │   └── Minter3 collateral amount covers their outstanding owed M
+│       ├── Minter1 is compliant, no penalties are imposed
+│       ├── Minter2 gets penalized for undercollateralization
+│       └── Minter3 penalized for missed collateral update
+│           └── Minter2 penalty < Minter3 penalty
+├── 
+│   └── Minter misses collateral updates, and is removed from the system
+│       ├── Minter1 is activated
+│       ├── Minter1 updates their collateral
+│       ├── Minter1 mints M to Alice
+│       ├── Minter1 misses 90 days of collateral updates
+│       ├── Minter1 is removed from TTG
+│       ├── Minter1 is deactivated from the protocol
+│       ├── Minter1 total owed M stops growing and earner rate is recalculated
+│       ├── Minter2 is activated
+│       ├── Minter2 mints M to Alice, so she has enough balance to repay inactive owed M of Minter1
+│       └── Alice repays inactive owed M of Minter1
+├── 
+│   └── Compliant Minter retrieves collateral
+│       ├── Minter1 is activated
+│       ├── Minter1 updates collateral
+│       ├── After 1 hour Minter1 starts minting M to Alice
+│       ├── Minter1 proposes retrieval
+│       ├── Allowed owed M reflects retrieval amount
+│       ├── After 18 hours since last collateral update Minter1 starts new collateral update
+│       └── After 18 hours since last update Minter1 updates collateral again and closes pending retrieval
+├── 
+│   └── Validator cancels mint proposal and freezes Minter
+│       ├── Minter1 is activated
+│       ├── Minter1 updates collateral
+│       ├── Minter1 creates mint proposal
+│       ├── After 1 hour Validator 1 cancels mint proposal
+│       ├── Every hour for 12 hours Validator freezes Minter1, delaying his unfreezing period
+│       ├── Minter1 updates collateral while being frozen to avoid penalization
+│       └── Minter1 starts minting M process as soon as they are unfrozen again
+├── 
+│   └── Deactivate Minter1 that owed majority of active owed M
+│       ├── Minter1 is activated
+│       ├── Minter2 is activated
+│       ├── Alice starts earning
+│       ├── Minter1 updates collateral
+│       ├── Minter2 updates collateral
+│       ├── Minter1 mints 800e6 to Alice
+│       ├── Minter2 mints 500e6 to Alice
+│       ├── Main invariant is valid: totalOwedM >= totalMSupply
+│       ├── Minter1 is removed from TTG
+│       ├── Minter1 is deactivated
+│       └── Main invariant is valid: totalOwedM >= totalMSupply
+└── 
+    └── Set earnerRate > minterRate
+        ├── Set earnerRate == 2 * minterRate
+        ├── Minter1 is activated
+        ├── Minter2 is activated
+        ├── Alice starts earning
+        ├── Minter1 updates collateral
+        ├── Minter2 updates collateral
+        ├── Minter1 mints M to Bob
+        ├── Minter2 mints M to Alice
+        ├── Main invariant is valid: totalOwedM >= totalMSupply
+        └── After 30 days main invariant is valid: totalOwedM >= totalMSupply
