@@ -65,7 +65,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, rate_);
     }
 
-    function updateProtocolIndex(uint256 timeJumpSeed_) external adjustTimestamp(timeJumpSeed_) {
+    function updateMinterGatewayIndex(uint256 timeJumpSeed_) external adjustTimestamp(timeJumpSeed_) {
         console2.log("Updating Minter Gateway index at %s", block.timestamp);
         _minterGateway.updateIndex();
     }
