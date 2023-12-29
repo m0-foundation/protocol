@@ -27,7 +27,7 @@ library ContinuousIndexingMath {
      * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `index`, rounded down.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
-    function divideDown(uint256 x, uint128 index) internal pure returns (uint128 z) {
+    function divideDown(uint240 x, uint128 index) internal pure returns (uint112 z) {
         if (index == 0) revert DivisionByZero();
 
         unchecked {
@@ -36,7 +36,7 @@ library ContinuousIndexingMath {
             //       so for an `x` to be large enough to overflow this, it would have to be a possible result of
             //       `multiplyDown` or `multiplyUp`, which would already satisfy
             //       `uint256(x) * EXP_SCALED_ONE < type(uint256).max`.
-            return UIntMath.safe128((uint256(x) * EXP_SCALED_ONE) / index);
+            return UIntMath.safe112((uint256(x) * EXP_SCALED_ONE) / index);
         }
     }
 
@@ -44,7 +44,7 @@ library ContinuousIndexingMath {
      * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `index`, rounded up.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
-    function divideUp(uint256 x, uint128 index) internal pure returns (uint128 z) {
+    function divideUp(uint240 x, uint128 index) internal pure returns (uint112 z) {
         if (index == 0) revert DivisionByZero();
 
         unchecked {
@@ -53,7 +53,7 @@ library ContinuousIndexingMath {
             //       so for an `x` to be large enough to overflow this, it would have to be a possible result of
             //       `multiplyDown` or `multiplyUp`, which would already satisfy
             //       `uint256(x) * EXP_SCALED_ONE < type(uint256).max`.
-            return UIntMath.safe128(((uint256(x) * EXP_SCALED_ONE) + index - 1) / index);
+            return UIntMath.safe112(((uint256(x) * EXP_SCALED_ONE) + index - 1) / index);
         }
     }
 
@@ -61,9 +61,9 @@ library ContinuousIndexingMath {
      * @notice Helper function to calculate (`x` * `index`) / `EXP_SCALED_ONE`, rounded down.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
-    function multiplyDown(uint128 x, uint128 index) internal pure returns (uint256 z) {
+    function multiplyDown(uint112 x, uint128 index) internal pure returns (uint240 z) {
         unchecked {
-            return (uint256(x) * index) / EXP_SCALED_ONE;
+            return uint240((uint256(x) * index) / EXP_SCALED_ONE);
         }
     }
 
@@ -71,9 +71,27 @@ library ContinuousIndexingMath {
      * @notice Helper function to calculate (`x` * `index`) / `EXP_SCALED_ONE`, rounded up.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
-    function multiplyUp(uint128 x, uint128 index) internal pure returns (uint256 z) {
+    function multiplyUp(uint112 x, uint128 index) internal pure returns (uint240 z) {
         unchecked {
-            return ((uint256(x) * index) + (EXP_SCALED_ONE - 1)) / EXP_SCALED_ONE;
+            return uint240(((uint256(x) * index) + (EXP_SCALED_ONE - 1)) / EXP_SCALED_ONE);
+        }
+    }
+
+    /**
+     * @notice Helper function to calculate (`index` * `deltaIndex`) / `EXP_SCALED_ONE`, rounded down.
+     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
+     */
+    function multiplyIndices(uint128 index, uint48 deltaIndex) internal pure returns (uint128 z) {
+        unchecked {
+            // NOTE: While `multiplyUp` can mostly result in additional continuous compounding accuracy (mainly because
+            //       Padé exponent approximations always results in a lower value, and `multiplyUp` artificially
+            //       increases that value), for some smaller `r*t` values, it results in a higher effective index than
+            //       the "ideal". While not really an issue, this "often lower than, but sometimes higher than, ideal
+            //       index" may no be a good characteristic, and `multiplyUp` does costs a tiny bit more gas.
+            // NOTE: While technically possible for the result to be greater than `type(uint128).max`, having an index
+            //       greater than `type(uint128).max` is just not possible to support with this protocol and we can
+            //       safely assume such an index will never occur.
+            return UIntMath.safe128((uint256(index) * deltaIndex) / EXP_SCALED_ONE);
         }
     }
 

@@ -25,7 +25,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     struct MBalance {
         bool isEarning;
         bool hasOptedOutOfEarning;
-        uint128 rawBalance; // balance (for a non earning account) or principal balance that accrued interest
+        uint240 rawBalance; // balance (for a non earning account) or principal balance that accrued interest
     }
 
     /// @inheritdoc IMToken
@@ -35,10 +35,10 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     address public immutable ttgRegistrar;
 
     /// @dev The total amount of non earning M supply.
-    uint128 internal _totalNonEarningSupply;
+    uint240 internal _totalNonEarningSupply;
 
     /// @dev The total amount of principal of earning M supply. totalEarningSupply = principal * currentIndex
-    uint128 internal _totalPrincipalOfEarningSupply;
+    uint112 internal _totalPrincipalOfEarningSupply;
 
     /// @notice The balance of M for non-earner or principal of earning M balance for earners.
     mapping(address account => MBalance balance) internal _balances;
@@ -148,7 +148,9 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     function balanceOf(address account_) external view returns (uint256 balance_) {
         MBalance storage mBalance_ = _balances[account_];
 
-        return mBalance_.isEarning ? _getPresentAmount(mBalance_.rawBalance) : mBalance_.rawBalance;
+        return mBalance_.isEarning
+            ? _getPresentAmount(uint112(mBalance_.rawBalance)) // Treat the raw balance as principal for earner.
+            : mBalance_.rawBalance;
     }
 
     /// @inheritdoc IMToken
@@ -170,7 +172,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param account_         The account to add principal to.
      * @param principalAmount_ The principal amount to add.
      */
-    function _addEarningAmount(address account_, uint128 principalAmount_) internal {
+    function _addEarningAmount(address account_, uint112 principalAmount_) internal {
         unchecked {
             _balances[account_].rawBalance += principalAmount_;
             _totalPrincipalOfEarningSupply += principalAmount_;
@@ -182,7 +184,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param account_ The account to add amount to.
      * @param amount_  The amount to add.
      */
-    function _addNonEarningAmount(address account_, uint128 amount_) internal {
+    function _addNonEarningAmount(address account_, uint240 amount_) internal {
         unchecked {
             _balances[account_].rawBalance += amount_;
             _totalNonEarningSupply += amount_;
@@ -199,10 +201,10 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
         if (_balances[account_].isEarning) {
             // NOTE: When burning a present amount, round the principal up in favor of the protocol.
-            _subtractEarningAmount(account_, _getPrincipalAmountRoundedUp(UIntMath.safe128(amount_)));
+            _subtractEarningAmount(account_, _getPrincipalAmountRoundedUp(UIntMath.safe240(amount_)));
             updateIndex();
         } else {
-            _subtractNonEarningAmount(account_, UIntMath.safe128(amount_));
+            _subtractNonEarningAmount(account_, UIntMath.safe112(amount_));
         }
     }
 
@@ -216,10 +218,10 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
         if (_balances[recipient_].isEarning) {
             // NOTE: When minting a present amount, round the principal down in favor of the protocol.
-            _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(UIntMath.safe128(amount_)));
+            _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(UIntMath.safe112(amount_)));
             updateIndex();
         } else {
-            _addNonEarningAmount(recipient_, UIntMath.safe128(amount_));
+            _addNonEarningAmount(recipient_, UIntMath.safe240(amount_));
         }
     }
 
@@ -236,13 +238,14 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
         mBalance_.isEarning = true;
 
-        uint128 amount_ = _balances[account_].rawBalance;
+        // Treat the raw balance as present amount for non earner.
+        uint240 amount_ = uint240(_balances[account_].rawBalance);
 
         if (amount_ == 0) return;
 
         // NOTE: When converting a non-earning balance into an earning balance, round the principal down in favor of
         //       the Minter Gateway.
-        uint128 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
+        uint112 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
 
         _balances[account_].rawBalance = principalAmount_;
 
@@ -267,11 +270,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
         mBalance_.isEarning = false;
 
-        uint128 principalAmount_ = _balances[account_].rawBalance;
+        // Treat the raw balance as principal for earner.
+        uint112 principalAmount_ = uint112(_balances[account_].rawBalance);
 
         if (principalAmount_ == 0) return;
 
-        uint128 amount_ = _getPresentAmount(principalAmount_);
+        uint240 amount_ = _getPresentAmount(principalAmount_);
 
         _balances[account_].rawBalance = amount_;
 
@@ -288,7 +292,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param account_         The account to subtract principal from.
      * @param principalAmount_ The principal amount to subtract.
      */
-    function _subtractEarningAmount(address account_, uint128 principalAmount_) internal {
+    function _subtractEarningAmount(address account_, uint112 principalAmount_) internal {
         _balances[account_].rawBalance -= principalAmount_;
 
         unchecked {
@@ -301,7 +305,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param account_ The account to subtract amount from.
      * @param amount_  The amount to subtract.
      */
-    function _subtractNonEarningAmount(address account_, uint128 amount_) internal {
+    function _subtractNonEarningAmount(address account_, uint240 amount_) internal {
         _balances[account_].rawBalance -= amount_;
 
         unchecked {
@@ -318,7 +322,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     function _transfer(address sender_, address recipient_, uint256 amount_) internal override {
         emit Transfer(sender_, recipient_, amount_);
 
-        uint128 safeAmount_ = UIntMath.safe128(amount_);
+        uint240 safeAmount_ = UIntMath.safe128(amount_);
 
         bool senderIsEarning_ = _balances[sender_].isEarning; // Only using the sender's earning status more than once.
 
@@ -355,7 +359,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param recipient_ The account to transfer to.
      * @param amount_    The amount (present or principal) to transfer.
      */
-    function _transferAmountInKind(address sender_, address recipient_, uint128 amount_) internal {
+    function _transferAmountInKind(address sender_, address recipient_, uint240 amount_) internal {
         _balances[sender_].rawBalance -= amount_;
 
         unchecked {
@@ -372,7 +376,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      *        All present amounts are rounded down in favor of the protocol.
      * @param principalAmount_ The principal amount.
      */
-    function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128 amount_) {
+    function _getPresentAmount(uint112 principalAmount_) internal view returns (uint240 amount_) {
         return _getPresentAmount(principalAmount_, currentIndex());
     }
 
@@ -382,8 +386,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param principalAmount_ The principal amount.
      * @param index_           An index
      */
-    function _getPresentAmount(uint128 principalAmount_, uint128 index_) internal pure returns (uint128 amount_) {
-        return uint128(_getPresentAmountRoundedDown(principalAmount_, index_)); // TODO: fix cast.
+    function _getPresentAmount(uint112 principalAmount_, uint128 index_) internal pure returns (uint240 amount_) {
+        return _getPresentAmountRoundedDown(principalAmount_, index_);
     }
 
     /**
