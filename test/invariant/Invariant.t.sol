@@ -264,7 +264,7 @@ contract InvariantTests is Test {
         selectors[4] = ProtocolHandler.deactivateMinter.selector;
         selectors[5] = ProtocolHandler.burnMForMinterFromEarner.selector;
         selectors[6] = ProtocolHandler.burnMForMinterFromNonEarner.selector;
-        selectors[7] = ProtocolHandler.updateProtocolIndex.selector;
+        selectors[7] = ProtocolHandler.updateMinterGatewayIndex.selector;
         selectors[8] = ProtocolHandler.updateMTokenIndex.selector;
 
         targetSelector(FuzzSelector({ addr: address(_handler), selectors: selectors }));
