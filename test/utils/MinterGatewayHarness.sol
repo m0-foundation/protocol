@@ -31,7 +31,7 @@ contract MinterGatewayHarness is MinterGateway {
     }
 
     function setCollateralOf(address minter_, uint256 collateral_) external {
-        _minterStates[minter_].collateral = collateral_;
+        _minterStates[minter_].collateral = uint240(collateral_);
     }
 
     function setCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
@@ -51,7 +51,7 @@ contract MinterGatewayHarness is MinterGateway {
     }
 
     function setTotalPrincipalOfActiveOwedM(uint256 amount_) external {
-        _totalPrincipalOfActiveOwedM += uint128(amount_);
+        _totalPrincipalOfActiveOwedM += uint112(amount_);
     }
 
     function setTotalPendingRetrievalsOf(address minter_, uint256 amount_) external {

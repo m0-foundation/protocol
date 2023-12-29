@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.23;
 
-import { console2, stdError, Test } from "../../lib/forge-std/src/Test.sol";
+import { console2 } from "../../lib/forge-std/src/Test.sol";
 
 import { ContinuousIndexingMath } from "../../src/libs/ContinuousIndexingMath.sol";
 import { TTGRegistrarReader } from "../../src/libs/TTGRegistrarReader.sol";

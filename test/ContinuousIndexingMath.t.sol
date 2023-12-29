@@ -220,7 +220,7 @@ contract ContinuousIndexingMathTests is Test {
     }
 
     function test_multiplyThenDivide_100apy() external {
-        uint128 amount = 1_000e6;
+        uint112 amount = 1_000e6;
         uint128 sevenDayRate = ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 7 days);
         uint128 thirtyDayRate = ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 30 days);
 
@@ -250,7 +250,7 @@ contract ContinuousIndexingMathTests is Test {
     }
 
     function test_multiplyThenDivide_6apy() external {
-        uint128 amount = 1_000e6;
+        uint112 amount = 1_000e6;
         uint128 sevenDayRate = ContinuousIndexingMath.getContinuousIndex((_EXP_SCALED_ONE * 6) / 100, 7 days);
         uint128 thirtyDayRate = ContinuousIndexingMath.getContinuousIndex((_EXP_SCALED_ONE * 6) / 100, 30 days);
 
@@ -323,7 +323,7 @@ contract ContinuousIndexingMathTests is Test {
 
         for (uint256 i; i < 52_560; ++i) {
             index = safe128(
-                ContinuousIndexingMath.multiplyDown(
+                ContinuousIndexingMath.multiplyIndices(
                     index,
                     ContinuousIndexingMath.getContinuousIndex(
                         ContinuousIndexingMath.convertFromBasisPoints(100_000), // 1000%
@@ -342,7 +342,7 @@ contract ContinuousIndexingMathTests is Test {
 
         for (uint256 i; i < 21_900; ++i) {
             index = safe128(
-                ContinuousIndexingMath.multiplyDown(
+                ContinuousIndexingMath.multiplyIndices(
                     index,
                     ContinuousIndexingMath.getContinuousIndex(
                         ContinuousIndexingMath.convertFromBasisPoints(10_000), // 100%
@@ -361,7 +361,7 @@ contract ContinuousIndexingMathTests is Test {
 
         for (uint256 i; i < 219_000; ++i) {
             index = safe128(
-                ContinuousIndexingMath.multiplyDown(
+                ContinuousIndexingMath.multiplyIndices(
                     index,
                     ContinuousIndexingMath.getContinuousIndex(
                         ContinuousIndexingMath.convertFromBasisPoints(1_000), // 10%

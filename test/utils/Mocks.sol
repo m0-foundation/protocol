@@ -2,27 +2,28 @@
 
 pragma solidity 0.8.23;
 
-import "../../src/interfaces/ITTGRegistrar.sol";
+import { ITTGRegistrar } from "../../src/interfaces/ITTGRegistrar.sol";
 
 contract MockTTGRegistrar is ITTGRegistrar {
     address internal _vault;
 
-    mapping(bytes32 key => bytes32 value) internal _valueAt;
+    mapping(bytes32 list => mapping(address account => bool isInList)) internal _isInList;
+    mapping(bytes32 key => bytes32 value) internal _values;
 
     function addToList(bytes32 list_, address account_) external {
-        _valueAt[_getKeyInSet(list_, account_)] = bytes32(uint256(1));
-    }
-
-    function get(bytes32 key_) external view returns (bytes32) {
-        return _valueAt[key_];
-    }
-
-    function listContains(bytes32 list_, address account_) external view returns (bool) {
-        return _valueAt[_getKeyInSet(list_, account_)] == bytes32(uint256(1));
+        _isInList[list_][account_] = true;
     }
 
     function removeFromList(bytes32 list_, address account_) external {
-        delete _valueAt[_getKeyInSet(list_, account_)];
+        _isInList[list_][account_] = false;
+    }
+
+    function get(bytes32 key_) external view returns (bytes32) {
+        return _values[key_];
+    }
+
+    function listContains(bytes32 list_, address account_) external view returns (bool) {
+        return _isInList[list_][account_];
     }
 
     function setVault(address vault_) external {
@@ -30,23 +31,19 @@ contract MockTTGRegistrar is ITTGRegistrar {
     }
 
     function updateConfig(bytes32 key_, address value_) external {
-        _valueAt[key_] = bytes32(uint256(uint160(value_)));
+        _values[key_] = bytes32(uint256(uint160(value_)));
     }
 
     function updateConfig(bytes32 key_, uint256 value_) external {
-        _valueAt[key_] = bytes32(value_);
+        _values[key_] = bytes32(value_);
     }
 
     function updateConfig(bytes32 key_, bytes32 value_) external {
-        _valueAt[key_] = value_;
+        _values[key_] = value_;
     }
 
     function vault() external view returns (address) {
         return _vault;
-    }
-
-    function _getKeyInSet(bytes32 list_, address account_) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(list_, account_));
     }
 }
 
