@@ -66,7 +66,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function updateProtocolIndex(uint256 timeJumpSeed_) external adjustTimestamp(timeJumpSeed_) {
-        console2.log("Updating protocol index at %s", block.timestamp);
+        console2.log("Updating Minter Gateway index at %s", block.timestamp);
         _minterGateway.updateIndex();
     }
 
