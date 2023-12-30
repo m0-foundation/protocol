@@ -282,11 +282,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             _minterStates[minter_].lastUpdateInterval = updateCollateralInterval_;
         }
 
-        uint240 safeMaxAmount__ = UIntMath.safe240(maxAmount_);
-
         uint240 amount_ = _minterStates[minter_].isActive
-            ? _repayForActiveMinter(minter_, safeMaxAmount__)
-            : _repayForInactiveMinter(minter_, safeMaxAmount__);
+            ? _repayForActiveMinter(minter_, UIntMath.safe240(maxAmount_))
+            : _repayForInactiveMinter(minter_, UIntMath.safe240(maxAmount_));
 
         emit BurnExecuted(minter_, amount_, msg.sender);
 
@@ -673,7 +671,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         // the max possible active owed M for the minter, which is capped at the max uint240.
         if (maxAllowedActiveOwedM_ >= type(uint240).max) return;
 
-        // NOTE: Round the principal down in favor of the protocol since this is a max applied ot the minter.
+        // NOTE: Round the principal down in favor of the protocol since this is a max applied to the minter.
         uint112 principalOfMaxAllowedActiveOwedM_ = _getPrincipalAmountRoundedDown(uint240(maxAllowedActiveOwedM_));
 
         if (principalOfMaxAllowedActiveOwedM_ >= principalOfActiveOwedM_) return;

@@ -204,7 +204,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
             _subtractEarningAmount(account_, _getPrincipalAmountRoundedUp(UIntMath.safe240(amount_)));
             updateIndex();
         } else {
-            _subtractNonEarningAmount(account_, UIntMath.safe112(amount_));
+            _subtractNonEarningAmount(account_, UIntMath.safe240(amount_));
         }
     }
 
@@ -218,7 +218,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
         if (_balances[recipient_].isEarning) {
             // NOTE: When minting a present amount, round the principal down in favor of the protocol.
-            _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(UIntMath.safe112(amount_)));
+            _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(UIntMath.safe240(amount_)));
             updateIndex();
         } else {
             _addNonEarningAmount(recipient_, UIntMath.safe240(amount_));
@@ -239,7 +239,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         mBalance_.isEarning = true;
 
         // Treat the raw balance as present amount for non earner.
-        uint240 amount_ = uint240(_balances[account_].rawBalance);
+        uint240 amount_ = _balances[account_].rawBalance;
 
         if (amount_ == 0) return;
 
@@ -322,7 +322,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     function _transfer(address sender_, address recipient_, uint256 amount_) internal override {
         emit Transfer(sender_, recipient_, amount_);
 
-        uint240 safeAmount_ = UIntMath.safe128(amount_);
+        uint240 safeAmount_ = UIntMath.safe240(amount_);
 
         bool senderIsEarning_ = _balances[sender_].isEarning; // Only using the sender's earning status more than once.
 
