@@ -63,7 +63,7 @@ library UIntMath {
     }
 
     /**
-     * @notice Casts a given uint256 value to a uint128, ensuring that it is less than or equal to the maximum uint240 value.
+     * @notice Casts a given uint256 value to a uint240, ensuring that it is less than or equal to the maximum uint240 value.
      * @param  n The value to check.
      * @return The value casted to uint240.
      */

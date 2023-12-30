@@ -283,7 +283,11 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice The active owed M of minter.
     function activeOwedMOf(address minter) external view returns (uint240);
 
-    /// @notice The max allowed active owed M of minter taking into account collateral amount and retrieval proposals.
+    /**
+     * @notice The max allowed active owed M of minter taking into account collateral amount and retrieval proposals.
+     * @dev    This is the only present value that requires a `uint256` since it is the result of a multiplication
+     *         between a `uint240` and a value that has a max of `1,000,000` (the mint ratio).
+     */
     function maxAllowedActiveOwedMOf(address minter) external view returns (uint256);
 
     /// @notice The inactive owed M of deactivated minter.
