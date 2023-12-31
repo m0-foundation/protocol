@@ -82,6 +82,15 @@ library UIntMath {
     }
 
     /**
+     * @notice Limits a given uint256 value to the maximum uint112 value.
+     * @param  n The value to check.
+     * @return The value limited to within uint32 bounds.
+     */
+    function bound112(uint256 n) internal pure returns (uint112) {
+        return uint112(min256(n, uint256(type(uint112).max)));
+    }
+
+    /**
      * @notice Compares two uint40 values and returns the larger one.
      * @param  a_  Value to check.
      * @param  b_  Value to check.

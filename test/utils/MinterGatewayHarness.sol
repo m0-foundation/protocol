@@ -47,7 +47,7 @@ contract MinterGatewayHarness is MinterGateway {
     }
 
     function setRawOwedMOf(address minter_, uint256 amount_) external {
-        _rawOwedM[minter_] = amount_;
+        _rawOwedM[minter_] = uint240(amount_);
     }
 
     function setTotalPrincipalOfActiveOwedM(uint256 amount_) external {

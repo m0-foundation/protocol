@@ -155,22 +155,25 @@ contract IntegrationTests is IntegrationBaseSetup {
         uint256 totalOwedMBeforeDeactivation = _minterGateway.totalOwedM();
         uint256 vaultBalanceBeforeDeactivation = _mToken.balanceOf(_vault);
 
-        assertGt(_minterGateway.totalOwedM(), _mToken.totalSupply());
-        // TODO: should it be equal ?
-        assertGt(_minterGateway.totalActiveOwedM(), _mToken.totalSupply());
+        assertGe(totalOwedMBeforeDeactivation, totalMSupplyBeforeDeactivation);
+        assertEq(_minterGateway.totalActiveOwedM(), totalOwedMBeforeDeactivation);
         assertEq(_minterGateway.totalInactiveOwedM(), 0);
-        assertEq(_minterGateway.activeOwedMOf(_minters[0]), _minterGateway.totalOwedM());
+
+        assertEq(_minterGateway.activeOwedMOf(_minters[0]), totalOwedMBeforeDeactivation);
         assertEq(_minterGateway.inactiveOwedMOf(_minters[0]), 0);
 
         // TTG removes minter from the minterGateway.
         _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
+
         // Minter is deactivated in the minterGateway
         _minterGateway.deactivateMinter(_minters[0]);
 
         uint256 totalOwedMAfterDeactivation = _minterGateway.totalOwedM();
         uint256 vaultBalanceAfterDeactivation = _mToken.balanceOf(_vault);
 
-        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        assertGe(_minterGateway.totalOwedM(), totalOwedMAfterDeactivation);
+        assertEq(_minterGateway.totalActiveOwedM(), 0);
+        assertEq(_minterGateway.totalInactiveOwedM(), totalOwedMAfterDeactivation);
 
         // Vault gets penalty plus delta of cash flows before deactivation
         assertEq(
@@ -186,13 +189,26 @@ contract IntegrationTests is IntegrationBaseSetup {
         _updateCollateral(_minters[1], collateral);
         _mintM(_minters[1], mintAmount, _alice);
 
+        uint256 additionToTotalOwedM = _minterGateway.totalOwedM() - totalOwedMAfterDeactivation;
+
+        assertGe(_minterGateway.totalOwedM(), totalOwedMAfterDeactivation + additionToTotalOwedM);
+        assertEq(_minterGateway.totalActiveOwedM(), additionToTotalOwedM);
+        assertEq(_minterGateway.totalInactiveOwedM(), totalOwedMAfterDeactivation);
+
+        assertEq(_minterGateway.activeOwedMOf(_minters[1]), additionToTotalOwedM);
+        assertEq(_minterGateway.inactiveOwedMOf(_minters[1]), 0);
+
         // Now alice has sufficient M to repay owedM of the first minter.
         uint256 aliceBalance = _mToken.balanceOf(_alice);
         vm.prank(_alice);
         _minterGateway.burnM(_minters[0], aliceBalance);
 
-        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        uint256 totalOwedMAfterBurn = _minterGateway.totalOwedM();
+
+        assertGe(totalOwedMAfterBurn, _mToken.totalSupply());
+        assertEq(_minterGateway.totalActiveOwedM(), totalOwedMAfterBurn);
         assertEq(_minterGateway.totalInactiveOwedM(), 0);
+
         assertEq(_minterGateway.inactiveOwedMOf(_minters[0]), 0);
     }
 
