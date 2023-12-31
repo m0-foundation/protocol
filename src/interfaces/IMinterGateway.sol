@@ -10,6 +10,9 @@ interface IMinterGateway is IContinuousIndexing {
     |                                                      Errors                                                      |
     \******************************************************************************************************************/
 
+    /// @notice Emitted when principal of total owed M (active and inactive) will overflow a `type?(uint112).max`.
+    error OverflowsPrincipalOfTotalOwedM();
+
     /// @notice Emitted when calling `mintM` with a proposal that was created more than `mintDelay + mintTTL` time ago.
     error ExpiredMintProposal(uint40 deadline);
 
@@ -57,9 +60,12 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice Emitted when calling `deactivateMinter` with a minter still approved in TTG Registrar.
     error StillApprovedMinter();
 
-    /// @notice Emitted when calling `proposeMint`, `mintM`, `proposeRetrieval`
-    ///         If minter position becomes undercollateralized.
-    error Undercollateralized(uint240 activeOwedM, uint240 maxAllowedOwedM);
+    /**
+     * @notice Emitted when calling `proposeMint`, `mintM`, `proposeRetrieval`
+     *         If minter position becomes undercollateralized.
+     * @dev    `activeOwedM` is a `uint256` because it may represent some resulting owed M from computations.
+     */
+    error Undercollateralized(uint256 activeOwedM, uint256 maxAllowedOwedM);
 
     ///  @notice Emitted in constructor if M Token is 0x0.
     error ZeroMToken();

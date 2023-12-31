@@ -12,7 +12,7 @@ import { MinterGatewayHarness } from "./utils/MinterGatewayHarness.sol";
 import { TestUtils } from "./utils/TestUtils.sol";
 
 contract MinterGatewayTests is TestUtils {
-    uint256 internal constant ONE = 10000;
+    uint16 internal constant ONE = 10_000;
 
     address internal _alice = makeAddr("alice");
     address internal _bob = makeAddr("bob");
@@ -480,14 +480,13 @@ contract MinterGatewayTests is TestUtils {
 
         vm.warp(timestamp + _mintDelay + 1);
 
-        uint128 indexAfter1Second =
-            ContinuousIndexingMath.multiplyIndices(
-                initialIndex,
-                ContinuousIndexingMath.getContinuousIndex(
-                    ContinuousIndexingMath.convertFromBasisPoints(uint32(_minterRate)),
-                    1
-                )
-            );
+        uint128 indexAfter1Second = ContinuousIndexingMath.multiplyIndices(
+            initialIndex,
+            ContinuousIndexingMath.getContinuousIndex(
+                ContinuousIndexingMath.convertFromBasisPoints(uint32(_minterRate)),
+                1
+            )
+        );
 
         uint240 expectedResult = ContinuousIndexingMath.multiplyUp(principalOfActiveOwedM, indexAfter1Second);
 
@@ -495,14 +494,13 @@ contract MinterGatewayTests is TestUtils {
 
         vm.warp(timestamp + _mintDelay + 31_536_000);
 
-        uint128 indexAfter1Year =
-            ContinuousIndexingMath.multiplyIndices(
-                initialIndex,
-                ContinuousIndexingMath.getContinuousIndex(
-                    ContinuousIndexingMath.convertFromBasisPoints(uint32(_minterRate)),
-                    31_536_000
-                )
-            );
+        uint128 indexAfter1Year = ContinuousIndexingMath.multiplyIndices(
+            initialIndex,
+            ContinuousIndexingMath.getContinuousIndex(
+                ContinuousIndexingMath.convertFromBasisPoints(uint32(_minterRate)),
+                31_536_000
+            )
+        );
 
         expectedResult = ContinuousIndexingMath.multiplyUp(principalOfActiveOwedM, indexAfter1Year);
 
@@ -746,10 +744,10 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_minter1);
         _minterGateway.mintM(mintId);
 
-        uint256 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
+        uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
 
         vm.expectEmit();
-        emit IMinterGateway.BurnExecuted(_minter1, uint240(activeOwedM), _alice);
+        emit IMinterGateway.BurnExecuted(_minter1, activeOwedM, _alice);
 
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM);
@@ -769,10 +767,10 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setRawOwedMOf(_minter1, principalOfActiveOwedM);
         _minterGateway.setTotalPrincipalOfActiveOwedM(principalOfActiveOwedM);
 
-        uint256 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
+        uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
 
         vm.expectEmit();
-        emit IMinterGateway.BurnExecuted(_minter1, uint240(activeOwedM / 2), _alice);
+        emit IMinterGateway.BurnExecuted(_minter1, activeOwedM / 2, _alice);
 
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM / 2);
@@ -782,7 +780,7 @@ contract MinterGatewayTests is TestUtils {
         // TODO: Check that burn has been called.
 
         vm.expectEmit();
-        emit IMinterGateway.BurnExecuted(_minter1, uint240(activeOwedM / 2), _bob);
+        emit IMinterGateway.BurnExecuted(_minter1, activeOwedM / 2, _bob);
 
         vm.prank(_bob);
         _minterGateway.burnM(_minter1, activeOwedM / 2);
@@ -818,8 +816,8 @@ contract MinterGatewayTests is TestUtils {
 
         vm.warp(block.timestamp + 3 * _updateCollateralInterval);
 
-        uint256 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
-        uint256 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
+        uint240 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
+        uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
 
         assertEq(penalty, (activeOwedM * 3 * _penaltyRate) / ONE);
 
@@ -845,7 +843,7 @@ contract MinterGatewayTests is TestUtils {
         );
 
         vm.expectEmit();
-        emit IMinterGateway.PenaltyImposed(_minter1, uint240(penalty));
+        emit IMinterGateway.PenaltyImposed(_minter1, penalty);
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
@@ -903,12 +901,12 @@ contract MinterGatewayTests is TestUtils {
             _validator1Pk
         );
 
-        uint256 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
+        uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
         uint256 maxAllowedOwedM = (collateral * _mintRatio) / ONE;
-        uint256 expectedPenalty = ((activeOwedM - maxAllowedOwedM) * _penaltyRate) / ONE;
+        uint240 expectedPenalty = uint240(((activeOwedM - maxAllowedOwedM) * _penaltyRate) / ONE);
 
         vm.expectEmit();
-        emit IMinterGateway.PenaltyImposed(_minter1, uint240(expectedPenalty));
+        emit IMinterGateway.PenaltyImposed(_minter1, expectedPenalty);
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
@@ -925,11 +923,11 @@ contract MinterGatewayTests is TestUtils {
 
         vm.warp(block.timestamp + 2 * _updateCollateralInterval);
 
-        uint256 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
-        uint256 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
+        uint240 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
+        uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
         assertEq(penalty, (activeOwedM * 2 * _penaltyRate) / ONE);
 
-        uint256 newCollateral = 10e18;
+        uint240 newCollateral = 10e18;
 
         uint256[] memory retrievalIds = new uint256[](0);
 
@@ -953,12 +951,12 @@ contract MinterGatewayTests is TestUtils {
         );
 
         vm.expectEmit();
-        emit IMinterGateway.PenaltyImposed(_minter1, uint240(penalty));
+        emit IMinterGateway.PenaltyImposed(_minter1, penalty);
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(newCollateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        uint256 expectedPenalty = (((activeOwedM + penalty) - (newCollateral * _mintRatio) / ONE) * _penaltyRate) / ONE;
+        uint240 expectedPenalty = (((activeOwedM + penalty) - (newCollateral * _mintRatio) / ONE) * _penaltyRate) / ONE;
 
         assertEq(_minterGateway.activeOwedMOf(_minter1), activeOwedM + penalty + expectedPenalty);
 
@@ -976,13 +974,13 @@ contract MinterGatewayTests is TestUtils {
 
         vm.warp(block.timestamp + 3 * _updateCollateralInterval);
 
-        uint256 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
-        uint256 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
+        uint240 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
+        uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
 
         assertEq(penalty, (activeOwedM * 3 * _penaltyRate) / ONE);
 
         vm.expectEmit();
-        emit IMinterGateway.PenaltyImposed(_minter1, uint240(penalty));
+        emit IMinterGateway.PenaltyImposed(_minter1, penalty);
 
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM);
@@ -1290,7 +1288,7 @@ contract MinterGatewayTests is TestUtils {
 
         // TODO: Burn should not be part of this test.
         vm.expectEmit();
-        emit IMinterGateway.BurnExecuted(_minter1, uint240(activeOwedM), _alice);
+        emit IMinterGateway.BurnExecuted(_minter1, activeOwedM, _alice);
 
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM);
@@ -1304,13 +1302,13 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setRawOwedMOf(_minter1, mintAmount);
         _minterGateway.setTotalPrincipalOfActiveOwedM(mintAmount);
 
-        uint256 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
-        uint256 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
+        uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
+        uint240 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
 
         _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
 
         vm.expectEmit();
-        emit IMinterGateway.MinterDeactivated(_minter1, uint240(activeOwedM + penalty), _alice);
+        emit IMinterGateway.MinterDeactivated(_minter1, activeOwedM + penalty, _alice);
 
         vm.prank(_alice);
         _minterGateway.deactivateMinter(_minter1);
