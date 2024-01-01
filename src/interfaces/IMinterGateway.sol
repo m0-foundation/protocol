@@ -149,11 +149,20 @@ interface IMinterGateway is IContinuousIndexing {
     event BurnExecuted(address indexed minter, uint240 amount, address indexed payer);
 
     /**
-     * @notice Emitted when penalty is imposed on minter.
-     * @param  minter The address of the minter
-     * @param  amount The amount of penalty charge
+     * @notice Emitted when a penalty is imposed on an active minter for missing collateral updates.
+     * @param  minter         The address of the minter.
+     * @param  penalties      The amount of the penalty charged.
+     * @param  excessOwedM    The owed M in excess of max allowed that the penalty rate was applied against.
+     * @param  penalizedFrom  The timestamp fom which the penalty coverage starts.
+     * @param  penalizedUntil The timestamp fom which the penalty coverage ends.
      */
-    event PenaltyImposed(address indexed minter, uint240 amount);
+    event PenaltyImposed(
+        address indexed minter,
+        uint240 penalties,
+        uint240 excessOwedM,
+        uint40 penalizedFrom,
+        uint40 penalizedUntil
+    );
 
     /**
      * @notice Emitted when a collateral retrieval proposal is created.
@@ -253,6 +262,13 @@ interface IMinterGateway is IContinuousIndexing {
      */
     function deactivateMinter(address minter) external returns (uint240 inactiveOwedM);
 
+    /**
+     * @notice    Imposes penalty if active minter is undercollateralized.
+     * @param  minter  The address of the minter.
+     * @return penalty The amount of penalty imposed.
+     */
+    function imposePenalty(address minter) external returns (uint240 penalty);
+
     /******************************************************************************************************************\
     |                                           External View/Pure Functions                                           |
     \******************************************************************************************************************/
@@ -312,17 +328,18 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice The timestamp of the last collateral update of minter.
     function collateralUpdateTimestampOf(address minter) external view returns (uint40);
 
-    /// @notice The timestamp of the deadline for the next collateral update of minter.
-    function collateralUpdateDeadlineOf(address minter) external view returns (uint40);
+    /// @notice The timestamp after which a minter's collateral becomes stale and is assumed to be 0.
+    function collateralExpiryTimestampOf(address minter) external view returns (uint40);
 
-    /// @notice The length of the last collateral interval for minter in case TTG changes this parameter.
-    function lastCollateralUpdateIntervalOf(address minter) external view returns (uint32);
+    /// @notice The timestamp of the deadline by which minter must update their collateral to not be charged additional
+    ///         penalties.
+    function collateralUpdateDeadlineOf(address minter) external view returns (uint40);
 
     /// @notice The timestamp until which minter is already penalized for missed collateral updates.
     function penalizedUntilOf(address minter) external view returns (uint40);
 
-    /// @notice The penalty for missed collateral updates. Penalized once per missed interval.
-    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint240);
+    /// @notice The penalty yet to be charged against a minter.
+    function getPenaltyOf(address minter) external view returns (uint240);
 
     /// @notice The mint proposal of minters, only 1 active proposal per minter
     function mintProposalOf(
@@ -365,7 +382,7 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice The allowed activeOwedM to collateral ratio.
     function mintRatio() external view returns (uint32);
 
-    /// @notice The % that defines penalty amount for missed collateral updates or excessive owedM value
+    /// @notice The penalty rate (in bps) imposed against a minter's excess active owed M, expressed as an APR.
     function penaltyRate() external view returns (uint32);
 
     /// @notice The smart contract that defines the minter rate.

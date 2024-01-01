@@ -11,23 +11,53 @@ contract MinterGatewayHarness is MinterGateway {
     |                                                     Getters                                                      |
     \******************************************************************************************************************/
 
-    function getMissedCollateralUpdateParameters(
-        uint32 lastUpdateInterval_,
-        uint40 lastUpdate_,
-        uint40 lastPenalizedUntil_,
-        uint32 newUpdateInterval_
-    ) external view returns (uint40 missedIntervals_, uint40 missedUntil_) {
+    function getPenalty(
+        address minter_
+    )
+        external
+        view
+        returns (
+            uint112 penaltyPrincipal_,
+            uint112 principalOfExcessOwedM_,
+            uint40 penalizeFrom_,
+            uint40 penalizeUntil_
+        )
+    {
+        return _getPenalty(minter_);
+    }
+
+    function getPenalty(
+        uint256 updateTimestamp_,
+        uint256 penalizedUntilTimestamp_,
+        uint256 principalOfActiveOwedM_,
+        uint256 maxAllowedActiveOwedM_,
+        uint256 newUpdateInterval_
+    )
+        external
+        view
+        returns (
+            uint112 penaltyPrincipal_,
+            uint112 principalOfExcessOwedM_,
+            uint40 penalizeFrom_,
+            uint40 penalizeUntil_
+        )
+    {
         return
-            _getMissedCollateralUpdateParameters(
-                lastUpdateInterval_,
-                lastUpdate_,
-                lastPenalizedUntil_,
-                newUpdateInterval_
+            _getPenalty(
+                uint40(updateTimestamp_),
+                uint40(penalizedUntilTimestamp_),
+                uint112(principalOfActiveOwedM_),
+                maxAllowedActiveOwedM_,
+                uint32(newUpdateInterval_)
             );
     }
 
-    function getPrincipalAmountRoundedUp(uint240 amount_) external view returns (uint112 principalAmount_) {
-        return _getPrincipalAmountRoundedUp(amount_);
+    function getPresentAmount(uint256 principalAmount_) external view returns (uint240) {
+        return _getPresentAmount(uint112(principalAmount_));
+    }
+
+    function getPrincipalAmountRoundedUp(uint256 amount_) external view returns (uint112 principalAmount_) {
+        return _getPrincipalAmountRoundedUp(uint240(amount_));
     }
 
     function internalCollateralOf(address minter_) external view returns (uint240 collateral_) {
@@ -82,10 +112,6 @@ contract MinterGatewayHarness is MinterGateway {
 
     function setUnfrozenTimeOf(address minter_, uint256 frozenTime_) external {
         _minterStates[minter_].frozenUntilTimestamp = uint40(frozenTime_);
-    }
-
-    function setLastCollateralUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
-        _minterStates[minter_].lastUpdateInterval = uint32(updateInterval_);
     }
 
     function setPenalizedUntilOf(address minter_, uint256 penalizedUntil_) external {
