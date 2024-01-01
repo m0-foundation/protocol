@@ -11,6 +11,21 @@ contract MinterGatewayHarness is MinterGateway {
     |                                                     Getters                                                      |
     \******************************************************************************************************************/
 
+    function getMissedCollateralUpdateParameters(
+        uint32 lastUpdateInterval_,
+        uint40 lastUpdate_,
+        uint40 lastPenalizedUntil_,
+        uint32 newUpdateInterval_
+    ) external view returns (uint40 missedIntervals_, uint40 missedUntil_) {
+        return
+            _getMissedCollateralUpdateParameters(
+                lastUpdateInterval_,
+                lastUpdate_,
+                lastPenalizedUntil_,
+                newUpdateInterval_
+            );
+    }
+
     function getPrincipalAmountRoundedUp(uint240 amount_) external view returns (uint112 principalAmount_) {
         return _getPrincipalAmountRoundedUp(amount_);
     }
