@@ -21,8 +21,9 @@ import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 // TODO: Consider `totalResolvedCollateralRetrieval` or `totalCollateralRetrievalResolved`.
 // TODO: Fix bug in pushing up deadline with burn?
 // TODO: Ensure `_imposePenalty` is never called for inactive minters and put a note/warning on all callers.
-// TODO: Test penalize until and deadline stuff entirely separately.
 // TODO: Handle in-flight issue with deactivation and pending retrievals.
+// TODO: A change in `penaltyRate()` can retroactively change minters more.
+// TODO: Consider maximum decrease in collateral update interval from last update interval.
 
 /**
  * @title  MinterGateway
@@ -171,16 +172,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
         emit CollateralUpdated(msg.sender, safeCollateral_, totalResolvedRetrievals_, metadataHash_, minTimestamp_);
 
-        uint32 updateCollateralInterval_ = updateCollateralInterval();
-
-        _imposePenaltyIfMissedCollateralUpdates(msg.sender, updateCollateralInterval_);
+        _imposePenaltyIfMissedCollateralUpdates(msg.sender);
 
         _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
-
-        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if TTG changes it.
-        if (updateCollateralInterval_ != 0) {
-            _minterStates[msg.sender].lastUpdateInterval = updateCollateralInterval_;
-        }
 
         _imposePenaltyIfUndercollateralized(msg.sender);
 
@@ -287,16 +281,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function burnM(address minter_, uint256 maxAmount_) external {
-        uint32 updateCollateralInterval_ = updateCollateralInterval();
-
         // NOTE: Penalize only for missed collateral updates, not for undercollateralization.
         // Undercollateralization within one update interval is forgiven.
-        _imposePenaltyIfMissedCollateralUpdates(minter_, updateCollateralInterval_);
-
-        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if TTG changes it.
-        if (updateCollateralInterval_ != 0) {
-            _minterStates[minter_].lastUpdateInterval = updateCollateralInterval_;
-        }
+        _imposePenaltyIfMissedCollateralUpdates(minter_);
 
         uint240 amount_ = _minterStates[minter_].isActive
             ? _repayForActiveMinter(minter_, UIntMath.safe240(maxAmount_))
@@ -658,16 +645,27 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /**
      * @dev   Imposes penalty if minter missed collateral updates.
-     * @param minter_                   The address of the minter.
-     * @param updateCollateralInterval_ The current update collateral interval.
+     * @param minter_ The address of the minter.
      */
-    function _imposePenaltyIfMissedCollateralUpdates(address minter_, uint32 updateCollateralInterval_) internal {
+    function _imposePenaltyIfMissedCollateralUpdates(address minter_) internal {
+        uint32 updateCollateralInterval_ = updateCollateralInterval();
+
+        MinterState storage minterState_ = _minterStates[minter_];
+        uint32 lastUpdateInterval_ = minterState_.lastUpdateInterval;
+
         (uint40 missedIntervals_, uint40 missedUntil_) = _getMissedCollateralUpdateParameters(
-            minter_,
+            lastUpdateInterval_,
+            minterState_.updateTimestamp,
+            minterState_.penalizedUntilTimestamp,
             updateCollateralInterval_
         );
 
-        // Save penalization interval to not double charge for the same missed periods again
+        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if SPOG changes it.
+        if (updateCollateralInterval_ != 0 && lastUpdateInterval_ != updateCollateralInterval_) {
+            _minterStates[minter_].lastUpdateInterval = updateCollateralInterval_;
+        }
+
+        // Save until when the minter has been penalized for missed intervals to prevent double penalizing them.
         _minterStates[minter_].penalizedUntilTimestamp = missedUntil_;
 
         uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
@@ -792,22 +790,19 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /**
      * @dev    Returns the penalization base and the penalized until timestamp.
-     * @param  minter_            The address of the minter.
-     * @param  newUpdateInterval_ The new update collateral interval to apply.
-     * @return missedIntervals_   The number of missed update intervals.
-     * @return missedUntil_       The timestamp until which `missedIntervals_` covers, even if `missedIntervals_` is 0.
+     * @param  lastUpdateInterval_ The last update collateral interval the minter needed to abide by.
+     * @param  lastUpdate_         The last timestamp the inter updated their collateral.
+     * @param  lastPenalizedUntil_ The last timestamp before which the minter shouldn't be penalized for missed updates.
+     * @param  newUpdateInterval_  The new update collateral interval.
+     * @return missedIntervals_    The number of missed update intervals.
+     * @return missedUntil_        The timestamp until which `missedIntervals_` covers, even if `missedIntervals_` is 0.
      */
     function _getMissedCollateralUpdateParameters(
-        address minter_,
+        uint32 lastUpdateInterval_,
+        uint40 lastUpdate_,
+        uint40 lastPenalizedUntil_,
         uint32 newUpdateInterval_
     ) internal view returns (uint40 missedIntervals_, uint40 missedUntil_) {
-        MinterState storage minterState_ = _minterStates[minter_];
-        (uint32 lastUpdateInterval_, uint40 lastUpdate_, uint40 lastPenalizedUntil_) = (
-            minterState_.lastUpdateInterval,
-            minterState_.updateTimestamp,
-            minterState_.penalizedUntilTimestamp
-        );
-
         uint40 penalizeFrom_ = UIntMath.max40(lastUpdate_, lastPenalizedUntil_);
         uint40 penalizationDeadline_;
 
@@ -846,7 +841,14 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
         if (penaltyRate_ == 0) return 0;
 
-        (uint40 missedIntervals_, ) = _getMissedCollateralUpdateParameters(minter_, updateCollateralInterval());
+        MinterState storage minterState_ = _minterStates[minter_];
+
+        (uint40 missedIntervals_, ) = _getMissedCollateralUpdateParameters(
+            minterState_.lastUpdateInterval,
+            minterState_.updateTimestamp,
+            minterState_.penalizedUntilTimestamp,
+            updateCollateralInterval()
+        );
 
         if (missedIntervals_ == 0) return 0;
 

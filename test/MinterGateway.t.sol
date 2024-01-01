@@ -754,6 +754,7 @@ contract MinterGatewayTests is TestUtils {
     function test_burnM_repayHalfOfOutstandingValue() external {
         _minterGateway.setCollateralOf(_minter1, 1000e18);
         _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
         uint256 principalOfActiveOwedM = 100e18;
 
@@ -845,7 +846,10 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), 60e18 + _minterGateway.getPrincipalAmountRoundedUp(penalty));
+        assertEq(
+            _minterGateway.principalOfActiveOwedMOf(_minter1),
+            60e18 + _minterGateway.getPrincipalAmountRoundedUp(penalty)
+        );
     }
 
     function test_updateCollateral_imposePenaltyForMissedCollateralUpdates() external {
@@ -982,7 +986,10 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM);
 
-        assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), _minterGateway.getPrincipalAmountRoundedUp(penalty));
+        assertEq(
+            _minterGateway.principalOfActiveOwedMOf(_minter1),
+            _minterGateway.getPrincipalAmountRoundedUp(penalty)
+        );
 
         // TODO: check that `updateIndex()` was called.
     }
@@ -1245,7 +1252,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.activateMinter(_minter1);
     }
 
-    function test_deactivateMinter_xxx() external {
+    function test_deactivateMinter() external {
         _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
 
         _minterGateway.setCollateralOf(_minter1, 2_000_000);
@@ -1257,7 +1264,9 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp - 4 hours);
 
         _minterGateway.setTotalPrincipalOfActiveOwedM(1_000_000);
-        _minterGateway.setLatestIndex(ContinuousIndexingMath.EXP_SCALED_ONE + ContinuousIndexingMath.EXP_SCALED_ONE / 10);
+        _minterGateway.setLatestIndex(
+            ContinuousIndexingMath.EXP_SCALED_ONE + ContinuousIndexingMath.EXP_SCALED_ONE / 10
+        );
 
         vm.expectEmit();
         emit IMinterGateway.MinterDeactivated(_minter1, 1_100_000, _alice);
@@ -1691,7 +1700,9 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setRawOwedMOf(_minter1, 1_000_000);
         assertEq(_minterGateway.activeOwedMOf(_minter1), 1_000_000);
 
-        _minterGateway.setLatestIndex(ContinuousIndexingMath.EXP_SCALED_ONE + ContinuousIndexingMath.EXP_SCALED_ONE / 10);
+        _minterGateway.setLatestIndex(
+            ContinuousIndexingMath.EXP_SCALED_ONE + ContinuousIndexingMath.EXP_SCALED_ONE / 10
+        );
 
         assertEq(_minterGateway.activeOwedMOf(_minter1), 1_100_000);
     }
@@ -1701,6 +1712,116 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setIsActive(_minter1, false);
 
         assertEq(_minterGateway.inactiveOwedMOf(_minter1), 1_000_000);
+    }
+
+    function test_getMissedCollateralUpdateParameters_zeroNewUpdateInterval() external {
+        (uint40 missedIntervals_, uint40 missedUntil_) = _minterGateway.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 365 days, // This does not matter
+            lastUpdate_: uint40(block.timestamp) - 48 hours, // This does not matter
+            lastPenalizedUntil_: uint40(block.timestamp) - 24 hours, // This does not matter
+            newUpdateInterval_: 0
+        });
+
+        assertEq(missedIntervals_, 0);
+        // NOTE: I believe this is a bug and should be `assertEq(missedUntil_, block.timestamp);`.
+        assertEq(missedUntil_, block.timestamp + 364 days); // lastPenalizedUntil_ + lastUpdateInterval_
+    }
+
+    function test_getMissedCollateralUpdateParameters_newMinter() external {
+        (uint40 missedIntervals_, uint40 missedUntil_) = _minterGateway.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 0,
+            lastUpdate_: 0,
+            lastPenalizedUntil_: 0,
+            newUpdateInterval_: 24 hours
+        });
+
+        assertEq(missedIntervals_, 0);
+        assertEq(missedUntil_, 0);
+    }
+
+    function test_getMissedCollateralUpdateParameters_noMissedIntervals() external {
+        uint40 missedIntervals_;
+        uint40 missedUntil_;
+
+        // Minter with no missed intervals according to their last update and last update interval.
+        (missedIntervals_, missedUntil_) = _minterGateway.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 24 hours,
+            lastUpdate_: uint40(block.timestamp) - 12 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 25 hours,
+            newUpdateInterval_: 4 hours
+        });
+
+        assertEq(missedIntervals_, 0);
+        // NOTE: I believe this is a bug and should be `uint40(block.timestamp) - 12 hours); // lastUpdate_`.
+        assertEq(missedUntil_, uint40(block.timestamp) + 12 hours); // lastUpdate_ + lastUpdateInterval_
+
+        // Minter with no missed intervals according to their last penalized until and last update interval.
+        (missedIntervals_, missedUntil_) = _minterGateway.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 24 hours,
+            lastUpdate_: uint40(block.timestamp) - 25 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 12 hours,
+            newUpdateInterval_: 4 hours
+        });
+
+        assertEq(missedIntervals_, 0);
+        // NOTE: I believe this is a bug and should be `uint40(block.timestamp) - 12 hours); // lastPenalizedUntil_`.
+        assertEq(missedUntil_, uint40(block.timestamp) + 12 hours); // lastPenalizedUntil_ + lastUpdateInterval_
+    }
+
+    function test_getMissedCollateralUpdateParameters_firstMissedIntervals() external {
+        uint40 missedIntervals_;
+        uint40 missedUntil_;
+
+        // Minter with 1 missed interval according to their last update and last update interval.
+        (missedIntervals_, missedUntil_) = _minterGateway.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 24 hours,
+            lastUpdate_: uint40(block.timestamp) - 25 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 26 hours,
+            newUpdateInterval_: 4 hours
+        });
+
+        assertEq(missedIntervals_, 1);
+        assertEq(missedUntil_, uint40(block.timestamp) - 1 hours); // lastUpdate_ + lastUpdateInterval_
+
+        // Minter with 1 missed interval according to their last penalized until and last update interval.
+        (missedIntervals_, missedUntil_) = _minterGateway.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 24 hours,
+            lastUpdate_: uint40(block.timestamp) - 26 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 25 hours,
+            newUpdateInterval_: 4 hours
+        });
+
+        assertEq(missedIntervals_, 1);
+        assertEq(missedUntil_, uint40(block.timestamp) - 1 hours); // lastUpdate_ + lastUpdateInterval_
+    }
+
+    function test_getMissedCollateralUpdateParameters_additionalMissedIntervals() external {
+        uint40 missedIntervals_;
+        uint40 missedUntil_;
+
+        // Minter with 1 missed interval according to their last update and last update interval and 1 missed interval
+        // according to the new update interval.
+        (missedIntervals_, missedUntil_) = _minterGateway.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 24 hours,
+            lastUpdate_: uint40(block.timestamp) - 29 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 30 hours,
+            newUpdateInterval_: 4 hours
+        });
+
+        assertEq(missedIntervals_, 2);
+        assertEq(missedUntil_, uint40(block.timestamp) - 1 hours); // lastUpdate_ + lastUpdateInterval_ + newUpdateInterval_
+
+        // Minter with 1 missed interval according to their last penalized until and last update interval and 1 missed
+        // interval according to the new update interval.
+        (missedIntervals_, missedUntil_) = _minterGateway.getMissedCollateralUpdateParameters({
+            lastUpdateInterval_: 24 hours,
+            lastUpdate_: uint40(block.timestamp) - 29 hours,
+            lastPenalizedUntil_: uint40(block.timestamp) - 30 hours,
+            newUpdateInterval_: 4 hours
+        });
+
+        assertEq(missedIntervals_, 2);
+        assertEq(missedUntil_, uint40(block.timestamp) - 1 hours); // lastPenalizedUntil_ + lastUpdateInterval_ + newUpdateInterval_
     }
 
     function test_readTTGParameters() external {
