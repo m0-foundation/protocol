@@ -17,11 +17,11 @@ block_number = 17_740_856
 block_timestamp = 1_689_934_508
 
 [profile.default.fuzz]
-runs = 256
+runs = 512
 
 [profile.default.invariant]
-runs = 256
-depth = 15
+runs = 512
+depth = 25
 
 [profile.production]
 evm_version = "shanghai"
