@@ -19,7 +19,6 @@ import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 // TODO: Revisit storage slot and struct ordering once accurate gas reporting is achieved.
 // TODO: Consider `totalPendingCollateralRetrievalOf` or `totalCollateralPendingRetrievalOf`.
 // TODO: Consider `totalResolvedCollateralRetrieval` or `totalCollateralRetrievalResolved`.
-// TODO: Fix bug in pushing up deadline with burn?
 // TODO: Ensure `_imposePenalty` is never called for inactive minters and put a note/warning on all callers.
 // TODO: Handle in-flight issue with deactivation and pending retrievals.
 // TODO: A change in `penaltyRate()` can retroactively change minters more.
@@ -665,6 +664,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             _minterStates[minter_].lastUpdateInterval = updateCollateralInterval_;
         }
 
+        if (missedIntervals_ == 0) return;
+
         // Save until when the minter has been penalized for missed intervals to prevent double penalizing them.
         _minterStates[minter_].penalizedUntilTimestamp = missedUntil_;
 
@@ -803,28 +804,23 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         uint40 lastPenalizedUntil_,
         uint32 newUpdateInterval_
     ) internal view returns (uint40 missedIntervals_, uint40 missedUntil_) {
-        uint40 penalizeFrom_ = UIntMath.max40(lastUpdate_, lastPenalizedUntil_);
-        uint40 penalizationDeadline_;
-
-        // NOTE: It is assumed a uint40 will never overflow here for timestamp calculations.
-        unchecked {
-            penalizationDeadline_ = penalizeFrom_ + lastUpdateInterval_;
-        }
-
-        // Return if it is first update collateral ever.
-        if (lastUpdateInterval_ == 0) return (0, penalizationDeadline_);
-
-        // Return if the deadline for new penalization was not reached yet.
-        if (penalizationDeadline_ > block.timestamp) return (0, penalizationDeadline_);
-
         // If `newUpdateInterval_` is 0, then there is no missed interval charge at all.
-        if (newUpdateInterval_ == 0) return (0, penalizationDeadline_);
+        if (newUpdateInterval_ == 0) return (0, uint40(block.timestamp));
 
-        // We charge for the first missed interval based on previous collateral interval length only once
-        unchecked {
-            missedIntervals_ = 1 + (uint40(block.timestamp) - penalizationDeadline_) / newUpdateInterval_;
-            missedUntil_ = penalizationDeadline_ + ((missedIntervals_ - 1) * newUpdateInterval_);
-        }
+        if (lastUpdate_ == 0) return (0, uint40(block.timestamp)); // Brand new minter.
+
+        uint40 penalizeFrom_ = UIntMath.max40(lastUpdate_, lastPenalizedUntil_);
+
+        // If the new interval is advantageous to the minter for the first deadline, then use it.
+        // NOTE: If `lastUpdateInterval_` is 0, then the non-zero `newUpdateInterval_` is used.
+        uint40 firstDeadline_ = penalizeFrom_ + UIntMath.max40(lastUpdateInterval_, newUpdateInterval_);
+
+        // Deadline for first missed interval not reached yet.
+        if (block.timestamp <= firstDeadline_) return (0, penalizeFrom_);
+
+        uint40 additionalMissedIntervals_ = (uint40(block.timestamp) - firstDeadline_) / newUpdateInterval_;
+
+        return (1 + additionalMissedIntervals_, firstDeadline_ + (additionalMissedIntervals_ * newUpdateInterval_));
     }
 
     /**
