@@ -11,6 +11,14 @@ contract MinterGatewayHarness is MinterGateway {
     |                                                     Getters                                                      |
     \******************************************************************************************************************/
 
+    function getPrincipalAmountRoundedUp(uint240 amount_) external view returns (uint112 principalAmount_) {
+        return _getPrincipalAmountRoundedUp(amount_);
+    }
+
+    function internalCollateralOf(address minter_) external view returns (uint240 collateral_) {
+        return _minterStates[minter_].collateral;
+    }
+
     function mintNonce() external view returns (uint48) {
         return _mintNonce;
     }
@@ -31,7 +39,7 @@ contract MinterGatewayHarness is MinterGateway {
     |                                                     Setters                                                      |
     \******************************************************************************************************************/
 
-    function setActiveMinter(address minter_, bool isActive_) external {
+    function setIsActive(address minter_, bool isActive_) external {
         _minterStates[minter_].isActive = isActive_;
     }
 

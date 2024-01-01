@@ -21,6 +21,8 @@ import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 // TODO: Consider `totalResolvedCollateralRetrieval` or `totalCollateralRetrievalResolved`.
 // TODO: Fix bug in pushing up deadline with burn?
 // TODO: Ensure `_imposePenalty` is never called for inactive minters and put a note/warning on all callers.
+// TODO: Test penalize until and deadline stuff entirely separately.
+// TODO: Handle in-flight issue with deactivation and pending retrievals.
 
 /**
  * @title  MinterGateway
