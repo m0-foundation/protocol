@@ -7,26 +7,45 @@ import { MinterGateway } from "../../src/MinterGateway.sol";
 contract MinterGatewayHarness is MinterGateway {
     constructor(address ttgRegistrar_, address mToken_) MinterGateway(ttgRegistrar_, mToken_) {}
 
+    /******************************************************************************************************************\
+    |                                                     Getters                                                      |
+    \******************************************************************************************************************/
+
     function mintNonce() external view returns (uint48) {
         return _mintNonce;
+    }
+
+    function rate() external view returns (uint32 rate_) {
+        return _rate();
+    }
+
+    function rawOwedMOf(address minter_) external view returns (uint256 rawOwedMOf_) {
+        return _rawOwedM[minter_];
     }
 
     function retrievalNonce() external view returns (uint48) {
         return _retrievalNonce;
     }
 
+    /******************************************************************************************************************\
+    |                                                     Setters                                                      |
+    \******************************************************************************************************************/
+
     function setActiveMinter(address minter_, bool isActive_) external {
         _minterStates[minter_].isActive = isActive_;
     }
 
+    function setMintNonce(uint256 nonce_) external {
+        _mintNonce = uint48(nonce_);
+    }
+
     function setMintProposalOf(
         address minter_,
+        uint256 mintId_,
         uint256 amount_,
         uint256 createdAt_,
         address destination_
-    ) external returns (uint48 mintId_) {
-        mintId_ = ++_mintNonce;
-
+    ) external {
         _mintProposals[minter_] = MintProposal(uint48(mintId_), uint40(createdAt_), destination_, uint128(amount_));
     }
 
@@ -34,8 +53,12 @@ contract MinterGatewayHarness is MinterGateway {
         _minterStates[minter_].collateral = uint240(collateral_);
     }
 
-    function setCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
+    function setUpdateTimestampOf(address minter_, uint256 lastUpdated_) external {
         _minterStates[minter_].updateTimestamp = uint40(lastUpdated_);
+    }
+
+    function setUnfrozenTimeOf(address minter_, uint256 frozenTime_) external {
+        _minterStates[minter_].frozenUntilTimestamp = uint40(frozenTime_);
     }
 
     function setLastCollateralUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
@@ -54,6 +77,10 @@ contract MinterGatewayHarness is MinterGateway {
         _totalPrincipalOfActiveOwedM += uint112(amount_);
     }
 
+    function setTotalInactiveOwedM(uint256 amount_) external {
+        _totalInactiveOwedM = uint128(amount_);
+    }
+
     function setTotalPendingRetrievalsOf(address minter_, uint256 amount_) external {
         _minterStates[minter_].totalPendingRetrievals = uint128(amount_);
     }
@@ -68,13 +95,5 @@ contract MinterGatewayHarness is MinterGateway {
 
     function setIsDeactivated(address minter_, bool isDeactivated_) external {
         _minterStates[minter_].isDeactivated = isDeactivated_;
-    }
-
-    function rawOwedMOf(address minter_) external view returns (uint256 rawOwedMOf_) {
-        return _rawOwedM[minter_];
-    }
-
-    function rate() external view returns (uint32 rate_) {
-        return _rate();
     }
 }

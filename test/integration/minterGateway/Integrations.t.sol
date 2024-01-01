@@ -274,7 +274,7 @@ contract IntegrationTests is IntegrationBaseSetup {
             _minterGateway.freezeMinter(_minters[0]);
 
             assertEq(_minterGateway.isFrozenMinter(_minters[0]), true);
-            assertEq(_minterGateway.unfrozenTimeOf(_minters[0]), block.timestamp + _minterFreezeTime);
+            assertEq(_minterGateway.frozenUntilOf(_minters[0]), block.timestamp + _minterFreezeTime);
         }
 
         // Frozen minter needs to continue updating collateral to avoid penalties

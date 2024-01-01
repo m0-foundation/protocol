@@ -47,7 +47,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         uint32 lastUpdateInterval;
         uint40 updateTimestamp;
         uint40 penalizedUntilTimestamp;
-        uint40 unfrozenTimestamp;
+        uint40 frozenUntilTimestamp;
         bool isActive;
         bool isDeactivated;
     }
@@ -104,8 +104,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /// @notice Only allow active minter to call function.
-    modifier onlyActiveMinter() {
-        _revertIfInactiveMinter(msg.sender);
+    /// @notice Only allow function for active minter.
+    modifier onlyActiveMinter(address minter_) {
+        _revertIfInactiveMinter(minter_);
 
         _;
     }
@@ -119,7 +120,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @notice Only allow unfrozen minter to call function.
     modifier onlyUnfrozenMinter() {
-        _revertIfMinterFrozen(msg.sender);
+        _revertIfFrozenMinter(msg.sender);
 
         _;
     }
@@ -147,7 +148,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         address[] calldata validators_,
         uint256[] calldata timestamps_,
         bytes[] calldata signatures_
-    ) external onlyActiveMinter returns (uint40 minTimestamp_) {
+    ) external onlyActiveMinter(msg.sender) returns (uint40 minTimestamp_) {
         if (validators_.length != signatures_.length || signatures_.length != timestamps_.length) {
             revert SignatureArrayLengthsMismatch();
         }
@@ -189,7 +190,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
-    function proposeRetrieval(uint256 collateral_) external onlyActiveMinter returns (uint48 retrievalId_) {
+    function proposeRetrieval(uint256 collateral_) external onlyActiveMinter(msg.sender) returns (uint48 retrievalId_) {
         unchecked {
             retrievalId_ = ++_retrievalNonce;
         }
@@ -216,7 +217,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     function proposeMint(
         uint256 amount_,
         address destination_
-    ) external onlyActiveMinter onlyUnfrozenMinter returns (uint48 mintId_) {
+    ) external onlyActiveMinter(msg.sender) onlyUnfrozenMinter returns (uint48 mintId_) {
         uint240 safeAmount_ = UIntMath.safe240(amount_);
 
         _revertIfUndercollateralized(msg.sender, safeAmount_); // Ensure minter remains sufficiently collateralized.
@@ -231,7 +232,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
-    function mintM(uint256 mintId_) external onlyActiveMinter onlyUnfrozenMinter {
+    function mintM(uint256 mintId_) external onlyActiveMinter(msg.sender) onlyUnfrozenMinter {
         MintProposal storage mintProposal_ = _mintProposals[msg.sender];
 
         (uint48 id_, uint40 createdAt_, address destination_, uint240 amount_) = (
@@ -324,10 +325,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function freezeMinter(address minter_) external onlyApprovedValidator returns (uint40 frozenUntil_) {
-        _revertIfInactiveMinter(minter_);
-
         // TODO: Consider unchecked given time and duration assumptions?
-        _minterStates[minter_].unfrozenTimestamp = frozenUntil_ = uint40(block.timestamp) + minterFreezeTime();
+        _minterStates[minter_].frozenUntilTimestamp = frozenUntil_ = uint40(block.timestamp) + minterFreezeTime();
 
         emit MinterFrozen(minter_, frozenUntil_);
     }
@@ -343,10 +342,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
-    function deactivateMinter(address minter_) external returns (uint240 inactiveOwedM_) {
+    function deactivateMinter(address minter_) external onlyActiveMinter(minter_) returns (uint240 inactiveOwedM_) {
         if (isMinterApprovedByTTG(minter_)) revert StillApprovedMinter();
-
-        _revertIfInactiveMinter(minter_);
 
         uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
 
@@ -459,7 +456,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function isFrozenMinter(address minter_) external view returns (bool) {
-        return block.timestamp < _minterStates[minter_].unfrozenTimestamp;
+        return block.timestamp < _minterStates[minter_].frozenUntilTimestamp;
     }
 
     /// @inheritdoc IMinterGateway
@@ -515,7 +512,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
-    function collateralUpdateOf(address minter_) external view returns (uint40) {
+    function collateralUpdateTimestampOf(address minter_) external view returns (uint40) {
         return _minterStates[minter_].updateTimestamp;
     }
 
@@ -563,8 +560,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
-    function unfrozenTimeOf(address minter_) external view returns (uint40) {
-        return _minterStates[minter_].unfrozenTimestamp;
+    function frozenUntilOf(address minter_) external view returns (uint40) {
+        return _minterStates[minter_].frozenUntilTimestamp;
     }
 
     /******************************************************************************************************************\
@@ -907,8 +904,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
      * @dev   Reverts if minter is frozen by validator.
      * @param minter_ The address of the minter
      */
-    function _revertIfMinterFrozen(address minter_) internal view {
-        if (block.timestamp < _minterStates[minter_].unfrozenTimestamp) revert FrozenMinter();
+    function _revertIfFrozenMinter(address minter_) internal view {
+        if (block.timestamp < _minterStates[minter_].frozenUntilTimestamp) revert FrozenMinter();
     }
 
     /**

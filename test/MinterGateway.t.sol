@@ -11,6 +11,10 @@ import { MockMToken, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
 import { MinterGatewayHarness } from "./utils/MinterGatewayHarness.sol";
 import { TestUtils } from "./utils/TestUtils.sol";
 
+// TODO: add tests for `updateIndex` being called.
+// TODO: more end state tests of `deactivateMinter`.
+// TODO: `activeOwedMOf` and `inactiveOwedMOf` tests.
+
 contract MinterGatewayTests is TestUtils {
     uint16 internal constant ONE = 10_000;
 
@@ -73,7 +77,7 @@ contract MinterGatewayTests is TestUtils {
 
         _minterGateway = new MinterGatewayHarness(address(_ttgRegistrar), address(_mToken));
 
-        _minterGateway.activateMinter(_minter1);
+        _minterGateway.setActiveMinter(_minter1, true);
         _minterGateway.setLatestRate(_minterRate); // This can be `minterGateway.updateIndex()`, but is not necessary.
     }
 
@@ -107,7 +111,7 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(_minterGateway.collateralOf(_minter1), collateral);
         assertEq(_minterGateway.lastCollateralUpdateIntervalOf(_minter1), _updateCollateralInterval);
-        assertEq(_minterGateway.collateralUpdateOf(_minter1), signatureTimestamp);
+        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
         assertEq(_minterGateway.collateralUpdateDeadlineOf(_minter1), signatureTimestamp + _updateCollateralInterval);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), (collateral * _mintRatio) / ONE);
     }
@@ -142,7 +146,7 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(_minterGateway.collateralOf(_minter1), collateral);
         assertEq(_minterGateway.lastCollateralUpdateIntervalOf(_minter1), _updateCollateralInterval);
-        assertEq(_minterGateway.collateralUpdateOf(_minter1), signatureTimestamp);
+        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
         assertEq(_minterGateway.collateralUpdateDeadlineOf(_minter1), signatureTimestamp + _updateCollateralInterval);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), (collateral * _mintRatio) / ONE);
     }
@@ -221,7 +225,7 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_minter1);
         _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        uint256 lastUpdateTimestamp = _minterGateway.collateralUpdateOf(_minter1);
+        uint256 lastUpdateTimestamp = _minterGateway.collateralUpdateTimestampOf(_minter1);
         uint256 newTimestamp = lastUpdateTimestamp - 1;
 
         timestamps[0] = newTimestamp;
@@ -369,7 +373,7 @@ contract MinterGatewayTests is TestUtils {
         uint240 amount = 60e18;
 
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
         uint48 expectedMintId = _minterGateway.mintNonce() + 1;
@@ -402,7 +406,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.proposeMint(100e18, makeAddr("to"));
     }
 
-    function test_proposeMint_InactiveMinter() external {
+    function test_proposeMint_inactiveMinter() external {
         _minterGateway.setActiveMinter(_minter1, false);
 
         vm.expectRevert(IMinterGateway.InactiveMinter.selector);
@@ -412,7 +416,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_proposeMint_undercollateralizedMint() external {
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
         vm.warp(block.timestamp + _mintDelay);
@@ -425,12 +429,13 @@ contract MinterGatewayTests is TestUtils {
 
     function test_mintM() external {
         uint256 amount = 80e18;
+        uint48 mintId = 1;
 
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint48 mintId = _minterGateway.setMintProposalOf(_minter1, amount, block.timestamp, _alice);
+        _minterGateway.setMintProposalOf(_minter1, mintId, amount, block.timestamp, _alice);
 
         vm.warp(block.timestamp + _mintDelay);
 
@@ -460,12 +465,13 @@ contract MinterGatewayTests is TestUtils {
     function test_mintM_outstandingValue() external {
         uint256 mintAmount = 1000000e6;
         uint256 timestamp = block.timestamp;
+        uint48 mintId = 1;
 
         _minterGateway.setCollateralOf(_minter1, 10000e18);
-        _minterGateway.setCollateralUpdateOf(_minter1, timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint256 mintId = _minterGateway.setMintProposalOf(_minter1, mintAmount, timestamp, _alice);
+        _minterGateway.setMintProposalOf(_minter1, mintId, mintAmount, timestamp, _alice);
 
         vm.warp(timestamp + _mintDelay);
 
@@ -507,32 +513,29 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.activeOwedMOf(_minter1), expectedResult);
     }
 
-    function test_mintM_InactiveMinter() external {
-        _minterGateway.setActiveMinter(_minter1, false);
-        uint256 mintId = _minterGateway.setMintProposalOf(_minter1, 100e18, block.timestamp, _alice);
-
+    function test_mintM_inactiveMinter() external {
         vm.expectRevert(IMinterGateway.InactiveMinter.selector);
 
-        vm.prank(_bob);
-        _minterGateway.mintM(mintId);
+        vm.prank(makeAddr("someInactiveMinter"));
+        _minterGateway.mintM(1);
     }
 
     function test_mintM_frozenMinter() external {
         vm.prank(_validator1);
-        _minterGateway.freezeMinter(_minter1);
-
-        uint256 mintId = _minterGateway.setMintProposalOf(_minter1, 100e18, block.timestamp, _minter1);
+        _minterGateway.freezeMinter(_minter1); // TODO: replace with harness setter
 
         vm.expectRevert(IMinterGateway.FrozenMinter.selector);
 
         vm.prank(_minter1);
-        _minterGateway.mintM(mintId);
+        _minterGateway.mintM(1);
     }
 
     function test_mintM_pendingMintRequest() external {
         uint256 timestamp = block.timestamp;
-        uint256 mintId = _minterGateway.setMintProposalOf(_minter1, 100, timestamp, _alice);
         uint256 activeTimestamp_ = timestamp + _mintDelay;
+        uint48 mintId = 1;
+
+        _minterGateway.setMintProposalOf(_minter1, mintId, 100, timestamp, _alice);
 
         vm.warp(activeTimestamp_ - 10);
 
@@ -544,8 +547,10 @@ contract MinterGatewayTests is TestUtils {
 
     function test_mintM_expiredMintRequest() external {
         uint256 timestamp = block.timestamp;
-        uint256 mintId = _minterGateway.setMintProposalOf(_minter1, 100, timestamp, _alice);
         uint256 deadline_ = timestamp + _mintDelay + _mintTTL;
+        uint48 mintId = 1;
+
+        _minterGateway.setMintProposalOf(_minter1, mintId, 100, timestamp, _alice);
 
         vm.warp(deadline_ + 1);
 
@@ -556,11 +561,13 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_mintM_undercollateralizedMint() external {
+        uint48 mintId = 1;
+
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint256 mintId = _minterGateway.setMintProposalOf(_minter1, 95e18, block.timestamp, _alice);
+        _minterGateway.setMintProposalOf(_minter1, mintId, 95e18, block.timestamp, _alice);
 
         vm.warp(block.timestamp + _mintDelay + 1);
 
@@ -571,11 +578,13 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_mintM_undercollateralizedMint_outdatedCollateral() external {
+        uint48 mintId = 1;
+
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp - _updateCollateralInterval);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - _updateCollateralInterval);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint256 mintId = _minterGateway.setMintProposalOf(_minter1, 95e18, block.timestamp, _alice);
+        _minterGateway.setMintProposalOf(_minter1, mintId, 95e18, block.timestamp, _alice);
 
         vm.warp(block.timestamp + _mintDelay + 1);
 
@@ -594,8 +603,9 @@ contract MinterGatewayTests is TestUtils {
     function test_mintM_invalidMintRequest_mismatchOfIds() external {
         uint256 amount = 95e18;
         uint256 timestamp = block.timestamp;
+        uint48 mintId = 1;
 
-        uint256 mintId = _minterGateway.setMintProposalOf(_minter1, amount, timestamp, _alice);
+        _minterGateway.setMintProposalOf(_minter1, mintId, amount, timestamp, _alice);
 
         vm.expectRevert(IMinterGateway.InvalidMintProposal.selector);
 
@@ -604,7 +614,9 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_cancelMint_byValidator() external {
-        uint48 mintId = _minterGateway.setMintProposalOf(_minter1, 100, block.timestamp, _alice);
+        uint48 mintId = 1;
+
+        _minterGateway.setMintProposalOf(_minter1, mintId, 100, block.timestamp, _alice);
 
         vm.expectEmit();
         emit IMinterGateway.MintCanceled(mintId, _validator1);
@@ -623,20 +635,9 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_cancelMint_notApprovedValidator() external {
-        uint256 mintId = _minterGateway.setMintProposalOf(_minter1, 100, block.timestamp, _alice);
-
         vm.expectRevert(IMinterGateway.NotApprovedValidator.selector);
-        vm.prank(_alice);
-        _minterGateway.cancelMint(_minter1, mintId);
-
-        (uint256 mintId_, uint256 timestamp_, address destination_, uint256 amount_) = _minterGateway.mintProposalOf(
-            _minter1
-        );
-
-        assertEq(mintId_, mintId);
-        assertEq(destination_, _alice);
-        assertEq(amount_, 100);
-        assertEq(timestamp_, block.timestamp);
+        vm.prank(makeAddr("someNonApprovedValidator"));
+        _minterGateway.cancelMint(_minter1, 1);
     }
 
     function test_cancelMint_invalidMintProposal() external {
@@ -655,7 +656,7 @@ contract MinterGatewayTests is TestUtils {
         uint240 amount = 60e18;
 
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
         uint40 frozenUntil = uint40(block.timestamp) + _minterFreezeTime;
@@ -669,7 +670,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.freezeMinter(_minter1);
 
         assertEq(_minterGateway.isFrozenMinter(_minter1), true);
-        assertEq(_minterGateway.unfrozenTimeOf(_minter1), frozenUntil);
+        assertEq(_minterGateway.frozenUntilOf(_minter1), frozenUntil);
 
         vm.expectRevert(IMinterGateway.FrozenMinter.selector);
 
@@ -717,24 +718,17 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.freezeMinter(_minter1);
     }
 
-    function test_freezeMinter_InactiveMinter() external {
-        _minterGateway.setActiveMinter(_minter1, false);
-
-        vm.expectRevert(IMinterGateway.InactiveMinter.selector);
-
-        vm.prank(_validator1);
-        _minterGateway.freezeMinter(_minter1);
-    }
-
     function test_burnM() external {
         uint256 mintAmount = 1000000e18;
+        uint48 mintId = 1;
 
         // initiate harness functions
         _minterGateway.setCollateralOf(_minter1, 10000000e18);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
-        uint48 mintId = _minterGateway.setMintProposalOf(_minter1, mintAmount, block.timestamp, _alice);
+        // TODO: Replace entire mint process with harness setters.
+        _minterGateway.setMintProposalOf(_minter1, mintId, mintAmount, block.timestamp, _alice);
 
         vm.warp(block.timestamp + _mintDelay);
 
@@ -755,12 +749,13 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.activeOwedMOf(_minter1), 0);
         assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), 0); // TODO: use rawOwedMOf
 
+        // TODO: check that `updateIndex()` was called.
         // TODO: Check that burn was called.
     }
 
     function test_burnM_repayHalfOfOutstandingValue() external {
         _minterGateway.setCollateralOf(_minter1, 1000e18);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
 
         uint256 principalOfActiveOwedM = 100e18;
 
@@ -778,6 +773,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.activeOwedMOf(_minter1), activeOwedM / 2);
 
         // TODO: Check that burn has been called.
+        // TODO: check that `updateIndex()` was called.
 
         vm.expectEmit();
         emit IMinterGateway.BurnExecuted(_minter1, activeOwedM / 2, _bob);
@@ -788,6 +784,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.activeOwedMOf(_minter1), 0);
 
         // TODO: Check that burn has been called.
+        // TODO: check that `updateIndex()` was called.
     }
 
     function test_burnM_notEnoughBalanceToRepay() external {
@@ -803,13 +800,15 @@ contract MinterGatewayTests is TestUtils {
 
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM);
+
+        // TODO: check that `updateIndex()` was called.
     }
 
     function test_updateCollateral_imposePenaltyForExpiredCollateralValue() external {
         uint256 collateral = 100e18;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
         _minterGateway.setTotalPrincipalOfActiveOwedM(60e18);
@@ -916,7 +915,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_updateCollateral_accrueBothPenalties() external {
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
         _minterGateway.setTotalPrincipalOfActiveOwedM(60e18);
@@ -960,14 +959,14 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(_minterGateway.activeOwedMOf(_minter1), activeOwedM + penalty + expectedPenalty);
 
-        assertEq(_minterGateway.collateralUpdateOf(_minter1), signatureTimestamp);
+        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
         assertEq(_minterGateway.lastCollateralUpdateIntervalOf(_minter1), _updateCollateralInterval);
         assertEq(_minterGateway.penalizedUntilOf(_minter1), signatureTimestamp);
     }
 
     function test_burnM_imposePenaltyForExpiredCollateralValue() external {
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
         _minterGateway.setTotalPrincipalOfActiveOwedM(60e18);
@@ -988,6 +987,8 @@ contract MinterGatewayTests is TestUtils {
         activeOwedM = _minterGateway.activeOwedMOf(_minter1);
 
         assertEq(activeOwedM, penalty);
+
+        // TODO: check that `updateIndex()` was called.
     }
 
     function test_imposePenalty_penalizedUntil() external {
@@ -995,7 +996,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 lastUpdateTimestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, lastUpdateTimestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, lastUpdateTimestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
         _minterGateway.setTotalPrincipalOfActiveOwedM(60e18);
@@ -1034,7 +1035,7 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        assertEq(_minterGateway.collateralUpdateOf(_minter1), signatureTimestamp);
+        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
         assertEq(_minterGateway.penalizedUntilOf(_minter1), lastUpdateTimestamp + _updateCollateralInterval);
 
         lastUpdateTimestamp = block.timestamp;
@@ -1043,7 +1044,7 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, 10e18);
 
-        assertEq(_minterGateway.collateralUpdateOf(_minter1), signatureTimestamp);
+        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
         assertEq(_minterGateway.penalizedUntilOf(_minter1), lastUpdateTimestamp + _updateCollateralInterval);
     }
 
@@ -1052,7 +1053,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 timestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
         _minterGateway.setTotalPrincipalOfActiveOwedM(60e18);
@@ -1087,7 +1088,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 timestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
 
@@ -1102,7 +1103,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 timestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
 
@@ -1122,7 +1123,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 timestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
 
@@ -1137,7 +1138,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 timestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
 
@@ -1157,7 +1158,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 timestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
 
@@ -1172,7 +1173,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 timestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
 
@@ -1194,7 +1195,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 timestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
 
@@ -1249,7 +1250,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 mintAmount = 1000000e18;
 
         _minterGateway.setCollateralOf(_minter1, mintAmount * 2);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setRawOwedMOf(_minter1, mintAmount);
         _minterGateway.setTotalPrincipalOfActiveOwedM(mintAmount);
 
@@ -1260,27 +1261,20 @@ contract MinterGatewayTests is TestUtils {
         vm.expectEmit();
         emit IMinterGateway.MinterDeactivated(_minter1, activeOwedM, _alice);
 
-        uint256 totalInactiveOwedM = _minterGateway.totalInactiveOwedM();
-        uint256 totalActiveOwedM = _minterGateway.totalActiveOwedM();
-        uint256 totalOwedM = _minterGateway.totalOwedM();
-        assertEq(totalInactiveOwedM, 0);
-        assertEq(totalActiveOwedM, activeOwedM);
-        assertEq(totalOwedM, totalActiveOwedM);
+        assertEq(_minterGateway.totalInactiveOwedM(), 0);
+        assertEq(_minterGateway.totalActiveOwedM(), activeOwedM);
 
         assertEq(_minterGateway.isDeactivatedMinter(_minter1), false);
 
         vm.prank(_alice);
         _minterGateway.deactivateMinter(_minter1);
 
+        // TODO: check that `updateIndex()` was called.
+
         assertEq(_minterGateway.isDeactivatedMinter(_minter1), true);
 
-        totalInactiveOwedM = _minterGateway.totalInactiveOwedM();
-        totalActiveOwedM = _minterGateway.totalActiveOwedM();
-        totalOwedM = _minterGateway.totalOwedM();
-
-        assertEq(totalInactiveOwedM, activeOwedM);
-        assertEq(totalActiveOwedM, 0);
-        assertEq(totalOwedM, totalInactiveOwedM);
+        assertEq(_minterGateway.totalInactiveOwedM(), activeOwedM);
+        assertEq(_minterGateway.totalActiveOwedM(), 0);
 
         assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), 0); // TODO: use rawOwedMOf
         assertEq(_minterGateway.activeOwedMOf(_minter1), 0);
@@ -1292,13 +1286,15 @@ contract MinterGatewayTests is TestUtils {
 
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM);
+
+        // TODO: check that `updateIndex()` was called.
     }
 
     function test_deactivateMinter_imposePenaltyForExpiredCollateralValue() external {
         uint256 mintAmount = 1000000e18;
 
         _minterGateway.setCollateralOf(_minter1, mintAmount * 2);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp - _updateCollateralInterval);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, mintAmount);
         _minterGateway.setTotalPrincipalOfActiveOwedM(mintAmount);
 
@@ -1312,6 +1308,8 @@ contract MinterGatewayTests is TestUtils {
 
         vm.prank(_alice);
         _minterGateway.deactivateMinter(_minter1);
+
+        // TODO: check that `updateIndex()` was called.
     }
 
     function test_deactivateMinter_stillApprovedMinter() external {
@@ -1319,12 +1317,9 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.deactivateMinter(_minter1);
     }
 
-    function test_deactivateMinter_InactiveMinter() external {
-        _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
-        _minterGateway.deactivateMinter(_minter1);
-
+    function test_deactivateMinter_alreadyInactiveMinter() external {
         vm.expectRevert(IMinterGateway.InactiveMinter.selector);
-        _minterGateway.deactivateMinter(_minter1);
+        _minterGateway.deactivateMinter(makeAddr("someInactiveMinter"));
     }
 
     function test_proposeRetrieval() external {
@@ -1444,7 +1439,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 collateral = 100e18;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, (collateral * _mintRatio) / ONE);
 
@@ -1467,7 +1462,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 collateral = 100e18;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setTotalPendingRetrievalsOf(_minter1, collateral);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
 
@@ -1490,7 +1485,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 timestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, amount);
         _minterGateway.setTotalPrincipalOfActiveOwedM(amount);
@@ -1605,7 +1600,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         assertEq(_minterGateway.collateralOf(_minter1), 100);
-        assertEq(_minterGateway.collateralUpdateOf(_minter1), block.timestamp);
+        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), block.timestamp);
     }
 
     function test_updateCollateral_someSignaturesAreInvalid() external {
@@ -1659,13 +1654,41 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         assertEq(_minterGateway.collateralOf(_minter1), 100);
-        assertEq(_minterGateway.collateralUpdateOf(_minter1), block.timestamp);
+        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), block.timestamp);
     }
 
     function test_emptyRateModel() external {
         _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, address(0));
 
         assertEq(_minterGateway.rate(), 0);
+    }
+
+    function test_totalActiveOwedM() external {
+        _minterGateway.setTotalPrincipalOfActiveOwedM(1_000_000);
+        assertEq(_minterGateway.totalActiveOwedM(), 1_000_000);
+
+        _minterGateway.setLatestIndex(
+            ContinuousIndexingMath.EXP_SCALED_ONE + ContinuousIndexingMath.EXP_SCALED_ONE / 10
+        );
+
+        assertEq(_minterGateway.totalActiveOwedM(), 1_100_000);
+    }
+
+    function test_totalInactiveOwedM() external {
+        _minterGateway.setTotalInactiveOwedM(1_000_000);
+        assertEq(_minterGateway.totalInactiveOwedM(), 1_000_000);
+    }
+
+    function test_totalOwedM() external {
+        _minterGateway.setTotalInactiveOwedM(500_000);
+        _minterGateway.setTotalPrincipalOfActiveOwedM(1_000_000);
+        assertEq(_minterGateway.totalOwedM(), 1_500_000);
+
+        _minterGateway.setLatestIndex(
+            ContinuousIndexingMath.EXP_SCALED_ONE + ContinuousIndexingMath.EXP_SCALED_ONE / 10
+        );
+
+        assertEq(_minterGateway.totalOwedM(), 1_600_000);
     }
 
     function test_readTTGParameters() external {
