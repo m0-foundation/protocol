@@ -104,7 +104,7 @@ contract MinterGatewayTests is TestUtils {
         );
 
         vm.expectEmit();
-        emit IMinterGateway.CollateralUpdated(_minter1, collateral, retrievalIds, bytes32(0), signatureTimestamp);
+        emit IMinterGateway.CollateralUpdated(_minter1, collateral, 0, bytes32(0), signatureTimestamp);
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
@@ -139,7 +139,7 @@ contract MinterGatewayTests is TestUtils {
         );
 
         vm.expectEmit();
-        emit IMinterGateway.CollateralUpdated(_minter1, collateral, retrievalIds, bytes32(0), signatureTimestamp);
+        emit IMinterGateway.CollateralUpdated(_minter1, collateral, 0, bytes32(0), signatureTimestamp);
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
@@ -1361,7 +1361,7 @@ contract MinterGatewayTests is TestUtils {
         );
 
         vm.expectEmit();
-        emit IMinterGateway.CollateralUpdated(_minter1, collateral, retrievalIds, bytes32(0), signatureTimestamp2);
+        emit IMinterGateway.CollateralUpdated(_minter1, collateral, 0, bytes32(0), signatureTimestamp2);
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
