@@ -165,11 +165,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         );
 
         uint240 safeCollateral_ = UIntMath.safe240(collateral_);
+        uint240 totalResolvedRetrievals_ = _resolvePendingRetrievals(msg.sender, retrievalIds_);
 
-        // TODO: Consider adding the `totalResolvedRetrievals_` to the event.
-        emit CollateralUpdated(msg.sender, safeCollateral_, retrievalIds_, metadataHash_, minTimestamp_);
-
-        _resolvePendingRetrievals(msg.sender, retrievalIds_);
+        emit CollateralUpdated(msg.sender, safeCollateral_, totalResolvedRetrievals_, metadataHash_, minTimestamp_);
 
         uint32 updateCollateralInterval_ = updateCollateralInterval();
 
@@ -747,14 +745,19 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     ) internal returns (uint240 totalResolvedRetrievals_) {
         for (uint256 index_; index_ < retrievalIds_.length; ++index_) {
             uint48 retrievalId_ = UIntMath.safe48(retrievalIds_[index_]);
+            uint240 pendingCollateralRetrieval_ = _pendingCollateralRetrievals[minter_][retrievalId_];
+
+            if (pendingCollateralRetrieval_ == 0) continue;
 
             unchecked {
                 // NOTE: The `proposeRetrieval` function already ensures that the sum of all
                 // `_pendingCollateralRetrievals` is not larger than `type(uint240).max`.
-                totalResolvedRetrievals_ += _pendingCollateralRetrievals[minter_][retrievalId_];
+                totalResolvedRetrievals_ += pendingCollateralRetrieval_;
             }
 
             delete _pendingCollateralRetrievals[minter_][retrievalId_];
+
+            emit RetrievalResolved(retrievalId_, minter_);
         }
 
         unchecked {
