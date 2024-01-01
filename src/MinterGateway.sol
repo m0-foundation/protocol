@@ -644,6 +644,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
             if (newTotalPrincipalOfActiveOwedM_ > type(uint112).max) {
                 penaltyPrincipal_ = type(uint112).max - _totalPrincipalOfActiveOwedM;
+                newTotalPrincipalOfActiveOwedM_ = type(uint112).max;
             }
 
             // Calculate and add penalty principal to total minter's principal of active owed M
