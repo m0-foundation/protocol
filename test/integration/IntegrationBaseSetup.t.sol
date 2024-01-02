@@ -47,8 +47,8 @@ abstract contract IntegrationBaseSetup is TestUtils {
     uint256[] internal _validatorKeys = [_idaKey, _johnKey, _kenKey, _lisaKey];
     address[] internal _validators = [_ida, _john, _ken, _lisa];
 
-    uint256 internal _baseEarnerRate = ContinuousIndexingMath.BPS_SCALED_ONE / 10; // 10% APY
-    uint256 internal _baseMinterRate = ContinuousIndexingMath.BPS_SCALED_ONE / 10; // 10% APY
+    uint32 internal _baseEarnerRate = ContinuousIndexingMath.BPS_SCALED_ONE / 10; // 10% APY
+    uint32 internal _baseMinterRate = ContinuousIndexingMath.BPS_SCALED_ONE / 10; // 10% APY
     uint256 internal _updateInterval = 24 hours;
     uint256 internal _mintDelay = 3 hours;
     uint256 internal _mintTtl = 24 hours;
@@ -111,5 +111,81 @@ abstract contract IntegrationBaseSetup is TestUtils {
         _registrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minters[3]);
 
         _minterGateway.updateIndex();
+    }
+
+    /* ============ Helpers ============ */
+
+    /* ============ mint ============ */
+    function _mintM(
+        address minter_,
+        uint256 mintAmount_,
+        address recipient_
+    ) internal returns (uint256 currentTimestamp_) {
+        vm.prank(minter_);
+        uint256 mintId = _minterGateway.proposeMint(mintAmount_, recipient_);
+
+        currentTimestamp_ = block.timestamp + _mintDelay + 1 hours;
+        vm.warp(currentTimestamp_); // 1 hour after the mint delay, the minter mints M.
+
+        vm.prank(minter_);
+        _minterGateway.mintM(mintId);
+    }
+
+    function _batchMintM(
+        address[] memory minters_,
+        uint256[] memory mintAmounts_,
+        address[] memory recipients_
+    ) internal {
+        uint256[] memory mintIds = new uint256[](minters_.length);
+        for (uint256 i; i < mintAmounts_.length; ++i) {
+            vm.prank(minters_[i]);
+            mintIds[i] = _minterGateway.proposeMint(mintAmounts_[i], recipients_[i]);
+        }
+
+        vm.warp(block.timestamp + _mintDelay + 1 hours); // 1 hour after the mint delay, the minter mints M.
+
+        for (uint256 i; i < mintAmounts_.length; ++i) {
+            vm.prank(minters_[i]);
+            _minterGateway.mintM(mintIds[i]);
+        }
+    }
+
+    /* ============ updateCollateral ============ */
+    function _updateCollateral(address minter_, uint256 collateral_) internal returns (uint256 lastUpdateTimestamp_) {
+        uint256[] memory retrievalIds = new uint256[](0);
+
+        return _updateCollateral(minter_, collateral_, retrievalIds);
+    }
+
+    function _updateCollateral(
+        address minter_,
+        uint256 collateral_,
+        uint256[] memory retrievalIds
+    ) internal returns (uint256 lastUpdateTimestamp_) {
+        uint256 signatureTimestamp = block.timestamp;
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validators[0];
+
+        uint256[] memory timestamps = new uint256[](1);
+        timestamps[0] = signatureTimestamp;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            minter_,
+            collateral_,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp,
+            _validatorKeys[0]
+        );
+
+        vm.warp(block.timestamp + 1 hours);
+
+        vm.prank(minter_);
+        _minterGateway.updateCollateral(collateral_, retrievalIds, bytes32(0), validators, timestamps, signatures);
+
+        return signatureTimestamp;
     }
 }

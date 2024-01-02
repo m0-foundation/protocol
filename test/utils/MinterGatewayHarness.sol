@@ -107,5 +107,11 @@ contract MinterGatewayHarness is MinterGateway {
 
     function setIsDeactivated(address minter_, bool isDeactivated_) external {
         _minterStates[minter_].isDeactivated = isDeactivated_;
+    function principalOfActiveOwedMOf(address minter_) external view returns (uint128) {
+        return _owedM[minter_].principalOfActive;
+    }
+
+    function rate() external view returns (uint32 rate_) {
+        return _rate();
     }
 }
