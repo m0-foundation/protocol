@@ -785,6 +785,15 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /**
+     * @dev    Calculates penalty.
+     * @param  penaltyBase_ Amount to apply penalty rate to
+     * @return Penalty amount
+     */
+    function _getPenalty(uint128 penaltyBase_) internal view returns (uint128) {
+        return (penaltyBase_ * penaltyRate()) / ONE;
+    }
+
+    /**
      * @dev    Returns the penalization base and the penalized until timestamp.
      * @param  lastUpdateTimestamp_ The last timestamp at which the minter updated their collateral.
      * @param  lastPenalizedUntil_  The last timestamp before which the minter shouldn't be penalized for missed updates.
