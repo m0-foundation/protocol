@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.23;
 
+import { wadLn } from "../lib/solmate/src/utils/SignedWadMath.sol";
+
 import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 import { UIntMath } from "./libs/UIntMath.sol";
 
@@ -9,14 +11,15 @@ import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IMinterGateway } from "./interfaces/IMinterGateway.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
+import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
 /**
  * @title Earner Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by MToken.
  * @author M^0 Labs
  */
 contract EarnerRateModel is IEarnerRateModel {
-    uint256 internal constant _SAFE_RATE_MULTIPLIER = 8_000; // 80 % in basis points
-    uint256 internal constant _ONE = 10_000; // 100 % in basis points
+    uint256 internal constant _RATE_CONFIDENCE_INTERVAL = 30 days;
+    uint256 internal constant _RATE_SAFETY_MULTIPLIER = 100; // 100%
 
     /// @inheritdoc IEarnerRateModel
     address public immutable mToken;
@@ -48,14 +51,22 @@ contract EarnerRateModel is IEarnerRateModel {
         if (totalEarningSupply_ == 0) return baseRate();
 
         // NOTE: Calculate safety guard rate that prevents overprinting of M.
-        // TODO: Discuss the pros/cons of moving this into M Token after all integration/invariants tests are done.
-        return
-            UIntMath.min256(
-                baseRate(),
-                (_SAFE_RATE_MULTIPLIER * (IMinterGateway(minterGateway).minterRate() * totalActiveOwedM_)) /
-                    totalEarningSupply_ /
-                    _ONE
-            );
+        // p1 * exp(rate1 * t) - p1 = p2 * exp(rate2 * t) - p2
+        uint256 time_ = totalActiveOwedM_ > totalEarningSupply_ ? _RATE_CONFIDENCE_INTERVAL : 1;
+        uint256 yearlyRate_ = ContinuousIndexingMath.convertFromBasisPoints(IMinterGateway(minterGateway).minterRate());
+        uint256 exponent_ = ContinuousIndexingMath.exponent(
+            uint72((uint256(yearlyRate_) * time_) / ContinuousIndexingMath.SECONDS_PER_YEAR)
+        );
+
+        // NOTE: Scale up argument in `EXP_BASE_SCALE` to 1e18 wad.
+        // rate2 = ln(1 + (p1 * exp(rate1 * t) - p1) / p2) / t
+        uint256 wadLnArg_ = (1e18 +
+            (1e6 * (totalActiveOwedM_ * (exponent_ - ContinuousIndexingMath.EXP_SCALED_ONE))) /
+            totalEarningSupply_);
+        uint256 wadLnRes_ = uint256(wadLn(int256(wadLnArg_)));
+        uint256 safeRate_ = (wadLnRes_ * ContinuousIndexingMath.SECONDS_PER_YEAR) / time_ / 1e14;
+
+        return UIntMath.min256(baseRate(), (_RATE_SAFETY_MULTIPLIER * safeRate_) / 100);
     }
 
     /// @inheritdoc IEarnerRateModel

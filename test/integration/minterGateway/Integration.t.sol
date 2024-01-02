@@ -321,6 +321,9 @@ contract IntegrationTests is IntegrationBaseSetup {
         vm.warp(block.timestamp + 98 seconds);
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
+        vm.warp(block.timestamp + 110 seconds);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+
         vm.warp(block.timestamp + 1 hours);
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
@@ -332,7 +335,7 @@ contract IntegrationTests is IntegrationBaseSetup {
     }
 
     function test_earnerRateIsHigherThanMinterRate() external {
-        vm.skip(true); // TODO: current earner model doesn't work for it, enable after fix
+        vm.skip(false); // TODO: current earner model doesn't work for it, enable after fix
         _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, 20000);
         _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, 40000);
 

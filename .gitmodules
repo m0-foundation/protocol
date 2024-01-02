@@ -5,3 +5,6 @@
 [submodule "lib/common"]
 	path = lib/common
 	url = git@github.com:MZero-Labs/common.git
+[submodule "lib/solmate"]
+	path = lib/solmate
+	url = https://github.com/transmissions11/solmate
