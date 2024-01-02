@@ -262,7 +262,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             // principal amount, would overflow the `totalPrincipalOfActiveOwedM_` (i.e. `type(uint112).max`).
             if (
                 // NOTE: Round the principal up in favor of the protocol.
-                newTotalPrincipalOfActiveOwedM_ + _getPrincipalAmountRoundedUp(_totalInactiveOwedM) >= type(uint240).max
+                newTotalPrincipalOfActiveOwedM_ + _getPrincipalAmountRoundedUp(_totalInactiveOwedM) >= type(uint112).max
             ) {
                 revert OverflowsPrincipalOfTotalOwedM();
             }
@@ -610,7 +610,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /**
-     * @dev   Imposes penalty on an active minter. Calling this for an active minter will break accounting.
+     * @dev   Imposes penalty on an active minter. Calling this for an inactive minter will break accounting.
      * @param minter_                 The address of the minter.
      * @param principalOfPenaltyBase_ The total principal base for penalization.
      */
