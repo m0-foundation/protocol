@@ -283,7 +283,7 @@ contract IntegrationTests is IntegrationBaseSetup {
     }
 
     function test_deactivateMinterWithMajorityOfActiveOwedM() external {
-        vm.skip(true); // TODO: current earner model doesn't work for it, enable after fix
+        vm.skip(false); // TODO: current earner model doesn't work for it, enable after fix
         _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, 40000);
         _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, 40000);
 
