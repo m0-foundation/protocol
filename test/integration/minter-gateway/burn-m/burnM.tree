@@ -10,7 +10,7 @@
 ### Then Minter is penalized once when updating their collateral
 ### Then Alice's balance must be 750,000 tokens
 ### When the Update Collateral Interval is set to 1 hour and Alice burns 250,000 tokens 12 hours later
-### Then Minter should not be penalized again since the previous interval prevails
+### Then Minter should be penalized again since the interval changed
 ### Then Alice's balance must be 500,000 tokens
 ### When the Update Collateral Interval is set to 48 hours and Alice burns 250,000 tokens 36 hours later
 ### Then Minter should not be penalized again since the new interval prevails

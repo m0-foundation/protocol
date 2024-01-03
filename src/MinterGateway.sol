@@ -17,8 +17,8 @@ import { IRateModel } from "./interfaces/IRateModel.sol";
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 
 /**
- * @title  MinterGateway
- * @author M^ZERO LABS_
+ * @title MinterGateway
+ * @author M^0 Labs
  * @notice Minting Gateway of M Token for all approved by TTG and activated minters.
  */
 contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
@@ -192,10 +192,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         // NOTE: Revert if collateral is less than sum of all pending retrievals even if there is no owed M by minter.
         if (currentCollateral_ < updatedTotalPendingRetrievals_) {
             revert RetrievalsExceedCollateral(updatedTotalPendingRetrievals_, currentCollateral_);
-        }
-
-        unchecked {
-            retrievalId_ = ++_retrievalNonce;
         }
 
         minterState_.totalPendingRetrievals = updatedTotalPendingRetrievals_;
@@ -783,15 +779,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /******************************************************************************************************************\
     |                                           Internal View/Pure Functions                                           |
     \******************************************************************************************************************/
-
-    /**
-     * @dev    Calculates penalty.
-     * @param  penaltyBase_ Amount to apply penalty rate to
-     * @return Penalty amount
-     */
-    function _getPenalty(uint128 penaltyBase_) internal view returns (uint128) {
-        return (penaltyBase_ * penaltyRate()) / ONE;
-    }
 
     /**
      * @dev    Returns the penalization base and the penalized until timestamp.

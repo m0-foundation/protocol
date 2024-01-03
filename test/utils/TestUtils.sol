@@ -9,31 +9,31 @@ import { ContinuousIndexingMath } from "../../src/libs/ContinuousIndexingMath.so
 import { DigestHelper } from "./DigestHelper.sol";
 
 contract TestUtils is Test {
-    uint256 internal constant ONE = 10000;
+    uint16 internal constant ONE = 10_000;
 
     /* ============ index ============ */
     function _getContinuousIndexAt(
         uint32 minterRate,
         uint128 initialIndex,
         uint32 elapsedTime
-    ) internal view returns (uint128) {
+    ) internal pure returns (uint128) {
         return
-            ContinuousIndexingMath.multiplyDown(
+            ContinuousIndexingMath.multiplyIndices(
+                initialIndex,
                 ContinuousIndexingMath.getContinuousIndex(
                     ContinuousIndexingMath.convertFromBasisPoints(minterRate),
                     elapsedTime
-                ),
-                initialIndex
+                )
             );
     }
 
     /* ============ penalty ============ */
     function _getPenaltyPrincipal(
-        uint128 penaltyBase_,
+        uint240 penaltyBase_,
         uint32 penaltyRate_,
         uint128 index_
-    ) internal view returns (uint128) {
-        return ContinuousIndexingMath.divideUp(uint128((penaltyBase_ * penaltyRate_) / ONE), index_);
+    ) internal pure returns (uint112) {
+        return ContinuousIndexingMath.divideUp((penaltyBase_ * penaltyRate_) / ONE, index_);
     }
 
     /* ============ signatures ============ */

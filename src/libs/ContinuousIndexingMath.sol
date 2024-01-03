@@ -5,8 +5,8 @@ pragma solidity 0.8.23;
 import { UIntMath } from "./UIntMath.sol";
 
 /**
- * @title  Arithmetic library with operations for calculating continuous indexing.
- * @author M^ZERO Labs
+ * @title Arithmetic library with operations for calculating continuous indexing.
+ * @author M^0 Labs
  */
 library ContinuousIndexingMath {
     /// @notice Emitted when a division by zero occurs.

@@ -5,8 +5,8 @@ pragma solidity 0.8.23;
 import { ITTGRegistrar } from "../interfaces/ITTGRegistrar.sol";
 
 /**
- * @title  Library to read TTG (Two Token Governance) Registrar contract parameters.
- * @author M^ZERO Labs
+ * @title Library to read TTG (Two Token Governance) Registrar contract parameters.
+ * @author M^0 Labs
  */
 library TTGRegistrarReader {
     /// @notice The name of parameter in TTG that defines the base earner rate.

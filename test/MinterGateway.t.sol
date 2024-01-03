@@ -15,8 +15,6 @@ import { TestUtils } from "./utils/TestUtils.sol";
 // TODO: more end state tests of `deactivateMinter`.
 
 contract MinterGatewayTests is TestUtils {
-    uint16 internal constant ONE = 10_000;
-
     address internal _alice = makeAddr("alice");
     address internal _bob = makeAddr("bob");
     address internal _ttgVault = makeAddr("ttgVault");
@@ -713,15 +711,6 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.freezeMinter(_minter1);
     }
 
-    function test_freezeMinter_InactiveMinter() external {
-        _minterGateway.setActiveMinter(_minter1, false);
-
-        vm.expectRevert(IMinterGateway.InactiveMinter.selector);
-
-        vm.prank(_validator1);
-        _minterGateway.freezeMinter(_minter1);
-    }
-
     /* ============ burnM ============ */
     function test_burnM() external {
         uint256 mintAmount = 1000000e18;
@@ -1089,9 +1078,10 @@ contract MinterGatewayTests is TestUtils {
         uint256 timestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, timestamp);
-        _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
-        _minterGateway.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
+        _minterGateway.setUnfrozenTimeOf(_minter1, _updateCollateralInterval);
+        _minterGateway.setRawOwedMOf(_minter1, 60e18);
+        _minterGateway.setTotalPrincipalOfActiveOwedM(60e18);
 
         // Change update collateral interval, more frequent updates are required
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
@@ -1105,7 +1095,6 @@ contract MinterGatewayTests is TestUtils {
 
         uint256 penalizedUntil = _minterGateway.penalizedUntilOf(_minter1);
         assertEq(penalizedUntil, timestamp + threeMissedIntervals);
-        assertEq(_minterGateway.lastCollateralUpdateIntervalOf(_minter1), _updateCollateralInterval / 4);
 
         uint256 oneMoreMissedInterval = _updateCollateralInterval / 4;
         vm.warp(block.timestamp + oneMoreMissedInterval);
@@ -1123,9 +1112,10 @@ contract MinterGatewayTests is TestUtils {
         uint256 timestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setCollateralUpdateOf(_minter1, timestamp);
-        _minterGateway.setLastCollateralUpdateIntervalOf(_minter1, _updateCollateralInterval);
-        _minterGateway.setPrincipalOfActiveOwedMOf(_minter1, 60e18);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
+        _minterGateway.setUnfrozenTimeOf(_minter1, _updateCollateralInterval);
+        _minterGateway.setRawOwedMOf(_minter1, 60e18);
+        _minterGateway.setTotalPrincipalOfActiveOwedM(60e18);
 
         // Change update collateral interval, more frequent updates are required
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
@@ -1139,7 +1129,6 @@ contract MinterGatewayTests is TestUtils {
 
         uint256 penalizedUntil = _minterGateway.penalizedUntilOf(_minter1);
         assertEq(penalizedUntil, timestamp + threeMissedIntervals);
-        assertEq(_minterGateway.lastCollateralUpdateIntervalOf(_minter1), _updateCollateralInterval / 4);
 
         uint256 oneMoreMissedInterval = _updateCollateralInterval / 4;
         vm.warp(block.timestamp + oneMoreMissedInterval);
@@ -1437,14 +1426,7 @@ contract MinterGatewayTests is TestUtils {
         );
 
         vm.expectEmit();
-        emit IMinterGateway.CollateralUpdated(
-            _minter1,
-            collateral / 2,
-            newRetrievalIds,
-            collateral,
-            bytes32(0),
-            signatureTimestamp1
-        );
+        emit IMinterGateway.CollateralUpdated(_minter1, collateral / 2, collateral, bytes32(0), signatureTimestamp1);
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(

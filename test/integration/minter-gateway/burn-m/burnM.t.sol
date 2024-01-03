@@ -20,7 +20,7 @@ contract BurnM_IntegrationTest is IntegrationBaseSetup {
 
         _mintM(minter_, mintAmount_, _alice);
         uint128 mintIndex_ = _minterGateway.latestIndex();
-        uint128 principalAmount_ = ContinuousIndexingMath.divideUp(mintAmount_, mintIndex_);
+        uint112 principalAmount_ = ContinuousIndexingMath.divideUp(mintAmount_, mintIndex_);
 
         assertEq(_minterGateway.activeOwedMOf(minter_), mintAmount_ + 1);
         assertEq(_mToken.balanceOf(_alice), mintAmount_);
@@ -28,12 +28,12 @@ contract BurnM_IntegrationTest is IntegrationBaseSetup {
         vm.warp(block.timestamp + 25 hours);
 
         uint128 indexAfter25Hours_ = _getContinuousIndexAt(_baseMinterRate, mintIndex_, 25 hours);
-        uint128 penaltyPrincipal_ = ContinuousIndexingMath.divideUp(
+        uint112 penaltyPrincipal_ = ContinuousIndexingMath.divideDown(
             _minterGateway.getPenaltyForMissedCollateralUpdates(minter_),
             indexAfter25Hours_
         );
 
-        uint128 burnAmountPrincipal_ = ContinuousIndexingMath.divideDown(burnAmount_, indexAfter25Hours_);
+        uint112 burnAmountPrincipal_ = ContinuousIndexingMath.divideDown(burnAmount_, indexAfter25Hours_);
 
         principalAmount_ += penaltyPrincipal_;
         principalAmount_ -= burnAmountPrincipal_;
@@ -55,8 +55,15 @@ contract BurnM_IntegrationTest is IntegrationBaseSetup {
         vm.warp(block.timestamp + 12 hours);
 
         uint128 indexAfter12Hours_ = _getContinuousIndexAt(_baseMinterRate, burnIndex_, 12 hours);
+
+        penaltyPrincipal_ = ContinuousIndexingMath.divideDown(
+            _minterGateway.getPenaltyForMissedCollateralUpdates(minter_),
+            indexAfter12Hours_
+        );
+
         burnAmountPrincipal_ = ContinuousIndexingMath.divideDown(burnAmount_, indexAfter12Hours_);
 
+        principalAmount_ += penaltyPrincipal_;
         principalAmount_ -= burnAmountPrincipal_;
 
         vm.prank(_alice);

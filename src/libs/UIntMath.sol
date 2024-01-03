@@ -3,8 +3,8 @@
 pragma solidity 0.8.23;
 
 /**
- * @title  Library to perform safe math operations on uint types
- * @author M^ZERO Labs
+ * @title Library to perform safe math operations on uint types
+ * @author M^0 Labs
  */
 library UIntMath {
     /// @notice Emitted when a passed value is greater than the maximum value of uint40.
@@ -88,13 +88,6 @@ library UIntMath {
      */
     function bound112(uint256 n) internal pure returns (uint112) {
         return uint112(min256(n, uint256(type(uint112).max)));
-     * @notice Compares two uint32 values and returns the larger one.
-     * @param  a_  Value to check.
-     * @param  b_  Value to check.
-     * @return The larger value.
-     */
-    function max32(uint32 a_, uint32 b_) internal pure returns (uint32) {
-        return a_ > b_ ? a_ : b_;
     }
 
     /**

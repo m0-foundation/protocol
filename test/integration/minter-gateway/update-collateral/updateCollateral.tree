@@ -22,7 +22,7 @@ updateCollateral.t.sol
 │  ├─ When Minter fails to call `updateCollateral` for one collateral interval
 │  ├─ Then Minter is penalized once when updating their collateral
 │  ├─ When the Update Collateral Interval is set to 1 hour and Minter calls `updateCollateral` 12 hours later
-│  ├─ Then Minter should not be penalized again since the previous interval prevails
+│  ├─ Then Minter should be penalized again since the interval changed
 │  ├─ When the Update Collateral Interval is set to 48 hours and Minter calls `updateCollateral` 36 hours later
 │  └─ Then Minter should not be penalized again since the new interval prevails
 └─ Minter calls `updateCollateral` during the required interval and the Mint Ratio is later changed
