@@ -372,7 +372,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IContinuousIndexing
     function updateIndex() public override(IContinuousIndexing, ContinuousIndexing) returns (uint128 index_) {
-        // NOTE: Since the currentIndex of the Minter Gateway and mToken are constant thought this context's execution (since
+        // NOTE: Since the currentIndex of the Minter Gateway and mToken are constant through this context's execution (since
         //       the block.timestamp is not changing) we can compute excessOwedM without updating the mToken index.
         uint240 excessOwedM_ = excessOwedM();
 

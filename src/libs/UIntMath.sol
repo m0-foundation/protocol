@@ -88,6 +88,13 @@ library UIntMath {
      */
     function bound112(uint256 n) internal pure returns (uint112) {
         return uint112(min256(n, uint256(type(uint112).max)));
+     * @notice Compares two uint32 values and returns the larger one.
+     * @param  a_  Value to check.
+     * @param  b_  Value to check.
+     * @return The larger value.
+     */
+    function max32(uint32 a_, uint32 b_) internal pure returns (uint32) {
+        return a_ > b_ ? a_ : b_;
     }
 
     /**
