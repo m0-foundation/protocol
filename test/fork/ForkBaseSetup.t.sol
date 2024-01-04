@@ -16,8 +16,8 @@ import { DigestHelper } from "./../utils/DigestHelper.sol";
 import { MockTTGRegistrar } from "./../utils/Mocks.sol";
 import { TestUtils } from "./../utils/TestUtils.sol";
 
-/// @notice Common setup for integration tests
-abstract contract IntegrationBaseSetup is TestUtils {
+/// @notice Common setup for fork tests
+abstract contract ForkBaseSetup is TestUtils {
     address internal _deployer = makeAddr("deployer");
     address internal _vault = makeAddr("vault");
 
@@ -63,7 +63,12 @@ abstract contract IntegrationBaseSetup is TestUtils {
     IMinterRateModel internal _minterRateModel;
     MockTTGRegistrar internal _registrar;
 
+    uint256 public mainnetFork;
+
     function setUp() external {
+        mainnetFork = vm.createFork(vm.rpcUrl("mainnet"));
+        vm.selectFork(mainnetFork);
+
         _deploy = new DeployBase();
         _registrar = new MockTTGRegistrar();
 

@@ -29,3 +29,6 @@ optimizer = true
 optimizer_runs = 999999
 build_info = true
 sizes = true
+
+[rpc_endpoints]
+mainnet = "${MAINNET_RPC_URL}"
