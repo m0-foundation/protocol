@@ -5,6 +5,8 @@ pragma solidity 0.8.23;
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
 import { TTGRegistrarReader } from "../src/libs/TTGRegistrarReader.sol";
 
+import { console2 } from "../lib/forge-std/src/Test.sol";
+
 import { IMinterGateway } from "../src/interfaces/IMinterGateway.sol";
 
 import { MockMToken, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
