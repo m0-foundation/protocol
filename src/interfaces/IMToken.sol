@@ -11,8 +11,8 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     |                                                     Errors                                                       |
     \******************************************************************************************************************/
 
-    /// @notice Emitted when calling `startEarning` for an account that has opted out of earning.
-    error HasOptedOut();
+    /// @notice Emitted when calling `startEarningOnBehalfOf` for an account that has not allowed the start of earning on their behalf.
+    error HasNotAllowedEarningOnBehalf();
 
     /// @notice Emitted when calling `stopEarning` for an account approved as earner by TTG.
     error IsApprovedEarner();
@@ -39,11 +39,11 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when account stops being an M earner.
     event StoppedEarning(address indexed account);
 
-    /// @notice Emitted when account opts in to earning allowing anyone else to enable their earning.
-    event OptedInToEarning(address indexed account);
+    /// @notice Emitted when account has allowed anyone else to enable their earning.
+    event AllowedEarningOnBehalf(address indexed account);
 
-    /// @notice Emitted when account opts ou of earning preventing anyone else from enabling their earning.
-    event OptedOutOfEarning(address indexed account);
+    /// @notice Emitted when account has disallowed anyone else from enabling their earning.
+    event DisallowedEarningOnBehalf(address indexed account);
 
     /******************************************************************************************************************\
     |                                         External Interactive Functions                                           |
@@ -63,37 +63,29 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
      */
     function burn(address account, uint256 amount) external;
 
-    /**
-     * @notice Starts earning for caller if allowed by TTG.
-     */
+    /// @notice Starts earning for caller if allowed by TTG.
     function startEarning() external;
 
     /**
      * @notice Starts earning for account if allowed by TTG.
      * @param account The address of account to start earning for.
      */
-    function startEarning(address account) external;
+    function startEarningOnBehalfOf(address account) external;
 
-    /**
-     * @notice Stops earning for caller.
-     */
+    /// @notice Stops earning for caller.
     function stopEarning() external;
 
     /**
      * @notice Stops earning for account.
      * @param  account The address of account to stop earning for.
      */
-    function stopEarning(address account) external;
+    function stopEarningOnBehalfOf(address account) external;
 
-    /**
-     * @notice Opt in to earning so anyone can trigger the start earning for the caller.
-     */
-    function optInToEarning() external;
+    /// @notice Allow anyone to call `startEarning` on behalf of the caller.
+    function allowEarningOnBehalf() external;
 
-    /**
-     * @notice Opt out of earning so nobody except caller can trigger the start earning for the caller.
-     */
-    function optOutOfEarning() external;
+    /// @notice Disallow anyone to call `startEarning` on behalf of the caller.
+    function disallowEarningOnBehalf() external;
 
     /******************************************************************************************************************\
     |                                          External View/Pure Functions                                            |
@@ -120,6 +112,6 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Checks if account is an earner.
     function isEarning(address account) external view returns (bool);
 
-    /// @notice Checks if account has opted out of earning.
-    function hasOptedOutOfEarning(address account) external view returns (bool);
+    /// @notice Checks if account has allowed the start of earning on their behalf.
+    function hasAllowedEarningOnBehalf(address account) external view returns (bool);
 }

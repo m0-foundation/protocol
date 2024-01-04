@@ -80,11 +80,10 @@ describe("MToken", () => {
       1,
     );
 
-    await mToken["startEarning(address)"](alice.address);
-    await mToken["startEarning(address)"](bob.address);
-    await mToken["startEarning(address)"](charlie.address);
-    await mToken["startEarning(address)"](dave.address);
-    await mToken["startEarning(address)"](elise.address);
+    await accounts.forEach(async (account) => {
+      await mToken.connect(account).allowEarningOnBehalf();
+      await mToken["startEarningOnBehalfOf(address)"](account.address);
+    });
 
     await time.increase(31_536_000); // 1 year
 
@@ -133,12 +132,12 @@ describe("MToken", () => {
         continue;
       }
 
-      const hasOptedOutOfEarning = await mToken.hasOptedOutOfEarning(
+      const hasAllowedEarningOnBehalf = await mToken.hasAllowedEarningOnBehalf(
         account.address,
       );
 
-      if (!hasOptedOutOfEarning && randomNumber2 <= 4) {
-        await mToken.connect(account).optOutOfEarning();
+      if (!hasAllowedEarningOnBehalf && randomNumber2 <= 4) {
+        await mToken.connect(account).allowEarningOnBehalf();
         continue;
       }
 

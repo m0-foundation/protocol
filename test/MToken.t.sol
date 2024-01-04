@@ -329,20 +329,24 @@ contract MTokenTests is Test {
 
     /* ============ startEarning ============ */
     function test_startEarning_onBehalfOf_notApprovedEarner() external {
+        vm.prank(_alice);
+        _mToken.allowEarningOnBehalf();
+
         vm.expectRevert(IMToken.NotApprovedEarner.selector);
-        _mToken.startEarning(_alice);
+        _mToken.startEarningOnBehalfOf(_alice);
     }
 
-    function test_startEarning_onBehalfOf_hasOptedOutOfEarning() external {
+    function test_startEarning_onBehalfOf_hasNotAllowedEarningOnBehalf() external {
         _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
 
-        _mToken.setHasOptedOutOfEarning(_alice, true);
-
-        vm.expectRevert(IMToken.HasOptedOut.selector);
-        _mToken.startEarning(_alice);
+        vm.expectRevert(IMToken.HasNotAllowedEarningOnBehalf.selector);
+        _mToken.startEarningOnBehalfOf(_alice);
     }
 
     function test_startEarning_onBehalfOf() external {
+        vm.prank(_alice);
+        _mToken.allowEarningOnBehalf();
+
         _mToken.setLatestRate(_earnerRate);
         _mToken.setTotalNonEarningSupply(1_000);
 
@@ -350,7 +354,7 @@ contract MTokenTests is Test {
 
         _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
 
-        _mToken.startEarning(_alice);
+        _mToken.startEarningOnBehalfOf(_alice);
 
         assertEq(_mToken.internalBalanceOf(_alice), 909);
         assertEq(_mToken.isEarning(_alice), true);
@@ -394,7 +398,7 @@ contract MTokenTests is Test {
         _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
 
         vm.expectRevert(IMToken.IsApprovedEarner.selector);
-        _mToken.stopEarning(_alice);
+        _mToken.stopEarningOnBehalfOf(_alice);
     }
 
     function test_stopEarning_onBehalfOf() external {
@@ -404,7 +408,7 @@ contract MTokenTests is Test {
         _mToken.setIsEarning(_alice, true);
         _mToken.setInternalBalanceOf(_alice, 909);
 
-        _mToken.stopEarning(_alice);
+        _mToken.stopEarningOnBehalfOf(_alice);
 
         assertEq(_mToken.internalBalanceOf(_alice), 999);
         assertEq(_mToken.isEarning(_alice), false);
@@ -428,7 +432,7 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.internalBalanceOf(_alice), 999);
         assertEq(_mToken.isEarning(_alice), false);
-        assertEq(_mToken.hasOptedOutOfEarning(_alice), true);
+        assertEq(_mToken.hasAllowedEarningOnBehalf(_alice), false);
 
         assertEq(_mToken.totalNonEarningSupply(), 999);
         assertEq(_mToken.totalPrincipalOfEarningSupply(), 0);
@@ -673,12 +677,31 @@ contract MTokenTests is Test {
         assertEq(_mToken.earnerRate(), _earnerRate / 2);
     }
 
-    /* ============ optOutOfEarning ============ */
-    function test_optOutOfEarning() external {
-        vm.prank(_alice);
-        _mToken.optOutOfEarning();
+    /* ============ allowEarningOnBehalf ============ */
+    function test_allowEarningOnBehalf() external {
+        // Earning on behalf is disabled by default
+        assertFalse(_mToken.hasAllowedEarningOnBehalf(_alice));
 
-        assertEq(_mToken.hasOptedOutOfEarning(_alice), true);
+        vm.expectEmit();
+        emit IMToken.AllowedEarningOnBehalf(_alice);
+
+        vm.prank(_alice);
+        _mToken.allowEarningOnBehalf();
+
+        assertTrue(_mToken.hasAllowedEarningOnBehalf(_alice));
+    }
+
+    /* ============ disallowEarningOnBehalf ============ */
+    function test_disallowEarningOnBehalf() external {
+        _mToken.allowEarningOnBehalf();
+
+        vm.expectEmit();
+        emit IMToken.DisallowedEarningOnBehalf(_alice);
+
+        vm.prank(_alice);
+        _mToken.disallowEarningOnBehalf();
+
+        assertFalse(_mToken.hasAllowedEarningOnBehalf(_alice));
     }
 
     /* ============ emptyRateModel ============ */
