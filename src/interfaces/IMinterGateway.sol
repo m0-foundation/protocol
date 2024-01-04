@@ -10,7 +10,7 @@ interface IMinterGateway is IContinuousIndexing {
     |                                                      Errors                                                      |
     \******************************************************************************************************************/
 
-    /// @notice Emitted when principal of total owed M (active and inactive) will overflow a `type?(uint112).max`.
+    /// @notice Emitted when principal of total owed M (active and inactive) will overflow a `type(uint112).max`.
     error OverflowsPrincipalOfTotalOwedM();
 
     /// @notice Emitted when calling `mintM` with a proposal that was created more than `mintDelay + mintTTL` time ago.
@@ -85,7 +85,7 @@ interface IMinterGateway is IContinuousIndexing {
      * @param  minter                  Address of the minter
      * @param  collateral              The latest amount of collateral
      * @param  totalResolvedRetrievals The total collateral amount of outstanding retrievals resolved.
-     * @param  metadataHash            The hash of some metadata  reserved for future informational use.
+     * @param  metadataHash            The hash of some metadata reserved for future informational use.
      * @param  timestamp               The timestamp of the collateral update, minimum of given validators' signatures.
      */
     event CollateralUpdated(

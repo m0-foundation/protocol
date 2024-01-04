@@ -792,7 +792,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /**
      * @dev    Returns the penalization base and the penalized until timestamp.
      * @param  lastUpdateInterval_ The last update collateral interval the minter needed to abide by.
-     * @param  lastUpdate_         The last timestamp the inter updated their collateral.
+     * @param  lastUpdate_         The last timestamp at which the minter updated their collateral.
      * @param  lastPenalizedUntil_ The last timestamp before which the minter shouldn't be penalized for missed updates.
      * @param  newUpdateInterval_  The new update collateral interval.
      * @return missedIntervals_    The number of missed update intervals.
@@ -849,7 +849,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         if (missedIntervals_ == 0) return 0;
 
         unchecked {
-            // As an edge case precaution, capo the penalty principal to type(uint112).max.
+            // As an edge case precaution, cap the penalty principal to type(uint112).max.
             return UIntMath.bound112((uint256(principalOfActiveOwedM_) * missedIntervals_ * penaltyRate_) / ONE);
         }
     }
