@@ -11,7 +11,7 @@ contract MinterGatewayHarness is MinterGateway {
     |                                                     Getters                                                      |
     \******************************************************************************************************************/
 
-    function getPenalty(
+    function getPenaltyOverDiscreteInterval(
         address minter_
     )
         external
@@ -23,15 +23,11 @@ contract MinterGatewayHarness is MinterGateway {
             uint40 penalizeUntil_
         )
     {
-        return _getPenalty(minter_);
+        return _getPenalty(minter_, _getDiscretePenaltyInterval);
     }
 
-    function getPenalty(
-        uint256 updateTimestamp_,
-        uint256 penalizedUntilTimestamp_,
-        uint256 principalOfActiveOwedM_,
-        uint256 maxAllowedActiveOwedM_,
-        uint256 newUpdateInterval_
+    function getPenaltyOverEntireInterval(
+        address minter_
     )
         external
         view
@@ -42,14 +38,7 @@ contract MinterGatewayHarness is MinterGateway {
             uint40 penalizeUntil_
         )
     {
-        return
-            _getPenalty(
-                uint40(updateTimestamp_),
-                uint40(penalizedUntilTimestamp_),
-                uint112(principalOfActiveOwedM_),
-                maxAllowedActiveOwedM_,
-                uint32(newUpdateInterval_)
-            );
+        return _getPenalty(minter_, _getEntirePenaltyInterval);
     }
 
     function getPresentAmount(uint256 principalAmount_) external view returns (uint240) {

@@ -132,7 +132,7 @@ contract IntegrationTests is IntegrationBaseSetup {
             _minterGateway.activeOwedMOf(_minters[0]) +
                 _minterGateway.activeOwedMOf(_minters[1]) +
                 _minterGateway.activeOwedMOf(_minters[2]),
-            _mToken.balanceOf(_alice) + _mToken.balanceOf(_vault) + 1
+            _mToken.balanceOf(_alice) + _mToken.balanceOf(_vault) + 2
         );
     }
 
