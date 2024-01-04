@@ -23,10 +23,6 @@ contract MTokenHarness is MToken {
         _balances[account_].isEarning = isEarning_;
     }
 
-    function setHasOptedOutOfEarning(address account_, bool hasOptedOut_) external {
-        _balances[account_].hasOptedOutOfEarning = hasOptedOut_;
-    }
-
     function setTotalNonEarningSupply(uint256 totalNonEarningSupply_) external {
         _totalNonEarningSupply = uint128(totalNonEarningSupply_);
     }

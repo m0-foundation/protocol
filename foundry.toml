@@ -17,7 +17,7 @@ block_number = 17_740_856
 block_timestamp = 1_689_934_508
 
 [profile.default.fuzz]
-runs = 512
+runs = 5000
 
 [profile.default.invariant]
 runs = 512
