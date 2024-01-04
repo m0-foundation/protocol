@@ -14,8 +14,6 @@ import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 
-// TODO: Consider an socially/optically "safer" `burn` via `burn(uint amount_)` where the account is `msg.sender`.
-
 /**
  * @title  MToken
  * @author M^ZERO LABS_
@@ -24,7 +22,7 @@ import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     struct MBalance {
         bool isEarning;
-        bool hasOptedOutOfEarning;
+        bool hasAllowedEarningOnBehalf;
         uint128 rawBalance; // balance (for a non earning account) or principal balance that accrued interest
     }
 
@@ -81,8 +79,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /// @inheritdoc IMToken
-    function startEarning(address account_) external {
-        if (_balances[account_].hasOptedOutOfEarning) revert HasOptedOut();
+    function startEarningOnBehalfOf(address account_) external {
+        if (!_balances[account_].hasAllowedEarningOnBehalf) revert HasNotAllowedEarningOnBehalf();
 
         _revertIfNotApprovedEarner(account_);
         _startEarning(account_);
@@ -90,27 +88,27 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /// @inheritdoc IMToken
     function stopEarning() external {
-        optOutOfEarning();
+        disallowEarningOnBehalf();
         _stopEarning(msg.sender);
     }
 
     /// @inheritdoc IMToken
-    function stopEarning(address account_) external {
+    function stopEarningOnBehalfOf(address account_) external {
         if (_isApprovedEarner(account_)) revert IsApprovedEarner();
 
         _stopEarning(account_);
     }
 
     /// @inheritdoc IMToken
-    function optInToEarning() public {
-        emit OptedInToEarning(msg.sender);
-        _balances[msg.sender].hasOptedOutOfEarning = false;
+    function allowEarningOnBehalf() public {
+        emit AllowedEarningOnBehalf(msg.sender);
+        _balances[msg.sender].hasAllowedEarningOnBehalf = true;
     }
 
     /// @inheritdoc IMToken
-    function optOutOfEarning() public {
-        emit OptedOutOfEarning(msg.sender);
-        _balances[msg.sender].hasOptedOutOfEarning = true;
+    function disallowEarningOnBehalf() public {
+        emit DisallowedEarningOnBehalf(msg.sender);
+        _balances[msg.sender].hasAllowedEarningOnBehalf = false;
     }
 
     /******************************************************************************************************************\
@@ -157,8 +155,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /// @inheritdoc IMToken
-    function hasOptedOutOfEarning(address account_) external view returns (bool hasOpted_) {
-        return _balances[account_].hasOptedOutOfEarning;
+    function hasAllowedEarningOnBehalf(address account_) external view returns (bool) {
+        return _balances[account_].hasAllowedEarningOnBehalf;
     }
 
     /******************************************************************************************************************\
