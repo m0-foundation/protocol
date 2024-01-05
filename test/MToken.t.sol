@@ -58,12 +58,12 @@ contract MTokenTests is Test {
 
     function test_constructor_zeroTTGRegistrar() external {
         vm.expectRevert(IMToken.ZeroTTGRegistrar.selector);
-        _mToken = new MTokenHarness(address(0), _minterGateway);
+        new MTokenHarness(address(0), _minterGateway);
     }
 
     function test_constructor_zeroMinterGateway() external {
         vm.expectRevert(IMToken.ZeroMinterGateway.selector);
-        _mToken = new MTokenHarness(address(_registrar), address(0));
+        new MTokenHarness(address(_registrar), address(0));
     }
 
     /* ============ mint ============ */

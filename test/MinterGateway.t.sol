@@ -5,9 +5,8 @@ pragma solidity 0.8.23;
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
 import { TTGRegistrarReader } from "../src/libs/TTGRegistrarReader.sol";
 
-import { console2 } from "../lib/forge-std/src/Test.sol";
-
 import { IMinterGateway } from "../src/interfaces/IMinterGateway.sol";
+import { ITTGRegistrar } from "../src/interfaces/ITTGRegistrar.sol";
 
 import { MockMToken, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
 import { MinterGatewayHarness } from "./utils/MinterGatewayHarness.sol";
@@ -82,6 +81,35 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setLatestRate(_minterRate); // This can be `minterGateway.updateIndex()`, but is not necessary.
     }
 
+    /* ============ constructor ============ */
+    function test_constructor() external {
+        assertEq(_minterGateway.ttgRegistrar(), address(_ttgRegistrar));
+        assertEq(_minterGateway.ttgVault(), _ttgVault);
+        assertEq(_minterGateway.mToken(), address(_mToken));
+    }
+
+    function test_constructor_zeroTTGRegistrar() external {
+        vm.expectRevert(IMinterGateway.ZeroTTGRegistrar.selector);
+        _minterGateway = new MinterGatewayHarness(address(0), address(_mToken));
+    }
+
+    function test_constructor_zeroTTGVault() external {
+        vm.mockCall(
+            address(_ttgRegistrar),
+            abi.encodeWithSelector(ITTGRegistrar.vault.selector),
+            abi.encode(address(0))
+        );
+
+        vm.expectRevert(IMinterGateway.ZeroTTGVault.selector);
+        _minterGateway = new MinterGatewayHarness(address(_ttgRegistrar), address(_mToken));
+    }
+
+    function test_constructor_zeroMToken() external {
+        vm.expectRevert(IMinterGateway.ZeroMToken.selector);
+        _minterGateway = new MinterGatewayHarness(address(_ttgRegistrar), address(0));
+    }
+
+    /* ============ updateCollateral ============ */
     function test_updateCollateral() external {
         uint240 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
@@ -368,6 +396,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
     }
 
+    /* ============ proposeMint ============ */
     function test_proposeMint() external {
         uint240 amount = 60e18;
 
@@ -424,6 +453,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.proposeMint(100e18, _alice);
     }
 
+    /* ============ mintM ============ */
     function test_mintM() external {
         uint256 amount = 80e18;
         uint48 mintId = 1;
@@ -606,6 +636,25 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.mintM(mintId - 1);
     }
 
+    function test_mintM_overflowsPrincipalOfTotalOwedM() external {
+        uint256 amount = 80e18;
+        uint48 mintId = 1;
+
+        _minterGateway.setPrincipalOfTotalActiveOwedM(type(uint112).max);
+        _minterGateway.setCollateralOf(_minter1, 100e18);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+
+        _minterGateway.setMintProposalOf(_minter1, mintId, amount, block.timestamp, _alice);
+
+        vm.warp(block.timestamp + _mintDelay);
+
+        vm.expectRevert(IMinterGateway.OverflowsPrincipalOfTotalOwedM.selector);
+
+        vm.prank(_minter1);
+        _minterGateway.mintM(mintId);
+    }
+
+    /* ============ cancelMint ============ */
     function test_cancelMint_byValidator() external {
         uint48 mintId = 1;
 
@@ -642,6 +691,8 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_validator1);
         _minterGateway.cancelMint(_alice, 1);
     }
+
+    /* ============ freezeMinter ============ */
 
     // TODO: This test should just use test the effects of freezeMinter, another test should check that a frozen minter
     //       cannot proposeMint/mint.
@@ -710,6 +761,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.freezeMinter(_minter1);
     }
 
+    /* ============ burnM ============ */
     function test_burnM() external {
         uint256 mintAmount = 1000000e18;
         uint48 mintId = 1;
@@ -750,7 +802,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 principalOfActiveOwedM = 100e18;
 
         _minterGateway.setRawOwedMOf(_minter1, principalOfActiveOwedM);
-        _minterGateway.setTotalPrincipalOfActiveOwedM(principalOfActiveOwedM);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(principalOfActiveOwedM);
 
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
 
@@ -794,13 +846,14 @@ contract MinterGatewayTests is TestUtils {
         // TODO: check that `updateIndex()` was called.
     }
 
+    /* ============ penalties ============ */
     function test_updateCollateral_imposePenaltyForExpiredCollateralValue() external {
         uint256 collateral = 100e18;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
-        _minterGateway.setTotalPrincipalOfActiveOwedM(60e18);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(60e18);
 
         vm.warp(block.timestamp + 3 * _updateCollateralInterval);
 
@@ -871,7 +924,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         _minterGateway.setRawOwedMOf(_minter1, amount);
-        _minterGateway.setTotalPrincipalOfActiveOwedM(amount);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(amount);
 
         vm.warp(block.timestamp + _updateCollateralInterval - 1);
 
@@ -909,7 +962,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setCollateralOf(_minter1, 100e18);
         _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
-        _minterGateway.setTotalPrincipalOfActiveOwedM(60e18);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(60e18);
 
         vm.warp(block.timestamp + 2 * _updateCollateralInterval);
 
@@ -958,7 +1011,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setCollateralOf(_minter1, 100e18);
         _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
-        _minterGateway.setTotalPrincipalOfActiveOwedM(60e18);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(60e18);
 
         vm.warp(block.timestamp + 3 * _updateCollateralInterval);
 
@@ -988,7 +1041,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, lastUpdateTimestamp);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
-        _minterGateway.setTotalPrincipalOfActiveOwedM(60e18);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(60e18);
 
         vm.warp(lastUpdateTimestamp + _updateCollateralInterval - 10);
 
@@ -1044,7 +1097,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
-        _minterGateway.setTotalPrincipalOfActiveOwedM(60e18);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(60e18);
 
         // Change update collateral interval, more frequent updates are required
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
@@ -1068,6 +1121,64 @@ contract MinterGatewayTests is TestUtils {
 
         penalizedUntil = _minterGateway.penalizedUntilOf(_minter1);
         assertEq(penalizedUntil, timestamp + threeMissedIntervals + oneMoreMissedInterval);
+    }
+
+    function test_imposePenalty_principalOfTotalActiveOwedMOverflows() external {
+        uint256 collateral = 100e18;
+        uint256 lastUpdateTimestamp = block.timestamp;
+
+        _minterGateway.setCollateralOf(_minter1, collateral);
+        _minterGateway.setUpdateTimestampOf(_minter1, lastUpdateTimestamp);
+        _minterGateway.setRawOwedMOf(_minter1, 60e18);
+
+        vm.warp(lastUpdateTimestamp + _updateCollateralInterval - 10);
+
+        uint256 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
+        assertEq(penalty, 0);
+
+        vm.warp(lastUpdateTimestamp + _updateCollateralInterval + 10);
+
+        penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
+        assertEq(penalty, (_minterGateway.activeOwedMOf(_minter1) * _penaltyRate) / ONE);
+
+        uint256 penaltyPrincipal_ = _minterGateway.getPrincipalAmountRoundedUp(uint240(penalty));
+
+        // 1 is added to overflow `newPrincipalOfTotalActiveOwedM_`
+        uint256 principalOfTotalActiveOwedM_ = type(uint112).max - penaltyPrincipal_ + 1;
+        _minterGateway.setPrincipalOfTotalActiveOwedM(principalOfTotalActiveOwedM_);
+
+        uint256[] memory retrievalIds = new uint256[](0);
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+
+        uint256 signatureTimestamp = block.timestamp;
+
+        uint256[] memory timestamps = new uint256[](1);
+        timestamps[0] = signatureTimestamp;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp,
+            _validator1Pk
+        );
+
+        uint256 minterPrincipalOfActiveOwedMBefore_ = _minterGateway.principalOfActiveOwedMOf(_minter1);
+
+        vm.prank(_minter1);
+        _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
+
+        // Despite overflowing, `principalOfTotalActiveOwedM` is capped and equal to type(uint112).max
+        assertEq(_minterGateway.principalOfTotalActiveOwedM(), type(uint112).max);
+        assertEq(
+            _minterGateway.principalOfActiveOwedMOf(_minter1),
+            minterPrincipalOfActiveOwedMBefore_ + penaltyPrincipal_ - 1
+        );
     }
 
     function test_getPenaltyForMissedCollateralUpdates_noMissedIntervals() external {
@@ -1162,7 +1273,8 @@ contract MinterGatewayTests is TestUtils {
         assertEq(penalty, (4 * _minterGateway.activeOwedMOf(_minter1) * _penaltyRate) / ONE);
     }
 
-    function test_isActiveMinter() external {
+    /* ============ activateMinter ============ */
+    function test_activateMinter() external {
         _minterGateway.setIsActive(_minter1, false);
         assertEq(_minterGateway.isActiveMinter(_minter1), false);
 
@@ -1191,6 +1303,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.activateMinter(_minter1);
     }
 
+    /* ============ deactivateMinter ============ */
     function test_deactivateMinter() external {
         _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
 
@@ -1202,7 +1315,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp - 4 hours);
         _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - _updateCollateralInterval + 10);
 
-        _minterGateway.setTotalPrincipalOfActiveOwedM(1_000_000);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(1_000_000);
         _minterGateway.setLatestIndex(
             ContinuousIndexingMath.EXP_SCALED_ONE + ContinuousIndexingMath.EXP_SCALED_ONE / 10
         );
@@ -1237,7 +1350,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setCollateralOf(_minter1, mintAmount * 2);
         _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, mintAmount);
-        _minterGateway.setTotalPrincipalOfActiveOwedM(mintAmount);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(mintAmount);
 
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
         uint240 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
@@ -1265,6 +1378,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.deactivateMinter(makeAddr("someInactiveMinter"));
     }
 
+    /* ============ proposeRetrieval ============ */
     function test_proposeRetrieval() external {
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(2)));
 
@@ -1428,7 +1542,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
         _minterGateway.setRawOwedMOf(_minter1, amount);
-        _minterGateway.setTotalPrincipalOfActiveOwedM(amount);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(amount);
 
         uint240 retrievalAmount = 10e18;
         uint48 expectedRetrievalId = _minterGateway.retrievalNonce() + 1;
@@ -1597,14 +1711,20 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), block.timestamp);
     }
 
+    /* ============ Getters ============ */
     function test_emptyRateModel() external {
         _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, address(0));
 
         assertEq(_minterGateway.rate(), 0);
     }
 
+    function test_principalOfTotalActiveOwedM() external {
+        _minterGateway.setPrincipalOfTotalActiveOwedM(1_000_000);
+        assertEq(_minterGateway.principalOfTotalActiveOwedM(), 1_000_000);
+    }
+
     function test_totalActiveOwedM() external {
-        _minterGateway.setTotalPrincipalOfActiveOwedM(1_000_000);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(1_000_000);
         assertEq(_minterGateway.totalActiveOwedM(), 1_000_000);
 
         _minterGateway.setLatestIndex(
@@ -1621,7 +1741,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_totalOwedM() external {
         _minterGateway.setTotalInactiveOwedM(500_000);
-        _minterGateway.setTotalPrincipalOfActiveOwedM(1_000_000);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(1_000_000);
         assertEq(_minterGateway.totalOwedM(), 1_500_000);
 
         _minterGateway.setLatestIndex(
@@ -1671,6 +1791,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(missedUntil_, 0);
     }
 
+    /* ============ TTG Parameters ============ */
     function test_readTTGParameters() external {
         address peter = makeAddr("peter");
 
@@ -1690,17 +1811,17 @@ contract MinterGatewayTests is TestUtils {
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
         assertEq(_minterGateway.updateCollateralValidatorThreshold(), 3);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 12 * 60 * 60);
-        assertEq(_minterGateway.updateCollateralInterval(), 12 * 60 * 60);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 12 hours);
+        assertEq(_minterGateway.updateCollateralInterval(), 12 hours);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_FREEZE_TIME, 2 * 60 * 60);
-        assertEq(_minterGateway.minterFreezeTime(), 2 * 60 * 60);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_FREEZE_TIME, 2 hours);
+        assertEq(_minterGateway.minterFreezeTime(), 2 hours);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_DELAY, 3 * 60 * 60);
-        assertEq(_minterGateway.mintDelay(), 3 * 60 * 60);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_DELAY, 3 hours);
+        assertEq(_minterGateway.mintDelay(), 3 hours);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_TTL, 4 * 60 * 60);
-        assertEq(_minterGateway.mintTTL(), 4 * 60 * 60);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_TTL, 4 hours);
+        assertEq(_minterGateway.mintTTL(), 4 hours);
 
         MockRateModel minterRateModel = new MockRateModel();
         _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, address(minterRateModel));
