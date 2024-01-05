@@ -406,7 +406,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
-    function totalOwedM() public view returns (uint240) {
+    function totalOwedM() external view returns (uint240) {
         unchecked {
             // NOTE: This can never overflow since the `mint` functions caps the principal of total owed M (active and
             //       inactive) to `type(uint112).max`. Thus, there can never be enough inactive owed M (which is an
@@ -420,7 +420,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     function excessOwedM() public view returns (uint240 excessOwedM_) {
         // NOTE: Can safely cast to `uint240` since we know M Token totalSupply constraints.
         uint240 totalMSupply_ = uint240(IMToken(mToken).totalSupply());
-        uint240 totalOwedM_ = totalOwedM();
+
+        uint240 totalOwedM_ = _getPresentAmountRoundedDown(_totalPrincipalOfActiveOwedM, currentIndex()) +
+            totalInactiveOwedM();
 
         unchecked {
             if (totalOwedM_ > totalMSupply_) return totalOwedM_ - totalMSupply_;
