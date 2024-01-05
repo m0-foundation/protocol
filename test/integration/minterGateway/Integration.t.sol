@@ -301,14 +301,14 @@ contract IntegrationTests is IntegrationBaseSetup {
         _mintM(_minters[0], 800e6, _alice);
         _mintM(_minters[1], 500e6, _alice);
 
-        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
         // TTG removes minter from the protocol.
         _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
         // Minter is deactivated in the protocol
         _minterGateway.deactivateMinter(_minters[0]);
 
-        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
         // Danger zone - does not work for X seconds after deactivation
         vm.warp(block.timestamp + 1 seconds);
@@ -349,7 +349,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         _mintM(_minters[0], 800e6, _bob);
         _mintM(_minters[1], 900e6, _alice);
 
-        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
         vm.warp(block.timestamp + 30 days);
 

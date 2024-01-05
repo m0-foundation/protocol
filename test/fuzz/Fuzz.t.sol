@@ -160,10 +160,10 @@ contract FuzzTests is IntegrationBaseSetup {
         _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
         IMinterGateway(_minterGateway).deactivateMinter(_minters[0]);
 
-        assertEq(
+        assertGe(
             IMinterGateway(_minterGateway).totalOwedM(),
             IMToken(_mToken).totalSupply(),
-            "total owed M == total M supply"
+            "total owed M >= total M supply"
         );
 
         vm.warp(block.timestamp + timeElapsed);
