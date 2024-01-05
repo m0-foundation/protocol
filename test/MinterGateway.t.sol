@@ -1220,7 +1220,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.isDeactivatedMinter(_minter1), true);
         assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), 0);
         assertEq(_minterGateway.inactiveOwedMOf(_minter1), 1_100_000);
-        assertEq(_minterGateway.totalPendingCollateralRetrievalsOf(_minter1), 0);
+        assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_minterGateway.penalizedUntilOf(_minter1), 0);
 
         assertEq(_minterGateway.rawOwedMOf(_minter1), 1_100_000);
@@ -1316,7 +1316,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 retrievalId = _minterGateway.proposeRetrieval(collateral);
 
         assertEq(retrievalId, expectedRetrievalId);
-        assertEq(_minterGateway.totalPendingCollateralRetrievalsOf(_minter1), collateral);
+        assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), collateral);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId), collateral);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), 0);
 
@@ -1362,7 +1362,7 @@ contract MinterGatewayTests is TestUtils {
             signatures
         );
 
-        assertEq(_minterGateway.totalPendingCollateralRetrievalsOf(_minter1), 0);
+        assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId), 0);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), ((collateral / 2) * _mintRatio) / ONE);
     }
@@ -1439,14 +1439,14 @@ contract MinterGatewayTests is TestUtils {
         uint256 retrievalId = _minterGateway.proposeRetrieval(retrievalAmount);
 
         assertEq(retrievalId, expectedRetrievalId);
-        assertEq(_minterGateway.totalPendingCollateralRetrievalsOf(_minter1), retrievalAmount);
+        assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), retrievalAmount);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId), retrievalAmount);
 
         // Second retrieval proposal
         vm.prank(_minter1);
         uint256 newRetrievalId = _minterGateway.proposeRetrieval(retrievalAmount);
 
-        assertEq(_minterGateway.totalPendingCollateralRetrievalsOf(_minter1), retrievalAmount * 2);
+        assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), retrievalAmount * 2);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, newRetrievalId), retrievalAmount);
 
         uint256[] memory retrievalIds = new uint256[](1);
@@ -1474,7 +1474,7 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        assertEq(_minterGateway.totalPendingCollateralRetrievalsOf(_minter1), retrievalAmount);
+        assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), retrievalAmount);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, newRetrievalId), 0);
 
         retrievalIds[0] = retrievalId;
@@ -1496,7 +1496,7 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        assertEq(_minterGateway.totalPendingCollateralRetrievalsOf(_minter1), 0);
+        assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId), 0);
     }
 

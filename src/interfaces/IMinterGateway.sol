@@ -82,16 +82,16 @@ interface IMinterGateway is IContinuousIndexing {
 
     /**
      * @notice Emitted when a minter's collateral is updated.
-     * @param  minter                  Address of the minter
-     * @param  collateral              The latest amount of collateral
-     * @param  totalResolvedRetrievals The total collateral amount of outstanding retrievals resolved.
-     * @param  metadataHash            The hash of some metadata reserved for future informational use.
-     * @param  timestamp               The timestamp of the collateral update, minimum of given validators' signatures.
+     * @param  minter                           Address of the minter
+     * @param  collateral                       The latest amount of collateral
+     * @param  totalResolvedCollateralRetrieval The total collateral amount of outstanding retrievals resolved.
+     * @param  metadataHash                     The hash of some metadata reserved for future informational use.
+     * @param  timestamp                        The timestamp of the collateral update, minimum of given validators' signatures.
      */
     event CollateralUpdated(
         address indexed minter,
         uint240 collateral,
-        uint240 totalResolvedRetrievals,
+        uint240 totalResolvedCollateralRetrieval,
         bytes32 indexed metadataHash,
         uint40 timestamp
     );
@@ -330,7 +330,7 @@ interface IMinterGateway is IContinuousIndexing {
     function pendingCollateralRetrievalOf(address minter, uint256 retrievalId) external view returns (uint240);
 
     /// @notice The total amount of active proposeRetrieval requests per minter
-    function totalPendingCollateralRetrievalsOf(address minter) external view returns (uint240);
+    function totalPendingCollateralRetrievalOf(address minter) external view returns (uint240);
 
     /// @notice The timestamp when minter becomes unfrozen after being frozen by validator.
     function frozenUntilOf(address minter) external view returns (uint40);
