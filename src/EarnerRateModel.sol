@@ -12,9 +12,12 @@ import { IRateModel } from "./interfaces/IRateModel.sol";
 
 /**
  * @title Earner Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by MToken.
- * @author M^ZERO LABS_
+ * @author M^0 Labs
  */
 contract EarnerRateModel is IEarnerRateModel {
+    uint256 internal constant _SAFE_RATE_MULTIPLIER = 9_000; // 90 % in basis points
+    uint256 internal constant _ONE = 10_000; // 100 % in basis points
+
     /// @inheritdoc IEarnerRateModel
     address public immutable mToken;
 
@@ -48,7 +51,9 @@ contract EarnerRateModel is IEarnerRateModel {
         return
             UIntMath.min256(
                 baseRate(),
-                (IMinterGateway(minterGateway).minterRate() * totalActiveOwedM_) / totalEarningSupply_
+                (_SAFE_RATE_MULTIPLIER * (IMinterGateway(minterGateway).minterRate() * totalActiveOwedM_)) /
+                    totalEarningSupply_ /
+                    _ONE
             );
     }
 

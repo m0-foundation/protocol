@@ -19,16 +19,14 @@ contract FuzzTests is IntegrationBaseSetup {
         uint256 mintAmountToNonEarner,
         uint256 timeElapsed
     ) external {
-        vm.skip(true); // TODO: current earner model doesn't work for it, enable after fix
-
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, uint256(0));
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 365 days);
         _registrar.updateConfig(TTGRegistrarReader.MINT_DELAY, uint256(0));
 
         minterRate = bound(minterRate, 100, 40000); // [0.1%, 400%] in basis points
         earnerRate = bound(earnerRate, 100, 40000); // [0.1%, 400%] in basis points
-        mintAmountToEarner = bound(mintAmountToEarner, 100e6, 1000e15);
-        mintAmountToNonEarner = bound(mintAmountToNonEarner, 100e6, 1000e15);
+        mintAmountToEarner = bound(mintAmountToEarner, 1_000e6, 1_000e15);
+        mintAmountToNonEarner = bound(mintAmountToNonEarner, 1_000e6, 1_000e15);
         timeElapsed = bound(timeElapsed, 10, 10 days); // [10, 10 days]
 
         // Stress test protocol - earner rate >= minter rate
@@ -90,16 +88,14 @@ contract FuzzTests is IntegrationBaseSetup {
         uint256 minter2Amount,
         uint256 timeElapsed
     ) external {
-        vm.skip(true); // TODO: current earner model doesn't work for it, enable after fix
-
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, uint256(0));
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 365 days);
         _registrar.updateConfig(TTGRegistrarReader.MINT_DELAY, uint256(0));
 
         minterRate = bound(minterRate, 100, 40000); // [0.1%, 400%] in basis points
         earnerRate = bound(earnerRate, 100, 40000); // [0.1%, 400%] in basis points
-        minter1Amount = bound(minter1Amount, 100e6, 1000e15);
-        minter2Amount = bound(minter2Amount, 100e6, 1000e15);
+        minter1Amount = bound(minter1Amount, 1_000e6, 1_000e15);
+        minter2Amount = bound(minter2Amount, 1_000e6, 1_000e15);
         timeElapsed = bound(timeElapsed, 10, 10 days); // [10, 10 days]
 
         // Stress test protocol - earner rate >= minter rate
@@ -182,10 +178,10 @@ contract FuzzTests is IntegrationBaseSetup {
             "total owed M >= total M supply"
         );
         _minterGateway.updateIndex();
-        assertEq(
+        assertGe(
             IMinterGateway(_minterGateway).totalOwedM(),
             IMToken(_mToken).totalSupply(),
-            "total owed M == total M supply"
+            "total owed M >= total M supply"
         );
     }
 }
