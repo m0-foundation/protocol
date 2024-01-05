@@ -790,11 +790,14 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         uint32 updateInterval_
     ) internal view returns (uint40 missedIntervals_, uint40 missedUntil_) {
         // If brand new minter or `updateInterval_` is 0, then there is no missed interval charge at all.
-        if (lastUpdateTimestamp_ == 0 || updateInterval_ == 0) return (0, uint40(block.timestamp));
+        if (lastUpdateTimestamp_ == 0 || updateInterval_ == 0) return (0, 0);
 
         uint40 penalizeFrom_ = UIntMath.max40(lastUpdateTimestamp_, lastPenalizedUntil_);
+        uint40 timeElapsed_ = uint40(block.timestamp) - penalizeFrom_;
 
-        missedIntervals_ = (uint40(block.timestamp) - penalizeFrom_) / updateInterval_;
+        if (timeElapsed_ < updateInterval_) return (0, 0);
+
+        missedIntervals_ = timeElapsed_ / updateInterval_;
         missedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);
     }
 
