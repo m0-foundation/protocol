@@ -15,7 +15,7 @@ import { IRateModel } from "./interfaces/IRateModel.sol";
  * @author M^0 Labs
  */
 contract EarnerRateModel is IEarnerRateModel {
-    uint256 internal constant _SAFE_RATE_MULTIPLIER = 8_000; // 80 % in basis points
+    uint256 internal constant _SAFE_RATE_MULTIPLIER = 9_000; // 90 % in basis points
     uint256 internal constant _ONE = 10_000; // 100 % in basis points
 
     /// @inheritdoc IEarnerRateModel
@@ -48,7 +48,6 @@ contract EarnerRateModel is IEarnerRateModel {
         if (totalEarningSupply_ == 0) return baseRate();
 
         // NOTE: Calculate safety guard rate that prevents overprinting of M.
-        // TODO: Discuss the pros/cons of moving this into M Token after all integration/invariants tests are done.
         return
             UIntMath.min256(
                 baseRate(),
