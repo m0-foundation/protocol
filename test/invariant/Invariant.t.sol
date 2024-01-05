@@ -13,8 +13,8 @@ import { IMToken } from "../../src/interfaces/IMToken.sol";
 import { IMinterGateway } from "../../src/interfaces/IMinterGateway.sol";
 
 import { TTGRegistrarReader } from "../../src/libs/TTGRegistrarReader.sol";
-import { MinterRateModel } from "../../src/MinterRateModel.sol";
-import { EarnerRateModel } from "../../src/EarnerRateModel.sol";
+import { MinterRateModel } from "../../src/rateModels/MinterRateModel.sol";
+import { SplitEarnerRateModel } from "../../src/rateModels/SplitEarnerRateModel.sol";
 
 import { MockTTGRegistrar } from "../utils/Mocks.sol";
 

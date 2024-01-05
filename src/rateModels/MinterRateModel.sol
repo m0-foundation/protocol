@@ -2,10 +2,10 @@
 
 pragma solidity 0.8.23;
 
-import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
+import { TTGRegistrarReader } from "../libs/TTGRegistrarReader.sol";
 
-import { IMinterRateModel } from "./interfaces/IMinterRateModel.sol";
-import { IRateModel } from "./interfaces/IRateModel.sol";
+import { IMinterRateModel } from "../interfaces/IMinterRateModel.sol";
+import { IRateModel } from "../interfaces/IRateModel.sol";
 
 /**
  * @title Minter Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by Minter Gateway.

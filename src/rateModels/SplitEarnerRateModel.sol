@@ -6,17 +6,17 @@ import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
 import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 
-import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
-import { IMToken } from "./interfaces/IMToken.sol";
-import { IMinterGateway } from "./interfaces/IMinterGateway.sol";
-import { IRateModel } from "./interfaces/IRateModel.sol";
+import { IEarnerRateModel } from "../interfaces/IEarnerRateModel.sol";
+import { IMToken } from "../interfaces/IMToken.sol";
+import { IMinterGateway } from "../interfaces/IMinterGateway.sol";
+import { IRateModel } from "../interfaces/IRateModel.sol";
 
 /**
  * @title Earner Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by MToken.
  * @author M^0 Labs
  */
-contract EarnerRateModel is IEarnerRateModel {
-    uint256 internal constant _SAFE_RATE_MULTIPLIER = 9_000; // 90 % in basis points
+contract SplitEarnerRateModel is IEarnerRateModel {
+    uint256 internal constant _EARNER_SPLIT_MULTIPLIER = 9_000; // 90 % in basis points
     uint256 internal constant _ONE = 10_000; // 100 % in basis points
 
     /// @inheritdoc IEarnerRateModel
@@ -48,11 +48,12 @@ contract EarnerRateModel is IEarnerRateModel {
 
         if (totalEarningSupply_ == 0) return baseRate();
 
-        // NOTE: Calculate safety guard rate that prevents overprinting of M.
+        // NOTE: Calculate safety guard rate that prevents overprinting of M,
+        //       and allows to provide % split between Earners and Distribution Vault.
         return
             UIntMath.min256(
                 baseRate(),
-                (_SAFE_RATE_MULTIPLIER * (IMinterGateway(minterGateway).minterRate() * totalActiveOwedM_)) /
+                (_EARNER_SPLIT_MULTIPLIER * (IMinterGateway(minterGateway).minterRate() * totalActiveOwedM_)) /
                     totalEarningSupply_ /
                     _ONE
             );
