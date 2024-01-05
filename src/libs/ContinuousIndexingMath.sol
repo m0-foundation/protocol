@@ -12,9 +12,6 @@ library ContinuousIndexingMath {
     /// @notice Emitted when a division by zero occurs.
     error DivisionByZero();
 
-    /// @notice Emitted when the natural logarithm will result in a negative number.
-    error NegativeExponent();
-
     /// @notice The number of seconds in a year.
     uint32 internal constant SECONDS_PER_YEAR = 31_536_000;
 
