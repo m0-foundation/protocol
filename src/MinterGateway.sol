@@ -42,16 +42,15 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     // TODO: Combine `isActive` and `isDeactivated` into an enum (i.e. `NeverActivated`, `Active`, `Deactivated`).
     struct MinterState {
         // 1st slot
+        bool isActive;
+        bool isDeactivated;
         uint240 collateral;
         // 2nd slot
         uint240 totalPendingRetrievals;
         // 3rd slot
-        uint32 lastUpdateInterval;
         uint40 updateTimestamp;
         uint40 penalizedUntilTimestamp;
         uint40 frozenUntilTimestamp;
-        bool isActive;
-        bool isDeactivated;
     }
 
     /******************************************************************************************************************\
@@ -505,12 +504,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /// @inheritdoc IMinterGateway
     function collateralUpdateDeadlineOf(address minter_) public view returns (uint40) {
         // TODO: Consider unchecked given time and duration assumptions?
-        return _minterStates[minter_].updateTimestamp + _minterStates[minter_].lastUpdateInterval;
-    }
-
-    /// @inheritdoc IMinterGateway
-    function lastCollateralUpdateIntervalOf(address minter_) external view returns (uint32) {
-        return _minterStates[minter_].lastUpdateInterval;
+        return _minterStates[minter_].updateTimestamp + updateCollateralInterval();
     }
 
     /// @inheritdoc IMinterGateway
@@ -650,19 +644,12 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         uint32 updateCollateralInterval_ = updateCollateralInterval();
 
         MinterState storage minterState_ = _minterStates[minter_];
-        uint32 lastUpdateInterval_ = minterState_.lastUpdateInterval;
 
         (uint40 missedIntervals_, uint40 missedUntil_) = _getMissedCollateralUpdateParameters(
-            lastUpdateInterval_,
             minterState_.updateTimestamp,
             minterState_.penalizedUntilTimestamp,
             updateCollateralInterval_
         );
-
-        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if SPOG changes it.
-        if (updateCollateralInterval_ != 0 && lastUpdateInterval_ != updateCollateralInterval_) {
-            _minterStates[minter_].lastUpdateInterval = updateCollateralInterval_;
-        }
 
         if (missedIntervals_ == 0) return;
 
@@ -791,36 +778,28 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /**
      * @dev    Returns the penalization base and the penalized until timestamp.
-     * @param  lastUpdateInterval_ The last update collateral interval the minter needed to abide by.
-     * @param  lastUpdate_         The last timestamp at which the minter updated their collateral.
-     * @param  lastPenalizedUntil_ The last timestamp before which the minter shouldn't be penalized for missed updates.
-     * @param  newUpdateInterval_  The new update collateral interval.
-     * @return missedIntervals_    The number of missed update intervals.
-     * @return missedUntil_        The timestamp until which `missedIntervals_` covers, even if `missedIntervals_` is 0.
+     * @param  lastUpdateTimestamp_ The last timestamp at which the minter updated their collateral.
+     * @param  lastPenalizedUntil_  The last timestamp before which the minter shouldn't be penalized for missed updates.
+     * @param  updateInterval_      The update collateral interval.
+     * @return missedIntervals_     The number of missed update intervals.
+     * @return missedUntil_         The timestamp until which `missedIntervals_` covers, even if `missedIntervals_` is 0.
      */
     function _getMissedCollateralUpdateParameters(
-        uint32 lastUpdateInterval_,
-        uint40 lastUpdate_,
+        uint40 lastUpdateTimestamp_,
         uint40 lastPenalizedUntil_,
-        uint32 newUpdateInterval_
+        uint32 updateInterval_
     ) internal view returns (uint40 missedIntervals_, uint40 missedUntil_) {
-        // If `newUpdateInterval_` is 0, then there is no missed interval charge at all.
-        if (newUpdateInterval_ == 0) return (0, uint40(block.timestamp));
+        uint40 penalizeFrom_ = UIntMath.max40(lastUpdateTimestamp_, lastPenalizedUntil_);
 
-        if (lastUpdate_ == 0) return (0, uint40(block.timestamp)); // Brand new minter.
+        // If brand new minter or `updateInterval_` is 0, then there is no missed interval charge at all.
+        if (lastUpdateTimestamp_ == 0 || updateInterval_ == 0) return (0, penalizeFrom_);
 
-        uint40 penalizeFrom_ = UIntMath.max40(lastUpdate_, lastPenalizedUntil_);
+        uint40 timeElapsed_ = uint40(block.timestamp) - penalizeFrom_;
 
-        // If the new interval is advantageous to the minter for the first deadline, then use it.
-        // NOTE: If `lastUpdateInterval_` is 0, then the non-zero `newUpdateInterval_` is used.
-        uint40 firstDeadline_ = penalizeFrom_ + UIntMath.max40(lastUpdateInterval_, newUpdateInterval_);
+        if (timeElapsed_ < updateInterval_) return (0, penalizeFrom_);
 
-        // Deadline for first missed interval not reached yet.
-        if (block.timestamp <= firstDeadline_) return (0, penalizeFrom_);
-
-        uint40 additionalMissedIntervals_ = (uint40(block.timestamp) - firstDeadline_) / newUpdateInterval_;
-
-        return (1 + additionalMissedIntervals_, firstDeadline_ + (additionalMissedIntervals_ * newUpdateInterval_));
+        missedIntervals_ = timeElapsed_ / updateInterval_;
+        missedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);
     }
 
     /**
@@ -840,7 +819,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         MinterState storage minterState_ = _minterStates[minter_];
 
         (uint40 missedIntervals_, ) = _getMissedCollateralUpdateParameters(
-            minterState_.lastUpdateInterval,
             minterState_.updateTimestamp,
             minterState_.penalizedUntilTimestamp,
             updateCollateralInterval()
