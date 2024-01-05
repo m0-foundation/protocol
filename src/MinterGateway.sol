@@ -391,7 +391,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /// @inheritdoc IMinterGateway
-    function principalOfTotalActiveOwedM() external view returns (uint112) {
+    function totalPrincipalOfActiveOwedM() external view returns (uint112) {
         return _totalPrincipalOfActiveOwedM;
     }
 
@@ -452,7 +452,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /// @inheritdoc IMinterGateway
     function principalOfActiveOwedMOf(address minter_) public view returns (uint112) {
         // NOTE: This should also include the principal value of unavoidable penalities. But then it would be very, if
-        //       not impossible, to determine the `principalOfTotalActiveOwedM` to the same standards.
+        //       not impossible, to determine the `totalPrincipalOfActiveOwedM` to the same standards.
         return
             _minterStates[minter_].isActive
                 ? uint112(_rawOwedM[minter_]) // Treat rawOwedM as principal since minter is active.
@@ -624,15 +624,15 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
             // As an edge case precaution, cap the penalty principal such that the resulting total principal of active
             // owed M plus the penalty principal is not greater than the max uint112.
-            uint256 newTotalPrincipalOfActiveOwedM_ = _totalPrincipalOfActiveOwedM + penaltyPrincipal_;
+            uint256 newtotalPrincipalOfActiveOwedM_ = _totalPrincipalOfActiveOwedM + penaltyPrincipal_;
 
-            if (newTotalPrincipalOfActiveOwedM_ > type(uint112).max) {
+            if (newtotalPrincipalOfActiveOwedM_ > type(uint112).max) {
                 penaltyPrincipal_ = type(uint112).max - _totalPrincipalOfActiveOwedM;
-                newTotalPrincipalOfActiveOwedM_ = type(uint112).max;
+                newtotalPrincipalOfActiveOwedM_ = type(uint112).max;
             }
 
             // Calculate and add penalty principal to total minter's principal of active owed M
-            _totalPrincipalOfActiveOwedM = uint112(newTotalPrincipalOfActiveOwedM_);
+            _totalPrincipalOfActiveOwedM = uint112(newtotalPrincipalOfActiveOwedM_);
 
             _rawOwedM[minter_] += uint112(penaltyPrincipal_); // Treat rawOwedM as principal since minter is active.
 
