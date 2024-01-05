@@ -6,6 +6,7 @@ import { IERC20Extended } from "../../lib/common/src/interfaces/IERC20Extended.s
 
 import { IContinuousIndexing } from "./IContinuousIndexing.sol";
 
+/// @title M Token Interface.
 interface IMToken is IContinuousIndexing, IERC20Extended {
     /******************************************************************************************************************\
     |                                                     Errors                                                       |

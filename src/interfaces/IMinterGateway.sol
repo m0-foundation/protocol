@@ -10,6 +10,9 @@ interface IMinterGateway is IContinuousIndexing {
     |                                                      Errors                                                      |
     \******************************************************************************************************************/
 
+    /// @notice Emitted when principal of total owed M (active and inactive) will overflow a `type(uint112).max`.
+    error OverflowsPrincipalOfTotalOwedM();
+
     /// @notice Emitted when calling `mintM` with a proposal that was created more than `mintDelay + mintTTL` time ago.
     error ExpiredMintProposal(uint40 deadline);
 
@@ -25,7 +28,7 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice Emitted when calling `updateCollateral` if `validators` addresses are not ordered in ascending order.
     error InvalidSignatureOrder();
 
-    /// @notice Emitted when calling `deactivateMinter` with an inactive minter.
+    /// @notice Emitted when calling a function only allowed for active minters.
     error InactiveMinter();
 
     /// @notice Emitted when calling `activateMinter` with a minter who was previously deactivated.
@@ -45,7 +48,7 @@ interface IMinterGateway is IContinuousIndexing {
 
     /// @notice Emitted when calling `proposeRetrieval` if sum of all outstanding retrievals
     ///         Plus new proposed retrieval amount is greater than collateral.
-    error RetrievalsExceedCollateral(uint128 totalPendingRetrievals, uint128 collateral);
+    error RetrievalsExceedCollateral(uint240 totalPendingRetrievals, uint240 collateral);
 
     /// @notice Emitted when calling `updateCollateral`
     ///         If `validators`, `signatures`, `timestamps` lengths do not match.
@@ -57,9 +60,12 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice Emitted when calling `deactivateMinter` with a minter still approved in TTG Registrar.
     error StillApprovedMinter();
 
-    /// @notice Emitted when calling `proposeMint`, `mintM`, `proposeRetrieval`
-    ///         If minter position becomes undercollateralized.
-    error Undercollateralized(uint128 activeOwedM, uint128 maxAllowedOwedM);
+    /**
+     * @notice Emitted when calling `proposeMint`, `mintM`, `proposeRetrieval`
+     *         If minter position becomes undercollateralized.
+     * @dev    `activeOwedM` is a `uint256` because it may represent some resulting owed M from computations.
+     */
+    error Undercollateralized(uint256 activeOwedM, uint256 maxAllowedOwedM);
 
     ///  @notice Emitted in constructor if M Token is 0x0.
     error ZeroMToken();
@@ -76,16 +82,16 @@ interface IMinterGateway is IContinuousIndexing {
 
     /**
      * @notice Emitted when a minter's collateral is updated.
-     * @param  minter       Address of the minter
-     * @param  collateral   The latest amount of collateral
-     * @param  retrievalIds The list of outstanding proposeRetrieval requests to close
-     * @param  metadataHash The hash of metadata of the collateral update, reserved for future informational use
-     * @param  timestamp    The timestamp of the collateral update, minimum of given validators' signatures
+     * @param  minter                  Address of the minter
+     * @param  collateral              The latest amount of collateral
+     * @param  totalResolvedRetrievals The total collateral amount of outstanding retrievals resolved.
+     * @param  metadataHash            The hash of some metadata reserved for future informational use.
+     * @param  timestamp               The timestamp of the collateral update, minimum of given validators' signatures.
      */
     event CollateralUpdated(
         address indexed minter,
-        uint128 collateral,
-        uint256[] indexed retrievalIds,
+        uint240 collateral,
+        uint240 totalResolvedRetrievals,
         bytes32 indexed metadataHash,
         uint40 timestamp
     );
@@ -99,11 +105,11 @@ interface IMinterGateway is IContinuousIndexing {
 
     /**
      * @notice Emitted when a minter is deactivated.
-     * @param  minter        Address of the minter that was deactivated
-     * @param  inactiveOwedM Amount of M tokens owed by the minter
-     * @param  caller        Address who called the function
+     * @param  minter        Address of the minter that was deactivated.
+     * @param  inactiveOwedM Amount of M tokens owed by the minter (in an inactive state).
+     * @param  caller        Address who called the function.
      */
-    event MinterDeactivated(address indexed minter, uint128 inactiveOwedM, address indexed caller);
+    event MinterDeactivated(address indexed minter, uint240 inactiveOwedM, address indexed caller);
 
     /**
      * @notice Emitted when a minter is frozen.
@@ -119,7 +125,7 @@ interface IMinterGateway is IContinuousIndexing {
      * @param  amount      The amount of M tokens to mint
      * @param  destination The address to mint to
      */
-    event MintProposed(uint48 indexed mintId, address indexed minter, uint128 amount, address indexed destination);
+    event MintProposed(uint48 indexed mintId, address indexed minter, uint240 amount, address indexed destination);
 
     /**
      * @notice Emitted when mint proposal is canceled.
@@ -140,22 +146,29 @@ interface IMinterGateway is IContinuousIndexing {
      * @param  amount The amount of M tokens to burn
      * @param  payer  The address of the payer
      */
-    event BurnExecuted(address indexed minter, uint128 amount, address indexed payer);
+    event BurnExecuted(address indexed minter, uint240 amount, address indexed payer);
 
     /**
      * @notice Emitted when penalty is imposed on minter.
      * @param  minter The address of the minter
      * @param  amount The amount of penalty charge
      */
-    event PenaltyImposed(address indexed minter, uint128 amount);
+    event PenaltyImposed(address indexed minter, uint240 amount);
 
     /**
-     * @notice Emitted when collateral retrieval proposal is created.
-     * @param  retrievalId The id of retrieval proposal
-     * @param  minter      The address of the minter
-     * @param  amount      The amount of collateral to retrieve
+     * @notice Emitted when a collateral retrieval proposal is created.
+     * @param  retrievalId The id of retrieval proposal.
+     * @param  minter      The address of the minter.
+     * @param  amount      The amount of collateral to retrieve.
      */
-    event RetrievalCreated(uint48 indexed retrievalId, address indexed minter, uint128 amount);
+    event RetrievalCreated(uint48 indexed retrievalId, address indexed minter, uint240 amount);
+
+    /**
+     * @notice Emitted when a collateral retrieval proposal is resolved.
+     * @param  retrievalId The id of retrieval proposal.
+     * @param  minter      The address of the minter.
+     */
+    event RetrievalResolved(uint48 indexed retrievalId, address indexed minter);
 
     /******************************************************************************************************************\
     |                                          External Interactive Functions                                          |
@@ -163,13 +176,13 @@ interface IMinterGateway is IContinuousIndexing {
 
     /**
      * @notice Updates collateral for minters
-     * @param  collateral    The amount of collateral
-     * @param  retrievalIds  The list of active proposeRetrieval requests to close
-     * @param  metadataHash  The hash of metadata of the collateral update, reserved for future informational use
-     * @param  validators    The list of validators
-     * @param  timestamps    The list of timestamps of validators' signatures
-     * @param  signatures    The list of signatures
-     * @return minTimestamp  The minimum timestamp of all validators' signatures
+     * @param  collateral   The amount of collateral
+     * @param  retrievalIds The list of active proposeRetrieval requests to close
+     * @param  metadataHash The hash of metadata of the collateral update, reserved for future informational use
+     * @param  validators   The list of validators
+     * @param  timestamps   The list of timestamps of validators' signatures
+     * @param  signatures   The list of signatures
+     * @return minTimestamp The minimum timestamp of all validators' signatures
      */
     function updateCollateral(
         uint256 collateral,
@@ -235,10 +248,10 @@ interface IMinterGateway is IContinuousIndexing {
      * @notice Deactivates an active minter.
      * @dev    MUST revert if the minter is not an approved minter.
      * @dev    SHOULD revert if the minter is not active.
-     * @param  minter The address of the minter to deactivate
-     * @return inactiveOwedM The inactive owed M for the deactivated minter
+     * @param  minter        The address of the minter to deactivate.
+     * @return inactiveOwedM The inactive owed M for the deactivated minter.
      */
-    function deactivateMinter(address minter) external returns (uint128 inactiveOwedM);
+    function deactivateMinter(address minter) external returns (uint240 inactiveOwedM);
 
     /******************************************************************************************************************\
     |                                           External View/Pure Functions                                           |
@@ -262,58 +275,65 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice The last saved value of Minter rate.
     function minterRate() external view returns (uint32);
 
+    /// @notice The principal of total owed M for all active minters.
+    function principalOfTotalActiveOwedM() external view returns (uint112);
+
     /// @notice The total owed M for all active minters.
-    function totalActiveOwedM() external view returns (uint128);
+    function totalActiveOwedM() external view returns (uint240);
 
     /// @notice The total owed M for all inactive minters.
-    function totalInactiveOwedM() external view returns (uint128);
+    function totalInactiveOwedM() external view returns (uint240);
 
     /// @notice The total owed M for all minters.
-    function totalOwedM() external view returns (uint128);
+    function totalOwedM() external view returns (uint240);
 
     /// @notice The difference between total owed M and M token total supply.
-    function excessOwedM() external view returns (uint128);
+    function excessOwedM() external view returns (uint240);
+
+    /// @notice The principal of active owed M of minter.
+    function principalOfActiveOwedMOf(address minter_) external view returns (uint112);
 
     /// @notice The active owed M of minter.
-    function activeOwedMOf(address minter) external view returns (uint128);
+    function activeOwedMOf(address minter) external view returns (uint240);
 
-    /// @notice The max allowed active owed M of minter taking into account collateral amount and retrieval proposals.
-    function maxAllowedActiveOwedMOf(address minter) external view returns (uint128);
+    /**
+     * @notice The max allowed active owed M of minter taking into account collateral amount and retrieval proposals.
+     * @dev    This is the only present value that requires a `uint256` since it is the result of a multiplication
+     *         between a `uint240` and a value that has a max of `1,000,000` (the mint ratio).
+     */
+    function maxAllowedActiveOwedMOf(address minter) external view returns (uint256);
 
     /// @notice The inactive owed M of deactivated minter.
-    function inactiveOwedMOf(address minter) external view returns (uint128);
+    function inactiveOwedMOf(address minter) external view returns (uint240);
 
     /// @notice The collateral of a given minter.
-    function collateralOf(address minter) external view returns (uint128);
+    function collateralOf(address minter) external view returns (uint240);
 
     /// @notice The timestamp of the last collateral update of minter.
-    function collateralUpdateOf(address minter) external view returns (uint40);
+    function collateralUpdateTimestampOf(address minter) external view returns (uint40);
 
     /// @notice The timestamp of the deadline for the next collateral update of minter.
     function collateralUpdateDeadlineOf(address minter) external view returns (uint40);
-
-    /// @notice The length of the last collateral interval for minter in case TTG changes this parameter.
-    function lastCollateralUpdateIntervalOf(address minter) external view returns (uint32);
 
     /// @notice The timestamp until which minter is already penalized for missed collateral updates.
     function penalizedUntilOf(address minter) external view returns (uint40);
 
     /// @notice The penalty for missed collateral updates. Penalized once per missed interval.
-    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint128);
+    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint240);
 
     /// @notice The mint proposal of minters, only 1 active proposal per minter
     function mintProposalOf(
         address minter
-    ) external view returns (uint48 mintId, uint40 createdAt, address destination, uint128 amount);
+    ) external view returns (uint48 mintId, uint40 createdAt, address destination, uint240 amount);
 
     /// @notice The minter's proposeRetrieval proposal amount
-    function pendingCollateralRetrievalOf(address minter, uint256 retrievalId) external view returns (uint128);
+    function pendingCollateralRetrievalOf(address minter, uint256 retrievalId) external view returns (uint240);
 
     /// @notice The total amount of active proposeRetrieval requests per minter
-    function totalPendingCollateralRetrievalsOf(address minter) external view returns (uint128);
+    function totalPendingCollateralRetrievalsOf(address minter) external view returns (uint240);
 
     /// @notice The timestamp when minter becomes unfrozen after being frozen by validator.
-    function unfrozenTimeOf(address minter) external view returns (uint40);
+    function frozenUntilOf(address minter) external view returns (uint40);
 
     /// @notice Checks if minter was activated after approval by TTG
     function isActiveMinter(address minter) external view returns (bool);

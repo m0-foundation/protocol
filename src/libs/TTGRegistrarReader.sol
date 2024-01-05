@@ -5,7 +5,7 @@ pragma solidity 0.8.23;
 import { ITTGRegistrar } from "../interfaces/ITTGRegistrar.sol";
 
 /**
- * @title Library to read TTG (Two Token Governance) Registrar contract parameters.
+ * @title  Library to read TTG (Two Token Governance) Registrar contract parameters.
  * @author M^ZERO Labs
  */
 library TTGRegistrarReader {

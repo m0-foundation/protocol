@@ -7,7 +7,7 @@ import { UIntMath } from "./UIntMath.sol";
 // TODO: Consider R(5,5) Padé approximation with some divisions if needed to maintain input range.
 
 /**
- * @title Arithmetic library with operations for calculating continuous indexing.
+ * @title  Arithmetic library with operations for calculating continuous indexing.
  * @author M^ZERO Labs
  */
 library ContinuousIndexingMath {
@@ -24,46 +24,74 @@ library ContinuousIndexingMath {
     uint56 internal constant EXP_SCALED_ONE = 1e12;
 
     /**
-     * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `y`, rounded down.
+     * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `index`, rounded down.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
-    function divideDown(uint128 x, uint128 y) internal pure returns (uint128 z) {
-        if (y == 0) revert DivisionByZero();
+    function divideDown(uint240 x, uint128 index) internal pure returns (uint112 z) {
+        if (index == 0) revert DivisionByZero();
 
         unchecked {
-            return uint128((uint256(x) * EXP_SCALED_ONE) / y);
+            // NOTE: While `uint256(x) * EXP_SCALED_ONE` can technically overflow, these divide/multiply functions are
+            //       only used for the purpose of principal/present amount calculations for continuous indexing, and
+            //       so for an `x` to be large enough to overflow this, it would have to be a possible result of
+            //       `multiplyDown` or `multiplyUp`, which would already satisfy
+            //       `uint256(x) * EXP_SCALED_ONE < type(uint256).max`.
+            return UIntMath.safe112((uint256(x) * EXP_SCALED_ONE) / index);
         }
     }
 
     /**
-     * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `y`, rounded up.
+     * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `index`, rounded up.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
-    function divideUp(uint128 x, uint128 y) internal pure returns (uint128 z) {
-        if (y == 0) revert DivisionByZero();
+    function divideUp(uint240 x, uint128 index) internal pure returns (uint112 z) {
+        if (index == 0) revert DivisionByZero();
 
         unchecked {
-            return uint128(((uint256(x) * EXP_SCALED_ONE) + y - 1) / y);
+            // NOTE: While `uint256(x) * EXP_SCALED_ONE` can technically overflow, these divide/multiply functions are
+            //       only used for the purpose of principal/present amount calculations for continuous indexing, and
+            //       so for an `x` to be large enough to overflow this, it would have to be a possible result of
+            //       `multiplyDown` or `multiplyUp`, which would already satisfy
+            //       `uint256(x) * EXP_SCALED_ONE < type(uint256).max`.
+            return UIntMath.safe112(((uint256(x) * EXP_SCALED_ONE) + index - 1) / index);
         }
     }
 
     /**
-     * @notice Helper function to calculate (`x` * `y`) / `EXP_SCALED_ONE`, rounded down.
+     * @notice Helper function to calculate (`x` * `index`) / `EXP_SCALED_ONE`, rounded down.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
-    function multiplyDown(uint128 x, uint128 y) internal pure returns (uint128 z) {
+    function multiplyDown(uint112 x, uint128 index) internal pure returns (uint240 z) {
         unchecked {
-            return UIntMath.safe128((uint256(x) * y) / EXP_SCALED_ONE);
+            return uint240((uint256(x) * index) / EXP_SCALED_ONE);
         }
     }
 
     /**
-     * @notice Helper function to calculate (`x` * `y`) / `EXP_SCALED_ONE`, rounded up.
+     * @notice Helper function to calculate (`x` * `index`) / `EXP_SCALED_ONE`, rounded up.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
-    function multiplyUp(uint128 x, uint128 y) internal pure returns (uint128 z) {
+    function multiplyUp(uint112 x, uint128 index) internal pure returns (uint240 z) {
         unchecked {
-            return UIntMath.safe128(((uint256(x) * y) + (EXP_SCALED_ONE - 1)) / EXP_SCALED_ONE);
+            return uint240(((uint256(x) * index) + (EXP_SCALED_ONE - 1)) / EXP_SCALED_ONE);
+        }
+    }
+
+    /**
+     * @notice Helper function to calculate (`index` * `deltaIndex`) / `EXP_SCALED_ONE`, rounded down.
+     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
+     */
+    function multiplyIndices(uint128 index, uint48 deltaIndex) internal pure returns (uint128 z) {
+        unchecked {
+            // NOTE: While `multiplyUp` can mostly result in additional continuous compounding accuracy (mainly because
+            //       Padé exponent approximations always results in a lower value, and `multiplyUp` artificially
+            //       increases that value), for some smaller `r*t` values, it results in a higher effective index than
+            //       the "ideal". While not really an issue, this "often lower than, but sometimes higher than, ideal
+            //       index" may no be a good characteristic, and `multiplyUp` does costs a tiny bit more gas.
+            // NOTE: While technically possible for the result to be greater than `type(uint128).max`, having an index
+            //       greater than `type(uint128).max` is just not possible to support with this protocol and we can
+            //       safely assume such an index will never occur.
+            return UIntMath.safe128((uint256(index) * deltaIndex) / EXP_SCALED_ONE);
         }
     }
 
@@ -73,7 +101,7 @@ library ContinuousIndexingMath {
      * @dev    `uint32 time` can accommodate 100 years.
      * @dev    `type(uint64).max * type(uint32).max / SECONDS_PER_YEAR` fits in a `uint72`.
      */
-    function getContinuousIndex(uint64 yearlyRate, uint32 time) internal pure returns (uint128 index) {
+    function getContinuousIndex(uint64 yearlyRate, uint32 time) internal pure returns (uint48 index) {
         unchecked {
             // NOTE: Casting `uint256(yearlyRate) * time` to a `uint72` is safe because the largest value is
             //      `type(uint64).max * type(uint32).max / SECONDS_PER_YEAR`, which is less than `type(uint72).max`.
@@ -85,27 +113,29 @@ library ContinuousIndexingMath {
      * @notice Helper function to calculate y = e^x using R(4,4) Padé approximation:
      *           e(x) = (1 + x/2 + 3(x^2)/28 + x^3/84 + x^4/1680) / (1 - x/2 + 3(x^2)/28 - x^3/84 + x^4/1680)
      *           See: https://en.wikipedia.org/wiki/Pad%C3%A9_table
+     *           See: https://www.wolframalpha.com/input?i=PadeApproximant%5Bexp%5Bx%5D%2C%7Bx%2C0%2C%7B4%2C+4%7D%7D%5D
      *         Despite itself being a whole number, `x` represents a real number scaled by `EXP_SCALED_ONE`, thus
      *         allowing for y = e^x where x is a real number.
-     * @dev    Output `y` for a `uint72` input `x` will fit in `uint128`
+     * @dev    Output `y` for a `uint72` input `x` will fit in `uint48`
      */
-    function exponent(uint72 x) internal pure returns (uint128 y) {
-        // NOTE: This can be done unchecked because the largest value is `additiveTerms`, and its largest possible
-        //       value for `x = type(uint72).max` is `287484773207181047759990985259706344810000000000000`, which is
-        //       less than `(2 << 167) - 1` (i.e. the max 167-bit number). Then `additiveTerms` is multiplied by 1e12,
-        //       which is less than `(2 << 208) - 1` (i.e. the max 208-bit number).
+    function exponent(uint72 x) internal pure returns (uint48 y) {
+        // NOTE: This can be done unchecked even for `x = type(uint72).max`.
+        //       Verify by removing `unchecked` and running `test_exponent()`.
         unchecked {
-            // Set `y` to be `x^2` for now.
-            y = uint128(x) * x;
+            uint256 x2 = uint256(x) * x;
 
-            // `additiveTerms` is `(1 + 3(x^2)/28 + x^4/1680)`, but scaled by `84e36`.
-            uint256 additiveTerms = 84e36 + (uint256(9e12) * y) + ((uint256(y) * y) / 20e12);
+            // `additiveTerms` is `(1 + 3(x^2)/28 + x^4/1680)`, and scaled by `84e27`.
+            // NOTE: `84e27` the cleanest and largest scalar, given `(additiveTerms + differentTerms) * 1e12` overflow.
+            // NOTE: The resulting `(x2 * x2) / 20e21` term has been split up in order to avoid overflow of `x2 * x2`.
+            uint256 additiveTerms = 84e27 + (9e3 * x2) + ((x2 / 2e11) * (x2 / 10e10));
 
-            // `differentTerms` is `(- x/2 - x^3/84)`, but positive (will be subtracted later) and scaled by `84e36`.
-            uint256 differentTerms = (42e24 * uint256(x)) + (uint256(x) * y);
+            // `differentTerms` is `(- x/2 - x^3/84)`, but positive (will be subtracted later), and scaled by `84e27`.
+            uint256 differentTerms = (42e15 * uint256(x)) + ((x * x2) / 1e9);
 
             // Result needs to be scaled by `1e12`.
-            return uint128(((additiveTerms + differentTerms) * 1e12) / (additiveTerms - differentTerms));
+            // NOTE: Can cast to `uint48` because contents can never be larger than `type(uint48).max` for any `x`.
+            //       Max `y` is ~200e12, before falling off. See links above for reference.
+            return uint48(((additiveTerms + differentTerms) * 1e12) / (additiveTerms - differentTerms));
         }
     }
 

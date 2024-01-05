@@ -167,6 +167,14 @@ contract ContinuousIndexingMathTests is Test {
         assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE / 2), 1_648721270572); // actual 1.6487212707001282
         assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE), 2_718281718281); // actual 2.718281828459045
         assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE * 2), 7_388888888888); // actual 7.3890560989306495
+
+        // Demonstrate maximum of ~200e12.
+        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE * 5), 128_619047619047);
+        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE * 6), 196_000000000000);
+        assertEq(ContinuousIndexingMath.exponent(_EXP_SCALED_ONE * 7), 159_260869565217);
+
+        // If `unchecked` is removed from `exponent`, it will not overflow (lot's of error nonetheless).
+        assertEq(ContinuousIndexingMath.exponent(type(uint72).max), 1_000000008470);
     }
 
     function test_getContinuousIndex() external {
@@ -212,7 +220,7 @@ contract ContinuousIndexingMathTests is Test {
     }
 
     function test_multiplyThenDivide_100apy() external {
-        uint128 amount = 1_000e6;
+        uint112 amount = 1_000e6;
         uint128 sevenDayRate = ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 7 days);
         uint128 thirtyDayRate = ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 30 days);
 
@@ -242,7 +250,7 @@ contract ContinuousIndexingMathTests is Test {
     }
 
     function test_multiplyThenDivide_6apy() external {
-        uint128 amount = 1_000e6;
+        uint112 amount = 1_000e6;
         uint128 sevenDayRate = ContinuousIndexingMath.getContinuousIndex((_EXP_SCALED_ONE * 6) / 100, 7 days);
         uint128 thirtyDayRate = ContinuousIndexingMath.getContinuousIndex((_EXP_SCALED_ONE * 6) / 100, 30 days);
 
@@ -269,6 +277,106 @@ contract ContinuousIndexingMathTests is Test {
             ),
             amount - 1
         );
+    }
+
+    function test_convertToBasisPoints() external {
+        assertEq(ContinuousIndexingMath.convertToBasisPoints(1_000000000000), 10_000);
+        assertEq(ContinuousIndexingMath.convertToBasisPoints(type(uint64).max), 4078814_305);
+    }
+
+    function test_convertFromBasisPoints() external {
+        assertEq(ContinuousIndexingMath.convertFromBasisPoints(10_000), 1_000000000000);
+        assertEq(ContinuousIndexingMath.convertFromBasisPoints(type(uint32).max), 429496_729500000000);
+    }
+
+    function test_exponentLimits() external {
+        uint72 x = 6_101171897009;
+        uint48 maxExponent = 196_691035579299;
+
+        assertEq(ContinuousIndexingMath.exponent(x), maxExponent); // Max of exponent.
+
+        uint256 maxYearlyRateGivenHourlyUpdates = (x * 365 days) / 1 hours;
+        uint256 maxYearlyRateGivenYearlyUpdates = (x * 365 days) / 365 days;
+
+        assertEq(maxYearlyRateGivenHourlyUpdates, 53446_265817798840); // 5,344,626%
+        assertEq(maxYearlyRateGivenYearlyUpdates, 6_101171897009); // 610%
+
+        assertTrue(maxYearlyRateGivenHourlyUpdates < type(uint64).max);
+        assertTrue(maxYearlyRateGivenYearlyUpdates < type(uint64).max);
+
+        assertEq(ContinuousIndexingMath.convertToBasisPoints(uint64(maxYearlyRateGivenHourlyUpdates)), 534462_658); // 5,344,626.58%
+        assertEq(ContinuousIndexingMath.convertToBasisPoints(uint64(maxYearlyRateGivenYearlyUpdates)), 61_011); // 610.11%
+
+        assertEq(
+            ContinuousIndexingMath.getContinuousIndex(uint64(maxYearlyRateGivenHourlyUpdates), 1 hours),
+            196_691035579299
+        );
+        assertEq(
+            ContinuousIndexingMath.getContinuousIndex(uint64(maxYearlyRateGivenYearlyUpdates), 365 days),
+            196_691035579299
+        );
+    }
+
+    function test_indexLimits_hourlyAt1000APY() external {
+        // 6 years of hourly updates at 1000% APY.
+        uint128 index = _EXP_SCALED_ONE;
+
+        for (uint256 i; i < 52_560; ++i) {
+            index = safe128(
+                ContinuousIndexingMath.multiplyIndices(
+                    index,
+                    ContinuousIndexingMath.getContinuousIndex(
+                        ContinuousIndexingMath.convertFromBasisPoints(100_000), // 1000%
+                        1 hours
+                    )
+                )
+            );
+        }
+
+        assertEq(index, 114200736000519624644263162621717068785);
+    }
+
+    function test_indexLimits_dailyAt100APY() external {
+        // 60 years of daily updates at 100% APY.
+        uint128 index = _EXP_SCALED_ONE;
+
+        for (uint256 i; i < 21_900; ++i) {
+            index = safe128(
+                ContinuousIndexingMath.multiplyIndices(
+                    index,
+                    ContinuousIndexingMath.getContinuousIndex(
+                        ContinuousIndexingMath.convertFromBasisPoints(10_000), // 100%
+                        1 days
+                    )
+                )
+            );
+        }
+
+        assertEq(index, 114200737611197117821646215174647287334);
+    }
+
+    function test_indexLimits_dailyAt10APY() external {
+        // 600 years of daily updates at 10% APY.
+        uint128 index = _EXP_SCALED_ONE;
+
+        for (uint256 i; i < 219_000; ++i) {
+            index = safe128(
+                ContinuousIndexingMath.multiplyIndices(
+                    index,
+                    ContinuousIndexingMath.getContinuousIndex(
+                        ContinuousIndexingMath.convertFromBasisPoints(1_000), // 10%
+                        1 days
+                    )
+                )
+            );
+        }
+
+        assertEq(index, 114200697247308241422562109115999467493);
+    }
+
+    function safe128(uint256 n) internal pure returns (uint128) {
+        if (n > type(uint128).max) revert();
+        return uint128(n);
     }
 
     function assertEqPrecision(uint256 a_, uint256 b_, uint256 precision_) internal {

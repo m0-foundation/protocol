@@ -19,9 +19,13 @@ import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 // TODO: Revisit storage slot and struct ordering once accurate gas reporting is achieved.
 // TODO: Consider `totalPendingCollateralRetrievalOf` or `totalCollateralPendingRetrievalOf`.
 // TODO: Consider `totalResolvedCollateralRetrieval` or `totalCollateralRetrievalResolved`.
+// TODO: Ensure `_imposePenalty` is never called for inactive minters and put a note/warning on all callers.
+// TODO: Handle in-flight issue with deactivation and pending retrievals.
+// TODO: A change in `penaltyRate()` can retroactively change minters more.
+// TODO: Consider maximum decrease in collateral update interval from last update interval.
 
 /**
- * @title MinterGateway
+ * @title  MinterGateway
  * @author M^ZERO LABS_
  * @notice Minting Gateway of M Token for all approved by TTG and activated minters.
  */
@@ -32,25 +36,21 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         uint40 createdAt;
         address destination;
         // 2nd slot
-        uint128 amount;
+        uint240 amount;
     }
 
+    // TODO: Combine `isActive` and `isDeactivated` into an enum (i.e. `NeverActivated`, `Active`, `Deactivated`).
     struct MinterState {
         // 1st slot
-        uint128 collateral;
-        uint128 totalPendingRetrievals;
-        // 2nd slot
-        uint32 lastUpdateInterval;
-        uint40 updateTimestamp;
-        uint40 penalizedUntilTimestamp;
-        uint40 unfrozenTimestamp;
         bool isActive;
         bool isDeactivated;
-    }
-
-    struct OwedM {
-        uint128 principalOfActive;
-        uint128 inactive;
+        uint240 collateral;
+        // 2nd slot
+        uint240 totalPendingRetrievals;
+        // 3rd slot
+        uint40 updateTimestamp;
+        uint40 penalizedUntilTimestamp;
+        uint40 frozenUntilTimestamp;
     }
 
     /******************************************************************************************************************\
@@ -59,6 +59,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @dev 100% in basis points.
     uint16 public constant ONE = 10_000;
+
+    /// @dev 10,000% in basis points.
+    uint32 public constant TEN_THOUSAND = 100 * uint32(ONE);
 
     // keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadataHash,uint256 timestamp)")
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
@@ -80,10 +83,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     uint48 internal _retrievalNonce;
 
     /// @dev The total principal amount of active M
-    uint128 internal _totalPrincipalOfActiveOwedM;
+    uint112 internal _totalPrincipalOfActiveOwedM;
 
     /// @dev The total amount of inactive M, sum of all inactive minter's owed M.
-    uint128 internal _totalInactiveOwedM;
+    uint240 internal _totalInactiveOwedM;
 
     /// @dev The state of each minter, their collaterals, relevant timestamps, and total pending retrievals.
     mapping(address minter => MinterState state) internal _minterStates;
@@ -92,18 +95,19 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     mapping(address minter => MintProposal proposal) internal _mintProposals;
 
     /// @dev The owed M of active and inactive minters (principal of active, inactive).
-    mapping(address minter => OwedM owedM) internal _owedM;
+    mapping(address minter => uint240 rawOwedM) internal _rawOwedM;
 
     /// @dev The pending collateral retrievals of minter (retrieval ID, amount).
-    mapping(address minter => mapping(uint48 retrievalId => uint128 amount)) internal _pendingCollateralRetrievals;
+    mapping(address minter => mapping(uint48 retrievalId => uint240 amount)) internal _pendingCollateralRetrievals;
 
     /******************************************************************************************************************\
     |                                            Modifiers and Constructor                                             |
     \******************************************************************************************************************/
 
     /// @notice Only allow active minter to call function.
-    modifier onlyActiveMinter() {
-        _revertIfInactiveMinter(msg.sender);
+    /// @notice Only allow function for active minter.
+    modifier onlyActiveMinter(address minter_) {
+        _revertIfInactiveMinter(minter_);
 
         _;
     }
@@ -117,7 +121,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @notice Only allow unfrozen minter to call function.
     modifier onlyUnfrozenMinter() {
-        _revertIfMinterFrozen(msg.sender);
+        _revertIfFrozenMinter(msg.sender);
 
         _;
     }
@@ -145,7 +149,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         address[] calldata validators_,
         uint256[] calldata timestamps_,
         bytes[] calldata signatures_
-    ) external onlyActiveMinter returns (uint40 minTimestamp_) {
+    ) external onlyActiveMinter(msg.sender) returns (uint40 minTimestamp_) {
         if (validators_.length != signatures_.length || signatures_.length != timestamps_.length) {
             revert SignatureArrayLengthsMismatch();
         }
@@ -161,23 +165,14 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             signatures_
         );
 
-        uint128 safeCollateral_ = UIntMath.safe128(collateral_);
+        uint240 safeCollateral_ = UIntMath.safe240(collateral_);
+        uint240 totalResolvedRetrievals_ = _resolvePendingRetrievals(msg.sender, retrievalIds_);
 
-        // TODO: Consider adding the `totalResolvedRetrievals_` to the event.
-        emit CollateralUpdated(msg.sender, safeCollateral_, retrievalIds_, metadataHash_, minTimestamp_);
+        emit CollateralUpdated(msg.sender, safeCollateral_, totalResolvedRetrievals_, metadataHash_, minTimestamp_);
 
-        _resolvePendingRetrievals(msg.sender, retrievalIds_);
-
-        uint32 updateCollateralInterval_ = updateCollateralInterval();
-
-        _imposePenaltyIfMissedCollateralUpdates(msg.sender, updateCollateralInterval_);
+        _imposePenaltyIfMissedCollateralUpdates(msg.sender);
 
         _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
-
-        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if TTG changes it.
-        if (updateCollateralInterval_ != 0) {
-            _minterStates[msg.sender].lastUpdateInterval = updateCollateralInterval_;
-        }
 
         _imposePenaltyIfUndercollateralized(msg.sender);
 
@@ -187,15 +182,15 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
-    function proposeRetrieval(uint256 collateral_) external onlyActiveMinter returns (uint48 retrievalId_) {
+    function proposeRetrieval(uint256 collateral_) external onlyActiveMinter(msg.sender) returns (uint48 retrievalId_) {
         unchecked {
             retrievalId_ = ++_retrievalNonce;
         }
 
         MinterState storage minterState_ = _minterStates[msg.sender];
-        uint128 currentCollateral_ = minterState_.collateral;
-        uint128 safeRetrieval_ = UIntMath.safe128(collateral_);
-        uint128 updatedTotalPendingRetrievals_ = minterState_.totalPendingRetrievals + safeRetrieval_;
+        uint240 currentCollateral_ = minterState_.collateral;
+        uint240 safeCollateral_ = UIntMath.safe240(collateral_);
+        uint240 updatedTotalPendingRetrievals_ = minterState_.totalPendingRetrievals + safeCollateral_;
 
         // NOTE: Revert if collateral is less than sum of all pending retrievals even if there is no owed M by minter.
         if (currentCollateral_ < updatedTotalPendingRetrievals_) {
@@ -203,19 +198,19 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         }
 
         minterState_.totalPendingRetrievals = updatedTotalPendingRetrievals_;
-        _pendingCollateralRetrievals[msg.sender][retrievalId_] = safeRetrieval_;
+        _pendingCollateralRetrievals[msg.sender][retrievalId_] = safeCollateral_;
 
         _revertIfUndercollateralized(msg.sender, 0);
 
-        emit RetrievalCreated(retrievalId_, msg.sender, safeRetrieval_);
+        emit RetrievalCreated(retrievalId_, msg.sender, safeCollateral_);
     }
 
     /// @inheritdoc IMinterGateway
     function proposeMint(
         uint256 amount_,
         address destination_
-    ) external onlyActiveMinter onlyUnfrozenMinter returns (uint48 mintId_) {
-        uint128 safeAmount_ = UIntMath.safe128(amount_);
+    ) external onlyActiveMinter(msg.sender) onlyUnfrozenMinter returns (uint48 mintId_) {
+        uint240 safeAmount_ = UIntMath.safe240(amount_);
 
         _revertIfUndercollateralized(msg.sender, safeAmount_); // Ensure minter remains sufficiently collateralized.
 
@@ -229,10 +224,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
-    function mintM(uint256 mintId_) external onlyActiveMinter onlyUnfrozenMinter {
+    function mintM(uint256 mintId_) external onlyActiveMinter(msg.sender) onlyUnfrozenMinter {
         MintProposal storage mintProposal_ = _mintProposals[msg.sender];
 
-        (uint48 id_, uint40 createdAt_, address destination_, uint128 amount_) = (
+        (uint48 id_, uint40 createdAt_, address destination_, uint240 amount_) = (
             mintProposal_.id,
             mintProposal_.createdAt,
             mintProposal_.destination,
@@ -242,10 +237,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         if (id_ != mintId_) revert InvalidMintProposal();
 
         // Check that mint proposal is executable.
-        uint40 activeAt_ = createdAt_ + mintDelay();
+        uint40 activeAt_ = createdAt_ + mintDelay(); // TODO: Consider unchecked given time and duration assumptions?
         if (block.timestamp < activeAt_) revert PendingMintProposal(activeAt_);
 
-        uint40 expiresAt_ = activeAt_ + mintTTL();
+        uint40 expiresAt_ = activeAt_ + mintTTL(); // TODO: Consider unchecked given time and duration assumptions?
         if (block.timestamp > expiresAt_) revert ExpiredMintProposal(expiresAt_);
 
         _revertIfUndercollateralized(msg.sender, amount_); // Ensure minter remains sufficiently collateralized.
@@ -255,13 +250,24 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         emit MintExecuted(id_);
 
         // Adjust principal of active owed M for minter.
-        // NOTE: When minting a present amount, round the principal up in favor of the Minter Gateway.
-        uint128 principalAmount_ = _getPrincipalAmountRoundedUp(amount_);
-        _totalPrincipalOfActiveOwedM += principalAmount_;
+        // NOTE: When minting a present amount, round the principal up in favor of the protocol.
+        uint112 principalAmount_ = _getPrincipalAmountRoundedUp(amount_);
+        uint112 totalPrincipalOfActiveOwedM_ = _totalPrincipalOfActiveOwedM;
 
-        // NOTE: unchecked is used here since `_totalPrincipalOfActiveOwedM` would overflow first.
         unchecked {
-            _owedM[msg.sender].principalOfActive += principalAmount_;
+            uint256 newTotalPrincipalOfActiveOwedM_ = uint256(totalPrincipalOfActiveOwedM_) + principalAmount_;
+
+            // As an edge case precaution, prevent a mint that, if all own M (active and inactive) was converted to
+            // principal amount, would overflow the `totalPrincipalOfActiveOwedM_` (i.e. `type(uint112).max`).
+            if (
+                // NOTE: Round the principal up in favor of the protocol.
+                newTotalPrincipalOfActiveOwedM_ + _getPrincipalAmountRoundedUp(_totalInactiveOwedM) >= type(uint112).max
+            ) {
+                revert OverflowsPrincipalOfTotalOwedM();
+            }
+
+            _totalPrincipalOfActiveOwedM = uint112(newTotalPrincipalOfActiveOwedM_);
+            _rawOwedM[msg.sender] += principalAmount_; // Treat rawOwedM as principal since minter is active.
         }
 
         IMToken(mToken).mint(destination_, amount_);
@@ -273,20 +279,13 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function burnM(address minter_, uint256 maxAmount_) external {
-        uint32 updateCollateralInterval_ = updateCollateralInterval();
-
         // NOTE: Penalize only for missed collateral updates, not for undercollateralization.
         // Undercollateralization within one update interval is forgiven.
-        _imposePenaltyIfMissedCollateralUpdates(minter_, updateCollateralInterval_);
+        _imposePenaltyIfMissedCollateralUpdates(minter_);
 
-        // NOTE: If non-zero, save `updateCollateralInterval_` for fair missed interval calculation if TTG changes it.
-        if (updateCollateralInterval_ != 0) {
-            _minterStates[minter_].lastUpdateInterval = updateCollateralInterval_;
-        }
-
-        uint128 amount_ = _minterStates[minter_].isActive
-            ? _repayForActiveMinter(minter_, UIntMath.safe128(maxAmount_))
-            : _repayForInactiveMinter(minter_, UIntMath.safe128(maxAmount_));
+        uint240 amount_ = _minterStates[minter_].isActive
+            ? _repayForActiveMinter(minter_, UIntMath.safe240(maxAmount_))
+            : _repayForInactiveMinter(minter_, UIntMath.safe240(maxAmount_));
 
         emit BurnExecuted(minter_, amount_, msg.sender);
 
@@ -311,9 +310,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function freezeMinter(address minter_) external onlyApprovedValidator returns (uint40 frozenUntil_) {
-        _revertIfInactiveMinter(minter_);
-
-        _minterStates[minter_].unfrozenTimestamp = frozenUntil_ = uint40(block.timestamp) + minterFreezeTime();
+        // TODO: Consider unchecked given time and duration assumptions?
+        _minterStates[minter_].frozenUntilTimestamp = frozenUntil_ = uint40(block.timestamp) + minterFreezeTime();
 
         emit MinterFrozen(minter_, frozenUntil_);
     }
@@ -329,33 +327,36 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
-    function deactivateMinter(address minter_) external returns (uint128 inactiveOwedM_) {
+    function deactivateMinter(address minter_) external onlyActiveMinter(minter_) returns (uint240 inactiveOwedM_) {
         if (isMinterApprovedByTTG(minter_)) revert StillApprovedMinter();
 
-        _revertIfInactiveMinter(minter_);
+        uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
 
-        // NOTE: Instead of imposing, calculate penalty and add it to `_inactiveOwedM` to save gas.
-        inactiveOwedM_ = activeOwedMOf(minter_) + getPenaltyForMissedCollateralUpdates(minter_);
-
-        emit MinterDeactivated(minter_, inactiveOwedM_, msg.sender);
-
-        // NOTE: Unchecked can be used here.
-        //       If `_totalInactiveOwedM` overflows, the protocol would be in a broken state.
-        //       Minters could no longer be deactivated.
         unchecked {
+            // As an edge case precaution, if the resulting principal plus penalties is greater than the max uint112,
+            // then max out the principal.
+            uint112 newPrincipalOfOwedM_ = UIntMath.bound112(
+                uint256(principalOfActiveOwedM_) + _getPenaltyPrincipalForMissedCollateralUpdates(minter_)
+            );
+
+            inactiveOwedM_ = _getPresentAmount(newPrincipalOfOwedM_);
+
+            // Treat rawOwedM as principal since minter is active.
+            _totalPrincipalOfActiveOwedM -= principalOfActiveOwedM_;
             _totalInactiveOwedM += inactiveOwedM_;
-            _owedM[minter_].inactive += inactiveOwedM_;
         }
 
-        // Adjust total principal of owed M.
-        _totalPrincipalOfActiveOwedM -= _owedM[minter_].principalOfActive;
+        emit MinterDeactivated(minter_, inactiveOwedM_, msg.sender);
 
         // Reset reasonable aspects of minter's state.
         delete _minterStates[minter_];
         delete _mintProposals[minter_];
-        delete _owedM[minter_].principalOfActive;
 
+        // Deactivate minter.
         _minterStates[minter_].isDeactivated = true;
+        _minterStates[minter_].isActive = false;
+
+        _rawOwedM[minter_] = inactiveOwedM_; // Treat rawOwedM as inactive owed M since minter is now inactive.
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the
         //       deactivation can result in a new rate, we should update the index here to lock in that rate.
@@ -366,7 +367,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     function updateIndex() public override(IContinuousIndexing, ContinuousIndexing) returns (uint128 index_) {
         // NOTE: Since the currentIndex of the Minter Gateway and mToken are constant thought this context's execution (since
         //       the block.timestamp is not changing) we can compute excessOwedM without updating the mToken index.
-        uint128 excessOwedM_ = excessOwedM();
+        uint240 excessOwedM_ = excessOwedM();
 
         if (excessOwedM_ > 0) IMToken(mToken).mint(ttgVault, excessOwedM_); // Mint M to TTG Vault.
 
@@ -387,31 +388,39 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /// @inheritdoc IMinterGateway
-    function totalActiveOwedM() public view returns (uint128) {
+    function principalOfTotalActiveOwedM() external view returns (uint112) {
+        return _totalPrincipalOfActiveOwedM;
+    }
+
+    /// @inheritdoc IMinterGateway
+    function totalActiveOwedM() public view returns (uint240) {
         return _getPresentAmount(_totalPrincipalOfActiveOwedM);
     }
 
     /// @inheritdoc IMinterGateway
-    function totalInactiveOwedM() public view returns (uint128) {
+    function totalInactiveOwedM() public view returns (uint240) {
         return _totalInactiveOwedM;
     }
 
     /// @inheritdoc IMinterGateway
-    function totalOwedM() public view returns (uint128) {
-        return totalActiveOwedM() + totalInactiveOwedM();
+    function totalOwedM() public view returns (uint240) {
+        unchecked {
+            // NOTE: This can never overflow since the `mint` functions caps the principal of total owed M (active and
+            //       inactive) to `type(uint112).max`. Thus, there can never be enough inactive owed M (which is an
+            //       accumulations principal of active owed M values converted to present values at previous and lower
+            //       indices) or active owed M to overflow this.
+            return totalActiveOwedM() + totalInactiveOwedM();
+        }
     }
 
     /// @inheritdoc IMinterGateway
-    function excessOwedM() public view returns (uint128 excessOwedM_) {
-        // TODO: Consider dropping this safe cast since if the total M supply is greater than 2^128, there are bigger
-        //       issues, but also because reverts here bricks `updateIndex()`, which bricks everything else.
-        uint128 totalMSupply_ = UIntMath.safe128(IMToken(mToken).totalSupply());
-        uint128 totalOwedM_ = totalOwedM();
+    function excessOwedM() public view returns (uint240 excessOwedM_) {
+        // NOTE: Can safely cast to `uint240` since we know M Token totalSupply constraints.
+        uint240 totalMSupply_ = uint240(IMToken(mToken).totalSupply());
+        uint240 totalOwedM_ = totalOwedM();
 
         unchecked {
-            if (totalOwedM_ > totalMSupply_) {
-                return totalOwedM_ - totalMSupply_;
-            }
+            if (totalOwedM_ > totalMSupply_) return totalOwedM_ - totalMSupply_;
         }
     }
 
@@ -432,49 +441,70 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function isFrozenMinter(address minter_) external view returns (bool) {
-        return block.timestamp < _minterStates[minter_].unfrozenTimestamp;
+        return block.timestamp < _minterStates[minter_].frozenUntilTimestamp;
     }
 
     /// @inheritdoc IMinterGateway
-    function activeOwedMOf(address minter_) public view returns (uint128) {
-        // TODO: This should also include the present value of unavoidable penalities. But then it would be very, if not
-        //       impossible, to determine the `totalActiveOwedM` to the same standards. Perhaps we need a `penaltiesOf`
-        //       external function to provide the present value of unavoidable penalities.
-        return _getPresentAmount(_owedM[minter_].principalOfActive);
-    }
-
-    /// @inheritdoc IMinterGateway
-    function maxAllowedActiveOwedMOf(address minter_) public view returns (uint128) {
-        return (collateralOf(minter_) * mintRatio()) / ONE;
-    }
-
-    /// @inheritdoc IMinterGateway
-    function inactiveOwedMOf(address minter_) external view returns (uint128) {
-        return _owedM[minter_].inactive;
-    }
-
-    /// @inheritdoc IMinterGateway
-    function collateralOf(address minter_) public view returns (uint128) {
-        // If collateral was not updated before deadline, assume that minter's collateral is zero.
+    function principalOfActiveOwedMOf(address minter_) public view returns (uint112) {
+        // TODO: This should also include the principal value of unavoidable penalities. But then it would be very, if
+        //       not impossible, to determine the `principalOfTotalActiveOwedM` to the same standards. Perhaps we need a
+        //       `principalOfPenaltiesOf` external function.
         return
-            block.timestamp < collateralUpdateDeadlineOf(minter_)
-                ? _minterStates[minter_].collateral - _minterStates[minter_].totalPendingRetrievals
+            _minterStates[minter_].isActive
+                ? uint112(_rawOwedM[minter_]) // Treat rawOwedM as principal since minter is active.
                 : 0;
     }
 
     /// @inheritdoc IMinterGateway
-    function collateralUpdateOf(address minter_) external view returns (uint40) {
+    function activeOwedMOf(address minter_) public view returns (uint240) {
+        // TODO: This should also include the present value of unavoidable penalities. But then it would be very, if
+        //       not impossible, to determine the `totalActiveOwedM` to the same standards. Perhaps we need a
+        //       `penaltiesOf` external function.
+        return
+            _minterStates[minter_].isActive
+                ? _getPresentAmount(uint112(_rawOwedM[minter_])) // Treat rawOwedM as principal since minter is active.
+                : 0;
+    }
+
+    /// @inheritdoc IMinterGateway
+    function maxAllowedActiveOwedMOf(address minter_) public view returns (uint256) {
+        // NOTE: Since `mintRatio()` is capped at 10,000% (i.e. 1_000_000) this cannot overflow.
+        unchecked {
+            return _minterStates[minter_].isActive ? (uint256(collateralOf(minter_)) * mintRatio()) / ONE : 0;
+        }
+    }
+
+    /// @inheritdoc IMinterGateway
+    function inactiveOwedMOf(address minter_) public view returns (uint240) {
+        // Treat rawOwedM as present amount since minter is inactive.
+        return _minterStates[minter_].isActive ? 0 : _rawOwedM[minter_];
+    }
+
+    /// @inheritdoc IMinterGateway
+    function collateralOf(address minter_) public view returns (uint240) {
+        // If collateral was not updated by the deadline, assume that minter's collateral is zero.
+        if (block.timestamp > collateralUpdateDeadlineOf(minter_)) return 0;
+
+        uint240 totalPendingRetrievals_ = _minterStates[minter_].totalPendingRetrievals;
+        uint240 collateral_ = _minterStates[minter_].collateral;
+
+        // If the minter's total pending retrievals is greater than their collateral, then their collateral is zero.
+        if (totalPendingRetrievals_ >= collateral_) return 0;
+
+        unchecked {
+            return collateral_ - totalPendingRetrievals_;
+        }
+    }
+
+    /// @inheritdoc IMinterGateway
+    function collateralUpdateTimestampOf(address minter_) external view returns (uint40) {
         return _minterStates[minter_].updateTimestamp;
     }
 
     /// @inheritdoc IMinterGateway
     function collateralUpdateDeadlineOf(address minter_) public view returns (uint40) {
-        return _minterStates[minter_].updateTimestamp + _minterStates[minter_].lastUpdateInterval;
-    }
-
-    /// @inheritdoc IMinterGateway
-    function lastCollateralUpdateIntervalOf(address minter_) external view returns (uint32) {
-        return _minterStates[minter_].lastUpdateInterval;
+        // TODO: Consider unchecked given time and duration assumptions?
+        return _minterStates[minter_].updateTimestamp + updateCollateralInterval();
     }
 
     /// @inheritdoc IMinterGateway
@@ -483,19 +513,16 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
-    function getPenaltyForMissedCollateralUpdates(address minter_) public view returns (uint128) {
-        (uint128 penaltyBase_, ) = _getPenaltyBaseAndTimeForMissedCollateralUpdates(
-            minter_,
-            updateCollateralInterval()
-        );
+    function getPenaltyForMissedCollateralUpdates(address minter_) external view returns (uint240) {
+        uint112 penaltyPrincipal_ = _getPenaltyPrincipalForMissedCollateralUpdates(minter_);
 
-        return (penaltyBase_ * penaltyRate()) / ONE;
+        return (penaltyPrincipal_ == 0) ? 0 : _getPresentAmount(penaltyPrincipal_);
     }
 
     /// @inheritdoc IMinterGateway
     function mintProposalOf(
         address minter_
-    ) external view returns (uint48 mintId_, uint40 createdAt_, address destination_, uint128 amount_) {
+    ) external view returns (uint48 mintId_, uint40 createdAt_, address destination_, uint240 amount_) {
         mintId_ = _mintProposals[minter_].id;
         createdAt_ = _mintProposals[minter_].createdAt;
         destination_ = _mintProposals[minter_].destination;
@@ -503,18 +530,18 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
-    function pendingCollateralRetrievalOf(address minter_, uint256 retrievalId_) external view returns (uint128) {
+    function pendingCollateralRetrievalOf(address minter_, uint256 retrievalId_) external view returns (uint240) {
         return _pendingCollateralRetrievals[minter_][UIntMath.safe48(retrievalId_)];
     }
 
     /// @inheritdoc IMinterGateway
-    function totalPendingCollateralRetrievalsOf(address minter_) external view returns (uint128) {
+    function totalPendingCollateralRetrievalsOf(address minter_) external view returns (uint240) {
         return _minterStates[minter_].totalPendingRetrievals;
     }
 
     /// @inheritdoc IMinterGateway
-    function unfrozenTimeOf(address minter_) external view returns (uint40) {
-        return _minterStates[minter_].unfrozenTimestamp;
+    function frozenUntilOf(address minter_) external view returns (uint40) {
+        return _minterStates[minter_].frozenUntilTimestamp;
     }
 
     /******************************************************************************************************************\
@@ -543,8 +570,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function mintRatio() public view returns (uint32) {
-        // NOTE: It is possible for the mint ratio to be greater than 100%.
-        return UIntMath.bound32(TTGRegistrarReader.getMintRatio(ttgRegistrar));
+        // NOTE: It is possible for the mint ratio to be greater than 100%, but capped at 10,000%.
+        return UIntMath.min32(TEN_THOUSAND, UIntMath.bound32(TTGRegistrarReader.getMintRatio(ttgRegistrar)));
     }
 
     /// @inheritdoc IMinterGateway
@@ -577,132 +604,165 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /**
-     * @dev   Imposes penalty on minter.
-     * @dev   penalty = penalty base * penalty rate
-     * @param minter_      The address of the minter
-     * @param penaltyBase_ The total penalization base
+     * @dev   Imposes penalty on an active minter. Calling this for an inactive minter will break accounting.
+     * @param minter_                 The address of the minter.
+     * @param principalOfPenaltyBase_ The total principal base for penalization.
      */
-    function _imposePenalty(address minter_, uint128 penaltyBase_) internal {
-        uint128 penalty_ = uint128((penaltyBase_ * penaltyRate()) / ONE);
+    function _imposePenalty(address minter_, uint152 principalOfPenaltyBase_) internal {
+        if (principalOfPenaltyBase_ == 0) return;
 
-        // NOTE: When imposing a present amount penalty, round the principal up in favor of the Minter Gateway.
-        uint128 penaltyPrincipal_ = _getPrincipalAmountRoundedUp(penalty_);
+        uint32 penaltyRate_ = penaltyRate();
 
-        // NOTE: Unchecked can be used here.
-        //       If `_totalPrincipalOfActiveOwedM` overflows, the protocol would be in a broken state.
-        //       Minters could no longer be penalized and update their collateral.
+        if (penaltyRate_ == 0) return;
+
         unchecked {
-            // Calculate and add penalty principal to total minter's principal of active owed M
-            _totalPrincipalOfActiveOwedM += penaltyPrincipal_;
-            _owedM[minter_].principalOfActive += penaltyPrincipal_;
-        }
+            uint256 penaltyPrincipal_ = (uint256(principalOfPenaltyBase_) * penaltyRate_) / ONE;
 
-        emit PenaltyImposed(minter_, penalty_);
+            // As an edge case precaution, cap the penalty principal such that the resulting total principal of active
+            // owed M plus the penalty principal is not greater than the max uint112.
+            uint256 newTotalPrincipalOfActiveOwedM_ = _totalPrincipalOfActiveOwedM + penaltyPrincipal_;
+
+            if (newTotalPrincipalOfActiveOwedM_ > type(uint112).max) {
+                penaltyPrincipal_ = type(uint112).max - _totalPrincipalOfActiveOwedM;
+                newTotalPrincipalOfActiveOwedM_ = type(uint112).max;
+            }
+
+            // Calculate and add penalty principal to total minter's principal of active owed M
+            _totalPrincipalOfActiveOwedM = uint112(newTotalPrincipalOfActiveOwedM_);
+
+            _rawOwedM[minter_] += uint112(penaltyPrincipal_); // Treat rawOwedM as principal since minter is active.
+
+            emit PenaltyImposed(minter_, _getPresentAmount(uint112(penaltyPrincipal_)));
+        }
     }
 
     /**
      * @dev   Imposes penalty if minter missed collateral updates.
-     * @dev   penalty = total active owed M * penalty rate * number of missed intervals
-     * @param minter_                   The address of the minter
-     * @param updateCollateralInterval_ The current update collateral interval
+     * @param minter_ The address of the minter.
      */
-    function _imposePenaltyIfMissedCollateralUpdates(address minter_, uint32 updateCollateralInterval_) internal {
-        (uint128 penaltyBase_, uint40 penalizedUntil_) = _getPenaltyBaseAndTimeForMissedCollateralUpdates(
-            minter_,
+    function _imposePenaltyIfMissedCollateralUpdates(address minter_) internal {
+        uint32 updateCollateralInterval_ = updateCollateralInterval();
+
+        MinterState storage minterState_ = _minterStates[minter_];
+
+        (uint40 missedIntervals_, uint40 missedUntil_) = _getMissedCollateralUpdateParameters(
+            minterState_.updateTimestamp,
+            minterState_.penalizedUntilTimestamp,
             updateCollateralInterval_
         );
 
-        if (penaltyBase_ == 0) return;
+        if (missedIntervals_ == 0) return;
 
-        // Save penalization interval to not double charge for the same missed periods again
-        _minterStates[minter_].penalizedUntilTimestamp = penalizedUntil_;
+        // Save until when the minter has been penalized for missed intervals to prevent double penalizing them.
+        _minterStates[minter_].penalizedUntilTimestamp = missedUntil_;
 
-        _imposePenalty(minter_, penaltyBase_);
+        uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
+
+        if (principalOfActiveOwedM_ == 0) return;
+
+        _imposePenalty(minter_, uint152(principalOfActiveOwedM_) * missedIntervals_);
     }
 
     /**
      * @dev   Imposes penalty if minter is undercollateralized.
-     * @dev   penalty = excess active owed M * penalty rate
      * @param minter_ The address of the minter
      */
     function _imposePenaltyIfUndercollateralized(address minter_) internal {
-        uint128 maxAllowedActiveOwedM_ = maxAllowedActiveOwedMOf(minter_);
-        uint128 activeOwedM_ = activeOwedMOf(minter_);
+        uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
 
-        if (maxAllowedActiveOwedM_ >= activeOwedM_) return;
+        if (principalOfActiveOwedM_ == 0) return;
 
-        // NOTE: unchecked is used here since `activeOwedM_`is greater than or equal to `maxAllowedActiveOwedM_`.
+        uint256 maxAllowedActiveOwedM_ = maxAllowedActiveOwedMOf(minter_);
+
+        // If the minter's max allowed active owed M is greater than `type(uint240).max`, then it's definitely greater
+        // than the max possible active owed M for the minter, which is capped at `type(uint240).max`.
+        if (maxAllowedActiveOwedM_ >= type(uint240).max) return;
+
+        // NOTE: Round the principal down in favor of the protocol since this is a max applied to the minter.
+        uint112 principalOfMaxAllowedActiveOwedM_ = _getPrincipalAmountRoundedDown(uint240(maxAllowedActiveOwedM_));
+
+        if (principalOfMaxAllowedActiveOwedM_ >= principalOfActiveOwedM_) return;
+
         unchecked {
-            _imposePenalty(minter_, activeOwedM_ - maxAllowedActiveOwedM_);
+            _imposePenalty(minter_, principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_);
         }
     }
 
     /**
-     * @dev    Repays active (not deactivated, not removed from TTG) minter's owed M.
-     * @param  minter_    The address of the minter
-     * @param  maxAmount_ The maximum amount of active owed M to repay
-     * @return amount_    The amount of active owed M that was actually repaid
+     * @dev    Repays active minter's owed M.
+     * @param  minter_    The address of the minter.
+     * @param  maxAmount_ The maximum amount of active owed M to repay.
+     * @return amount_    The amount of active owed M that was actually repaid.
      */
-    function _repayForActiveMinter(address minter_, uint128 maxAmount_) internal returns (uint128 amount_) {
-        amount_ = UIntMath.min128(activeOwedMOf(minter_), maxAmount_);
+    function _repayForActiveMinter(address minter_, uint240 maxAmount_) internal returns (uint240 amount_) {
+        amount_ = UIntMath.min240(activeOwedMOf(minter_), maxAmount_);
 
-        // NOTE: When subtracting a present amount, round the principal down in favor of the Minter Gateway.
-        uint128 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
+        // NOTE: When subtracting a present amount, round the principal down in favor of the protocol.
+        uint112 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
 
-        // NOTE: Unchecked can be used here.
-        //       If `_owedM[minter_].principalOfActive` underflows, the protocol would be in a broken state.
-        //       Minters could no longer repay.
         unchecked {
-            _owedM[minter_].principalOfActive -= principalAmount_;
+            // Treat rawOwedM as principal since `principalAmount_` would only be non-zero for an active minter.
+            _rawOwedM[minter_] -= principalAmount_;
             _totalPrincipalOfActiveOwedM -= principalAmount_;
         }
     }
 
     /**
-     * @dev    Repays inactive (deactivated, removed from TTG) minter's owed M.
-     * @param  minter_    The address of the minter
-     * @param  maxAmount_ The maximum amount of inactive owed M to repay
-     * @return amount_    The amount of inactive owed M that was actually repaid
+     * @dev    Repays inactive minter's owed M.
+     * @param  minter_    The address of the minter.
+     * @param  maxAmount_ The maximum amount of inactive owed M to repay.
+     * @return amount_    The amount of inactive owed M that was actually repaid.
      */
-    function _repayForInactiveMinter(address minter_, uint128 maxAmount_) internal returns (uint128 amount_) {
-        amount_ = UIntMath.min128(_owedM[minter_].inactive, maxAmount_);
+    function _repayForInactiveMinter(address minter_, uint240 maxAmount_) internal returns (uint240 amount_) {
+        amount_ = UIntMath.min240(inactiveOwedMOf(minter_), maxAmount_);
 
-        // NOTE: Unchecked can be used here.
-        //       If `_owedM[minter_].inactive` underflows, the protocol would be in a broken state.
-        //       Minters could no longer repay.
         unchecked {
-            _owedM[minter_].inactive -= amount_;
+            // Treat rawOwedM as present amount since `amount_` would only be non-zero for an inactive minter.
+            _rawOwedM[minter_] -= amount_;
             _totalInactiveOwedM -= amount_;
         }
     }
 
     /**
      * @dev   Resolves the collateral retrieval IDs and updates the total pending collateral retrieval amount.
-     * @param minter_       The address of the minter
-     * @param retrievalIds_ The list of outstanding collateral retrieval IDs to resolve
+     * @param minter_       The address of the minter.
+     * @param retrievalIds_ The list of outstanding collateral retrieval IDs to resolve.
      */
     function _resolvePendingRetrievals(
         address minter_,
         uint256[] calldata retrievalIds_
-    ) internal returns (uint128 totalResolvedRetrievals_) {
+    ) internal returns (uint240 totalResolvedRetrievals_) {
         for (uint256 index_; index_ < retrievalIds_.length; ++index_) {
             uint48 retrievalId_ = UIntMath.safe48(retrievalIds_[index_]);
+            uint240 pendingCollateralRetrieval_ = _pendingCollateralRetrievals[minter_][retrievalId_];
 
-            totalResolvedRetrievals_ += _pendingCollateralRetrievals[minter_][retrievalId_];
+            if (pendingCollateralRetrieval_ == 0) continue;
+
+            unchecked {
+                // NOTE: The `proposeRetrieval` function already ensures that the sum of all
+                // `_pendingCollateralRetrievals` is not larger than `type(uint240).max`.
+                totalResolvedRetrievals_ += pendingCollateralRetrieval_;
+            }
 
             delete _pendingCollateralRetrievals[minter_][retrievalId_];
+
+            emit RetrievalResolved(retrievalId_, minter_);
         }
 
-        _minterStates[minter_].totalPendingRetrievals -= totalResolvedRetrievals_;
+        unchecked {
+            // NOTE: The `proposeRetrieval` function already ensures that `totalPendingRetrievals` is the sum of all
+            // `_pendingCollateralRetrievals`.
+            _minterStates[minter_].totalPendingRetrievals -= totalResolvedRetrievals_;
+        }
     }
 
     /**
      * @dev   Updates the collateral amount and update timestamp for the minter.
-     * @param minter_       The address of the minter
-     * @param amount_       The amount of collateral
-     * @param newTimestamp_ The timestamp of the collateral update
+     * @param minter_       The address of the minter.
+     * @param amount_       The amount of collateral.
+     * @param newTimestamp_ The timestamp of the collateral update.
      */
-    function _updateCollateral(address minter_, uint128 amount_, uint40 newTimestamp_) internal {
+    function _updateCollateral(address minter_, uint240 amount_, uint40 newTimestamp_) internal {
         uint40 lastUpdateTimestamp_ = _minterStates[minter_].updateTimestamp;
 
         // MinterGateway already has more recent collateral update
@@ -718,50 +778,66 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /**
      * @dev    Returns the penalization base and the penalized until timestamp.
-     * @param  minter_                   The address of the minter
-     * @param  updateCollateralInterval_ The current update collateral interval
-     * @return penaltyBase_              The base amount of penalty
-     * @return penalizedUntil_           The timestamp until which minter is penalized for missed collateral updates
+     * @param  lastUpdateTimestamp_ The last timestamp at which the minter updated their collateral.
+     * @param  lastPenalizedUntil_  The last timestamp before which the minter shouldn't be penalized for missed updates.
+     * @param  updateInterval_      The update collateral interval.
+     * @return missedIntervals_     The number of missed update intervals.
+     * @return missedUntil_         The timestamp until which `missedIntervals_` covers, even if `missedIntervals_` is 0.
      */
-    function _getPenaltyBaseAndTimeForMissedCollateralUpdates(
-        address minter_,
-        uint32 updateCollateralInterval_
-    ) internal view returns (uint128 penaltyBase_, uint40 penalizedUntil_) {
+    function _getMissedCollateralUpdateParameters(
+        uint40 lastUpdateTimestamp_,
+        uint40 lastPenalizedUntil_,
+        uint32 updateInterval_
+    ) internal view returns (uint40 missedIntervals_, uint40 missedUntil_) {
+        uint40 penalizeFrom_ = UIntMath.max40(lastUpdateTimestamp_, lastPenalizedUntil_);
+
+        // If brand new minter or `updateInterval_` is 0, then there is no missed interval charge at all.
+        if (lastUpdateTimestamp_ == 0 || updateInterval_ == 0) return (0, penalizeFrom_);
+
+        uint40 timeElapsed_ = uint40(block.timestamp) - penalizeFrom_;
+
+        if (timeElapsed_ < updateInterval_) return (0, penalizeFrom_);
+
+        missedIntervals_ = timeElapsed_ / updateInterval_;
+        missedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);
+    }
+
+    /**
+     * @dev    Returns the principal penalization base for a minter's missed collateral updates.
+     * @param  minter_ The address of the minter.
+     * @return The penalty principal.
+     */
+    function _getPenaltyPrincipalForMissedCollateralUpdates(address minter_) internal view returns (uint112) {
+        uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
+
+        if (principalOfActiveOwedM_ == 0) return 0;
+
+        uint32 penaltyRate_ = penaltyRate();
+
+        if (penaltyRate_ == 0) return 0;
+
         MinterState storage minterState_ = _minterStates[minter_];
-        (uint32 lastUpdateInterval_, uint40 lastUpdate_, uint40 lastPenalizedUntil_) = (
-            minterState_.lastUpdateInterval,
+
+        (uint40 missedIntervals_, ) = _getMissedCollateralUpdateParameters(
             minterState_.updateTimestamp,
-            minterState_.penalizedUntilTimestamp
+            minterState_.penalizedUntilTimestamp,
+            updateCollateralInterval()
         );
 
-        uint40 penalizeFrom_ = UIntMath.max40(lastUpdate_, lastPenalizedUntil_);
-        uint40 penalizationDeadline_ = penalizeFrom_ + lastUpdateInterval_;
+        if (missedIntervals_ == 0) return 0;
 
-        // Return if it is first update collateral ever or deadline for new penalization was not reached yet
-        if (lastUpdateInterval_ == 0 || penalizationDeadline_ > block.timestamp) return (0, penalizationDeadline_);
-
-        // If `updateCollateralInterval_` is 0, then there is no missed interval charge at all.
-        if (updateCollateralInterval_ == 0) return (0, penalizationDeadline_);
-
-        // We charge for the first missed interval based on previous collateral interval length only once
-        uint40 missedIntervals_;
-
-        // NOTE: Unchecked can be used here.
-        //       If `penaltyBase_` or `penalizedUntil_` overflows, the protocol would be in a broken state.
-        //       Minters could no longer be penalized.
         unchecked {
-            missedIntervals_ = 1 + (uint40(block.timestamp) - penalizationDeadline_) / updateCollateralInterval_;
-            penaltyBase_ = missedIntervals_ * activeOwedMOf(minter_);
-            penalizedUntil_ = penalizationDeadline_ + ((missedIntervals_ - 1) * updateCollateralInterval_);
+            // As an edge case precaution, cap the penalty principal to type(uint112).max.
+            return UIntMath.bound112((uint256(principalOfActiveOwedM_) * missedIntervals_ * penaltyRate_) / ONE);
         }
     }
 
     /**
      * @dev   Returns the present amount (rounded up) given the principal amount, using the current index.
-     *        All present amounts are rounded up in favor of the Minter Gateway, since they are owed.
-     * @param principalAmount_ The principal amount
+     *        All present amounts are rounded up in favor of the protocol, since they are owed.
+     * @param principalAmount_ The principal amount.
      */
-    function _getPresentAmount(uint128 principalAmount_) internal view returns (uint128) {
+    function _getPresentAmount(uint112 principalAmount_) internal view returns (uint240) {
         return _getPresentAmountRoundedUp(principalAmount_, currentIndex());
     }
 
@@ -810,8 +886,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
      * @dev   Reverts if minter is frozen by validator.
      * @param minter_ The address of the minter
      */
-    function _revertIfMinterFrozen(address minter_) internal view {
-        if (block.timestamp < _minterStates[minter_].unfrozenTimestamp) revert FrozenMinter();
+    function _revertIfFrozenMinter(address minter_) internal view {
+        if (block.timestamp < _minterStates[minter_].frozenUntilTimestamp) revert FrozenMinter();
     }
 
     /**
@@ -835,13 +911,20 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
      * @param minter_          The address of the minter
      * @param additionalOwedM_ The amount of additional owed M the action will add to minter's position
      */
-    function _revertIfUndercollateralized(address minter_, uint128 additionalOwedM_) internal view {
-        uint128 maxAllowedActiveOwedM_ = maxAllowedActiveOwedMOf(minter_);
-        uint128 activeOwedM_ = activeOwedMOf(minter_);
-        uint128 finalActiveOwedM_ = activeOwedM_ + additionalOwedM_;
+    function _revertIfUndercollateralized(address minter_, uint240 additionalOwedM_) internal view {
+        uint256 maxAllowedActiveOwedM_ = maxAllowedActiveOwedMOf(minter_);
 
-        if (finalActiveOwedM_ > maxAllowedActiveOwedM_)
-            revert Undercollateralized(finalActiveOwedM_, maxAllowedActiveOwedM_);
+        // If the minter's max allowed active owed M is greater than the max uint240, then it's definitely greater than
+        // the max possible active owed M for the minter, which is capped at the max uint240.
+        if (maxAllowedActiveOwedM_ >= type(uint240).max) return;
+
+        unchecked {
+            uint256 finalActiveOwedM_ = uint256(activeOwedMOf(minter_)) + additionalOwedM_;
+
+            if (finalActiveOwedM_ > maxAllowedActiveOwedM_) {
+                revert Undercollateralized(finalActiveOwedM_, maxAllowedActiveOwedM_);
+            }
+        }
     }
 
     /**
@@ -870,9 +953,11 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
         // Stop processing if there are no more signatures or `threshold_` is reached.
         for (uint256 index_; index_ < signatures_.length && threshold_ > 0; ++index_) {
-            // Check that validator address is unique and not accounted for
-            // NOTE: We revert here because this failure is entirely within the minter's control.
-            if (index_ > 0 && validators_[index_] <= validators_[index_ - 1]) revert InvalidSignatureOrder();
+            unchecked {
+                // Check that validator address is unique and not accounted for
+                // NOTE: We revert here because this failure is entirely within the minter's control.
+                if (index_ > 0 && validators_[index_] <= validators_[index_ - 1]) revert InvalidSignatureOrder();
+            }
 
             // Check that the timestamp is not in the future.
             if (timestamps_[index_] > uint40(block.timestamp)) revert FutureTimestamp();
@@ -895,7 +980,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             // Find minimum between all valid timestamps for valid signatures.
             minTimestamp_ = UIntMath.min40IgnoreZero(minTimestamp_, UIntMath.safe40(timestamps_[index_]));
 
-            --threshold_;
+            unchecked {
+                --threshold_;
+            }
         }
 
         // NOTE: Due to STACK_TOO_DEEP issues, we need to refetch `requiredThreshold_` and compute the number of valid
@@ -903,7 +990,11 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         //       point to inevitably revert, so the gas cost is not much of a concern.
         if (threshold_ > 0) {
             uint256 requiredThreshold_ = updateCollateralValidatorThreshold();
-            revert NotEnoughValidSignatures(requiredThreshold_ - threshold_, requiredThreshold_);
+
+            unchecked {
+                // NOTE: BY this point, it is already established that `threshold_` is less than `requiredThreshold_`.
+                revert NotEnoughValidSignatures(requiredThreshold_ - threshold_, requiredThreshold_);
+            }
         }
     }
 }

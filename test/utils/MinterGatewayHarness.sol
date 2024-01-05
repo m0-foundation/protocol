@@ -7,48 +7,90 @@ import { MinterGateway } from "../../src/MinterGateway.sol";
 contract MinterGatewayHarness is MinterGateway {
     constructor(address ttgRegistrar_, address mToken_) MinterGateway(ttgRegistrar_, mToken_) {}
 
+    /******************************************************************************************************************\
+    |                                                     Getters                                                      |
+    \******************************************************************************************************************/
+
+    function getMissedCollateralUpdateParameters(
+        uint40 lastUpdateTimestamp_,
+        uint40 lastPenalizedUntil_,
+        uint32 updateInterval_
+    ) external view returns (uint40 missedIntervals_, uint40 missedUntil_) {
+        return _getMissedCollateralUpdateParameters(lastUpdateTimestamp_, lastPenalizedUntil_, updateInterval_);
+    }
+
+    function getPrincipalAmountRoundedUp(uint240 amount_) external view returns (uint112 principalAmount_) {
+        return _getPrincipalAmountRoundedUp(amount_);
+    }
+
+    function internalCollateralOf(address minter_) external view returns (uint240 collateral_) {
+        return _minterStates[minter_].collateral;
+    }
+
     function mintNonce() external view returns (uint48) {
         return _mintNonce;
+    }
+
+    function rate() external view returns (uint32 rate_) {
+        return _rate();
+    }
+
+    function rawOwedMOf(address minter_) external view returns (uint256 rawOwedMOf_) {
+        return _rawOwedM[minter_];
     }
 
     function retrievalNonce() external view returns (uint48) {
         return _retrievalNonce;
     }
 
-    function setActiveMinter(address minter_, bool isActive_) external {
+    /******************************************************************************************************************\
+    |                                                     Setters                                                      |
+    \******************************************************************************************************************/
+
+    function setIsActive(address minter_, bool isActive_) external {
         _minterStates[minter_].isActive = isActive_;
+    }
+
+    function setMintNonce(uint256 nonce_) external {
+        _mintNonce = uint48(nonce_);
     }
 
     function setMintProposalOf(
         address minter_,
+        uint256 mintId_,
         uint256 amount_,
         uint256 createdAt_,
         address destination_
-    ) external returns (uint48 mintId_) {
-        mintId_ = ++_mintNonce;
-
+    ) external {
         _mintProposals[minter_] = MintProposal(uint48(mintId_), uint40(createdAt_), destination_, uint128(amount_));
     }
 
     function setCollateralOf(address minter_, uint256 collateral_) external {
-        _minterStates[minter_].collateral = uint128(collateral_);
+        _minterStates[minter_].collateral = uint240(collateral_);
     }
 
-    function setCollateralUpdateOf(address minter_, uint256 lastUpdated_) external {
+    function setUpdateTimestampOf(address minter_, uint256 lastUpdated_) external {
         _minterStates[minter_].updateTimestamp = uint40(lastUpdated_);
     }
 
-    function setLastCollateralUpdateIntervalOf(address minter_, uint256 updateInterval_) external {
-        _minterStates[minter_].lastUpdateInterval = uint32(updateInterval_);
+    function setUnfrozenTimeOf(address minter_, uint256 frozenTime_) external {
+        _minterStates[minter_].frozenUntilTimestamp = uint40(frozenTime_);
     }
 
     function setPenalizedUntilOf(address minter_, uint256 penalizedUntil_) external {
         _minterStates[minter_].penalizedUntilTimestamp = uint40(penalizedUntil_);
     }
 
-    function setPrincipalOfActiveOwedMOf(address minter_, uint256 amount_) external {
-        _owedM[minter_].principalOfActive = uint128(amount_);
-        _totalPrincipalOfActiveOwedM += uint128(amount_);
+    function setRawOwedMOf(address minter_, uint256 amount_) external {
+        _rawOwedM[minter_] = uint240(amount_);
+    }
+
+    function setTotalPrincipalOfActiveOwedM(uint256 amount_) external {
+        _totalPrincipalOfActiveOwedM += uint112(amount_);
+    }
+
+    function setTotalInactiveOwedM(uint256 amount_) external {
+        _totalInactiveOwedM = uint128(amount_);
     }
 
     function setTotalPendingRetrievalsOf(address minter_, uint256 amount_) external {
@@ -63,11 +105,7 @@ contract MinterGatewayHarness is MinterGateway {
         _latestRate = uint32(rate_);
     }
 
-    function principalOfActiveOwedMOf(address minter_) external view returns (uint128 principalOfActiveOwedM_) {
-        return _owedM[minter_].principalOfActive;
-    }
-
-    function rate() external view returns (uint32 rate_) {
-        return _rate();
+    function setIsDeactivated(address minter_, bool isDeactivated_) external {
+        _minterStates[minter_].isDeactivated = isDeactivated_;
     }
 }

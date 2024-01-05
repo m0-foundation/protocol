@@ -28,7 +28,7 @@ contract MTokenHarness is MToken {
     }
 
     function setTotalPrincipalOfEarningSupply(uint256 totalPrincipalOfEarningSupply_) external {
-        _totalPrincipalOfEarningSupply = uint128(totalPrincipalOfEarningSupply_);
+        _totalPrincipalOfEarningSupply = uint112(totalPrincipalOfEarningSupply_);
     }
 
     function setInternalBalanceOf(address account_, uint256 balance_) external {

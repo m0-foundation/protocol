@@ -36,7 +36,7 @@ contract EarnerRateModel is IEarnerRateModel {
 
     /// @inheritdoc IRateModel
     function rate() external view returns (uint256) {
-        uint256 totalActiveOwedM_ = IMinterGateway(minterGateway).totalActiveOwedM();
+        uint240 totalActiveOwedM_ = IMinterGateway(minterGateway).totalActiveOwedM();
 
         if (totalActiveOwedM_ == 0) return 0;
 
@@ -45,7 +45,6 @@ contract EarnerRateModel is IEarnerRateModel {
         if (totalEarningSupply_ == 0) return baseRate();
 
         // NOTE: Calculate safety guard rate that prevents overprinting of M.
-        // TODO: Discuss the pros/cons of moving this into M Token after all integration/invariants tests are done.
         return
             UIntMath.min256(
                 baseRate(),
