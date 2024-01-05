@@ -1657,7 +1657,7 @@ contract MinterGatewayTests is TestUtils {
         });
 
         assertEq(missedIntervals_, 0);
-        assertEq(missedUntil_, 0);
+        assertEq(missedUntil_, uint40(block.timestamp) - 24 hours);
     }
 
     function test_getMissedCollateralUpdateParameters_newMinter() external {
