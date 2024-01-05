@@ -819,7 +819,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
         (uint40 missedIntervals_, ) = _getMissedCollateralUpdateParameters(
             minterState_.updateTimestamp,
-            minterState_.penalizedUntilTimestamp, 
+            minterState_.penalizedUntilTimestamp,
             updateCollateralInterval()
         );
 
