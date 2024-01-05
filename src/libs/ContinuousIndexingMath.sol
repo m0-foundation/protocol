@@ -4,8 +4,6 @@ pragma solidity 0.8.23;
 
 import { UIntMath } from "./UIntMath.sol";
 
-// TODO: Consider R(5,5) Padé approximation with some divisions if needed to maintain input range.
-
 /**
  * @title  Arithmetic library with operations for calculating continuous indexing.
  * @author M^ZERO Labs
@@ -13,6 +11,9 @@ import { UIntMath } from "./UIntMath.sol";
 library ContinuousIndexingMath {
     /// @notice Emitted when a division by zero occurs.
     error DivisionByZero();
+
+    /// @notice Emitted when the natural logarithm will result in a negative number.
+    error NegativeExponent();
 
     /// @notice The number of seconds in a year.
     uint32 internal constant SECONDS_PER_YEAR = 31_536_000;
@@ -136,6 +137,33 @@ library ContinuousIndexingMath {
             // NOTE: Can cast to `uint48` because contents can never be larger than `type(uint48).max` for any `x`.
             //       Max `y` is ~200e12, before falling off. See links above for reference.
             return uint48(((additiveTerms + differentTerms) * 1e12) / (additiveTerms - differentTerms));
+        }
+    }
+
+    /**
+     * @notice Helper function to calculate y = ln(x) using R(4,4) Padé approximation:
+     *           ln(1 + x) = (x + 3(x^2)/2 + 13(x^3)/21 5(x^4)/84) / (1 + 2x + 9(x^2)/7 + 2(x^3)/7 + x^4/70)
+     *           See: https://www.wolframalpha.com/input?i=PadeApproximant%5BLog%5B1%2Bx%5D%2C%7Bx%2C0%2C%7B4%2C4%7D%7D%5D
+     *         Despite itself being a whole number, `x` represents a real number scaled by `EXP_SCALED_ONE`, thus
+     *         allowing for y = ln(x) where x is a real number.
+     * @dev    Output `y` for a `uint128` input `x` will fit in `uint72`
+     */
+    function log(uint128 x) internal pure returns (uint72 y) {
+        if (x < EXP_SCALED_ONE) revert NegativeExponent(); // TODO: Consider returning 0.
+
+        unchecked {
+            x -= EXP_SCALED_ONE;
+
+            uint256 x2 = uint256(x) * x;
+            uint256 numerator = x + ((3 * x2) / 2e12) + ((13 * (x2 * x)) / 21e24) + ((x2 * x2) / 168e35);
+
+            uint256 denominator = 1e12 +
+                (2 * uint256(x)) +
+                ((9 * x2) / 7e12) +
+                ((x2 * x) / 35e35) +
+                ((x2 * x2) / 70e36);
+
+            return uint72((numerator * 1e12) / denominator);
         }
     }
 

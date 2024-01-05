@@ -8,8 +8,6 @@ import { TTGRegistrarReader } from "../../src/libs/TTGRegistrarReader.sol";
 
 import { IntegrationBaseSetup } from "./IntegrationBaseSetup.t.sol";
 
-// TODO: Check mints to Vault.
-
 contract IntegrationTests is IntegrationBaseSetup {
     function test_story1() external {
         // Set test specific parameters
