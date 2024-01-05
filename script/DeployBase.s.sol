@@ -11,6 +11,11 @@ import { EarnerRateModel } from "../src/EarnerRateModel.sol";
 import { MinterRateModel } from "../src/MinterRateModel.sol";
 
 contract DeployBase is Script {
+    error DeployerNonceMismatch(uint256 expectedDeployerNonce, uint256 actualDeployerNonce);
+
+    // NOTE: Ensure this is the current nonce (transaction count) of the deploying address.
+    uint256 internal constant _DEPLOYER_NONCE = 0;
+
     function deploy(
         address deployer_,
         uint256 deployerNonce_,
@@ -18,11 +23,14 @@ contract DeployBase is Script {
     ) public returns (address minterGateway_, address minterRateModel_, address earnerRateModel_) {
         console.log("deployer: ", deployer_);
 
+        if (deployerNonce_ != vm.getNonce(deployer_)) {
+            revert DeployerNonceMismatch(_DEPLOYER_NONCE, vm.getNonce(deployer_));
+        }
+
         // M token needs `minterGateway_` and `ttgRegistrar_` addresses.
         // MinterGateway needs `ttgRegistrar_` and M token addresses and for `ttgRegistrar_` to be deployed.
         // EarnerRateModel needs `minterGateway_` address and for `minterGateway_` to be deployed.
         // MinterRateModel needs `ttgRegistrar_` address.
-
         address expectedMinterGateway_ = ContractHelper.getContractFrom(deployer_, deployerNonce_ + 1);
 
         vm.startBroadcast(deployer_);

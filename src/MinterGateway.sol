@@ -624,15 +624,15 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
             // As an edge case precaution, cap the penalty principal such that the resulting total principal of active
             // owed M plus the penalty principal is not greater than the max uint112.
-            uint256 newtotalPrincipalOfActiveOwedM_ = _totalPrincipalOfActiveOwedM + penaltyPrincipal_;
+            uint256 newTotalPrincipalOfActiveOwedM_ = _totalPrincipalOfActiveOwedM + penaltyPrincipal_;
 
-            if (newtotalPrincipalOfActiveOwedM_ > type(uint112).max) {
+            if (newTotalPrincipalOfActiveOwedM_ > type(uint112).max) {
                 penaltyPrincipal_ = type(uint112).max - _totalPrincipalOfActiveOwedM;
-                newtotalPrincipalOfActiveOwedM_ = type(uint112).max;
+                newTotalPrincipalOfActiveOwedM_ = type(uint112).max;
             }
 
             // Calculate and add penalty principal to total minter's principal of active owed M
-            _totalPrincipalOfActiveOwedM = uint112(newtotalPrincipalOfActiveOwedM_);
+            _totalPrincipalOfActiveOwedM = uint112(newTotalPrincipalOfActiveOwedM_);
 
             _rawOwedM[minter_] += uint112(penaltyPrincipal_); // Treat rawOwedM as principal since minter is active.
 
