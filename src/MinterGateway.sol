@@ -42,6 +42,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     // TODO: Combine `isActive` and `isDeactivated` into an enum (i.e. `NeverActivated`, `Active`, `Deactivated`).
     struct MinterState {
         // 1st slot
+        bool isActive;
+        bool isDeactivated;
         uint240 collateral;
         // 2nd slot
         uint240 totalPendingRetrievals;
@@ -49,8 +51,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         uint40 updateTimestamp;
         uint40 penalizedUntilTimestamp;
         uint40 frozenUntilTimestamp;
-        bool isActive; // TODO: move to beginning, it should not matter, but still?
-        bool isDeactivated;
     }
 
     /******************************************************************************************************************\
