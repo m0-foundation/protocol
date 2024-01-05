@@ -25,8 +25,8 @@ contract FuzzTests is IntegrationBaseSetup {
 
         minterRate = bound(minterRate, 100, 40000); // [0.1%, 400%] in basis points
         earnerRate = bound(earnerRate, 100, 40000); // [0.1%, 400%] in basis points
-        mintAmountToEarner = bound(mintAmountToEarner, 100e6, 1000e15);
-        mintAmountToNonEarner = bound(mintAmountToNonEarner, 100e6, 1000e15);
+        mintAmountToEarner = bound(mintAmountToEarner, 1_000e6, 1_000e15);
+        mintAmountToNonEarner = bound(mintAmountToNonEarner, 1_000e6, 1_000e15);
         timeElapsed = bound(timeElapsed, 10, 10 days); // [10, 10 days]
 
         // Stress test protocol - earner rate >= minter rate
@@ -94,8 +94,8 @@ contract FuzzTests is IntegrationBaseSetup {
 
         minterRate = bound(minterRate, 100, 40000); // [0.1%, 400%] in basis points
         earnerRate = bound(earnerRate, 100, 40000); // [0.1%, 400%] in basis points
-        minter1Amount = bound(minter1Amount, 10e6, 1000e15);
-        minter2Amount = bound(minter2Amount, 100e6, 1000e15);
+        minter1Amount = bound(minter1Amount, 1_000e6, 1_000e15);
+        minter2Amount = bound(minter2Amount, 1_000e6, 1_000e15);
         timeElapsed = bound(timeElapsed, 10, 10 days); // [10, 10 days]
 
         // Stress test protocol - earner rate >= minter rate
