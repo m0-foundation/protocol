@@ -275,8 +275,8 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice The last saved value of Minter rate.
     function minterRate() external view returns (uint32);
 
-    /// @notice The principal of total owed M for all active minters.
-    function principalOfTotalActiveOwedM() external view returns (uint112);
+    /// @notice The total principal of owed M for all active minters.
+    function totalPrincipalOfActiveOwedM() external view returns (uint112);
 
     /// @notice The total owed M for all active minters.
     function totalActiveOwedM() external view returns (uint240);

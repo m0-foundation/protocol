@@ -391,7 +391,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /// @inheritdoc IMinterGateway
-    function principalOfTotalActiveOwedM() external view returns (uint112) {
+    function totalPrincipalOfActiveOwedM() external view returns (uint112) {
         return _totalPrincipalOfActiveOwedM;
     }
 
@@ -452,7 +452,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /// @inheritdoc IMinterGateway
     function principalOfActiveOwedMOf(address minter_) public view returns (uint112) {
         // NOTE: This should also include the principal value of unavoidable penalities. But then it would be very, if
-        //       not impossible, to determine the `principalOfTotalActiveOwedM` to the same standards.
+        //       not impossible, to determine the `totalPrincipalOfActiveOwedM` to the same standards.
         return
             _minterStates[minter_].isActive
                 ? uint112(_rawOwedM[minter_]) // Treat rawOwedM as principal since minter is active.
