@@ -73,8 +73,6 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
     }
 
     function test_updateCollateral_updateCollateralIntervalChange() external {
-        vm.skip(true);
-
         address minter_ = _minters[0];
         uint256 collateral_ = 1_500_000e6;
         uint128 mintAmount_ = 1_000_000e6;
@@ -108,23 +106,29 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
         );
 
         uint128 updateCollateralIndex_ = _minterGateway.latestIndex();
+        assertEq(_minterGateway.latestIndex(), _minterGateway.currentIndex());
 
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1 hours);
 
         vm.warp(block.timestamp + 12 hours);
 
-        uint128 indexAfter12Hours_ = _getContinuousIndexAt(_baseMinterRate, updateCollateralIndex_, 13 hours);
+        uint128 indexAfter12Hours_ = _getContinuousIndexAt(_baseMinterRate, updateCollateralIndex_, 12 hours);
 
-        penaltyPrincipal_ = ContinuousIndexingMath.divideDown(
-            _minterGateway.getPenaltyForMissedCollateralUpdates(minter_),
-            indexAfter12Hours_
-        );
+        assertEq(_minterGateway.currentIndex(), indexAfter12Hours_);
+
+        vm.warp(block.timestamp + 1 hours);
+
+        uint128 indexAfter13Hours_ = _getContinuousIndexAt(_baseMinterRate, updateCollateralIndex_, 13 hours);
+        uint240 imposedPenalties_ = _minterGateway.getPenaltyForMissedCollateralUpdates(minter_);
+
+        vm.warp(block.timestamp - 1 hours);
+
+        penaltyPrincipal_ = ContinuousIndexingMath.divideDown(imposedPenalties_, indexAfter13Hours_);
 
         principalAmount_ += penaltyPrincipal_;
 
         _updateCollateral(minter_, collateral_);
 
-        // TODO: figure out why the penalty is higher than the one we expect
         assertEq(
             _minterGateway.activeOwedMOf(minter_),
             ContinuousIndexingMath.multiplyUp(principalAmount_, _minterGateway.currentIndex())
