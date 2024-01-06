@@ -138,7 +138,8 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(_minterGateway.collateralOf(_minter1), collateral);
         assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
-        assertEq(_minterGateway.collateralUpdateDeadlineOf(_minter1), signatureTimestamp + _updateCollateralInterval);
+        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), signatureTimestamp + _updateCollateralInterval);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), signatureTimestamp + _updateCollateralInterval);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), (collateral * _mintRatio) / ONE);
     }
 
@@ -172,7 +173,8 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(_minterGateway.collateralOf(_minter1), collateral);
         assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
-        assertEq(_minterGateway.collateralUpdateDeadlineOf(_minter1), signatureTimestamp + _updateCollateralInterval);
+        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), signatureTimestamp + _updateCollateralInterval);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), signatureTimestamp + _updateCollateralInterval);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), (collateral * _mintRatio) / ONE);
     }
 
@@ -1816,8 +1818,43 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.penaltyRate(), 100);
     }
 
-    function test_updateCollateralInterval() external {
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 10);
-        assertEq(_minterGateway.updateCollateralInterval(), 10);
+    function test_collateralExpiryTimestampOf() external {
+        // collateralExpiryTimestampOf should always be equal to updateTimestampOf + updateCollateralInterval
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), block.timestamp + _updateCollateralInterval);
+
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1_234);
+        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), block.timestamp + 1234);
+
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - 10_000);
+        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), block.timestamp - 10_000 + 1_234);
+    }
+
+    function test_collateralPenaltyDeadlineOf() external {
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp - 10);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp + _updateCollateralInterval);
+
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - 10);
+        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp + _updateCollateralInterval);
+
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1_234);
+
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp - 10);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp + 1234);
+
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - 10);
+        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp + 1234);
+
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - 10_000);
+        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp - 10_010);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp - 10_000 + 9 * (1234));
+
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - 10_010);
+        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp - 10_000);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp - 10_000 + 9 * (1234));
     }
 }

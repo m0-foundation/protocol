@@ -346,8 +346,11 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice The timestamp of the last collateral update of minter.
     function collateralUpdateTimestampOf(address minter) external view returns (uint40);
 
-    /// @notice The timestamp of the deadline for the next collateral update of minter.
-    function collateralUpdateDeadlineOf(address minter) external view returns (uint40);
+    /// @notice The timestamp after which an additional penalty for a missed update interval will bee charged.
+    function collateralPenaltyDeadlineOf(address minter) external view returns (uint40);
+
+    /// @notice The timestamp after which the minter's collateral is assumed to be 0 due to a missed update.
+    function collateralExpiryTimestampOf(address minter) external view returns (uint40);
 
     /// @notice The timestamp until which minter is already penalized for missed collateral updates.
     function penalizedUntilOf(address minter) external view returns (uint40);

@@ -510,7 +510,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /// @inheritdoc IMinterGateway
     function collateralOf(address minter_) public view returns (uint240) {
         // If collateral was not updated by the deadline, assume that minter's collateral is zero.
-        if (block.timestamp > collateralUpdateDeadlineOf(minter_)) return 0;
+        if (block.timestamp > collateralExpiryTimestampOf(minter_)) return 0;
 
         uint240 totalPendingRetrievals_ = _minterStates[minter_].totalPendingRetrievals;
         uint240 collateral_ = _minterStates[minter_].collateral;
@@ -529,7 +529,21 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
-    function collateralUpdateDeadlineOf(address minter_) public view returns (uint40) {
+    function collateralPenaltyDeadlineOf(address minter_) external view returns (uint40) {
+        MinterState storage minterState_ = _minterStates[minter_];
+        uint32 updateCollateralInterval_ = updateCollateralInterval();
+
+        (, uint40 missedUntil_) = _getMissedCollateralUpdateParameters(
+            minterState_.updateTimestamp,
+            minterState_.penalizedUntilTimestamp,
+            updateCollateralInterval_
+        );
+
+        return missedUntil_ + updateCollateralInterval_;
+    }
+
+    /// @inheritdoc IMinterGateway
+    function collateralExpiryTimestampOf(address minter_) public view returns (uint40) {
         unchecked {
             return _minterStates[minter_].updateTimestamp + updateCollateralInterval();
         }
