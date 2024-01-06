@@ -4,9 +4,39 @@ pragma solidity 0.8.23;
 
 import { Test } from "../../lib/forge-std/src/Test.sol";
 
+import { ContinuousIndexingMath } from "../../src/libs/ContinuousIndexingMath.sol";
+
 import { DigestHelper } from "./DigestHelper.sol";
 
 contract TestUtils is Test {
+    uint16 internal constant ONE = 10_000;
+
+    /* ============ index ============ */
+    function _getContinuousIndexAt(
+        uint32 minterRate,
+        uint128 initialIndex,
+        uint32 elapsedTime
+    ) internal pure returns (uint128) {
+        return
+            ContinuousIndexingMath.multiplyIndices(
+                initialIndex,
+                ContinuousIndexingMath.getContinuousIndex(
+                    ContinuousIndexingMath.convertFromBasisPoints(minterRate),
+                    elapsedTime
+                )
+            );
+    }
+
+    /* ============ penalty ============ */
+    function _getPenaltyPrincipal(
+        uint240 penaltyBase_,
+        uint32 penaltyRate_,
+        uint128 index_
+    ) internal pure returns (uint112) {
+        return ContinuousIndexingMath.divideUp((penaltyBase_ * penaltyRate_) / ONE, index_);
+    }
+
+    /* ============ signatures ============ */
     function _makeKey(string memory name) internal returns (uint256 privateKey) {
         (, privateKey) = makeAddrAndKey(name);
     }

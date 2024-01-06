@@ -1,12 +1,12 @@
 {
-  "name": "@mzero-labs/minter-gateway",
+  "name": "@mzero-labs/protocol",
   "version": "1.0.0",
-  "description": "M^0 Minter Gateway contracts",
+  "description": "M^0 Protocol contracts",
   "main": "index.js",
-  "author": "M^ZERO LABS_ <contact@m0.xyz>",
+  "author": "M^0 Labs <contact@m0.xyz>",
   "license": "GPL-3.0",
   "scripts": {
-    "coverage": "forge coverage --report lcov && lcov --extract lcov.info -o lcov.info 'src/*'",
+    "coverage": "forge coverage --report lcov && lcov --extract lcov.info -o lcov.info 'src/*' && genhtml lcov.info -o coverage",
     "prettier": "prettier --write --plugin=prettier-plugin-solidity 'script/**/*.sol' 'src/**/*.sol' 'test/**/*.sol'",
     "slither": "forge build --build-info --skip '*/test/**' --skip '*/script/**' --force && slither --compile-force-framework foundry --ignore-compile --config-file slither.config.json --fail-high .",
     "solhint": "solhint -f stylish 'src/**/*.sol'",

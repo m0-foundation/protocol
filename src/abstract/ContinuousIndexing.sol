@@ -8,8 +8,8 @@ import { ContinuousIndexingMath } from "../libs/ContinuousIndexingMath.sol";
 import { UIntMath } from "../libs/UIntMath.sol";
 
 /**
- * @title  Abstract Continuous Indexing Contract to handle rate/index updates in inheriting contracts.
- * @author M^ZERO LABS_
+ * @title Abstract Continuous Indexing Contract to handle rate/index updates in inheriting contracts.
+ * @author M^0 Labs
  */
 abstract contract ContinuousIndexing is IContinuousIndexing {
     /// @dev The latest updated index.

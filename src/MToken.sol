@@ -16,7 +16,7 @@ import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 
 /**
  * @title  MToken
- * @author M^ZERO LABS_
+ * @author M^0 Labs
  * @notice ERC20 M Token.
  */
 contract MToken is IMToken, ContinuousIndexing, ERC20Extended {

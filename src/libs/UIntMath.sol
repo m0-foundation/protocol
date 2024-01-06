@@ -3,8 +3,8 @@
 pragma solidity 0.8.23;
 
 /**
- * @title  Library to perform safe math operations on uint types
- * @author M^ZERO Labs
+ * @title Library to perform safe math operations on uint types
+ * @author M^0 Labs
  */
 library UIntMath {
     /// @notice Emitted when a passed value is greater than the maximum value of uint40.

@@ -19,11 +19,11 @@ contract MinterGatewayHarness is MinterGateway {
         return _getMissedCollateralUpdateParameters(lastUpdateTimestamp_, lastPenalizedUntil_, updateInterval_);
     }
 
-    function getPrincipalAmountRoundedUp(uint240 amount_) external view returns (uint112 principalAmount_) {
+    function getPrincipalAmountRoundedUp(uint240 amount_) external view returns (uint112) {
         return _getPrincipalAmountRoundedUp(amount_);
     }
 
-    function internalCollateralOf(address minter_) external view returns (uint240 collateral_) {
+    function internalCollateralOf(address minter_) external view returns (uint240) {
         return _minterStates[minter_].collateral;
     }
 
@@ -31,11 +31,11 @@ contract MinterGatewayHarness is MinterGateway {
         return _mintNonce;
     }
 
-    function rate() external view returns (uint32 rate_) {
+    function rate() external view returns (uint32) {
         return _rate();
     }
 
-    function rawOwedMOf(address minter_) external view returns (uint256 rawOwedMOf_) {
+    function rawOwedMOf(address minter_) external view returns (uint256) {
         return _rawOwedM[minter_];
     }
 

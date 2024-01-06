@@ -1,0 +1,38 @@
+updateCollateral.t.sol
+├─ Minter fails to call `updateCollateral` during the required interval and the Penalty Rate is later changed
+│  ├─ Given the Penalty Rate starts at 1% and is then set to 100%
+│  ├─ When Minter updates their collateral with 1,500,000 tokens
+│  ├─ Then their collateral must be 1,500,000 tokens
+│  ├─ When Minter mints 1,000,000 tokens to Alice
+│  ├─ Then Minter's active owed M balance must be 1,000,000 tokens plus 1 wei
+│  ├─ Then Alice's balance must be 1,000,000 tokens
+│  ├─ When Minter fails to call `updateCollateral` for one collateral interval
+│  ├─ Then Minter is penalized once when updating their collateral
+│  ├─ When the Penalty Rate is changed and Minter calls `updateCollateral` before the collateral interval deadline
+│  ├─ Then Minter should not be penalized again
+│  ├─ When Minter calls `updateCollateral` after the collateral interval deadline
+│  └─ Then Minter should be penalized with the new Penalty Rate
+├─ Minter fails to call `updateCollateral` during the required interval and the Update Collateral Interval is later changed
+│  ├─ Given the Update Collateral Interval is originally set to 24 hours and is then later changed to 1 hour
+│  ├─ When Minter updates their collateral with 1,500,000 tokens
+│  ├─ Then their collateral must be 1,500,000 tokens
+│  ├─ When Minter mints 1,000,000 tokens to Alice
+│  ├─ Then Minter's active owed M balance must be 1,000,000 tokens plus 1 wei
+│  ├─ Then Alice's balance must be 1,000,000 tokens
+│  ├─ When Minter fails to call `updateCollateral` for one collateral interval
+│  ├─ Then Minter is penalized once when updating their collateral
+│  ├─ When the Update Collateral Interval is set to 1 hour and Minter calls `updateCollateral` 12 hours later
+│  ├─ Then Minter should be penalized again since the interval changed
+│  ├─ When the Update Collateral Interval is set to 48 hours and Minter calls `updateCollateral` 36 hours later
+│  └─ Then Minter should not be penalized again since the new interval prevails
+└─ Minter calls `updateCollateral` during the required interval and the Mint Ratio is later changed
+   ├─ Given the Mint Ratio is originally set to 90% and is then later changed to 50%
+   ├─ When Minter updates their collateral with 1,500,000 tokens
+   ├─ Then their collateral must be 1,500,000 tokens
+   ├─ When Minter mints 1,000,000 tokens to Alice
+   ├─ Then Minter's active owed M balance must be 1,000,000 tokens plus 1 wei
+   ├─ Then Alice's balance must be 1,000,000 tokens
+   ├─ When the Mint Ratio is changed and Minter calls `updateCollateral` without updating their collateral
+   ├─ Then Minter is penalized once for undercollateralization when updating their collateral
+   ├─ When Minter update their collateral and calls `updateCollateral` again 
+   └─ Then Minter should not be penalized again

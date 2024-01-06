@@ -2,8 +2,6 @@
 
 pragma solidity 0.8.23;
 
-import { console2, stdError, Test } from "../../lib/forge-std/src/Test.sol";
-
 import { TTGRegistrarReader } from "../../src/libs/TTGRegistrarReader.sol";
 
 import { IntegrationBaseSetup } from "./IntegrationBaseSetup.t.sol";

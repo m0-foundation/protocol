@@ -1,0 +1,14 @@
+deactivateMinter.t.sol
+└─ Minter fails to call `updateCollateral` during the required interval and the Update Collateral Interval is later changed
+   ├─ Given the Update Collateral Interval is originally set to 24 hours and is then later changed to 48 hours
+   ├─ When Minter updates their collateral with 1,500,000 tokens
+   ├─ Then their collateral must be 1,500,000 tokens
+   ├─ When Minter mints 1,000,000 tokens to Alice
+   ├─ Then Minter's active owed M balance must be 1,000,000 tokens plus 1 wei
+   ├─ Then Alice's balance must be 1,000,000 tokens
+   ├─ When Minter fails to call `updateCollateral` for one collateral interval
+   ├─ Then Minter is penalized once when updating their collateral
+   ├─ When the Penalty Rate is changed to 48 hours and `deactivateMinter` is called before the new collateral interval deadline
+   ├─ Then Minter should not be penalized again and Minter `inactiveOwedM` balance should be equal to the principal plus the previous penalty
+   ├─ Then Minter `activeOwedM` balance should be 0
+   └─ Then Minter should be deactivated

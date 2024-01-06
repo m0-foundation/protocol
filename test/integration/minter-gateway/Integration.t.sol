@@ -2,11 +2,7 @@
 
 pragma solidity 0.8.23;
 
-import { console2 } from "../../../lib/forge-std/src/Test.sol";
-
 import { TTGRegistrarReader } from "../../../src/libs/TTGRegistrarReader.sol";
-
-import { MockTTGRegistrar } from "./../../utils/Mocks.sol";
 
 import { IntegrationBaseSetup } from "../IntegrationBaseSetup.t.sol";
 
@@ -354,72 +350,5 @@ contract IntegrationTests is IntegrationBaseSetup {
         vm.warp(block.timestamp + 30 days);
 
         assertGt(_minterGateway.totalOwedM(), _mToken.totalSupply());
-    }
-
-    function _updateCollateral(address minter_, uint256 collateral_) internal returns (uint256 lastUpdateTimestamp_) {
-        uint256[] memory retrievalIds = new uint256[](0);
-
-        return _updateCollateral(minter_, collateral_, retrievalIds);
-    }
-
-    function _updateCollateral(
-        address minter_,
-        uint256 collateral_,
-        uint256[] memory retrievalIds
-    ) internal returns (uint256 lastUpdateTimestamp_) {
-        uint256 signatureTimestamp = block.timestamp;
-
-        address[] memory validators = new address[](1);
-        validators[0] = _validators[0];
-
-        uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = signatureTimestamp;
-
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0] = _getCollateralUpdateSignature(
-            address(_minterGateway),
-            minter_,
-            collateral_,
-            retrievalIds,
-            bytes32(0),
-            signatureTimestamp,
-            _validatorKeys[0]
-        );
-
-        vm.warp(block.timestamp + 1 hours);
-
-        vm.prank(minter_);
-        _minterGateway.updateCollateral(collateral_, retrievalIds, bytes32(0), validators, timestamps, signatures);
-
-        return signatureTimestamp;
-    }
-
-    function _mintM(address minter_, uint256 mintAmount_, address recipient_) internal {
-        vm.prank(minter_);
-        uint256 mintId = _minterGateway.proposeMint(mintAmount_, recipient_);
-
-        vm.warp(block.timestamp + _mintDelay + 1 hours); // 1 hour after the mint delay, the minter mints M.
-
-        vm.prank(minter_);
-        _minterGateway.mintM(mintId);
-    }
-
-    function _batchMintM(
-        address[] memory minters_,
-        uint256[] memory mintAmounts_,
-        address[] memory recipients_
-    ) internal {
-        uint256[] memory mintIds = new uint256[](minters_.length);
-        for (uint256 i; i < mintAmounts_.length; ++i) {
-            vm.prank(minters_[i]);
-            mintIds[i] = _minterGateway.proposeMint(mintAmounts_[i], recipients_[i]);
-        }
-
-        vm.warp(block.timestamp + _mintDelay + 1 hours); // 1 hour after the mint delay, the minter mints M.
-
-        for (uint256 i; i < mintAmounts_.length; ++i) {
-            vm.prank(minters_[i]);
-            _minterGateway.mintM(mintIds[i]);
-        }
     }
 }
