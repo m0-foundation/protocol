@@ -14,7 +14,7 @@ import { IMinterGateway } from "../../src/interfaces/IMinterGateway.sol";
 
 import { TTGRegistrarReader } from "../../src/libs/TTGRegistrarReader.sol";
 import { MinterRateModel } from "../../src/rateModels/MinterRateModel.sol";
-import { SplitEarnerRateModel } from "../../src/rateModels/SplitEarnerRateModel.sol";
+import { StableEarnerRateModel } from "../../src/rateModels/StableEarnerRateModel.sol";
 
 import { MockTTGRegistrar } from "../utils/Mocks.sol";
 

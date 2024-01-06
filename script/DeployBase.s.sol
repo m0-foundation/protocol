@@ -7,7 +7,7 @@ import { ContractHelper } from "../lib/common/src/ContractHelper.sol";
 
 import { MinterGateway } from "../src/MinterGateway.sol";
 import { MToken } from "../src/MToken.sol";
-import { SplitEarnerRateModel } from "../src/rateModels/SplitEarnerRateModel.sol";
+import { StableEarnerRateModel } from "../src/rateModels/StableEarnerRateModel.sol";
 import { MinterRateModel } from "../src/rateModels/MinterRateModel.sol";
 
 contract DeployBase is Script {
@@ -36,7 +36,7 @@ contract DeployBase is Script {
 
         minterGateway_ = address(new MinterGateway(ttgRegistrar_, mToken_));
         minterRateModel_ = address(new MinterRateModel(ttgRegistrar_));
-        earnerRateModel_ = address(new SplitEarnerRateModel(minterGateway_));
+        earnerRateModel_ = address(new StableEarnerRateModel(minterGateway_));
 
         vm.stopBroadcast();
 

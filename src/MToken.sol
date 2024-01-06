@@ -10,7 +10,7 @@ import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 
 import { IMToken } from "./interfaces/IMToken.sol";
-import { IRateModel } from "./interfaces/IRateModel.sol";
+import { IRateModel } from "./interfaces/rateModels/IRateModel.sol";
 
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 
