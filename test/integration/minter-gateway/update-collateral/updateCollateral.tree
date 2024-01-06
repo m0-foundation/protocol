@@ -33,6 +33,6 @@ updateCollateral.t.sol
    ├─ Then Minter's active owed M balance must be 1,000,000 tokens plus 1 wei
    ├─ Then Alice's balance must be 1,000,000 tokens
    ├─ When the Mint Ratio is changed and Minter calls `updateCollateral` without updating their collateral
-   ├─ Then Minter is penalized once when updating their collateral
-   ├─ When Minter update their collateral and calls `updateCollateral` again
+   ├─ Then Minter is penalized once for undercollateralization when updating their collateral
+   ├─ When Minter update their collateral and calls `updateCollateral` again 
    └─ Then Minter should not be penalized again

@@ -113,7 +113,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
 
         vm.warp(block.timestamp + 12 hours);
 
-        uint128 indexAfter12Hours_ = _getContinuousIndexAt(_baseMinterRate, updateCollateralIndex_, 12 hours);
+        uint128 indexAfter12Hours_ = _getContinuousIndexAt(_baseMinterRate, updateCollateralIndex_, 13 hours);
 
         penaltyPrincipal_ = ContinuousIndexingMath.divideDown(
             _minterGateway.getPenaltyForMissedCollateralUpdates(minter_),
@@ -156,6 +156,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
         uint128 mintIndex_ = _minterGateway.latestIndex();
         uint112 principalAmount_ = ContinuousIndexingMath.divideUp(mintAmount_, mintIndex_);
 
+        assertEq(_minterGateway.principalOfActiveOwedMOf(minter_), principalAmount_);
         assertEq(_minterGateway.activeOwedMOf(minter_), mintAmount_ + 1);
         assertEq(_mToken.balanceOf(_alice), mintAmount_);
 
@@ -166,20 +167,23 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
 
         // Need to offset calculation by 1 hour since `_updateCollateral` warp the time by 1 hour.
         uint128 indexAfter13Hours_ = _getContinuousIndexAt(_baseMinterRate, mintIndex_, 13 hours);
+        uint128 indexAfter12Hours_ = _getContinuousIndexAt(_baseMinterRate, mintIndex_, 12 hours);
 
-        // penaltyBase = principalOfActiveOwedM - principalOfMaxAllowedActiveOwedM
-        principalAmount_ += _getPenaltyPrincipal(
-            uint240(
-                principalAmount_ -
-                    ContinuousIndexingMath.divideDown(
-                        uint240(_minterGateway.maxAllowedActiveOwedMOf(minter_)),
-                        indexAfter13Hours_
-                    )
-            ),
-            _penaltyRate,
-            indexAfter13Hours_
+        uint112 principalOfActiveOwedM_ = uint112(
+            ContinuousIndexingMath.divideDown(_minterGateway.activeOwedMOf(minter_), indexAfter12Hours_)
         );
 
+        assertEq(_minterGateway.principalOfActiveOwedMOf(minter_), principalOfActiveOwedM_);
+
+        uint112 principalOfMaxAllowedActiveOwedM_ = uint112(
+            ContinuousIndexingMath.divideDown(
+                uint240(_minterGateway.maxAllowedActiveOwedMOf(minter_)),
+                indexAfter13Hours_
+            )
+        );
+
+        // penaltyBase = principalOfActiveOwedM - principalOfMaxAllowedActiveOwedM
+        principalAmount_ += ((principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_) * _penaltyRate) / ONE;
         _updateCollateral(minter_, collateral_);
 
         assertEq(
