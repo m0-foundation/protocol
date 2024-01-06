@@ -6,10 +6,11 @@ import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
 import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 
-import { IEarnerRateModel } from "../interfaces/rateModels/IEarnerRateModel.sol";
 import { IMToken } from "../interfaces/IMToken.sol";
 import { IMinterGateway } from "../interfaces/IMinterGateway.sol";
-import { IRateModel } from "../interfaces/rateModels/IRateModel.sol";
+
+import { IRateModel } from "./interfaces/IRateModel.sol";
+import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
 
 /**
  * @title Earner Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by MToken.
