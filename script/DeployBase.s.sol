@@ -13,9 +13,6 @@ import { MinterRateModel } from "../src/MinterRateModel.sol";
 contract DeployBase is Script {
     error DeployerNonceMismatch(uint256 expectedDeployerNonce, uint256 actualDeployerNonce);
 
-    // NOTE: Ensure this is the current nonce (transaction count) of the deploying address.
-    uint256 internal constant _DEPLOYER_NONCE = 0;
-
     function deploy(
         address deployer_,
         uint256 deployerNonce_,
@@ -24,7 +21,7 @@ contract DeployBase is Script {
         console.log("deployer: ", deployer_);
 
         if (deployerNonce_ != vm.getNonce(deployer_)) {
-            revert DeployerNonceMismatch(_DEPLOYER_NONCE, vm.getNonce(deployer_));
+            revert DeployerNonceMismatch(deployerNonce_, vm.getNonce(deployer_));
         }
 
         // M token needs `minterGateway_` and `ttgRegistrar_` addresses.
