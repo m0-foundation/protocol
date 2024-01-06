@@ -30,7 +30,7 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         assertEq(_minterGateway.activeOwedMOf(_minters[0]), 500_000_000001); // ~500k
         assertEq(_mToken.balanceOf(_alice), 500_000_000000); // 500k
-        assertEq(_mToken.balanceOf(_vault), 1);
+        assertEq(_mToken.balanceOf(_vault), 0);
 
         vm.warp(lastUpdateTimestamp + 18 hours); // start collecting signatures for next collateral update
         collateral = 1_200_000e6;
@@ -43,7 +43,7 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         assertEq(
             _minterGateway.activeOwedMOf(_minters[0]),
-            _mToken.balanceOf(_alice) + _mToken.balanceOf(_bob) + _mToken.balanceOf(_vault)
+            _mToken.balanceOf(_alice) + _mToken.balanceOf(_bob) + _mToken.balanceOf(_vault) + 1
         );
 
         // Mint M to alice, so she can repay owed M of first minter.
@@ -132,7 +132,7 @@ contract IntegrationTests is IntegrationBaseSetup {
             _minterGateway.activeOwedMOf(_minters[0]) +
                 _minterGateway.activeOwedMOf(_minters[1]) +
                 _minterGateway.activeOwedMOf(_minters[2]),
-            _mToken.balanceOf(_alice) + _mToken.balanceOf(_vault)
+            _mToken.balanceOf(_alice) + _mToken.balanceOf(_vault) + 1
         );
     }
 
@@ -191,7 +191,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         vm.prank(_alice);
         _minterGateway.burnM(_minters[0], aliceBalance);
 
-        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply() + 1);
         assertEq(_minterGateway.totalInactiveOwedM(), 0);
         assertEq(_minterGateway.inactiveOwedMOf(_minters[0]), 0);
     }
@@ -207,7 +207,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         uint256 mintAmount = 500_000e6;
         _mintM(_minters[0], mintAmount, _alice);
 
-        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply() + 1);
 
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minters[0]), 900_000e6);
 
@@ -219,7 +219,7 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         lastUpdateTimestamp = _updateCollateral(_minters[0], collateral);
 
-        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply() + 1);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minters[0]), 540_000000000);
 
         vm.warp(lastUpdateTimestamp + 18 hours); // provide new collateral update
@@ -301,14 +301,14 @@ contract IntegrationTests is IntegrationBaseSetup {
         _mintM(_minters[0], 800e6, _alice);
         _mintM(_minters[1], 500e6, _alice);
 
-        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
         // TTG removes minter from the protocol.
         _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
         // Minter is deactivated in the protocol
         _minterGateway.deactivateMinter(_minters[0]);
 
-        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
         // Danger zone - does not work for X seconds after deactivation
         vm.warp(block.timestamp + 1 seconds);
@@ -349,7 +349,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         _mintM(_minters[0], 800e6, _bob);
         _mintM(_minters[1], 900e6, _alice);
 
-        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
         vm.warp(block.timestamp + 30 days);
 

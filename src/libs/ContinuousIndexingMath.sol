@@ -4,8 +4,6 @@ pragma solidity 0.8.23;
 
 import { UIntMath } from "./UIntMath.sol";
 
-// TODO: Consider R(5,5) Padé approximation with some divisions if needed to maintain input range.
-
 /**
  * @title  Arithmetic library with operations for calculating continuous indexing.
  * @author M^ZERO Labs
@@ -13,6 +11,9 @@ import { UIntMath } from "./UIntMath.sol";
 library ContinuousIndexingMath {
     /// @notice Emitted when a division by zero occurs.
     error DivisionByZero();
+
+    /// @notice Emitted when the natural logarithm will result in a negative number.
+    error NegativeExponent();
 
     /// @notice The number of seconds in a year.
     uint32 internal constant SECONDS_PER_YEAR = 31_536_000;
