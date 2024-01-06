@@ -5,9 +5,9 @@ pragma solidity 0.8.23;
 import { SignatureChecker } from "../lib/common/src/libs/SignatureChecker.sol";
 
 import { ERC712 } from "../lib/common/src/ERC712.sol";
+import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
 import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
-import { UIntMath } from "./libs/UIntMath.sol";
 
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IMToken } from "./interfaces/IMToken.sol";

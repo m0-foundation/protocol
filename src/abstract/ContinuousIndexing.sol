@@ -2,10 +2,11 @@
 
 pragma solidity 0.8.23;
 
+import { UIntMath } from "../../lib/common/src/libs/UIntMath.sol";
+
 import { IContinuousIndexing } from "../interfaces/IContinuousIndexing.sol";
 
 import { ContinuousIndexingMath } from "../libs/ContinuousIndexingMath.sol";
-import { UIntMath } from "../libs/UIntMath.sol";
 
 /**
  * @title Abstract Continuous Indexing Contract to handle rate/index updates in inheriting contracts.
