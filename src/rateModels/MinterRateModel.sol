@@ -4,7 +4,7 @@ pragma solidity 0.8.23;
 
 import { TTGRegistrarReader } from "../libs/TTGRegistrarReader.sol";
 
-import { IRateModel } from "./interfaces/IRateModel.sol";
+import { IRateModel } from "../interfaces/IRateModel.sol";
 import { IMinterRateModel } from "./interfaces/IMinterRateModel.sol";
 
 /**

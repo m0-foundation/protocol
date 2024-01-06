@@ -12,7 +12,7 @@ import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IMinterGateway } from "./interfaces/IMinterGateway.sol";
-import { IRateModel } from "./rateModels/interfaces/IRateModel.sol";
+import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 

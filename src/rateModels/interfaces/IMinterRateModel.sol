@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.23;
 
-import { IRateModel } from "./IRateModel.sol";
+import { IRateModel } from "../../interfaces/IRateModel.sol";
 
 /// @title Minter Rate Model Interface.
 interface IMinterRateModel is IRateModel {

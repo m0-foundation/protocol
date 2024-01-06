@@ -8,8 +8,8 @@ import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 
 import { IMToken } from "../interfaces/IMToken.sol";
 import { IMinterGateway } from "../interfaces/IMinterGateway.sol";
+import { IRateModel } from "../interfaces/IRateModel.sol";
 
-import { IRateModel } from "./interfaces/IRateModel.sol";
 import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
 
 /**
