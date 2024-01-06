@@ -1121,7 +1121,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(penalizedUntil, timestamp + threeMissedIntervals + oneMoreMissedInterval);
     }
 
-    function test_imposePenalty_totalPrincipalOfActiveOwedMOverflows() external {
+    function test_imposePenalty_principalOfTotalActiveOwedMOverflows() external {
         uint256 collateral = 100e18;
         uint256 lastUpdateTimestamp = block.timestamp;
 
@@ -1141,7 +1141,7 @@ contract MinterGatewayTests is TestUtils {
 
         uint256 penaltyPrincipal_ = _minterGateway.getPrincipalAmountRoundedUp(uint240(penalty));
 
-        // 1 is added to overflow `newTotalPrincipalOfActiveOwedM_`
+        // 1 is added to overflow `newPrincipalOfTotalActiveOwedM_`
         uint256 totalPrincipalOfActiveOwedM_ = type(uint112).max - penaltyPrincipal_ + 1;
         _minterGateway.setTotalPrincipalOfActiveOwedM(totalPrincipalOfActiveOwedM_);
 
@@ -1171,8 +1171,8 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        // Despite overflowing, `totalPrincipalOfActiveOwedM` is capped and equal to type(uint112).max
-        assertEq(_minterGateway.totalPrincipalOfActiveOwedM(), type(uint112).max);
+        // Despite overflowing, `principalOfTotalActiveOwedM` is capped and equal to type(uint112).max
+        assertEq(_minterGateway.principalOfTotalActiveOwedM(), type(uint112).max);
         assertEq(
             _minterGateway.principalOfActiveOwedMOf(_minter1),
             minterPrincipalOfActiveOwedMBefore_ + penaltyPrincipal_ - 1
@@ -1719,9 +1719,9 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.rate(), 0);
     }
 
-    function test_totalPrincipalOfActiveOwedM() external {
+    function test_principalOfTotalActiveOwedM() external {
         _minterGateway.setTotalPrincipalOfActiveOwedM(1_000_000);
-        assertEq(_minterGateway.totalPrincipalOfActiveOwedM(), 1_000_000);
+        assertEq(_minterGateway.principalOfTotalActiveOwedM(), 1_000_000);
     }
 
     function test_totalActiveOwedM() external {

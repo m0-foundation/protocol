@@ -86,7 +86,7 @@ contract MinterGatewayHarness is MinterGateway {
     }
 
     function setTotalPrincipalOfActiveOwedM(uint256 amount_) external {
-        _totalPrincipalOfActiveOwedM += uint112(amount_);
+        _principalOfTotalActiveOwedM += uint112(amount_);
     }
 
     function setTotalInactiveOwedM(uint256 amount_) external {
