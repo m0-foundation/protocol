@@ -177,21 +177,6 @@ contract ContinuousIndexingMathTests is Test {
         assertEq(ContinuousIndexingMath.exponent(type(uint72).max), 1_000000008470);
     }
 
-    function test_log() external {
-        assertEq(ContinuousIndexingMath.log(_EXP_SCALED_ONE), 0); // actual 0
-
-        assertEq(ContinuousIndexingMath.log(_EXP_SCALED_ONE + _EXP_SCALED_ONE / 10000), 99994999); // actual 0.000099995000
-        assertEq(ContinuousIndexingMath.log(_EXP_SCALED_ONE + _EXP_SCALED_ONE / 1000), 999500333); // actual 0.000999500333
-        assertEq(ContinuousIndexingMath.log(_EXP_SCALED_ONE + _EXP_SCALED_ONE / 100), 9950333639); // actual 0.009950330853
-        assertEq(ContinuousIndexingMath.log(_EXP_SCALED_ONE + _EXP_SCALED_ONE / 10), 95332632116); // actual 0.095310179804
-        assertEq(ContinuousIndexingMath.log(_EXP_SCALED_ONE + _EXP_SCALED_ONE / 2), 411700627963); // actual 0.405465108108
-        assertEq(ContinuousIndexingMath.log(_EXP_SCALED_ONE * 2), 739202657807); // actual 0.693147180560
-        assertEq(ContinuousIndexingMath.log(2_718281828459), 1_173420972726); // actual 1.000000000000
-
-        // If `unchecked` is removed from `log`, it will not overflow (lot's of error nonetheless).
-        assertEq(ContinuousIndexingMath.log(type(uint72).max), 113_031660643185);
-    }
-
     function test_getContinuousIndex() external {
         assertEq(ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 0), 1_000000000000); // 1
         assertEq(ContinuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 1 days), 1_002743482506); // 1.00274348

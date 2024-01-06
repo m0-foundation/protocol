@@ -141,33 +141,6 @@ library ContinuousIndexingMath {
     }
 
     /**
-     * @notice Helper function to calculate y = ln(x) using R(4,4) Padé approximation:
-     *           ln(1 + x) = (x + 3(x^2)/2 + 13(x^3)/21 5(x^4)/84) / (1 + 2x + 9(x^2)/7 + 2(x^3)/7 + x^4/70)
-     *           See: https://www.wolframalpha.com/input?i=PadeApproximant%5BLog%5B1%2Bx%5D%2C%7Bx%2C0%2C%7B4%2C4%7D%7D%5D
-     *         Despite itself being a whole number, `x` represents a real number scaled by `EXP_SCALED_ONE`, thus
-     *         allowing for y = ln(x) where x is a real number.
-     * @dev    Output `y` for a `uint128` input `x` will fit in `uint72`
-     */
-    function log(uint128 x) internal pure returns (uint72 y) {
-        if (x < EXP_SCALED_ONE) revert NegativeExponent(); // TODO: Consider returning 0.
-
-        unchecked {
-            x -= EXP_SCALED_ONE;
-
-            uint256 x2 = uint256(x) * x;
-            uint256 numerator = x + ((3 * x2) / 2e12) + ((13 * (x2 * x)) / 21e24) + ((x2 * x2) / 168e35);
-
-            uint256 denominator = 1e12 +
-                (2 * uint256(x)) +
-                ((9 * x2) / 7e12) +
-                ((x2 * x) / 35e35) +
-                ((x2 * x2) / 70e36);
-
-            return uint72((numerator * 1e12) / denominator);
-        }
-    }
-
-    /**
      * @notice Helper function to convert 12-decimal representation to basis points.
      * @param  input The input in 12-decimal representation.
      * @return The output in basis points.

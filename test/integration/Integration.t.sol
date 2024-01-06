@@ -187,12 +187,12 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 1_000);
-        assertEq(_mToken.latestIndex(),  1_091748808392);
+        assertEq(_mToken.latestIndex(), 1_091748808392);
         assertEq(_mToken.currentIndex(), 1_091748808392);
         assertEq(_mToken.latestUpdateTimestamp(), latestMTokenUpdateTimestamp_);
 
         assertEq(_minterGateway.activeOwedMOf(_minters[0]), 551_224_598014);
-        assertEq(_mToken.balanceOf(_alice), 0); 
+        assertEq(_mToken.balanceOf(_alice), 0);
         assertEq(_mToken.balanceOf(_bob), 545_874_404196);
         assertEq(_mToken.balanceOf(_vault), 1); // No change since no call to `_minterGateway.updateIndex()`.
 
