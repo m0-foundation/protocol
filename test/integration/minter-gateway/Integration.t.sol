@@ -59,7 +59,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         _minterGateway.burnM(_minters[0], aliceBalance);
 
         assertEq(_minterGateway.activeOwedMOf(_minters[0]), 0);
-        assertEq(_mToken.balanceOf(_alice), aliceBalance - minterOwedM - 1);
+        assertEq(_mToken.balanceOf(_alice), aliceBalance - minterOwedM);
 
         // Minter can mint again without imposing any penalties for missed collateral updates
         vm.warp(block.timestamp + 60 days);

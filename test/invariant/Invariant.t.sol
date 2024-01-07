@@ -7,14 +7,10 @@ import { CommonBase } from "forge-std/Base.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 import { StdUtils } from "forge-std/StdUtils.sol";
 
-import { ContractHelper } from "../../lib/common/src/ContractHelper.sol";
-
 import { IMToken } from "../../src/interfaces/IMToken.sol";
 import { IMinterGateway } from "../../src/interfaces/IMinterGateway.sol";
 
 import { TTGRegistrarReader } from "../../src/libs/TTGRegistrarReader.sol";
-import { MinterRateModel } from "../../src/rateModels/MinterRateModel.sol";
-import { StableEarnerRateModel } from "../../src/rateModels/StableEarnerRateModel.sol";
 
 import { MockTTGRegistrar } from "../utils/Mocks.sol";
 
