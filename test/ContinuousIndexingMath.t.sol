@@ -185,6 +185,26 @@ contract ContinuousIndexingMathTests is Test {
         assertEq(continuousIndexingMath.exponent(type(uint72).max), 1_000000008470);
     }
 
+    function test_exponentAssembly() external {
+        assertEq(ContinuousIndexingMath.exponentAssembly(0), 1_000000000000); // actual 1
+
+        assertEq(ContinuousIndexingMath.exponentAssembly(_EXP_SCALED_ONE / 10000), 1_000100005000); // actual 1.0001000050001667
+        assertEq(ContinuousIndexingMath.exponentAssembly(_EXP_SCALED_ONE / 1000), 1_001000500166); // actual 1.0010005001667084
+        assertEq(ContinuousIndexingMath.exponentAssembly(_EXP_SCALED_ONE / 100), 1_010050167084); // actual 1.010050167084168
+        assertEq(ContinuousIndexingMath.exponentAssembly(_EXP_SCALED_ONE / 10), 1_105170918075); // actual 1.1051709180756477
+        assertEq(ContinuousIndexingMath.exponentAssembly(_EXP_SCALED_ONE / 2), 1_648721270572); // actual 1.6487212707001282
+        assertEq(ContinuousIndexingMath.exponentAssembly(_EXP_SCALED_ONE), 2_718281718281); // actual 2.718281828459045
+        assertEq(ContinuousIndexingMath.exponentAssembly(_EXP_SCALED_ONE * 2), 7_388888888888); // actual 7.3890560989306495
+
+        // Demonstrate maximum of ~200e12.
+        assertEq(ContinuousIndexingMath.exponentAssembly(_EXP_SCALED_ONE * 5), 128_619047619047);
+        assertEq(ContinuousIndexingMath.exponentAssembly(_EXP_SCALED_ONE * 6), 196_000000000000);
+        assertEq(ContinuousIndexingMath.exponentAssembly(_EXP_SCALED_ONE * 7), 159_260869565217);
+
+        // If `unchecked` is removed from `exponentAssembly`, it will not overflow (lot's of error nonetheless).
+        assertEq(ContinuousIndexingMath.exponentAssembly(type(uint72).max), 1_000000008470);
+    }
+
     function test_getContinuousIndex() external {
         assertEq(continuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 0), 1_000000000000); // 1
         assertEq(continuousIndexingMath.getContinuousIndex(_EXP_SCALED_ONE, 1 days), 1_002743482506); // 1.00274348
@@ -299,7 +319,7 @@ contract ContinuousIndexingMathTests is Test {
 
     function test_exponentLimits() external {
         uint72 x = 6_101171897009;
-        uint48 maxExponent = 196_691035579299;
+        uint48 maxExponent = 196_691035579298;
 
         assertEq(continuousIndexingMath.exponent(x), maxExponent); // Max of exponent.
 
@@ -316,12 +336,12 @@ contract ContinuousIndexingMathTests is Test {
         assertEq(continuousIndexingMath.convertToBasisPoints(uint64(maxYearlyRateGivenYearlyUpdates)), 61_011); // 610.11%
 
         assertEq(
-            continuousIndexingMath.getContinuousIndex(uint64(maxYearlyRateGivenHourlyUpdates), 1 hours),
-            196_691035579299
+            ContinuousIndexingMath.getContinuousIndex(uint64(maxYearlyRateGivenHourlyUpdates), 1 hours),
+            maxExponent
         );
         assertEq(
-            continuousIndexingMath.getContinuousIndex(uint64(maxYearlyRateGivenYearlyUpdates), 365 days),
-            196_691035579299
+            ContinuousIndexingMath.getContinuousIndex(uint64(maxYearlyRateGivenYearlyUpdates), 365 days),
+            maxExponent
         );
     }
 

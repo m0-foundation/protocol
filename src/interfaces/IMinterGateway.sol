@@ -13,6 +13,9 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice Emitted when principal of total owed M (active and inactive) will overflow a `type(uint112).max`.
     error OverflowsPrincipalOfTotalOwedM();
 
+    /// @notice Emitted when repay will burn more M than the repay specified.
+    error ExceedsMaxRepayAmount(uint240 amount, uint240 maxAmount);
+
     /// @notice Emitted when calling `mintM` with a proposal that was created more than `mintDelay + mintTTL` time ago.
     error ExpiredMintProposal(uint40 deadline);
 
@@ -120,40 +123,52 @@ interface IMinterGateway is IContinuousIndexing {
 
     /**
      * @notice Emitted when mint proposal is created.
-     * @param  mintId      The id of mint proposal
-     * @param  minter      The address of the minter
-     * @param  amount      The amount of M tokens to mint
-     * @param  destination The address to mint to
+     * @param  mintId      The id of mint proposal.
+     * @param  minter      The address of the minter.
+     * @param  amount      The amount of M tokens to mint.
+     * @param  destination The address to mint to.
      */
     event MintProposed(uint48 indexed mintId, address indexed minter, uint240 amount, address indexed destination);
 
     /**
      * @notice Emitted when mint proposal is canceled.
-     * @param  mintId    The id of mint proposal
-     * @param  canceller The address of validator who cancelled the mint proposal
+     * @param  mintId    The id of mint proposal.
+     * @param  canceller The address of validator who cancelled the mint proposal.
      */
     event MintCanceled(uint48 indexed mintId, address indexed canceller);
 
     /**
      * @notice Emitted when mint proposal is executed.
-     * @param  mintId The id of executed mint proposal
+     * @param  mintId          The id of executed mint proposal.
+     * @param  principalAmount The principal amount of M tokens minted.
+     * @param  amount          The amount of M tokens minted.
      */
-    event MintExecuted(uint48 indexed mintId);
+    event MintExecuted(uint48 indexed mintId, uint112 principalAmount, uint240 amount);
 
     /**
-     * @notice Emitted when M tokens are burned and minter's owed M balance decreased.
-     * @param  minter The address of the minter
-     * @param  amount The amount of M tokens to burn
-     * @param  payer  The address of the payer
+     * @notice Emitted when M tokens are burned and an inactive minter's owed M balance decreased.
+     * @param  minter The address of the minter.
+     * @param  amount The amount of M tokens burned.
+     * @param  payer  The address of the payer.
      */
     event BurnExecuted(address indexed minter, uint240 amount, address indexed payer);
 
     /**
-     * @notice Emitted when penalty is imposed on minter.
-     * @param  minter The address of the minter
-     * @param  amount The amount of penalty charge
+     * @notice Emitted when M tokens are burned and an active minter's owed M balance decreased.
+     * @param  minter          The address of the minter.
+     * @param  principalAmount The principal amount of M tokens burned.
+     * @param  amount          The amount of M tokens burned.
+     * @param  payer           The address of the payer.
      */
-    event PenaltyImposed(address indexed minter, uint240 amount);
+    event BurnExecuted(address indexed minter, uint112 principalAmount, uint240 amount, address indexed payer);
+
+    /**
+     * @notice Emitted when penalty is imposed on minter.
+     * @param  minter          The address of the minter.
+     * @param  principalAmount The principal amount of M tokens burned.
+     * @param  amount          The principal amount of penalty charge.
+     */
+    event PenaltyImposed(address indexed minter, uint112 principalAmount, uint240 amount);
 
     /**
      * @notice Emitted when a collateral retrieval proposal is created.
@@ -210,17 +225,36 @@ interface IMinterGateway is IContinuousIndexing {
 
     /**
      * @notice Executes minting of M tokens
-     * @param  mintId The id of outstanding mint proposal for minter
+     * @param  mintId          The id of outstanding mint proposal for minter
+     * @return principalAmount The amount of principal of owed M minted.
+     * @return amount          The amount of M tokens minted.
      */
-    function mintM(uint256 mintId) external;
+    function mintM(uint256 mintId) external returns (uint112 principalAmount, uint240 amount);
 
     /**
      * @notice Burns M tokens
-     * @dev    If amount to burn is greater than minter's owedM including penalties, burn all up to owedM
-     * @param  minter The address of the minter to burn M tokens for
-     * @param  amount The max amount of M tokens to burn
+     * @dev    If amount to burn is greater than minter's owedM including penalties, burn all up to owedM.
+     * @param  minter          The address of the minter to burn M tokens for.
+     * @param  maxAmount       The max amount of M tokens to burn.
+     * @return principalAmount The amount of principal of owed M burned.
+     * @return amount          The amount of M tokens burned.
      */
-    function burnM(address minter, uint256 amount) external;
+    function burnM(address minter, uint256 maxAmount) external returns (uint112 principalAmount, uint240 amount);
+
+    /**
+     * @notice Burns M tokens
+     * @dev    If amount to burn is greater than minter's owedM including penalties, burn all up to owedM.
+     * @param  minter             The address of the minter to burn M tokens for.
+     * @param  maxPrincipalAmount The max amount of principal of owed M to burn.
+     * @param  maxAmount          The max amount of M tokens to burn.
+     * @return principalAmount    The amount of principal of owed M burned.
+     * @return amount             The amount of M tokens burned.
+     */
+    function burnM(
+        address minter,
+        uint256 maxPrincipalAmount,
+        uint256 maxAmount
+    ) external returns (uint112 principalAmount, uint240 amount);
 
     /**
      * @notice Cancels minting request for selected minter by validator
@@ -312,8 +346,11 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice The timestamp of the last collateral update of minter.
     function collateralUpdateTimestampOf(address minter) external view returns (uint40);
 
-    /// @notice The timestamp of the deadline for the next collateral update of minter.
-    function collateralUpdateDeadlineOf(address minter) external view returns (uint40);
+    /// @notice The timestamp after which an additional penalty for a missed update interval will bee charged.
+    function collateralPenaltyDeadlineOf(address minter) external view returns (uint40);
+
+    /// @notice The timestamp after which the minter's collateral is assumed to be 0 due to a missed update.
+    function collateralExpiryTimestampOf(address minter) external view returns (uint40);
 
     /// @notice The timestamp until which minter is already penalized for missed collateral updates.
     function penalizedUntilOf(address minter) external view returns (uint40);
@@ -345,7 +382,7 @@ interface IMinterGateway is IContinuousIndexing {
     function isFrozenMinter(address minter) external view returns (bool);
 
     /// @notice Checks if minter was approved by TTG
-    function isMinterApprovedByTTG(address minter) external view returns (bool);
+    function isMinterApproved(address minter) external view returns (bool);
 
     /// @notice Checks if validator was approved by TTG
     function isValidatorApprovedByTTG(address validator) external view returns (bool);

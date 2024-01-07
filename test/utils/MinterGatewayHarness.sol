@@ -19,7 +19,11 @@ contract MinterGatewayHarness is MinterGateway {
         return _getMissedCollateralUpdateParameters(lastUpdateTimestamp_, lastPenalizedUntil_, updateInterval_);
     }
 
-    function getPrincipalAmountRoundedUp(uint240 amount_) external view returns (uint112) {
+    function getPrincipalAmountRoundedDown(uint240 amount_) external view returns (uint112 principalAmount_) {
+        return _getPrincipalAmountRoundedDown(amount_);
+    }
+
+    function getPrincipalAmountRoundedUp(uint240 amount_) external view returns (uint112 principalAmount_) {
         return _getPrincipalAmountRoundedUp(amount_);
     }
 
@@ -85,7 +89,7 @@ contract MinterGatewayHarness is MinterGateway {
         _rawOwedM[minter_] = uint240(amount_);
     }
 
-    function setTotalPrincipalOfActiveOwedM(uint256 amount_) external {
+    function setPrincipalOfTotalActiveOwedM(uint256 amount_) external {
         _principalOfTotalActiveOwedM += uint112(amount_);
     }
 
