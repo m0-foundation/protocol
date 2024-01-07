@@ -108,7 +108,7 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     function earnerRate() external view returns (uint32);
 
     /// @notice The principal of an earner M token balance.
-    function principalOfBalanceOf(address account) external view returns (uint240);
+    function principalBalanceOf(address account) external view returns (uint240);
 
     /// @notice The principal of the total earning supply of M Token.
     function principalOfTotalEarningSupply() external view returns (uint112);

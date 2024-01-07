@@ -138,7 +138,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /// @inheritdoc IMToken
-    function principalOfBalanceOf(address account_) external view returns (uint240 balance_) {
+    function principalBalanceOf(address account_) external view returns (uint240 balance_) {
         MBalance storage mBalance_ = _balances[account_];
 
         return mBalance_.isEarning ? uint112(mBalance_.rawBalance) : 0; // Treat the raw balance as principal for earner.
