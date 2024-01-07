@@ -33,10 +33,10 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     address public immutable ttgRegistrar;
 
     /// @dev The total amount of non earning M supply.
-    uint240 internal _totalNonEarningSupply;
+    uint240 public totalNonEarningSupply;
 
     /// @dev The principal of the total amount of earning M supply. totalEarningSupply = principal * currentIndex
-    uint112 internal _principalOfTotalEarningSupply;
+    uint112 public principalOfTotalEarningSupply;
 
     /// @notice The balance of M for non-earner or principal of earning M balance for earners.
     mapping(address account => MBalance balance) internal _balances;
@@ -126,20 +126,22 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /// @inheritdoc IMToken
-    function totalEarningSupply() public view returns (uint256 totalEarningSupply_) {
-        return _getPresentAmount(_principalOfTotalEarningSupply);
-    }
-
-    /// @inheritdoc IMToken
-    function totalNonEarningSupply() external view returns (uint256 totalNonEarningSupply_) {
-        return _totalNonEarningSupply;
+    function totalEarningSupply() public view returns (uint240 totalEarningSupply_) {
+        return _getPresentAmount(principalOfTotalEarningSupply);
     }
 
     /// @inheritdoc IERC20
     function totalSupply() external view returns (uint256 totalSupply_) {
         unchecked {
-            return _totalNonEarningSupply + totalEarningSupply();
+            return totalNonEarningSupply + totalEarningSupply();
         }
+    }
+
+    /// @inheritdoc IMToken
+    function principalBalanceOf(address account_) external view returns (uint240 balance_) {
+        MBalance storage mBalance_ = _balances[account_];
+
+        return mBalance_.isEarning ? uint112(mBalance_.rawBalance) : 0; // Treat the raw balance as principal for earner.
     }
 
     /// @inheritdoc IERC20
@@ -174,7 +176,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     function _addEarningAmount(address account_, uint112 principalAmount_) internal {
         unchecked {
             _balances[account_].rawBalance += principalAmount_;
-            _principalOfTotalEarningSupply += principalAmount_;
+            principalOfTotalEarningSupply += principalAmount_;
         }
     }
 
@@ -186,7 +188,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     function _addNonEarningAmount(address account_, uint240 amount_) internal {
         unchecked {
             _balances[account_].rawBalance += amount_;
-            _totalNonEarningSupply += amount_;
+            totalNonEarningSupply += amount_;
         }
     }
 
@@ -222,6 +224,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         } else {
             _addNonEarningAmount(recipient_, UIntMath.safe240(amount_));
         }
+
+        if (
+            principalOfTotalEarningSupply + _getPrincipalAmountRoundedDown(totalNonEarningSupply) >= type(uint112).max
+        ) {
+            revert OverflowsPrincipalOfTotalSupply();
+        }
     }
 
     /**
@@ -249,8 +257,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         _balances[account_].rawBalance = principalAmount_;
 
         unchecked {
-            _principalOfTotalEarningSupply += principalAmount_;
-            _totalNonEarningSupply -= amount_;
+            principalOfTotalEarningSupply += principalAmount_;
+            totalNonEarningSupply -= amount_;
         }
 
         updateIndex();
@@ -279,8 +287,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         _balances[account_].rawBalance = amount_;
 
         unchecked {
-            _totalNonEarningSupply += amount_;
-            _principalOfTotalEarningSupply -= principalAmount_;
+            totalNonEarningSupply += amount_;
+            principalOfTotalEarningSupply -= principalAmount_;
         }
 
         updateIndex();
@@ -295,7 +303,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         _balances[account_].rawBalance -= principalAmount_;
 
         unchecked {
-            _principalOfTotalEarningSupply -= principalAmount_;
+            principalOfTotalEarningSupply -= principalAmount_;
         }
     }
 
@@ -308,7 +316,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         _balances[account_].rawBalance -= amount_;
 
         unchecked {
-            _totalNonEarningSupply -= amount_;
+            totalNonEarningSupply -= amount_;
         }
     }
 

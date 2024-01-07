@@ -12,6 +12,9 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     |                                                     Errors                                                       |
     \******************************************************************************************************************/
 
+    /// @notice Emitted when principal of total supply (earning and non-earning) will overflow a `type(uint112).max`.
+    error OverflowsPrincipalOfTotalSupply();
+
     /// @notice Emitted when calling `startEarningOnBehalfOf` for an account that has not allowed the start of earning on their behalf.
     error HasNotAllowedEarningOnBehalf();
 
@@ -104,11 +107,17 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice The current value of earner rate in basis points.
     function earnerRate() external view returns (uint32);
 
+    /// @notice The principal of an earner M token balance.
+    function principalBalanceOf(address account) external view returns (uint240);
+
+    /// @notice The principal of the total earning supply of M Token.
+    function principalOfTotalEarningSupply() external view returns (uint112);
+
     /// @notice The total earning supply of M Token.
-    function totalEarningSupply() external view returns (uint256);
+    function totalEarningSupply() external view returns (uint240);
 
     /// @notice The total non-earning supply of M Token.
-    function totalNonEarningSupply() external view returns (uint256);
+    function totalNonEarningSupply() external view returns (uint240);
 
     /// @notice Checks if account is an earner.
     function isEarning(address account) external view returns (bool);
