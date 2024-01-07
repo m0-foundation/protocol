@@ -68,10 +68,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     address public immutable mToken;
 
     /// @dev The total amount of inactive owed M, sum of all inactive minter's owed M.
-    uint240 internal _totalInactiveOwedM;
+    uint240 public totalInactiveOwedM;
 
     /// @dev The total amount of total active owed M, sum of all active minter's owed M.
-    uint112 internal _principalOfTotalActiveOwedM;
+    uint112 public principalOfTotalActiveOwedM;
 
     /// @dev Nonce used to generate unique mint proposal IDs.
     uint48 internal _mintNonce;
@@ -254,7 +254,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         // Adjust principal of active owed M for minter.
         // NOTE: When minting a present amount, round the principal up in favor of the protocol.
         principalAmount_ = _getPrincipalAmountRoundedUp(amount_);
-        uint112 principalOfTotalActiveOwedM_ = _principalOfTotalActiveOwedM;
+        uint112 principalOfTotalActiveOwedM_ = principalOfTotalActiveOwedM;
 
         emit MintExecuted(id_, principalAmount_, amount_);
 
@@ -265,12 +265,12 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             // principal amount, would overflow the `principalOfTotalActiveOwedM_` (i.e. `type(uint112).max`).
             if (
                 // NOTE: Round the principal up in favor of the protocol.
-                newPrincipalOfTotalActiveOwedM_ + _getPrincipalAmountRoundedUp(_totalInactiveOwedM) >= type(uint112).max
+                newPrincipalOfTotalActiveOwedM_ + _getPrincipalAmountRoundedUp(totalInactiveOwedM) >= type(uint112).max
             ) {
                 revert OverflowsPrincipalOfTotalOwedM();
             }
 
-            _principalOfTotalActiveOwedM = uint112(newPrincipalOfTotalActiveOwedM_);
+            principalOfTotalActiveOwedM = uint112(newPrincipalOfTotalActiveOwedM_);
             _rawOwedM[msg.sender] += principalAmount_; // Treat rawOwedM as principal since minter is active.
         }
 
@@ -369,8 +369,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             inactiveOwedM_ = _getPresentAmount(newPrincipalOfOwedM_);
 
             // Treat rawOwedM as principal since minter is active.
-            _principalOfTotalActiveOwedM -= principalOfActiveOwedM_;
-            _totalInactiveOwedM += inactiveOwedM_;
+            principalOfTotalActiveOwedM -= principalOfActiveOwedM_;
+            totalInactiveOwedM += inactiveOwedM_;
         }
 
         emit MinterDeactivated(minter_, inactiveOwedM_, msg.sender);
@@ -415,18 +415,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /// @inheritdoc IMinterGateway
-    function principalOfTotalActiveOwedM() external view returns (uint112) {
-        return _principalOfTotalActiveOwedM;
-    }
-
-    /// @inheritdoc IMinterGateway
     function totalActiveOwedM() public view returns (uint240) {
-        return _getPresentAmount(_principalOfTotalActiveOwedM);
-    }
-
-    /// @inheritdoc IMinterGateway
-    function totalInactiveOwedM() public view returns (uint240) {
-        return _totalInactiveOwedM;
+        return _getPresentAmount(principalOfTotalActiveOwedM);
     }
 
     /// @inheritdoc IMinterGateway
@@ -436,7 +426,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             //       inactive) to `type(uint112).max`. Thus, there can never be enough inactive owed M (which is an
             //       accumulations principal of active owed M values converted to present values at previous and lower
             //       indices) or active owed M to overflow this.
-            return totalActiveOwedM() + totalInactiveOwedM();
+            return totalActiveOwedM() + totalInactiveOwedM;
         }
     }
 
@@ -445,8 +435,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         // NOTE: Can safely cast to `uint240` since we know M Token totalSupply constraints.
         uint240 totalMSupply_ = uint240(IMToken(mToken).totalSupply());
 
-        uint240 totalOwedM_ = _getPresentAmountRoundedDown(_principalOfTotalActiveOwedM, currentIndex()) +
-            totalInactiveOwedM();
+        uint240 totalOwedM_ = _getPresentAmountRoundedDown(principalOfTotalActiveOwedM, currentIndex()) +
+            totalInactiveOwedM;
 
         unchecked {
             if (totalOwedM_ > totalMSupply_) return totalOwedM_ - totalMSupply_;
@@ -662,15 +652,15 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
             // As an edge case precaution, cap the penalty principal such that the resulting principal of total active
             // owed M plus the penalty principal is not greater than the max uint112.
-            uint256 newPrincipalOfTotalActiveOwedM_ = _principalOfTotalActiveOwedM + penaltyPrincipal_;
+            uint256 newPrincipalOfTotalActiveOwedM_ = principalOfTotalActiveOwedM + penaltyPrincipal_;
 
             if (newPrincipalOfTotalActiveOwedM_ > type(uint112).max) {
-                penaltyPrincipal_ = type(uint112).max - _principalOfTotalActiveOwedM;
+                penaltyPrincipal_ = type(uint112).max - principalOfTotalActiveOwedM;
                 newPrincipalOfTotalActiveOwedM_ = type(uint112).max;
             }
 
             // Calculate and add penalty principal to total minter's principal of active owed M
-            _principalOfTotalActiveOwedM = uint112(newPrincipalOfTotalActiveOwedM_);
+            principalOfTotalActiveOwedM = uint112(newPrincipalOfTotalActiveOwedM_);
 
             _rawOwedM[minter_] += uint112(penaltyPrincipal_); // Treat rawOwedM as principal since minter is active.
 
@@ -750,7 +740,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         unchecked {
             // Treat rawOwedM as principal since `principalAmount_` would only be non-zero for an active minter.
             _rawOwedM[minter_] -= principalAmount_;
-            _principalOfTotalActiveOwedM -= principalAmount_;
+            principalOfTotalActiveOwedM -= principalAmount_;
         }
     }
 
@@ -766,7 +756,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         unchecked {
             // Treat rawOwedM as present amount since `amount_` would only be non-zero for an inactive minter.
             _rawOwedM[minter_] -= amount_;
-            _totalInactiveOwedM -= amount_;
+            totalInactiveOwedM -= amount_;
         }
     }
 
