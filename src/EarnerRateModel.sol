@@ -2,8 +2,9 @@
 
 pragma solidity 0.8.23;
 
+import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
+
 import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
-import { UIntMath } from "./libs/UIntMath.sol";
 
 import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
 import { IMToken } from "./interfaces/IMToken.sol";

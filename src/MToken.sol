@@ -3,11 +3,11 @@
 pragma solidity 0.8.23;
 
 import { ERC20Extended } from "../lib/common/src/ERC20Extended.sol";
+import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
 import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 
 import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
-import { UIntMath } from "./libs/UIntMath.sol";
 
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";

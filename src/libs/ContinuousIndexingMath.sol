@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.23;
 
-import { UIntMath } from "./UIntMath.sol";
+import { UIntMath } from "../../lib/common/src/libs/UIntMath.sol";
 
 /**
  * @title Arithmetic library with operations for calculating continuous indexing.
