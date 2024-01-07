@@ -742,8 +742,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         uint112 maxPrincipalAmount_,
         uint240 maxAmount_
     ) internal returns (uint112 principalAmount_, uint240 amount_) {
-        uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
-        principalAmount_ = UIntMath.min112(principalOfActiveOwedM_, maxPrincipalAmount_);
+        principalAmount_ = UIntMath.min112(principalOfActiveOwedMOf(minter_), maxPrincipalAmount_);
         amount_ = _getPresentAmount(principalAmount_);
 
         if (amount_ > maxAmount_) revert ExceedsMaxRepayAmount(amount_, maxAmount_);
