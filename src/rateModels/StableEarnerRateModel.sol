@@ -20,12 +20,15 @@ import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
  */
 contract StableEarnerRateModel is IEarnerRateModel {
     // TODO: Can be a TTG Registrar parameter.
-    uint32 internal constant _RATE_CONFIDENCE_INTERVAL = 30 days;
+    // TODO: Should be in a `IStableEarnerRateModel` interface with natspec.
+    uint32 public constant _RATE_CONFIDENCE_INTERVAL = 30 days;
 
     // TODO: Can be a TTG Registrar parameter.
-    uint32 internal constant _EXTRA_SAFETY_MULTIPLIER = 9_500; // 95 % in basis points
+    // TODO: Should be in a `IStableEarnerRateModel` interface with natspec.
+    uint32 public constant _EXTRA_SAFETY_MULTIPLIER = 9_500; // 95 % in basis points
 
-    uint32 internal constant _ONE = 10_000; // 100 % in basis points
+    // TODO: Should be in a `IStableEarnerRateModel` interface with natspec.
+    uint32 public constant _ONE = 10_000; // 100 % in basis points
 
     /// @inheritdoc IEarnerRateModel
     address public immutable mToken;
@@ -63,6 +66,7 @@ contract StableEarnerRateModel is IEarnerRateModel {
         return TTGRegistrarReader.getBaseEarnerRate(ttgRegistrar);
     }
 
+    // TODO: Should be in a `IStableEarnerRateModel` interface with natspec.
     function getSafeEarnerRate(
         uint240 totalActiveOwedM_,
         uint240 totalEarningSupply_,
