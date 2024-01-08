@@ -7,10 +7,11 @@ import { console2 } from "../../lib/forge-std/src/Test.sol";
 import { ContinuousIndexingMath } from "../../src/libs/ContinuousIndexingMath.sol";
 import { TTGRegistrarReader } from "../../src/libs/TTGRegistrarReader.sol";
 
-import { IEarnerRateModel } from "../../src/interfaces/IEarnerRateModel.sol";
-import { IMinterRateModel } from "../../src/interfaces/IMinterRateModel.sol";
 import { IMToken } from "../../src/interfaces/IMToken.sol";
 import { IMinterGateway } from "../../src/interfaces/IMinterGateway.sol";
+
+import { IEarnerRateModel } from "../../src/rateModels/interfaces/IEarnerRateModel.sol";
+import { IMinterRateModel } from "../../src/rateModels/interfaces/IMinterRateModel.sol";
 
 import { DeployBase } from "../../script/DeployBase.s.sol";
 

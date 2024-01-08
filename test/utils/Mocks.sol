@@ -85,23 +85,26 @@ contract MockMToken {
 }
 
 contract MockMinterGateway {
-    uint256 internal _minterRate;
-    uint256 internal _totalActiveOwedM;
+    address public mToken;
+    address public ttgRegistrar;
+
+    uint256 public minterRate;
+    uint256 public totalActiveOwedM;
+
+    function setMToken(address mToken_) external {
+        mToken = mToken_;
+    }
 
     function setMinterRate(uint256 minterRate_) external {
-        _minterRate = minterRate_;
+        minterRate = minterRate_;
     }
 
     function setTotalActiveOwedM(uint256 totalActiveOwedM_) external {
-        _totalActiveOwedM = totalActiveOwedM_;
+        totalActiveOwedM = totalActiveOwedM_;
     }
 
-    function minterRate() external view returns (uint256 minterRate_) {
-        return _minterRate;
-    }
-
-    function totalActiveOwedM() external view returns (uint256 totalActiveOwedM_) {
-        return _totalActiveOwedM;
+    function setTtgRegistrar(address ttgRegistrar_) external {
+        ttgRegistrar = ttgRegistrar_;
     }
 }
 

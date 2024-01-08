@@ -7,8 +7,8 @@ import { ContractHelper } from "../lib/common/src/ContractHelper.sol";
 
 import { MinterGateway } from "../src/MinterGateway.sol";
 import { MToken } from "../src/MToken.sol";
-import { EarnerRateModel } from "../src/EarnerRateModel.sol";
-import { MinterRateModel } from "../src/MinterRateModel.sol";
+import { StableEarnerRateModel } from "../src/rateModels/StableEarnerRateModel.sol";
+import { MinterRateModel } from "../src/rateModels/MinterRateModel.sol";
 
 contract DeployBase is Script {
     error DeployerNonceMismatch(uint256 expectedDeployerNonce, uint256 actualDeployerNonce);
@@ -36,7 +36,7 @@ contract DeployBase is Script {
 
         minterGateway_ = address(new MinterGateway(ttgRegistrar_, mToken_));
         minterRateModel_ = address(new MinterRateModel(ttgRegistrar_));
-        earnerRateModel_ = address(new EarnerRateModel(minterGateway_));
+        earnerRateModel_ = address(new StableEarnerRateModel(minterGateway_));
 
         vm.stopBroadcast();
 
