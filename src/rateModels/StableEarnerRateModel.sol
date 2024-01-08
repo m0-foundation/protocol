@@ -13,22 +13,21 @@ import { IMinterGateway } from "../interfaces/IMinterGateway.sol";
 import { IRateModel } from "../interfaces/IRateModel.sol";
 
 import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
+import { IStableEarnerRateModel } from "./interfaces/IStableEarnerRateModel.sol";
 
 /**
  * @title  Earner Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by MToken.
  * @author M^0 Labs
  */
-contract StableEarnerRateModel is IEarnerRateModel {
-    // TODO: Can be a TTG Registrar parameter.
-    // TODO: Should be in a `IStableEarnerRateModel` interface with natspec.
-    uint32 public constant _RATE_CONFIDENCE_INTERVAL = 30 days;
+contract StableEarnerRateModel is IStableEarnerRateModel {
+    /// @inheritdoc IStableEarnerRateModel
+    uint32 public constant RATE_CONFIDENCE_INTERVAL = 30 days;
 
-    // TODO: Can be a TTG Registrar parameter.
-    // TODO: Should be in a `IStableEarnerRateModel` interface with natspec.
-    uint32 public constant _EXTRA_SAFETY_MULTIPLIER = 9_500; // 95 % in basis points
+    /// @inheritdoc IStableEarnerRateModel
+    uint32 public constant EXTRA_SAFETY_MULTIPLIER = 9_500; // 95% in basis points
 
-    // TODO: Should be in a `IStableEarnerRateModel` interface with natspec.
-    uint32 public constant _ONE = 10_000; // 100 % in basis points
+    /// @inheritdoc IStableEarnerRateModel
+    uint32 public constant ONE = 10_000; // 100% in basis points
 
     /// @inheritdoc IEarnerRateModel
     address public immutable mToken;
@@ -55,10 +54,10 @@ contract StableEarnerRateModel is IEarnerRateModel {
             IMinterGateway(minterGateway).totalActiveOwedM(),
             IMToken(mToken).totalEarningSupply(),
             IMinterGateway(minterGateway).minterRate(),
-            _RATE_CONFIDENCE_INTERVAL
+            RATE_CONFIDENCE_INTERVAL
         );
 
-        return UIntMath.min256(baseRate(), (_EXTRA_SAFETY_MULTIPLIER * safeEarnerRate_) / _ONE);
+        return UIntMath.min256(baseRate(), (EXTRA_SAFETY_MULTIPLIER * safeEarnerRate_) / ONE);
     }
 
     /// @inheritdoc IEarnerRateModel
@@ -66,7 +65,7 @@ contract StableEarnerRateModel is IEarnerRateModel {
         return TTGRegistrarReader.getBaseEarnerRate(ttgRegistrar);
     }
 
-    // TODO: Should be in a `IStableEarnerRateModel` interface with natspec.
+    /// @inheritdoc IStableEarnerRateModel
     function getSafeEarnerRate(
         uint240 totalActiveOwedM_,
         uint240 totalEarningSupply_,
@@ -76,17 +75,19 @@ contract StableEarnerRateModel is IEarnerRateModel {
         // To ensure cashflow safety, we start with `cashFlowOfActiveOwedM == cashFlowOfEarningSupply` over some time.
         // Effectively: p1 * exp(rate1 * dt) - p1 = p2 * exp(rate2 * dt) - p2
         //          So: rate2 = ln(1 + (p1 * (exp(rate1 * dt) - 1)) / p2) / dt
-        // 1. totalActive * d_minterIndex - totalActive == totalEarning * d_earnerIndex - totalEarning
-        // 2. totalActive * (d_minterIndex - 1) == totalEarning * (d_earnerIndex - 1)
-        // 3. totalActive * (d_minterIndex - 1) / totalEarning == d_earnerIndex - 1
-        // Substitute `d_earnerIndex` with `exponent((earnerRate * dt) / SECONDS_PER_YEAR)`:
-        // 4. 1 + (totalActive * (d_minterIndex - 1) / totalEarning) = exponent((earnerRate * dt) / SECONDS_PER_YEAR)
-        // 5. ln(1 + (totalActive * (d_minterIndex - 1) / totalEarning)) = (earnerRate * dt) / SECONDS_PER_YEAR
-        // 6. ln(1 + (totalActive * (d_minterIndex - 1) / totalEarning)) * SECONDS_PER_YEAR / dt = earnerRate
+        // 1. totalActive * delta_minterIndex - totalActive == totalEarning * delta_earnerIndex - totalEarning
+        // 2. totalActive * (delta_minterIndex - 1) == totalEarning * (delta_earnerIndex - 1)
+        // 3. totalActive * (delta_minterIndex - 1) / totalEarning == delta_earnerIndex - 1
+        // Substitute `delta_earnerIndex` with `exponent((earnerRate * dt) / SECONDS_PER_YEAR)`:
+        // 4. 1 + (totalActive * (delta_minterIndex - 1) / totalEarning) = exponent((earnerRate * dt) / SECONDS_PER_YEAR)
+        // 5. ln(1 + (totalActive * (delta_minterIndex - 1) / totalEarning)) = (earnerRate * dt) / SECONDS_PER_YEAR
+        // 6. ln(1 + (totalActive * (delta_minterIndex - 1) / totalEarning)) * SECONDS_PER_YEAR / dt = earnerRate
 
         if (totalActiveOwedM_ == 0) return 0;
 
         if (totalEarningSupply_ == 0) return type(uint32).max;
+
+        if (confidenceInterval_ == 0) return 0;
 
         uint48 deltaMinterIndex_ = ContinuousIndexingMath.getContinuousIndex(
             ContinuousIndexingMath.convertFromBasisPoints(minterRate_),
