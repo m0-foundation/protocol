@@ -482,9 +482,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(timestamp_, 0);
 
         // check that normalizedPrincipal has been updated
-        assertTrue(_minterGateway.principalOfActiveOwedMOf(_minter1) > 0); // TODO: use rawOwedMOf
-
-        // TODO: Check that mint has been called.
+        assertTrue(_minterGateway.principalOfActiveOwedMOf(_minter1) > 0);
     }
 
     function test_mintM_inactiveMinter() external {
@@ -496,7 +494,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_mintM_frozenMinter() external {
         vm.prank(_validator1);
-        _minterGateway.freezeMinter(_minter1); // TODO: replace with harness setter
+        _minterGateway.freezeMinter(_minter1);
 
         vm.expectRevert(IMinterGateway.FrozenMinter.selector);
 
@@ -674,7 +672,6 @@ contract MinterGatewayTests is TestUtils {
 
         uint48 expectedMintId = _minterGateway.mintNonce() + 1;
 
-        // TODO: This new proposeMint should not be part of this test
         vm.expectEmit();
         emit IMinterGateway.MintProposed(expectedMintId, _minter1, amount, _alice);
 
@@ -735,10 +732,8 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM);
 
-        assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), 0); // TODO: use rawOwedMOf
+        assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), 0);
 
-        // TODO: check that `updateIndex()` was called.
-        // TODO: Check that burn was called.
         assertEq(_minterGateway.activeOwedMOf(_minter1), 0);
         assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), 0);
     }
@@ -760,7 +755,7 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM / 2);
 
-        assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), principalOfActiveOwedM / 2); // TODO: use rawOwedMOf
+        assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), principalOfActiveOwedM / 2);
 
         vm.expectEmit();
         emit IMinterGateway.BurnExecuted(_minter1, principalOfActiveOwedM / 2, activeOwedM / 2, _bob);
@@ -768,10 +763,8 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_bob);
         _minterGateway.burnM(_minter1, activeOwedM / 2);
 
-        assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), 0); // TODO: use rawOwedMOf
+        assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), 0);
 
-        // TODO: Check that burn has been called.
-        // TODO: check that `updateIndex()` was called.
         assertEq(_minterGateway.activeOwedMOf(_minter1), 0);
     }
 
@@ -788,8 +781,6 @@ contract MinterGatewayTests is TestUtils {
 
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM);
-
-        // TODO: check that `updateIndex()` was called.
     }
 
     /* ============ penalties ============ */
@@ -905,7 +896,7 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        assertEq(_minterGateway.activeOwedMOf(_minter1), activeOwedM + expectedPenalty); // TODO: Assert rawOfOwedM.
+        assertEq(_minterGateway.activeOwedMOf(_minter1), activeOwedM + expectedPenalty);
     }
 
     function test_updateCollateral_accrueBothPenalties() external {
@@ -951,7 +942,7 @@ contract MinterGatewayTests is TestUtils {
 
         uint240 expectedPenalty = (((activeOwedM + penalty) - (newCollateral * _mintRatio) / ONE) * _penaltyRate) / ONE;
 
-        assertEq(_minterGateway.activeOwedMOf(_minter1), activeOwedM + penalty + expectedPenalty); // TODO: Assert rawOfOwedM.
+        assertEq(_minterGateway.activeOwedMOf(_minter1), activeOwedM + penalty + expectedPenalty);
 
         assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
         assertEq(_minterGateway.penalizedUntilOf(_minter1), signatureTimestamp);
@@ -980,8 +971,6 @@ contract MinterGatewayTests is TestUtils {
             _minterGateway.principalOfActiveOwedMOf(_minter1),
             _minterGateway.getPrincipalAmountRoundedUp(penalty)
         );
-
-        // TODO: check that `updateIndex()` was called.
     }
 
     function test_imposePenalty_penalizedUntil() external {
@@ -1032,7 +1021,6 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), signatureTimestamp);
         assertEq(penalizedUntil, lastUpdateTimestamp + _updateCollateralInterval);
 
-        // TODO: Burn should not be part of this test.
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, 10e18);
 
@@ -1290,8 +1278,6 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(_minterGateway.rawOwedMOf(_minter1), 1_100_000);
         assertEq(_minterGateway.totalInactiveOwedM(), 1_100_000);
-
-        // TODO: check that `updateIndex()` was called.
     }
 
     function test_deactivateMinter_imposePenaltyForExpiredCollateralValue() external {
@@ -1312,8 +1298,6 @@ contract MinterGatewayTests is TestUtils {
 
         vm.prank(_alice);
         _minterGateway.deactivateMinter(_minter1);
-
-        // TODO: check that `updateIndex()` was called.
     }
 
     function test_deactivateMinter_stillApprovedMinter() external {
