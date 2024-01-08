@@ -19,8 +19,10 @@ import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
  * @author M^0 Labs
  */
 contract StableEarnerRateModel is IEarnerRateModel {
+    // TODO: Can be a TTG Registrar parameter.
     uint32 internal constant _RATE_CONFIDENCE_INTERVAL = 30 days;
 
+    // TODO: Can be a TTG Registrar parameter.
     uint32 internal constant _EXTRA_SAFETY_MULTIPLIER = 9_500; // 95 % in basis points
 
     uint32 internal constant _ONE = 10_000; // 100 % in basis points
