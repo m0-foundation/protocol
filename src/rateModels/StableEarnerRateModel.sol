@@ -89,6 +89,13 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
 
         if (confidenceInterval_ == 0) return 0;
 
+        if (totalActiveOwedM_ == totalEarningSupply_) return minterRate_;
+
+        // NOTE: This often results in 0 safe earner rate, and can possibly be replaced with:
+        //       `if (totalActiveOwedM_ < totalEarningSupply_) return 0;`.
+        //       More research needed.
+        confidenceInterval_ = totalActiveOwedM_ > totalEarningSupply_ ? confidenceInterval_ : 1;
+
         uint48 deltaMinterIndex_ = ContinuousIndexingMath.getContinuousIndex(
             ContinuousIndexingMath.convertFromBasisPoints(minterRate_),
             confidenceInterval_
@@ -101,10 +108,11 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
 
         int256 lnResult_ = wadLn(lnArg_ * 1e6) / 1e6; // Scale/Descale by 1e6 for SignedWadMath.
 
-        // TODO: UIntMath.safe256 and/or UIntMath.safe64?
-        return
-            ContinuousIndexingMath.convertToBasisPoints(
-                uint64((uint256(lnResult_) * ContinuousIndexingMath.SECONDS_PER_YEAR) / confidenceInterval_)
-            );
+        uint256 expRate_ = (uint256(lnResult_) * ContinuousIndexingMath.SECONDS_PER_YEAR) / confidenceInterval_;
+
+        if (expRate_ > type(uint64).max) return type(uint32).max;
+
+        // NOTE: DO not need to do `UIntMath.safe256` because it is known that `lnResult_` will not be negative.
+        return ContinuousIndexingMath.convertToBasisPoints(uint64(expRate_));
     }
 }
