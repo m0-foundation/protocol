@@ -152,7 +152,6 @@ contract IntegrationTests is IntegrationBaseSetup {
         uint256 vaultBalanceBeforeDeactivation = _mToken.balanceOf(_vault);
 
         assertGt(_minterGateway.totalOwedM(), _mToken.totalSupply());
-        // TODO: should it be equal ?
         assertGt(_minterGateway.totalActiveOwedM(), _mToken.totalSupply());
         assertEq(_minterGateway.totalInactiveOwedM(), 0);
         assertEq(_minterGateway.activeOwedMOf(_minters[0]), _minterGateway.totalOwedM());
