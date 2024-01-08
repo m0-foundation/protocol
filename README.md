@@ -32,4 +32,5 @@ Test a specific test case
  forge test --mt <test-case-name>
 ```
 
-## SC Architecture [TODO]
+## SC Architecture
+<img width="895" alt="protocol_architecture" src="https://github.com/MZero-Labs/protocol/assets/1220854/d9949243-e83b-4e1d-82ac-4d8c3f2bf5fc">
