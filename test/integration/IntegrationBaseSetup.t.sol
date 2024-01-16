@@ -66,6 +66,8 @@ abstract contract IntegrationBaseSetup is TestUtils {
     MockTTGRegistrar internal _registrar;
 
     function setUp() external {
+        vm.setEnv("DEPLOYER_NONCE", "8");
+
         _deploy = new DeployBase();
         _registrar = new MockTTGRegistrar();
 
