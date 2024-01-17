@@ -7,7 +7,7 @@ coverage-summary :; forge coverage --report summary
 
 deploy-local :; FOUNDRY_PROFILE=production forge script script/Deploy.s.sol --rpc-url "http://127.0.0.1:8545" --broadcast -v
 
-deploy-sepolia :; FOUNDRY_PROFILE=production forge script script/Deploy.s.sol --rpc-url sepolia --private-key ${ETH_PK} --broadcast -vvv
+deploy-sepolia :; FOUNDRY_PROFILE=production forge script script/Deploy.s.sol --rpc-url sepolia --broadcast -vvv
 
 deploy-qa-sepolia :; FOUNDRY_PROFILE=production forge script script/Deploy.s.sol --rpc-url sepolia --broadcast -v
 

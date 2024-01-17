@@ -29,3 +29,7 @@ optimizer = true
 optimizer_runs = 999999
 build_info = true
 sizes = true
+
+[rpc_endpoints]
+localhost = "http://127.0.0.1:8545"
+sepolia = "https://rpc.sepolia.org"
