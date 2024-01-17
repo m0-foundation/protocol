@@ -7,6 +7,8 @@
   "license": "GPL-3.0",
   "scripts": {
     "coverage": "forge coverage --report lcov && lcov --extract lcov.info -o lcov.info 'src/*' && genhtml lcov.info -o coverage",
+    "gen:local": "ts-node ./script/utils/generateLocalList.ts",
+    "gen:testnet": "ts-node ./script/utils/generateTestnetList.ts",
     "prettier": "prettier --write --plugin=prettier-plugin-solidity 'script/**/*.sol' 'src/**/*.sol' 'test/**/*.sol'",
     "slither": "forge build --build-info --skip '*/test/**' --skip '*/script/**' --force && slither --compile-force-framework foundry --ignore-compile --config-file slither.config.json --fail-high .",
     "solhint": "solhint -f stylish 'src/**/*.sol'",
@@ -29,9 +31,14 @@
     "rand-seed": "^1.0.2",
     "solhint": "^3.4.1",
     "solidity-coverage": "^0.8.0",
+    "ts-node": "10.9.2",
     "typechain": "^8.3.0"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@types/node": "20.11.5",
+    "typescript": "5.3.3"
   }
 }

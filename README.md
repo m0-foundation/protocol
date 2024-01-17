@@ -110,10 +110,22 @@ Then run:
 make deploy-local
 ```
 
+To generate the contracts list, run:
+
+```bash
+yarn gen:local
+```
+
 ### Sepolia
 
 ```bash
 make deploy-sepolia
+```
+
+To generate the contracts list, run:
+
+```bash
+yarn gen:testnet
 ```
 
 ## SC Architecture

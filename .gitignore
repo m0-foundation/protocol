@@ -6,6 +6,9 @@ artifacts/
 # Ignores development broadcast logs
 broadcast/
 
+# Ignores local deployments
+deployments/local/
+
 # Dotenv file
 .env
 
