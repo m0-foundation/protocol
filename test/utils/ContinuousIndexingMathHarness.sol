@@ -36,7 +36,7 @@ contract ContinuousIndexingMathHarness {
         return ContinuousIndexingMath.exponent(x);
     }
 
-    function convertToBasisPoints(uint64 input) external pure returns (uint32) {
+    function convertToBasisPoints(uint64 input) external pure returns (uint40) {
         return ContinuousIndexingMath.convertToBasisPoints(input);
     }
 
