@@ -22,8 +22,7 @@ import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     struct MBalance {
         bool isEarning;
-        bool hasAllowedEarningOnBehalf;
-        uint240 rawBalance; // balance (for a non earning account) or principal balance that accrued interest
+        uint240 rawBalance; // Balance (for a non earning account) or principal balance that accrued interest.
     }
 
     /// @inheritdoc IMToken
@@ -35,7 +34,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /// @dev The total amount of non earning M supply.
     uint240 public totalNonEarningSupply;
 
-    /// @dev The principal of the total amount of earning M supply. totalEarningSupply = principal * currentIndex
+    /// @dev The principal of the total amount of earning M supply. totalEarningSupply = principal * currentIndex.
     uint112 public principalOfTotalEarningSupply;
 
     /// @notice The balance of M for non-earner or principal of earning M balance for earners.
@@ -79,36 +78,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /// @inheritdoc IMToken
-    function startEarningOnBehalfOf(address account_) external {
-        if (!_balances[account_].hasAllowedEarningOnBehalf) revert HasNotAllowedEarningOnBehalf();
-
-        _revertIfNotApprovedEarner(account_);
-        _startEarning(account_);
-    }
-
-    /// @inheritdoc IMToken
     function stopEarning() external {
-        disallowEarningOnBehalf();
         _stopEarning(msg.sender);
-    }
-
-    /// @inheritdoc IMToken
-    function stopEarningOnBehalfOf(address account_) external {
-        if (_isApprovedEarner(account_)) revert IsApprovedEarner();
-
-        _stopEarning(account_);
-    }
-
-    /// @inheritdoc IMToken
-    function allowEarningOnBehalf() public {
-        emit AllowedEarningOnBehalf(msg.sender);
-        _balances[msg.sender].hasAllowedEarningOnBehalf = true;
-    }
-
-    /// @inheritdoc IMToken
-    function disallowEarningOnBehalf() public {
-        emit DisallowedEarningOnBehalf(msg.sender);
-        _balances[msg.sender].hasAllowedEarningOnBehalf = false;
     }
 
     /******************************************************************************************************************\
@@ -157,11 +128,6 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /// @inheritdoc IMToken
     function isEarning(address account_) external view returns (bool isEarning_) {
         return _balances[account_].isEarning;
-    }
-
-    /// @inheritdoc IMToken
-    function hasAllowedEarningOnBehalf(address account_) external view returns (bool) {
-        return _balances[account_].hasAllowedEarningOnBehalf;
     }
 
     /******************************************************************************************************************\
