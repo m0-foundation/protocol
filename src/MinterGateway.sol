@@ -26,7 +26,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         // 1st slot
         uint48 id;
         uint40 createdAt;
-        address destination;
+        address recipient;
         // 2nd slot
         uint240 amount;
     }
@@ -82,7 +82,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /// @dev The state of each minter, their collaterals, relevant timestamps, and total pending retrievals.
     mapping(address minter => MinterState state) internal _minterStates;
 
-    /// @dev The mint proposals of minter (mint ID, creation timestamp, destination, amount).
+    /// @dev The mint proposals of minter (mint ID, creation timestamp, recipient, amount).
     mapping(address minter => MintProposal proposal) internal _mintProposals;
 
     /// @dev The owed M of active and inactive minters (principal of active, inactive).
@@ -168,7 +168,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         );
 
         _imposePenaltyIfMissedCollateralUpdates(msg.sender);
-
         _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
 
         _imposePenaltyIfUndercollateralized(msg.sender);
@@ -205,7 +204,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /// @inheritdoc IMinterGateway
     function proposeMint(
         uint256 amount_,
-        address destination_
+        address recipient_
     ) external onlyActiveMinter(msg.sender) onlyUnfrozenMinter returns (uint48 mintId_) {
         uint240 safeAmount_ = UIntMath.safe240(amount_);
 
@@ -215,9 +214,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             mintId_ = ++_mintNonce;
         }
 
-        _mintProposals[msg.sender] = MintProposal(mintId_, uint40(block.timestamp), destination_, safeAmount_);
+        _mintProposals[msg.sender] = MintProposal(mintId_, uint40(block.timestamp), recipient_, safeAmount_);
 
-        emit MintProposed(mintId_, msg.sender, safeAmount_, destination_);
+        emit MintProposed(mintId_, msg.sender, safeAmount_, recipient_);
     }
 
     /// @inheritdoc IMinterGateway
@@ -228,11 +227,11 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
         uint48 id_;
         uint40 createdAt_;
-        address destination_;
-        (id_, createdAt_, destination_, amount_) = (
+        address recipient_;
+        (id_, createdAt_, recipient_, amount_) = (
             mintProposal_.id,
             mintProposal_.createdAt,
-            mintProposal_.destination,
+            mintProposal_.recipient,
             mintProposal_.amount
         );
 
@@ -274,7 +273,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             _rawOwedM[msg.sender] += principalAmount_; // Treat rawOwedM as principal since minter is active.
         }
 
-        IMToken(mToken).mint(destination_, amount_);
+        IMToken(mToken).mint(recipient_, amount_);
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the mint
         //       can result in a new rate, we should update the index here to lock in that rate.
@@ -554,10 +553,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /// @inheritdoc IMinterGateway
     function mintProposalOf(
         address minter_
-    ) external view returns (uint48 mintId_, uint40 createdAt_, address destination_, uint240 amount_) {
+    ) external view returns (uint48 mintId_, uint40 createdAt_, address recipient_, uint240 amount_) {
         mintId_ = _mintProposals[minter_].id;
         createdAt_ = _mintProposals[minter_].createdAt;
-        destination_ = _mintProposals[minter_].destination;
+        recipient_ = _mintProposals[minter_].recipient;
         amount_ = _mintProposals[minter_].amount;
     }
 

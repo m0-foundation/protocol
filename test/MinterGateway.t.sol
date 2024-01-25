@@ -413,13 +413,13 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(mintId, expectedMintId);
 
-        (uint256 mintId_, uint256 timestamp_, address destination_, uint256 amount_) = _minterGateway.mintProposalOf(
+        (uint256 mintId_, uint256 timestamp_, address recipient_, uint256 amount_) = _minterGateway.mintProposalOf(
             _minter1
         );
 
         assertEq(mintId_, mintId);
         assertEq(amount_, amount);
-        assertEq(destination_, _alice);
+        assertEq(recipient_, _alice);
         assertEq(timestamp_, block.timestamp);
     }
 
@@ -472,12 +472,12 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.mintM(mintId);
 
         // check that mint request has been deleted
-        (uint256 mintId_, uint256 timestamp_, address destination_, uint256 amount_) = _minterGateway.mintProposalOf(
+        (uint256 mintId_, uint256 timestamp_, address recipient_, uint256 amount_) = _minterGateway.mintProposalOf(
             _minter1
         );
 
         assertEq(mintId_, 0);
-        assertEq(destination_, address(0));
+        assertEq(recipient_, address(0));
         assertEq(amount_, 0);
         assertEq(timestamp_, 0);
 
@@ -613,12 +613,12 @@ contract MinterGatewayTests is TestUtils {
         vm.prank(_validator1);
         _minterGateway.cancelMint(_minter1, mintId);
 
-        (uint256 mintId_, uint256 timestamp, address destination_, uint256 amount_) = _minterGateway.mintProposalOf(
+        (uint256 mintId_, uint256 timestamp, address recipient_, uint256 amount_) = _minterGateway.mintProposalOf(
             _minter1
         );
 
         assertEq(mintId_, 0);
-        assertEq(destination_, address(0));
+        assertEq(recipient_, address(0));
         assertEq(amount_, 0);
         assertEq(timestamp, 0);
     }

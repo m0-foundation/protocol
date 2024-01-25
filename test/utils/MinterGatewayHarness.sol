@@ -64,9 +64,9 @@ contract MinterGatewayHarness is MinterGateway {
         uint256 mintId_,
         uint256 amount_,
         uint256 createdAt_,
-        address destination_
+        address recipient_
     ) external {
-        _mintProposals[minter_] = MintProposal(uint48(mintId_), uint40(createdAt_), destination_, uint128(amount_));
+        _mintProposals[minter_] = MintProposal(uint48(mintId_), uint40(createdAt_), recipient_, uint128(amount_));
     }
 
     function setCollateralOf(address minter_, uint256 collateral_) external {
