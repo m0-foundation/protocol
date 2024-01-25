@@ -225,8 +225,10 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
             _addNonEarningAmount(recipient_, UIntMath.safe240(amount_));
         }
 
+        // NOTE: Need to cast to uint256 to avoid overflowing uint112.
         if (
-            principalOfTotalEarningSupply + _getPrincipalAmountRoundedDown(totalNonEarningSupply) >= type(uint112).max
+            uint256(principalOfTotalEarningSupply) + _getPrincipalAmountRoundedDown(totalNonEarningSupply) >=
+            type(uint112).max
         ) {
             revert OverflowsPrincipalOfTotalSupply();
         }
@@ -250,8 +252,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
         if (amount_ == 0) return;
 
-        // NOTE: When converting a non-earning balance into an earning balance, round the principal down in favor of
-        //       the Minter Gateway.
+        // NOTE: When converting a non-earning balance into an earning balance,
+        // round the principal down in favor of the protocol.
         uint112 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
 
         _balances[account_].rawBalance = principalAmount_;
