@@ -225,7 +225,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
             _addNonEarningAmount(recipient_, UIntMath.safe240(amount_));
         }
 
-        // NOTE: Need to cast to uint256 to avoid overflowing uint112.
+        // NOTE: Need to cast to uint256 to avoid overflowing uint112 before the comparison.
         if (
             uint256(principalOfTotalEarningSupply) + _getPrincipalAmountRoundedDown(totalNonEarningSupply) >=
             type(uint112).max

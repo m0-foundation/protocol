@@ -16,14 +16,11 @@ import { AddressSet, LibAddressSet } from "../../utils/AddressSet.sol";
 import { MockTTGRegistrar } from "../../utils/Mocks.sol";
 import { TestUtils } from "../../utils/TestUtils.sol";
 
+import { IndexStore } from "../stores/IndexStore.sol";
+import { TimestampStore } from "../stores/TimestampStore.sol";
+
 contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     using LibAddressSet for AddressSet;
-
-    enum ActorType {
-        Minter,
-        Earner,
-        NonEarner
-    }
 
     uint256 internal constant _MINTERS_NUM = 10;
     uint256 internal constant _EARNERS_NUM = 10;
@@ -39,13 +36,19 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
     address _currentActor;
 
-    uint256 internal _currentTimestamp;
+    IndexStore public _indexStore;
+    TimestampStore public _timestampStore;
+
+    uint32 internal _currentTimestamp;
     uint256 internal _randomAmountSeed;
 
-    modifier adjustTimestamp(uint256 timeJumpSeed_) {
-        _increaseCurrentTimestamp(_bound(timeJumpSeed_, 2 minutes, 10 days));
+    modifier adjustTimestamp(uint256 timeJump_) {
+        _timestampStore.increaseCurrentTimestamp(uint32(_bound(timeJump_, 2 minutes, 10 days)));
+        _;
+    }
 
-        vm.warp(_currentTimestamp);
+    modifier useCurrentTimestamp() {
+        vm.warp(_timestampStore.currentTimestamp());
         _;
     }
 
@@ -61,36 +64,46 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         return _nonEarners.rand(nonEarnerIndexSeed_);
     }
 
-    constructor(IMinterGateway minterGateway_, IMToken mToken_, MockTTGRegistrar registrar_) {
+    constructor(
+        IMinterGateway minterGateway_,
+        IMToken mToken_,
+        MockTTGRegistrar registrar_,
+        IndexStore indexStore_,
+        TimestampStore timestampStore_
+    ) {
+        _currentTimestamp = uint32(block.timestamp);
+
         _minterGateway = minterGateway_;
         _mToken = mToken_;
         _registrar = registrar_;
-
-        _currentTimestamp = block.timestamp;
+        _indexStore = indexStore_;
+        _timestampStore = timestampStore_;
 
         _initActors();
     }
 
     function updateBaseMinterRate(uint256 timeJumpSeed_, uint256 rate_) external adjustTimestamp(timeJumpSeed_) {
-        rate_ = _bound(rate_, 100, 40000); // [0.1%, 400%] in basis points
+        rate_ = _bound(rate_, TTGRegistrarReader.getBaseEarnerRate(address(_registrar)), 40000); // [0.1%, 400%] in basis points
+
         console2.log("Updating minter rate = %s at %s", rate_, block.timestamp);
         _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, rate_);
     }
 
     function updateBaseEarnerRate(uint256 timeJumpSeed_, uint256 rate_) external adjustTimestamp(timeJumpSeed_) {
-        rate_ = _bound(rate_, 100, 40000); // [0.1%, 400%] in basis points
+        rate_ = _bound(rate_, 100, TTGRegistrarReader.getBaseMinterRate(address(_registrar))); // [0.1%, 400%] in basis points
+
         console2.log("Updating earner rate = %s at %s", rate_, block.timestamp);
         _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, rate_);
     }
 
     function updateMinterGatewayIndex(uint256 timeJumpSeed_) external adjustTimestamp(timeJumpSeed_) {
         console2.log("Updating Minter Gateway index at %s", block.timestamp);
-        _minterGateway.updateIndex();
+        _indexStore.setMinterIndex(_minterGateway.updateIndex());
     }
 
     function updateMTokenIndex(uint256 timeJumpSeed_) external adjustTimestamp(timeJumpSeed_) {
         console2.log("Updating M Token index at %s", block.timestamp);
-        _mToken.updateIndex();
+        _indexStore.setEarnerIndex(_mToken.updateIndex());
     }
 
     function mintMToEarner(
@@ -175,7 +188,10 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     ) external adjustTimestamp(timeJumpSeed_) {
         address minter_ = _getMinter(minterIndexSeed_);
         address earner_ = _getEarner(earnerIndexSeed_);
-        amount_ = _bound(amount_, 1e6, _mToken.balanceOf(earner_));
+
+        // If balance of earner is null, return early
+        if (_mToken.balanceOf(earner_) == 0) return;
+        amount_ = _bound(amount_, 1, _mToken.balanceOf(earner_));
 
         _burnMForMinterFromMHolder(minter_, earner_, amount_);
     }
@@ -188,7 +204,10 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     ) external adjustTimestamp(timeJumpSeed_) {
         address minter_ = _getMinter(minterIndexSeed_);
         address nonEarner_ = _getNonEarner(nonEarnerIndexSeed_);
-        amount_ = _bound(amount_, 1e6, _mToken.balanceOf(nonEarner_));
+
+        // If balance of non earner is null, return early
+        if (_mToken.balanceOf(nonEarner_) == 0) return;
+        amount_ = _bound(amount_, 1, _mToken.balanceOf(nonEarner_));
 
         _burnMForMinterFromMHolder(minter_, nonEarner_, amount_);
     }
@@ -196,14 +215,8 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     function deactivateMinter(uint256 timeJumpSeed_, uint256 minterIndexSeed_) external adjustTimestamp(timeJumpSeed_) {
         address minter_ = _getMinter(minterIndexSeed_);
 
-        vm.assume(_minterGateway.isActiveMinter(minter_) == true);
-
-        console2.log(
-            "Deactivating minter %s with active owed M %s at %s",
-            minter_,
-            _minterGateway.activeOwedMOf(minter_),
-            block.timestamp
-        );
+        // We return early if the minter being deactivated is not active
+        if (_minterGateway.isActiveMinter(minter_)) return;
 
         _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, minter_);
         _minterGateway.deactivateMinter(minter_);
@@ -250,29 +263,27 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         }
     }
 
-    function _increaseCurrentTimestamp(uint256 timeJump_) internal {
-        _currentTimestamp += timeJump_;
-    }
+    function _updateCollateral(address minter_, uint256 amount_) internal returns (uint256) {
+        uint240 collateralOfMinter_ = _minterGateway.collateralOf(minter_);
 
-    function _mintMToMHolder(address minter_, address mHolder_, uint256 amount_) internal {
-        if (!_minterGateway.isActiveMinter(minter_)) return;
+        // If the collateral of minter is already greater than the max allowed collateral, we return early.
+        // Assuming an index starting at 1e12, to fit in a principal amount of type(uint112).max, the collateral amount must be at most type(uint144).max
+        if (collateralOfMinter_ >= type(uint144).max) {
+            return 0;
+        }
 
         uint256[] memory retrievalIds = new uint256[](0);
         address[] memory validators = new address[](0);
         uint256[] memory timestamps = new uint256[](0);
         bytes[] memory signatures = new bytes[](0);
 
-        // We don't update the collateral by more than the max allowed amount
-        // We use uint232 instead of uint240 to have a little buffer
-        amount_ = _minterGateway.collateralOf(minter_) + amount_ >= type(uint240).max
-            ? type(uint240).max - _minterGateway.collateralOf(minter_)
-            : amount_;
+        uint128 currentEarnerIndex_ = _indexStore.setEarnerIndex(_mToken.updateIndex());
+        _indexStore.setMinterIndex(_minterGateway.updateIndex());
 
         // Get penalty if missed collateral updates and increase collateral to avoid undercollateralization
         amount_ += _minterGateway.getPenaltyForMissedCollateralUpdates(minter_);
 
         uint256 activeOwedMOfMinter_ = _minterGateway.activeOwedMOf(minter_);
-        uint256 collateralOfMinter_ = _minterGateway.collateralOf(minter_);
 
         // Active owed M accrues interest, so we need to increase the collateral above the max allowed active owed M to avoid undercollateralization
         // We take a 20% buffer.
@@ -285,11 +296,30 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         // Collateral amount must be at least 10% higher than the amount of M minted by minter. We take a 20% buffer.
         collateralAmount_ += ((amount_ * 120) / 1e2);
 
-        // If the collateral amount is above the max allowed collateral, we set it to the max allowed collateral
-        if (collateralAmount_ > type(uint240).max) {
-            collateralAmount_ = type(uint240).max;
-            amount_ = type(uint240).max - collateralOfMinter_;
+        // If the collateral amount is above the max allowed collateral, we set it to the max allowed collateral.
+        if (collateralAmount_ >= type(uint144).max) {
+            collateralAmount_ = type(uint144).max;
+            amount_ = type(uint144).max - collateralOfMinter_;
         }
+
+        // If principalOfTotalNonEarningSupply or principalOfexcessOwedM have overflowed, we return early.
+        if (_mToken.totalNonEarningSupply() >= type(uint112).max || _minterGateway.excessOwedM() >= type(uint112).max)
+            return 0;
+
+        uint240 nextTotalMSupply_ = uint240(_mToken.totalSupply());
+        uint240 nextTotalOwedM_ = _minterGateway.totalActiveOwedM() +
+            _minterGateway.getPenaltyForMissedCollateralUpdates(minter_) +
+            _minterGateway.totalInactiveOwedM();
+
+        uint240 nextExcessOwedM_ = nextTotalOwedM_ > nextTotalMSupply_ ? nextTotalOwedM_ - nextTotalMSupply_ : 0;
+
+        // If PrincipalOfTotalSupply will overflow during updateIndex() when minting excess owed M to the vault, we return early.
+        if (
+            uint256(_mToken.principalOfTotalEarningSupply()) +
+                _getPrincipalAmountRoundedDown(_mToken.totalNonEarningSupply(), currentEarnerIndex_) +
+                _getPrincipalAmountRoundedUp(nextExcessOwedM_, currentEarnerIndex_) >=
+            type(uint112).max
+        ) return 0;
 
         vm.prank(minter_);
         _minterGateway.updateCollateral(
@@ -301,27 +331,101 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
             signatures
         );
 
+        return amount_;
+    }
+
+    function _mintMToMHolder(address minter_, address mHolder_, uint256 amount_) internal {
+        if (!_minterGateway.isActiveMinter(minter_)) return;
+
+        amount_ = _updateCollateral(minter_, amount_);
+
+        if (amount_ == 0) return;
+
+        uint128 currentEarnerIndex_ = _indexStore.setEarnerIndex(_mToken.updateIndex());
+        _indexStore.setMinterIndex(_minterGateway.updateIndex());
+
+        uint112 principalOfTotalEarningSupply_ = _mToken.principalOfTotalEarningSupply();
+        uint112 principalOfTotalNonEarningSupply_ = _getPrincipalAmountRoundedDown(
+            _mToken.totalNonEarningSupply(),
+            currentEarnerIndex_
+        );
+
+        // Need to bound amount to type(uint112).max to compute principal
+        amount_ = amount_ >= type(uint112).max ? type(uint112).max : amount_;
+
         if (_mToken.isEarning(mHolder_)) {
             // It should not overflow principalOfTotalEarningSupply
-            uint256 principalOfTotalEarningSupply_ = _mToken.principalOfTotalEarningSupply();
+            if (principalOfTotalEarningSupply_ >= type(uint112).max) return;
 
-            // We use uint104 instead of uint112 to have a little buffer
-            if (principalOfTotalEarningSupply_ + amount_ >= type(uint104).max) {
-                amount_ = type(uint104).max - principalOfTotalEarningSupply_;
+            if (
+                uint256(principalOfTotalEarningSupply_) +
+                    _getPrincipalAmountRoundedDown(uint240(amount_), currentEarnerIndex_) >=
+                type(uint112).max
+            ) {
+                amount_ = uint112(type(uint112).max - (principalOfTotalEarningSupply_ + 1));
             }
         } else {
-            // It should not overflow totalNonEarningSupply
-            // We use uint232 instead of uint240 to have a little buffer
-            if (_mToken.totalNonEarningSupply() + amount_ >= type(uint232).max) {
-                amount_ = type(uint232).max - _mToken.totalNonEarningSupply();
-            }
+            // It should not overflow principalOfTotalNonEarningSupply
+            if (principalOfTotalNonEarningSupply_ >= type(uint112).max) return;
 
-            // It should also not overflow uint112 if we want to convert it to principal
-            // We use uint104 instead of uint112 to have a little buffer
-            if (amount_ > type(uint104).max) {
-                amount_ = type(uint104).max;
+            if (
+                uint256(principalOfTotalNonEarningSupply_) +
+                    _getPrincipalAmountRoundedDown(uint240(amount_), currentEarnerIndex_) >=
+                type(uint112).max
+            ) {
+                type(uint112).max - (principalOfTotalNonEarningSupply_);
             }
         }
+
+        // It should not overflow PrincipalOfTotalSupply
+        uint112 principalOfTotalSupply_ = principalOfTotalEarningSupply_ + principalOfTotalNonEarningSupply_;
+
+        if (principalOfTotalSupply_ >= type(uint112).max) return;
+
+        // currentPrincipalOfTotalEarningSupply_ + nextPrincipalOfTotalNonEarningSupply_
+        if (
+            uint256(principalOfTotalSupply_) + _getPrincipalAmountRoundedDown(uint240(amount_), currentEarnerIndex_) >=
+            type(uint112).max
+        ) {
+            amount_ = type(uint112).max - (principalOfTotalSupply_ + 1);
+        }
+
+        // principalOfTotalOwedM = principalOfTotalActiveOwedM + principalOfTotalInactiveOwedM
+        uint112 principalOfTotalOwedM_ = _minterGateway.principalOfTotalActiveOwedM() +
+            _getPrincipalAmountRoundedUp(_minterGateway.totalInactiveOwedM(), currentEarnerIndex_);
+
+        // It should not overflow PrincipalOfTotalOwedM
+        if (principalOfTotalOwedM_ >= type(uint112).max) return;
+
+        // nextPrincipalOfTotalOwedM = principalOfTotalOwedM + principalAmount
+        if (
+            uint256(principalOfTotalOwedM_) + _getPrincipalAmountRoundedDown(uint240(amount_), currentEarnerIndex_) >=
+            type(uint112).max
+        ) {
+            amount_ = type(uint112).max - (principalOfTotalOwedM_ + 1);
+        }
+
+        uint240 nextTotalMSupply_ = uint240(_mToken.totalSupply() + amount_);
+        uint240 nextTotalOwedM_ = _minterGateway.totalActiveOwedM() +
+            _minterGateway.totalInactiveOwedM() +
+            uint240(amount_);
+
+        // If PrincipalOfTotalSupply will overflow when minting excess owed M to the vault, we return early.
+        if (
+            uint256(_mToken.principalOfTotalEarningSupply()) +
+                _getPrincipalAmountRoundedDown(_mToken.totalNonEarningSupply(), currentEarnerIndex_) +
+                _getPrincipalAmountRoundedUp(
+                    nextTotalOwedM_ > nextTotalMSupply_ ? nextTotalOwedM_ - nextTotalMSupply_ : 0,
+                    currentEarnerIndex_
+                ) +
+                amount_ >=
+            type(uint112).max
+        ) return;
+
+        if (amount_ == 0) return;
+
+        // Return early if the amount of M to mint will cause the minter to exceed their max allowed active owed M
+        if (_minterGateway.activeOwedMOf(minter_) + amount_ > _minterGateway.maxAllowedActiveOwedMOf(minter_)) return;
 
         vm.prank(minter_);
         uint256 mintId_ = _minterGateway.proposeMint(amount_, mHolder_);
@@ -341,11 +445,11 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
     function _transferM(address sender_, address recipient_, uint256 amount_) internal {
         // Don't send more than the balance of sender
-        amount_ = _bound(amount_, 1e6, amount_ > _mToken.balanceOf(sender_) ? _mToken.balanceOf(sender_) : amount_);
+        amount_ = _bound(amount_, 0, amount_ > _mToken.balanceOf(sender_) ? _mToken.balanceOf(sender_) : amount_);
 
         // Don't send more than the max balance of recipient
-        amount_ = _mToken.balanceOf(recipient_) + amount_ > type(uint104).max
-            ? _bound(amount_, 1e6, type(uint104).max - _mToken.balanceOf(recipient_))
+        amount_ = _mToken.balanceOf(recipient_) + amount_ > type(uint112).max
+            ? _bound(amount_, 0, type(uint112).max - _mToken.balanceOf(recipient_))
             : amount_;
 
         console2.log("Transferring %s M from %s to %s", amount_, sender_, recipient_);

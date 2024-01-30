@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.23;
 
-import { console2, Test } from "../../lib/forge-std/src/Test.sol";
+import { Test } from "../../lib/forge-std/src/Test.sol";
 
 import { IMToken } from "../../src/interfaces/IMToken.sol";
 import { IMinterGateway } from "../../src/interfaces/IMinterGateway.sol";
@@ -10,24 +10,38 @@ import { IMinterGateway } from "../../src/interfaces/IMinterGateway.sol";
 import { TTGRegistrarReader } from "../../src/libs/TTGRegistrarReader.sol";
 
 import { MockTTGRegistrar } from "../utils/Mocks.sol";
+import { TestUtils } from "../utils/TestUtils.sol";
 
 import { DeployBase } from "../../script/DeployBase.s.sol";
 
 import { ProtocolHandler } from "./handlers/ProtocolHandler.sol";
 
-contract InvariantTests is Test {
+import { IndexStore } from "./stores/IndexStore.sol";
+import { TimestampStore } from "./stores/TimestampStore.sol";
+
+contract InvariantTests is TestUtils {
     address internal _deployer = makeAddr("deployer");
 
     DeployBase internal _deploy;
     ProtocolHandler internal _handler;
 
+    IndexStore internal _indexStore;
+    TimestampStore internal _timestampStore;
+
     IMToken internal _mToken;
     IMinterGateway internal _minterGateway;
     MockTTGRegistrar internal _registrar;
 
+    modifier useCurrentTimestamp() {
+        vm.warp(_timestampStore.currentTimestamp());
+        _;
+    }
+
     function setUp() public {
         _deploy = new DeployBase();
         _registrar = new MockTTGRegistrar();
+        _indexStore = new IndexStore();
+        _timestampStore = new TimestampStore();
 
         _registrar.setVault(makeAddr("vault"));
 
@@ -53,25 +67,25 @@ contract InvariantTests is Test {
 
         _minterGateway.updateIndex();
 
-        _handler = new ProtocolHandler(_minterGateway, _mToken, _registrar);
+        _handler = new ProtocolHandler(_minterGateway, _mToken, _registrar, _indexStore, _timestampStore);
 
         // Set fuzzer to only call the handler
         targetContract(address(_handler));
 
-        bytes4[] memory selectors = new bytes4[](2);
-        // selectors[0] = ProtocolHandler.updateBaseMinterRate.selector;
-        // selectors[0] = ProtocolHandler.updateBaseEarnerRate.selector;
-        selectors[0] = ProtocolHandler.mintMToEarner.selector;
-        selectors[1] = ProtocolHandler.mintMToNonEarner.selector;
-        // selectors[4] = ProtocolHandler.transferMFromNonEarnerToNonEarner.selector;
-        // selectors[5] = ProtocolHandler.transferMFromEarnerToNonEarner.selector;
-        // selectors[6] = ProtocolHandler.transferMFromNonEarnerToEarner.selector;
-        // selectors[7] = ProtocolHandler.transferMFromEarnerToEarner.selector;
-        // selectors[8] = ProtocolHandler.deactivateMinter.selector;
-        // selectors[9] = ProtocolHandler.burnMForMinterFromEarner.selector;
-        // selectors[10] = ProtocolHandler.burnMForMinterFromNonEarner.selector;
-        // selectors[11] = ProtocolHandler.updateMinterGatewayIndex.selector;
-        // selectors[12] = ProtocolHandler.updateMTokenIndex.selector;
+        bytes4[] memory selectors = new bytes4[](13);
+        selectors[0] = ProtocolHandler.updateBaseMinterRate.selector;
+        selectors[1] = ProtocolHandler.updateBaseEarnerRate.selector;
+        selectors[2] = ProtocolHandler.mintMToEarner.selector;
+        selectors[3] = ProtocolHandler.mintMToNonEarner.selector;
+        selectors[4] = ProtocolHandler.transferMFromNonEarnerToNonEarner.selector;
+        selectors[5] = ProtocolHandler.transferMFromEarnerToNonEarner.selector;
+        selectors[6] = ProtocolHandler.transferMFromNonEarnerToEarner.selector;
+        selectors[7] = ProtocolHandler.transferMFromEarnerToEarner.selector;
+        selectors[8] = ProtocolHandler.deactivateMinter.selector;
+        selectors[9] = ProtocolHandler.burnMForMinterFromEarner.selector;
+        selectors[10] = ProtocolHandler.burnMForMinterFromNonEarner.selector;
+        selectors[11] = ProtocolHandler.updateMinterGatewayIndex.selector;
+        selectors[12] = ProtocolHandler.updateMTokenIndex.selector;
 
         targetSelector(FuzzSelector({ addr: address(_handler), selectors: selectors }));
 
@@ -85,24 +99,49 @@ contract InvariantTests is Test {
         excludeSender(address(_registrar));
     }
 
-    function invariant_main() public {
+    function invariant_main() public useCurrentTimestamp {
         // Skip test if total owed M and M token total supply are zero
-        vm.assume(IMinterGateway(_minterGateway).totalOwedM() != 0);
-        vm.assume(IMToken(_mToken).totalSupply() != 0);
+        vm.assume(_minterGateway.totalOwedM() != 0);
+        vm.assume(_mToken.totalSupply() != 0);
 
-        assertGe(
-            IMinterGateway(_minterGateway).totalOwedM(),
-            IMToken(_mToken).totalSupply(),
-            "total owed M >= total M supply"
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "total owed M >= total M supply");
+
+        // If principalOfTotalNonEarningSupply or principalOfexcessOwedM have overflowed, we return early.
+        if (_mToken.totalNonEarningSupply() >= type(uint112).max || _minterGateway.excessOwedM() >= type(uint112).max)
+            return;
+
+        uint128 currentEarnerIndex_ = _indexStore.currentEarnerIndex();
+
+        uint240 nextTotalMSupply_ = uint240(_mToken.totalSupply());
+        uint240 nextTotalOwedM_ = _minterGateway.totalActiveOwedM() + _minterGateway.totalInactiveOwedM();
+
+        // If PrincipalOfTotalSupply will overflow when minting excess owed M to the vault, we return early.
+        if (
+            uint256(_mToken.principalOfTotalEarningSupply()) +
+                _getPrincipalAmountRoundedDown(_mToken.totalNonEarningSupply(), currentEarnerIndex_) +
+                _getPrincipalAmountRoundedUp(
+                    nextTotalOwedM_ > nextTotalMSupply_ ? nextTotalOwedM_ - nextTotalMSupply_ : 0,
+                    currentEarnerIndex_
+                ) >=
+            type(uint112).max
+        ) return;
+
+        _indexStore.setEarnerIndex(_mToken.updateIndex());
+        _indexStore.setMinterIndex(_minterGateway.updateIndex());
+
+        // Can be off by 1 wei because of rounding up and down
+        assertApproxEqAbs(_minterGateway.totalOwedM(), _mToken.totalSupply(), 1, "total owed M => total M supply");
+
+        assertEq(
+            _minterGateway.totalOwedM(),
+            _minterGateway.totalActiveOwedM() + _minterGateway.totalInactiveOwedM(),
+            "totalOwedM == totalActiveOwedM + totalInactiveOwedM"
         );
 
-        _minterGateway.updateIndex();
-
-        // TODO: Offset of 1 wei here. Why?
-        assertGe(
-            IMinterGateway(_minterGateway).totalOwedM(),
-            IMToken(_mToken).totalSupply(),
-            "total owed M => total M supply"
+        assertEq(
+            _mToken.totalSupply(),
+            _mToken.totalNonEarningSupply() + _mToken.totalEarningSupply(),
+            "M totalSupply == M totalNonEarningSupply + M totalEarningSupply"
         );
     }
 }
