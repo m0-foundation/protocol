@@ -358,6 +358,22 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice The penalty for missed collateral updates. Penalized once per missed interval.
     function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint240);
 
+    /**
+     * @notice Returns the EIP-712 digest for updateCollateral method.
+     * @param  minter       The address of the minter.
+     * @param  collateral   The amount of collateral.
+     * @param  retrievalIds The list of outstanding collateral retrieval IDs to resolve.
+     * @param  metadataHash The hash of metadata of the collateral update, reserved for future informational use.
+     * @param  timestamp    The timestamp of the collateral update.
+     */
+    function getUpdateCollateralDigest(
+        address minter,
+        uint256 collateral,
+        uint256[] calldata retrievalIds,
+        bytes32 metadataHash,
+        uint256 timestamp
+    ) external view returns (bytes32);
+
     /// @notice The mint proposal of minters, only 1 active proposal per minter
     function mintProposalOf(
         address minter

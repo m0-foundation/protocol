@@ -15,7 +15,6 @@ import { IMinterRateModel } from "../../src/rateModels/interfaces/IMinterRateMod
 
 import { DeployBase } from "../../script/DeployBase.s.sol";
 
-import { DigestHelper } from "./../utils/DigestHelper.sol";
 import { MockTTGRegistrar } from "./../utils/Mocks.sol";
 import { TestUtils } from "./../utils/TestUtils.sol";
 
