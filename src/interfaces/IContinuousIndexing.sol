@@ -13,7 +13,7 @@ interface IContinuousIndexing {
     function latestIndex() external view returns (uint128);
 
     /// @notice The latest timestamp when the index was updated.
-    function latestUpdateTimestamp() external view returns (uint40);
+    function latestUpdateTimestamp() external view returns (uint32);
 
     /**
      * @notice Updates the latest index and latest accrual time in storage.
