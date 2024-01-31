@@ -70,14 +70,17 @@ interface IMinterGateway is IContinuousIndexing {
      */
     error Undercollateralized(uint256 activeOwedM, uint256 maxAllowedOwedM);
 
-    ///  @notice Emitted in constructor if M Token is 0x0.
+    /// @notice Emitted in constructor if M Token is 0x0.
     error ZeroMToken();
 
-    ///  @notice Emitted in constructor if TTG Registrar is 0x0.
+    /// @notice Emitted in constructor if TTG Registrar is 0x0.
     error ZeroTTGRegistrar();
 
-    ///  @notice Emitted in constructor if TTG Distribution Vault is set to 0x0 in TTG Registrar.
+    /// @notice Emitted in constructor if TTG Distribution Vault is set to 0x0 in TTG Registrar.
     error ZeroTTGVault();
+
+    /// @notice Emitted when calling `updateCollateral` if validator timestamp is 0.
+    error ZeroTimestamp();
 
     /******************************************************************************************************************\
     |                                                      Events                                                      |
