@@ -303,8 +303,17 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         }
 
         // If principalOfTotalNonEarningSupply or principalOfexcessOwedM have overflowed, we return early.
-        if (_mToken.totalNonEarningSupply() >= type(uint112).max || _minterGateway.excessOwedM() >= type(uint112).max)
-            return 0;
+        if (
+            (_mToken.totalNonEarningSupply() * EXP_SCALED_ONE) / _mToken.currentIndex() >= type(uint112).max ||
+            (_minterGateway.excessOwedM() * EXP_SCALED_ONE) / _minterGateway.currentIndex() >= type(uint112).max
+        ) return 0;
+
+        // If principalOfMaxAllowedActiveOwedM will overflow, we return early.
+        if (
+            ((collateralAmount_ - _minterGateway.totalPendingCollateralRetrievalOf(minter_)) * EXP_SCALED_ONE) /
+                _minterGateway.currentIndex() >=
+            type(uint112).max
+        ) return 0;
 
         uint240 nextTotalMSupply_ = uint240(_mToken.totalSupply());
         uint240 nextTotalOwedM_ = _minterGateway.totalActiveOwedM() +
@@ -349,9 +358,6 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
             _mToken.totalNonEarningSupply(),
             currentEarnerIndex_
         );
-
-        // Need to bound amount to type(uint112).max to compute principal
-        amount_ = amount_ >= type(uint112).max ? type(uint112).max : amount_;
 
         if (_mToken.isEarning(mHolder_)) {
             // It should not overflow principalOfTotalEarningSupply

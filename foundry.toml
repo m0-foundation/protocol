@@ -22,6 +22,7 @@ runs = 5000
 [profile.default.invariant]
 runs = 512
 depth = 25
+fail_on_revert = true
 
 [profile.production]
 evm_version = "shanghai"

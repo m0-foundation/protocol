@@ -704,9 +704,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
         uint256 maxAllowedActiveOwedM_ = maxAllowedActiveOwedMOf(minter_);
 
-        // If the minter's `maxAllowedActiveOwedM_` is greater or equal to `type(uint112).max`,
-        // we return early since it would revert when computing the `principalOfMaxAllowedActiveOwedM_`.
-        if (maxAllowedActiveOwedM_ >= type(uint112).max) return;
+        // If the minter's max allowed active owed M is greater than `type(uint240).max`, then it's definitely greater
+        // than the max possible active owed M for the minter, which is capped at `type(uint240).max`.
+        if (maxAllowedActiveOwedM_ >= type(uint240).max) return;
 
         // NOTE: Round the principal down in favor of the protocol since this is a max applied to the minter.
         uint112 principalOfMaxAllowedActiveOwedM_ = _getPrincipalAmountRoundedDown(uint240(maxAllowedActiveOwedM_));
