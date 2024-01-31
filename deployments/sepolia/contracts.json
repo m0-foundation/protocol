@@ -5,11 +5,11 @@
     "minor": 0,
     "patch": 0
   },
-  "timestamp": "2024-01-17T22:41:58.683Z",
+  "timestamp": "2024-01-31T22:35:34.407Z",
   "contracts": [
     {
       "chainId": 11155111,
-      "address": "0x1870482b40cB34E8157b6Ef35D2e60Ca9E0FcfCD",
+      "address": "0x1F80158CC9305D69908E29E67C13e0774A3e60FB",
       "version": {
         "major": 1,
         "minor": 0,
@@ -1380,7 +1380,7 @@
     },
     {
       "chainId": 11155111,
-      "address": "0x8531Ba6686c7Bc1573a3b4AfeDc138862299cCC8",
+      "address": "0x99Df65E81493377180bcc28E976Ab47EFA193616",
       "version": {
         "major": 1,
         "minor": 0,
@@ -1743,6 +1743,45 @@
               "name": "",
               "type": "uint240",
               "internalType": "uint240"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "getUpdateCollateralDigest",
+          "inputs": [
+            {
+              "name": "minter_",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "collateral_",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "retrievalIds_",
+              "type": "uint256[]",
+              "internalType": "uint256[]"
+            },
+            {
+              "name": "metadataHash_",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "timestamp_",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "bytes32",
+              "internalType": "bytes32"
             }
           ],
           "stateMutability": "view"
@@ -2904,12 +2943,17 @@
           "type": "error",
           "name": "ZeroTTGVault",
           "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "ZeroTimestamp",
+          "inputs": []
         }
       ]
     },
     {
       "chainId": 11155111,
-      "address": "0xe7Ab52219631882f778120c1f19D6086ED390bE1",
+      "address": "0xBC87523c76D2ac9a6aF6DBDfDb0c0d5eBb10Ae9e",
       "version": {
         "major": 1,
         "minor": 0,
@@ -2976,7 +3020,7 @@
     },
     {
       "chainId": 11155111,
-      "address": "0x1580cD9d86098Ebfe8fFEdAef051AAD7FbfC4198",
+      "address": "0x86c2f10f1260F8C14aa5CBe4547EDC3a6fDAf776",
       "version": {
         "major": 1,
         "minor": 0,
@@ -3152,4 +3196,3 @@
     }
   ]
 }
-
