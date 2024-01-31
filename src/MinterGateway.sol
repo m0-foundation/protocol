@@ -149,7 +149,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         minTimestamp_ = _verifyValidatorSignatures(
             msg.sender,
             collateral_,
-            keccak256(abi.encodePacked(retrievalIds_)),
+            retrievalIds_,
             metadataHash_,
             validators_,
             timestamps_,
@@ -559,14 +559,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         bytes32 metadataHash_,
         uint256 timestamp_
     ) external view returns (bytes32) {
-        return
-            _getUpdateCollateralDigest(
-                minter_,
-                collateral_,
-                keccak256(abi.encodePacked(retrievalIds_)),
-                metadataHash_,
-                timestamp_
-            );
+        return _getUpdateCollateralDigest(minter_, collateral_, retrievalIds_, metadataHash_, timestamp_);
     }
 
     /// @inheritdoc IMinterGateway
@@ -898,16 +891,16 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /**
      * @dev   Returns the EIP-712 digest for updateCollateral method.
-     * @param minter_           The address of the minter.
-     * @param collateral_       The amount of collateral.
-     * @param retrievalIdsHash_ The hash of the list of outstanding collateral retrieval IDs to resolve.
-     * @param metadataHash_     The hash of metadata of the collateral update, reserved for future informational use.
-     * @param timestamp_        The timestamp of the collateral update.
+     * @param minter_       The address of the minter.
+     * @param collateral_   The amount of collateral.
+     * @param retrievalIds_ The list of outstanding collateral retrieval IDs to resolve.
+     * @param metadataHash_ The hash of metadata of the collateral update, reserved for future informational use.
+     * @param timestamp_    The timestamp of the collateral update.
      */
     function _getUpdateCollateralDigest(
         address minter_,
         uint256 collateral_,
-        bytes32 retrievalIdsHash_,
+        uint256[] calldata retrievalIds_,
         bytes32 metadataHash_,
         uint256 timestamp_
     ) internal view returns (bytes32) {
@@ -918,7 +911,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
                         UPDATE_COLLATERAL_TYPEHASH,
                         minter_,
                         collateral_,
-                        retrievalIdsHash_,
+                        keccak256(abi.encodePacked(retrievalIds_)),
                         metadataHash_,
                         timestamp_
                     )
@@ -984,19 +977,19 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /**
      * @dev    Checks that enough valid unique signatures were provided.
-     * @param  minter_           The address of the minter.
-     * @param  collateral_       The amount of collateral.
-     * @param  retrievalIdsHash_ The hash of the list of outstanding collateral retrieval IDs to resolve.
-     * @param  metadataHash_     The hash of metadata of the collateral update, reserved for future informational use.
-     * @param  validators_       The list of validators.
-     * @param  timestamps_       The list of validator timestamps for the collateral update signatures.
-     * @param  signatures_       The list of signatures.
-     * @return minTimestamp_     The minimum timestamp across all valid timestamps with valid signatures.
+     * @param  minter_       The address of the minter.
+     * @param  collateral_   The amount of collateral.
+     * @param  retrievalIds_ The list of outstanding collateral retrieval IDs to resolve.
+     * @param  metadataHash_ The hash of metadata of the collateral update, reserved for future informational use.
+     * @param  validators_   The list of validators.
+     * @param  timestamps_   The list of validator timestamps for the collateral update signatures.
+     * @param  signatures_   The list of signatures.
+     * @return minTimestamp_ The minimum timestamp across all valid timestamps with valid signatures.
      */
     function _verifyValidatorSignatures(
         address minter_,
         uint256 collateral_,
-        bytes32 retrievalIdsHash_,
+        uint256[] calldata retrievalIds_,
         bytes32 metadataHash_,
         address[] calldata validators_,
         uint256[] calldata timestamps_,
@@ -1021,7 +1014,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             bytes32 digest_ = _getUpdateCollateralDigest(
                 minter_,
                 collateral_,
-                retrievalIdsHash_,
+                retrievalIds_,
                 metadataHash_,
                 timestamps_[index_]
             );
