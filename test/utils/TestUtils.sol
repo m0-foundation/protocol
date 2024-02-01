@@ -36,6 +36,24 @@ contract TestUtils is Test {
         return ContinuousIndexingMath.divideUp((penaltyBase_ * penaltyRate_) / ONE, index_);
     }
 
+    /* ============ principal ============ */
+    function _getPrincipalAmountRoundedDown(uint240 presentAmount_, uint128 index_) internal pure returns (uint112) {
+        return ContinuousIndexingMath.divideDown(presentAmount_, index_);
+    }
+
+    function _getPrincipalAmountRoundedUp(uint240 presentAmount_, uint128 index_) internal pure returns (uint112) {
+        return ContinuousIndexingMath.divideUp(presentAmount_, index_);
+    }
+
+    /* ============ present ============ */
+    function _getPresentAmountRoundedDown(uint112 principalAmount_, uint128 index_) internal pure returns (uint240) {
+        return ContinuousIndexingMath.multiplyDown(principalAmount_, index_);
+    }
+
+    function _getPresentAmountRoundedUp(uint112 principalAmount_, uint128 index_) internal pure returns (uint240) {
+        return ContinuousIndexingMath.multiplyUp(principalAmount_, index_);
+    }
+
     /* ============ signatures ============ */
     function _makeKey(string memory name) internal returns (uint256 privateKey) {
         (, privateKey) = makeAddrAndKey(name);
