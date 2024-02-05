@@ -20,12 +20,12 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     uint32 internal _latestRate;
 
     /// @dev The latest timestamp when the index was updated.
-    uint32 internal _latestUpdateTimestamp;
+    uint40 internal _latestUpdateTimestamp;
 
     /// @notice Constructs the ContinuousIndexing contract.
     constructor() {
         _latestIndex = ContinuousIndexingMath.EXP_SCALED_ONE;
-        _latestUpdateTimestamp = uint32(block.timestamp);
+        _latestUpdateTimestamp = uint40(block.timestamp);
     }
 
     /******************************************************************************************************************\
@@ -43,7 +43,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
         // NOTE: `currentIndex()` depends on `_latestRate`, so only update it after this.
         _latestIndex = currentIndex_ = currentIndex();
         _latestRate = rate_;
-        _latestUpdateTimestamp = uint32(block.timestamp);
+        _latestUpdateTimestamp = uint40(block.timestamp);
 
         emit IndexUpdated(currentIndex_, rate_);
     }
@@ -61,7 +61,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
                     _latestIndex,
                     ContinuousIndexingMath.getContinuousIndex(
                         ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
-                        uint32(block.timestamp) - _latestUpdateTimestamp
+                        uint32(block.timestamp - _latestUpdateTimestamp)
                     )
                 );
         }
@@ -73,7 +73,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     }
 
     /// @inheritdoc IContinuousIndexing
-    function latestUpdateTimestamp() public view virtual returns (uint32) {
+    function latestUpdateTimestamp() public view virtual returns (uint40) {
         return _latestUpdateTimestamp;
     }
 
