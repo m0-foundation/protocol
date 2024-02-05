@@ -126,9 +126,9 @@ interface IMinterGateway is IContinuousIndexing {
      * @param  mintId      The id of mint proposal.
      * @param  minter      The address of the minter.
      * @param  amount      The amount of M tokens to mint.
-     * @param  recipient The address to mint to.
+     * @param  destination The address to mint to.
      */
-    event MintProposed(uint48 indexed mintId, address indexed minter, uint240 amount, address indexed recipient);
+    event MintProposed(uint48 indexed mintId, address indexed minter, uint240 amount, address indexed destination);
 
     /**
      * @notice Emitted when mint proposal is canceled.
@@ -218,10 +218,10 @@ interface IMinterGateway is IContinuousIndexing {
     /**
      * @notice Proposes minting of M tokens
      * @param  amount      The amount of M tokens to mint
-     * @param  recipient The address to mint to
+     * @param  destination The address to mint to
      * @return mintId      The unique id of created mint proposal
      */
-    function proposeMint(uint256 amount, address recipient) external returns (uint48 mintId);
+    function proposeMint(uint256 amount, address destination) external returns (uint48 mintId);
 
     /**
      * @notice Executes minting of M tokens
@@ -361,7 +361,7 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice The mint proposal of minters, only 1 active proposal per minter
     function mintProposalOf(
         address minter
-    ) external view returns (uint48 mintId, uint40 createdAt, address recipient, uint240 amount);
+    ) external view returns (uint48 mintId, uint40 createdAt, address destination, uint240 amount);
 
     /// @notice The minter's proposeRetrieval proposal amount
     function pendingCollateralRetrievalOf(address minter, uint256 retrievalId) external view returns (uint240);
