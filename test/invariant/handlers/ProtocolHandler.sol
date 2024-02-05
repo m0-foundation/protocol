@@ -86,6 +86,8 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     function updateBaseMinterRate(uint256 timeJumpSeed_, uint256 rate_) external adjustTimestamp(timeJumpSeed_) {
         rate_ = _bound(rate_, 10, 40_000); // [0.1%, 400%] in basis points
 
+        if (checkPrincipalOfTotalSupplyOverflow(_indexStore.currentEarnerIndex()) == 0) return;
+
         console2.log("Updating minter rate = %s at %s", rate_, block.timestamp);
         _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, rate_);
     }
@@ -99,6 +101,9 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
     function updateMinterGatewayIndex(uint256 timeJumpSeed_) external adjustTimestamp(timeJumpSeed_) {
         console2.log("Updating Minter Gateway index at %s", block.timestamp);
+
+        if (checkPrincipalOfTotalSupplyOverflow(_indexStore.currentEarnerIndex()) == 0) return;
+
         _indexStore.setMinterIndex(_minterGateway.updateIndex());
     }
 
@@ -262,6 +267,27 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
                 _generateRandomAmount(minter_, type(uint104).max / _NON_EARNERS_NUM)
             );
         }
+    }
+
+    function checkPrincipalOfTotalSupplyOverflow(uint128 earnerIndex_) public returns (uint256) {
+        uint240 totalMSupply_ = uint240(_mToken.totalSupply());
+        uint240 totalOwedM_ = _minterGateway.totalActiveOwedM() + _minterGateway.totalInactiveOwedM();
+        uint240 totalNonEarningSupply_ = _mToken.totalNonEarningSupply();
+        uint240 excessOwedM_ = totalOwedM_ > totalMSupply_ ? totalOwedM_ - totalMSupply_ : 0;
+
+        // If principalOfTotalNonEarningSupply or principalOfExcessOwedM will overflow, we return early.
+        if (
+            (totalNonEarningSupply_ * EXP_SCALED_ONE) / earnerIndex_ >= type(uint112).max ||
+            (_minterGateway.excessOwedM() * EXP_SCALED_ONE) / _minterGateway.currentIndex() >= type(uint112).max
+        ) return 0;
+
+        // If PrincipalOfTotalSupply will overflow when minting excess owed M to the vault, we return early.
+        if (
+            uint256(_mToken.principalOfTotalEarningSupply()) +
+                _getPrincipalAmountRoundedDown(totalNonEarningSupply_, earnerIndex_) +
+                _getPrincipalAmountRoundedUp(excessOwedM_, earnerIndex_) >=
+            type(uint112).max
+        ) return 0;
     }
 
     function _updateCollateral(address minter_, uint256 amount_) internal returns (uint256) {
@@ -445,6 +471,8 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
     function _burnMForMinterFromMHolder(address minter_, address mHolder_, uint256 amount_) internal {
         console2.log("Burning %s M for minter %s by %s", amount_, minter_, mHolder_);
+
+        if (checkPrincipalOfTotalSupplyOverflow(_indexStore.currentEarnerIndex()) == 0) return;
 
         vm.prank(mHolder_);
         _minterGateway.burnM(minter_, amount_);

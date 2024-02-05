@@ -106,25 +106,7 @@ contract InvariantTests is TestUtils {
 
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "total owed M >= total M supply");
 
-        // If principalOfTotalNonEarningSupply or principalOfexcessOwedM have overflowed, we return early.
-        if (_mToken.totalNonEarningSupply() >= type(uint112).max || _minterGateway.excessOwedM() >= type(uint112).max)
-            return;
-
-        uint128 currentEarnerIndex_ = _indexStore.currentEarnerIndex();
-
-        uint240 nextTotalMSupply_ = uint240(_mToken.totalSupply());
-        uint240 nextTotalOwedM_ = _minterGateway.totalActiveOwedM() + _minterGateway.totalInactiveOwedM();
-
-        // If PrincipalOfTotalSupply will overflow when minting excess owed M to the vault, we return early.
-        if (
-            uint256(_mToken.principalOfTotalEarningSupply()) +
-                _getPrincipalAmountRoundedDown(_mToken.totalNonEarningSupply(), currentEarnerIndex_) +
-                _getPrincipalAmountRoundedUp(
-                    nextTotalOwedM_ > nextTotalMSupply_ ? nextTotalOwedM_ - nextTotalMSupply_ : 0,
-                    currentEarnerIndex_
-                ) >=
-            type(uint112).max
-        ) return;
+        if (_handler.checkPrincipalOfTotalSupplyOverflow(_indexStore.currentEarnerIndex()) == 0) return;
 
         _indexStore.setEarnerIndex(_mToken.updateIndex());
         _indexStore.setMinterIndex(_minterGateway.updateIndex());
