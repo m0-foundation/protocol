@@ -44,6 +44,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
     modifier adjustTimestamp(uint256 timeJump_) {
         _timestampStore.increaseCurrentTimestamp(uint32(_bound(timeJump_, 2 minutes, 10 days)));
+        vm.warp(_timestampStore.currentTimestamp());
         _;
     }
 
@@ -83,14 +84,14 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     }
 
     function updateBaseMinterRate(uint256 timeJumpSeed_, uint256 rate_) external adjustTimestamp(timeJumpSeed_) {
-        rate_ = _bound(rate_, TTGRegistrarReader.getBaseEarnerRate(address(_registrar)), 40000); // [0.1%, 400%] in basis points
+        rate_ = _bound(rate_, 10, 40_000); // [0.1%, 400%] in basis points
 
         console2.log("Updating minter rate = %s at %s", rate_, block.timestamp);
         _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, rate_);
     }
 
     function updateBaseEarnerRate(uint256 timeJumpSeed_, uint256 rate_) external adjustTimestamp(timeJumpSeed_) {
-        rate_ = _bound(rate_, 100, TTGRegistrarReader.getBaseMinterRate(address(_registrar))); // [0.1%, 400%] in basis points
+        rate_ = _bound(rate_, 10, 40_000); // [0.1%, 400%] in basis points
 
         console2.log("Updating earner rate = %s at %s", rate_, block.timestamp);
         _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, rate_);
