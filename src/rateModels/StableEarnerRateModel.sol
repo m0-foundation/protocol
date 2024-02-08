@@ -101,11 +101,12 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
             confidenceInterval_
         );
 
-        // NOTE: 1e12 is `EXP_ONE` in ContinuousIndexingMath. 1e18 is `WAD_ONE` in SignedWadMath.
+        // NOTE: 1e12 is `EXP_ONE` in ContinuousIndexingMath.
         int256 lnArg_ = int256(
-            1e12 + ((((uint256(totalActiveOwedM_) * (deltaMinterIndex_ - 1e12)) / 1e12) * 1e12) / totalEarningSupply_)
+            1e12 + ((uint256(totalActiveOwedM_) * (deltaMinterIndex_ - 1e12)) / totalEarningSupply_)
         );
 
+        // NOTE: 1e18 is `WAD_ONE` in SignedWadMath, which a 1e6 scale greater than `EXP_ONE`.
         int256 lnResult_ = wadLn(lnArg_ * 1e6) / 1e6; // Scale/Descale by 1e6 for SignedWadMath.
 
         uint256 expRate_ = (uint256(lnResult_) * ContinuousIndexingMath.SECONDS_PER_YEAR) / confidenceInterval_;
