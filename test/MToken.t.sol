@@ -381,6 +381,10 @@ contract MTokenTests is Test {
         _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
 
         vm.prank(_alice);
+
+        vm.expectEmit();
+        emit IMToken.StartedEarning(_alice);
+
         _mToken.startEarning();
 
         assertEq(_mToken.internalBalanceOf(_alice), 909);
@@ -428,6 +432,10 @@ contract MTokenTests is Test {
         _mToken.setInternalBalanceOf(_alice, 909);
 
         vm.prank(_alice);
+
+        vm.expectEmit();
+        emit IMToken.StoppedEarning(_alice);
+
         _mToken.stopEarning();
 
         assertEq(_mToken.internalBalanceOf(_alice), 999);
