@@ -24,7 +24,7 @@ contract MTokenHarness is MToken {
     }
 
     function setTotalNonEarningSupply(uint256 totalNonEarningSupply_) external {
-        totalNonEarningSupply = uint128(totalNonEarningSupply_);
+        totalNonEarningSupply = uint240(totalNonEarningSupply_);
     }
 
     function setPrincipalOfTotalEarningSupply(uint256 principalOfTotalEarningSupply_) external {
@@ -32,7 +32,7 @@ contract MTokenHarness is MToken {
     }
 
     function setInternalBalanceOf(address account_, uint256 balance_) external {
-        _balances[account_].rawBalance = uint128(balance_);
+        _balances[account_].rawBalance = uint240(balance_);
     }
 
     function internalBalanceOf(address account_) external view returns (uint256 balance_) {
