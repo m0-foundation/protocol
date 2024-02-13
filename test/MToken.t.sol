@@ -99,6 +99,19 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
+    function test_mint_toNonEarner_overflowPrincipalOfTotalSupply() external {
+        // Set rate to 0 to keep index at 1.
+        _mToken.setLatestRate(0);
+        _mToken.setIsEarning(_alice, true);
+
+        vm.prank(_minterGateway);
+        _mToken.mint(_alice, type(uint112).max - 1);
+
+        vm.prank(_minterGateway);
+        vm.expectRevert(IMToken.OverflowsPrincipalOfTotalSupply.selector);
+        _mToken.mint(_bob, 2);
+    }
+
     function test_mint_toEarner() external {
         _mToken.setLatestRate(_earnerRate);
         _mToken.setIsEarning(_alice, true);
@@ -177,6 +190,17 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+    }
+
+    function test_mint_toEarner_overflowPrincipalOfTotalSupply() external {
+        // Set rate to 0 to keep index at 1.
+        _mToken.setLatestRate(0);
+        _mToken.setIsEarning(_alice, true);
+
+        vm.prank(_minterGateway);
+
+        vm.expectRevert(IMToken.OverflowsPrincipalOfTotalSupply.selector);
+        _mToken.mint(_alice, type(uint112).max);
     }
 
     /* ============ burn ============ */
