@@ -237,11 +237,11 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param account_ The account to start earning for.
      */
     function _startEarning(address account_) internal {
-        emit StartedEarning(account_);
-
         MBalance storage mBalance_ = _balances[account_];
 
         if (mBalance_.isEarning) return;
+
+        emit StartedEarning(account_);
 
         mBalance_.isEarning = true;
 
@@ -269,11 +269,11 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param account_ The account to stop earning for.
      */
     function _stopEarning(address account_) internal {
-        emit StoppedEarning(account_);
-
         MBalance storage mBalance_ = _balances[account_];
 
         if (!mBalance_.isEarning) return;
+
+        emit StoppedEarning(account_);
 
         mBalance_.isEarning = false;
 
