@@ -2,14 +2,19 @@
 
 pragma solidity 0.8.23;
 
+import { ContractHelper } from "../lib/common/src/ContractHelper.sol";
+
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
 import { TTGRegistrarReader } from "../src/libs/TTGRegistrarReader.sol";
 
 import { IMinterGateway } from "../src/interfaces/IMinterGateway.sol";
 import { ITTGRegistrar } from "../src/interfaces/ITTGRegistrar.sol";
 
+import { StableEarnerRateModel } from "../src/rateModels/StableEarnerRateModel.sol";
+
 import { MockMToken, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
 import { MinterGatewayHarness } from "./utils/MinterGatewayHarness.sol";
+import { MTokenHarness } from "./utils/MTokenHarness.sol";
 import { TestUtils } from "./utils/TestUtils.sol";
 
 // TODO: add tests for `updateIndex` being called.
@@ -28,14 +33,15 @@ contract MinterGatewayTests is TestUtils {
     uint256 internal _validator2Pk;
 
     uint256 internal _updateCollateralThreshold = 1;
-
     uint32 internal _updateCollateralInterval = 2000;
     uint32 internal _minterFreezeTime = 1000;
     uint32 internal _mintDelay = 1000;
     uint32 internal _mintTTL = 500;
-    uint32 internal _minterRate = 400; // 4%, bps
     uint32 internal _mintRatio = 9000; // 90%, bps
     uint32 internal _penaltyRate = 100; // 1%, bps
+
+    uint32 internal _earnerRate = 1_000; // 10%, bps
+    uint32 internal _minterRate = 400; // 4%, bps
 
     MockMToken internal _mToken;
     MockRateModel internal _minterRateModel;
@@ -2345,7 +2351,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId_), 0);
     }
-    
+
     function test_updateCollateral_zeroTimestamp() external {
         uint256[] memory retrievalIds = new uint256[](0);
 
@@ -2659,5 +2665,88 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - 10_010);
         _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp - 10_000);
         assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp - 10_000 + 9 * (1234));
+    }
+
+    /* ============ M Token ============ */
+    function test_mToken_addEarningAmount_overflow() external {
+        address deployer_ = address(this);
+        MTokenHarness mToken_ = new MTokenHarness(
+            address(_ttgRegistrar),
+            ContractHelper.getContractFrom(deployer_, vm.getNonce(deployer_) + 1)
+        );
+
+        MinterGatewayHarness minterGateway_ = new MinterGatewayHarness(address(_ttgRegistrar), address(mToken_));
+
+        _ttgRegistrar.updateConfig(
+            TTGRegistrarReader.EARNER_RATE_MODEL,
+            address(new StableEarnerRateModel(address(minterGateway_)))
+        );
+
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, _earnerRate);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.EARNERS_LIST_IGNORED, 1);
+
+        minterGateway_.setIsActive(_alice, true);
+        minterGateway_.setIsActive(_bob, true);
+        minterGateway_.setLatestRate(_minterRate);
+
+        mToken_.setLatestRate(_earnerRate);
+        mToken_.setIsEarning(_alice, true);
+        mToken_.setIsEarning(_bob, true);
+        mToken_.setIsEarning(_ttgVault, true);
+
+        // Update Collateral
+        uint240 collateral_ = type(uint240).max;
+        uint256[] memory retrievalIds_ = new uint256[](0);
+
+        address[] memory validators_ = new address[](1);
+        validators_[0] = _validator1;
+
+        uint40 signatureTimestamp = uint40(block.timestamp);
+        uint256[] memory timestamps_ = new uint256[](1);
+        timestamps_[0] = signatureTimestamp;
+
+        bytes[] memory signatures_ = new bytes[](1);
+        signatures_[0] = _getCollateralUpdateSignature(
+            address(minterGateway_),
+            _alice,
+            collateral_,
+            retrievalIds_,
+            bytes32(0),
+            signatureTimestamp,
+            _validator1Pk
+        );
+
+        vm.prank(_alice);
+        minterGateway_.updateCollateral(collateral_, retrievalIds_, bytes32(0), validators_, timestamps_, signatures_);
+
+        signatures_[0] = _getCollateralUpdateSignature(
+            address(minterGateway_),
+            _bob,
+            collateral_,
+            retrievalIds_,
+            bytes32(0),
+            signatureTimestamp,
+            _validator1Pk
+        );
+
+        vm.prank(_bob);
+        minterGateway_.updateCollateral(collateral_, retrievalIds_, bytes32(0), validators_, timestamps_, signatures_);
+
+        // Mint an amount of M slightly above half of the maximum allowed.
+        uint256 mintAmount_ = (uint256(type(uint112).max) * 1e7) / (2e7 - 11);
+
+        minterGateway_.setMintProposalOf(_alice, 1, mintAmount_, block.timestamp, _alice);
+        vm.warp(block.timestamp + _mintDelay);
+        vm.prank(_alice);
+        minterGateway_.mintM(1);
+
+        minterGateway_.setMintProposalOf(_bob, 2, mintAmount_, block.timestamp, _bob);
+
+        vm.warp(block.timestamp + _mintDelay);
+        vm.prank(_bob);
+
+        // Overflows `principalOfTotalEarningSupply` when minting excess owed M to the Vault.
+        vm.expectRevert();
+        minterGateway_.mintM(2);
     }
 }

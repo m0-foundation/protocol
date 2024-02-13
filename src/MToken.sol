@@ -189,7 +189,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     function _addNonEarningAmount(address account_, uint240 amount_) internal {
         // NOTE: Safe to use unchecked here since overflow of the total supply is checked in `_mint`.
         //       When transferring from an earning account to a non-earning one,
-        //       the total non earning supply can't overflow since the earning one is lower.
+        //       the total non earning supply can't overflow since its max value is type(uint240).max
+        //       and the max value of the principal of total earning supply is type(uint112).max.
         unchecked {
             _balances[account_].rawBalance += amount_;
             totalNonEarningSupply += amount_;
