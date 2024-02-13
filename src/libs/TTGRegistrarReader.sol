@@ -46,10 +46,10 @@ library TTGRegistrarReader {
     bytes32 internal constant PENALTY_RATE = "penalty_rate";
 
     /// @notice The name of parameter in TTG that required interval to update collateral.
-    bytes32 internal constant UPDATE_COLLATERAL_INTERVAL = "updateCollateral_interval";
+    bytes32 internal constant UPDATE_COLLATERAL_INTERVAL = "update_collateral_interval";
 
     /// @notice The name of parameter that defines number of signatures required for successful collateral update
-    bytes32 internal constant UPDATE_COLLATERAL_VALIDATOR_THRESHOLD = "updateCollateral_threshold";
+    bytes32 internal constant UPDATE_COLLATERAL_VALIDATOR_THRESHOLD = "update_collateral_threshold";
 
     /// @notice The validators list name in TTG.
     bytes32 internal constant VALIDATORS_LIST = "validators";

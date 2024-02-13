@@ -250,8 +250,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
         if (amount_ == 0) return;
 
-        // NOTE: When converting a non-earning balance into an earning balance, round the principal down in favor of
-        //       the Minter Gateway.
+        // NOTE: When converting a non-earning balance into an earning balance,
+        // round the principal down in favor of the protocol.
         uint112 principalAmount_ = _getPrincipalAmountRoundedDown(amount_);
 
         _balances[account_].rawBalance = principalAmount_;

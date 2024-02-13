@@ -10,6 +10,9 @@ import { DigestHelper } from "./DigestHelper.sol";
 import { MinterGatewayHarness } from "./MinterGatewayHarness.sol";
 
 contract TestUtils is Test {
+    /// @notice The scaling of rates in for exponent math.
+    uint56 internal constant EXP_SCALED_ONE = 1e12;
+
     uint16 internal constant ONE = 10_000;
 
     /* ============ index ============ */
