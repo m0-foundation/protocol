@@ -551,6 +551,17 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IMinterGateway
+    function getUpdateCollateralDigest(
+        address minter_,
+        uint256 collateral_,
+        uint256[] calldata retrievalIds_,
+        bytes32 metadataHash_,
+        uint256 timestamp_
+    ) external view returns (bytes32) {
+        return _getUpdateCollateralDigest(minter_, collateral_, retrievalIds_, metadataHash_, timestamp_);
+    }
+
+    /// @inheritdoc IMinterGateway
     function mintProposalOf(
         address minter_
     ) external view returns (uint48 mintId_, uint40 createdAt_, address destination_, uint240 amount_) {
@@ -878,12 +889,12 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /**
-     * @dev   Returns the EIP-712 digest for updateCollateral method
-     * @param minter_       The address of the minter
-     * @param collateral_   The amount of collateral
-     * @param retrievalIds_ The list of outstanding collateral retrieval IDs to resolve
-     * @param metadataHash_ The hash of metadata of the collateral update, reserved for future informational use
-     * @param timestamp_    The timestamp of the collateral update
+     * @dev   Returns the EIP-712 digest for updateCollateral method.
+     * @param minter_       The address of the minter.
+     * @param collateral_   The amount of collateral.
+     * @param retrievalIds_ The list of outstanding collateral retrieval IDs to resolve.
+     * @param metadataHash_ The hash of metadata of the collateral update, reserved for future informational use.
+     * @param timestamp_    The timestamp of the collateral update.
      */
     function _getUpdateCollateralDigest(
         address minter_,
@@ -899,7 +910,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
                         UPDATE_COLLATERAL_TYPEHASH,
                         minter_,
                         collateral_,
-                        retrievalIds_,
+                        keccak256(abi.encodePacked(retrievalIds_)),
                         metadataHash_,
                         timestamp_
                     )
@@ -964,15 +975,15 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /**
-     * @dev    Checks that enough valid unique signatures were provided
-     * @param  minter_       The address of the minter
-     * @param  collateral_   The amount of collateral
-     * @param  retrievalIds_ The list of proposed collateral retrieval IDs to resolve
-     * @param  metadataHash_ The hash of metadata of the collateral update, reserved for future informational use
-     * @param  validators_   The list of validators
-     * @param  timestamps_   The list of validator timestamps for the collateral update signatures
-     * @param  signatures_   The list of signatures
-     * @return minTimestamp_ The minimum timestamp across all valid timestamps with valid signatures
+     * @dev    Checks that enough valid unique signatures were provided.
+     * @param  minter_       The address of the minter.
+     * @param  collateral_   The amount of collateral.
+     * @param  retrievalIds_ The list of outstanding collateral retrieval IDs to resolve.
+     * @param  metadataHash_ The hash of metadata of the collateral update, reserved for future informational use.
+     * @param  validators_   The list of validators.
+     * @param  timestamps_   The list of validator timestamps for the collateral update signatures.
+     * @param  signatures_   The list of signatures.
+     * @return minTimestamp_ The minimum timestamp across all valid timestamps with valid signatures.
      */
     function _verifyValidatorSignatures(
         address minter_,
