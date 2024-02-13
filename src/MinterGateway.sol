@@ -434,7 +434,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     function excessOwedM() public view returns (uint240 excessOwedM_) {
         // NOTE: Can safely cast to `uint240` since we know M Token totalSupply constraints.
         uint240 totalMSupply_ = uint240(IMToken(mToken).totalSupply());
-
         uint240 totalOwedM_ = _getPresentAmountRoundedDown(principalOfTotalActiveOwedM, currentIndex()) +
             totalInactiveOwedM;
 

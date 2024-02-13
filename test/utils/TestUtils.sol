@@ -9,6 +9,9 @@ import { ContinuousIndexingMath } from "../../src/libs/ContinuousIndexingMath.so
 import { DigestHelper } from "./DigestHelper.sol";
 
 contract TestUtils is Test {
+    /// @notice The scaling of rates in for exponent math.
+    uint56 internal constant EXP_SCALED_ONE = 1e12;
+
     uint16 internal constant ONE = 10_000;
 
     /* ============ index ============ */
@@ -34,6 +37,15 @@ contract TestUtils is Test {
         uint128 index_
     ) internal pure returns (uint112) {
         return ContinuousIndexingMath.divideUp((penaltyBase_ * penaltyRate_) / ONE, index_);
+    }
+
+    /* ============ principal ============ */
+    function _getPrincipalAmountRoundedDown(uint240 presentAmount_, uint128 index_) internal pure returns (uint112) {
+        return ContinuousIndexingMath.divideDown(presentAmount_, index_);
+    }
+
+    function _getPrincipalAmountRoundedUp(uint240 presentAmount_, uint128 index_) internal pure returns (uint112) {
+        return ContinuousIndexingMath.divideUp(presentAmount_, index_);
     }
 
     /* ============ signatures ============ */
