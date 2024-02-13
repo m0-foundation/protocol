@@ -7,6 +7,7 @@ import { Test } from "../../lib/forge-std/src/Test.sol";
 import { ContinuousIndexingMath } from "../../src/libs/ContinuousIndexingMath.sol";
 
 import { DigestHelper } from "./DigestHelper.sol";
+import { MinterGatewayHarness } from "./MinterGatewayHarness.sol";
 
 contract TestUtils is Test {
     /// @notice The scaling of rates in for exponent math.
@@ -30,6 +31,23 @@ contract TestUtils is Test {
             );
     }
 
+    /* ============ mint ============ */
+    function _mintM(
+        MinterGatewayHarness minterGateway_,
+        address minter_,
+        address recipient_,
+        uint48 mintId_,
+        uint256 amount_,
+        uint32 mintDelay_
+    ) internal returns (uint112 principalOfActiveOwedM_) {
+        minterGateway_.setMintProposalOf(minter_, mintId_, amount_, block.timestamp, recipient_);
+
+        vm.warp(block.timestamp + mintDelay_);
+
+        vm.prank(minter_);
+        (principalOfActiveOwedM_, ) = minterGateway_.mintM(mintId_);
+    }
+
     /* ============ penalty ============ */
     function _getPenaltyPrincipal(
         uint240 penaltyBase_,
@@ -46,6 +64,15 @@ contract TestUtils is Test {
 
     function _getPrincipalAmountRoundedUp(uint240 presentAmount_, uint128 index_) internal pure returns (uint112) {
         return ContinuousIndexingMath.divideUp(presentAmount_, index_);
+    }
+
+    /* ============ present ============ */
+    function _getPresentAmountRoundedDown(uint112 principalAmount_, uint128 index_) internal pure returns (uint240) {
+        return ContinuousIndexingMath.multiplyDown(principalAmount_, index_);
+    }
+
+    function _getPresentAmountRoundedUp(uint112 principalAmount_, uint128 index_) internal pure returns (uint240) {
+        return ContinuousIndexingMath.multiplyUp(principalAmount_, index_);
     }
 
     /* ============ signatures ============ */

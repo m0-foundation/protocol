@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.23;
 
-import { stdError, Test } from "../lib/forge-std/src/Test.sol";
+import { stdError } from "../lib/forge-std/src/Test.sol";
 
 import { IMToken } from "../src/interfaces/IMToken.sol";
 
@@ -11,10 +11,9 @@ import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
 
 import { MockMinterGateway, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
 import { MTokenHarness } from "./utils/MTokenHarness.sol";
+import { TestUtils } from "./utils/TestUtils.sol";
 
-// TODO: Fuzz and/or invariant tests.
-
-contract MTokenTests is Test {
+contract MTokenTests is TestUtils {
     address internal _alice = makeAddr("alice");
     address internal _bob = makeAddr("bob");
     address internal _charlie = makeAddr("charlie");
@@ -84,6 +83,20 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
+    function testFuzz_mint_toNonEarner(uint256 amount_) external {
+        amount_ = bound(amount_, 0, type(uint112).max);
+
+        vm.prank(_minterGateway);
+        _mToken.mint(_alice, amount_);
+
+        assertEq(_mToken.internalBalanceOf(_alice), amount_);
+        assertEq(_mToken.totalNonEarningSupply(), amount_);
+        assertEq(_mToken.principalOfTotalEarningSupply(), 0);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
+        assertEq(_mToken.latestUpdateTimestamp(), _start);
+    }
+
     function test_mint_toEarner() external {
         _mToken.setLatestRate(_earnerRate);
         _mToken.setIsEarning(_alice, true);
@@ -115,6 +128,50 @@ contract MTokenTests is Test {
         assertEq(_mToken.internalBalanceOf(_alice), 909);
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.principalOfTotalEarningSupply(), 909);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+    }
+
+    function testFuzz_mint_toEarner(uint256 amount_) external {
+        amount_ = bound(amount_, 0, type(uint112).max);
+
+        _mToken.setLatestRate(_earnerRate);
+        _mToken.setIsEarning(_alice, true);
+
+        vm.prank(_minterGateway);
+        _mToken.mint(_alice, amount_);
+
+        uint256 expectedPrincipalBalance_ = _getPrincipalAmountRoundedDown(uint240(amount_), _mToken.currentIndex());
+
+        assertEq(_mToken.internalBalanceOf(_alice), expectedPrincipalBalance_);
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+
+        vm.prank(_minterGateway);
+        _mToken.mint(_alice, 1);
+
+        expectedPrincipalBalance_ += _getPrincipalAmountRoundedDown(uint240(1), _mToken.currentIndex());
+
+        // No change due to principal round down on mint.
+        assertEq(_mToken.internalBalanceOf(_alice), expectedPrincipalBalance_);
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+
+        vm.prank(_minterGateway);
+        _mToken.mint(_alice, 2);
+
+        expectedPrincipalBalance_ += _getPrincipalAmountRoundedDown(uint240(2), _mToken.currentIndex());
+
+        assertEq(_mToken.internalBalanceOf(_alice), expectedPrincipalBalance_);
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
@@ -171,6 +228,34 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
+    function testFuzz_burn_fromNonEarner(uint256 supply_) external {
+        supply_ = bound(supply_, 2, type(uint112).max);
+        vm.assume(supply_ % 2 == 0);
+
+        _mToken.setTotalNonEarningSupply(supply_);
+        _mToken.setInternalBalanceOf(_alice, supply_);
+
+        vm.prank(_minterGateway);
+        _mToken.burn(_alice, supply_ / 2);
+
+        assertEq(_mToken.internalBalanceOf(_alice), supply_ / 2);
+        assertEq(_mToken.totalNonEarningSupply(), supply_ / 2);
+        assertEq(_mToken.principalOfTotalEarningSupply(), 0);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestUpdateTimestamp(), _start);
+
+        vm.prank(_minterGateway);
+        _mToken.burn(_alice, supply_ / 2);
+
+        assertEq(_mToken.internalBalanceOf(_alice), 0);
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertEq(_mToken.principalOfTotalEarningSupply(), 0);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
+        assertEq(_mToken.latestUpdateTimestamp(), _start);
+    }
+
     function test_burn_fromEarner() external {
         _mToken.setLatestRate(_earnerRate);
         _mToken.setPrincipalOfTotalEarningSupply(909);
@@ -191,6 +276,50 @@ contract MTokenTests is Test {
 
         vm.prank(_minterGateway);
         _mToken.burn(_alice, 998);
+
+        assertEq(_mToken.internalBalanceOf(_alice), 0);
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertEq(_mToken.principalOfTotalEarningSupply(), 0);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+    }
+
+    function testFuzz_burn_fromEarner(uint256 amount_) external {
+        amount_ = bound(amount_, 2, type(uint112).max);
+        vm.assume(amount_ % 2 == 0);
+
+        uint256 expectedPrincipalBalance_ = _getPrincipalAmountRoundedDown(uint240(amount_), _mToken.currentIndex());
+
+        _mToken.setLatestRate(_earnerRate);
+        _mToken.setPrincipalOfTotalEarningSupply(expectedPrincipalBalance_);
+
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, expectedPrincipalBalance_);
+
+        uint256 burnAmount_ = _mToken.balanceOf(_alice) / 2;
+
+        vm.prank(_minterGateway);
+        _mToken.burn(_alice, burnAmount_);
+
+        expectedPrincipalBalance_ -= _getPrincipalAmountRoundedUp(uint240(burnAmount_), _mToken.currentIndex());
+
+        // Change due to principal round up on burn.
+        assertEq(_mToken.internalBalanceOf(_alice), expectedPrincipalBalance_);
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+
+        uint256 balanceOfAlice_ = _mToken.balanceOf(_alice);
+        assertEq(
+            _mToken.balanceOf(_alice),
+            _getPresentAmountRoundedDown(uint112(expectedPrincipalBalance_), _mToken.currentIndex())
+        );
+
+        vm.prank(_minterGateway);
+        _mToken.burn(_alice, balanceOfAlice_);
 
         assertEq(_mToken.internalBalanceOf(_alice), 0);
         assertEq(_mToken.totalNonEarningSupply(), 0);
@@ -240,6 +369,34 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
+    function testFuzz_transfer_fromNonEarner_toNonEarner(
+        uint256 supply_,
+        uint256 aliceBalance_,
+        uint256 transferAmount_
+    ) external {
+        supply_ = bound(supply_, 1, type(uint112).max);
+        aliceBalance_ = bound(aliceBalance_, 1, supply_);
+        transferAmount_ = bound(transferAmount_, 1, aliceBalance_);
+        uint256 bobBalance = supply_ - aliceBalance_;
+
+        _mToken.setTotalNonEarningSupply(supply_);
+
+        _mToken.setInternalBalanceOf(_alice, aliceBalance_);
+        _mToken.setInternalBalanceOf(_bob, bobBalance);
+
+        vm.prank(_alice);
+        _mToken.transfer(_bob, transferAmount_);
+
+        assertEq(_mToken.internalBalanceOf(_alice), aliceBalance_ - transferAmount_);
+        assertEq(_mToken.internalBalanceOf(_bob), bobBalance + transferAmount_);
+
+        assertEq(_mToken.totalNonEarningSupply(), supply_);
+        assertEq(_mToken.principalOfTotalEarningSupply(), 0);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
+        assertEq(_mToken.latestUpdateTimestamp(), _start);
+    }
+
     function test_transfer_fromEarner_toNonEarner() external {
         _mToken.setLatestRate(_earnerRate);
         _mToken.setPrincipalOfTotalEarningSupply(909);
@@ -278,6 +435,54 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
+    function testFuzz_transfer_fromEarner_toNonEarner(
+        uint256 amountEarning_,
+        uint256 nonEarningSupply_,
+        uint256 transferAmount_
+    ) external {
+        amountEarning_ = bound(amountEarning_, 2, type(uint112).max);
+        transferAmount_ = bound(transferAmount_, 1, amountEarning_);
+        nonEarningSupply_ = bound(nonEarningSupply_, 1, type(uint112).max);
+
+        _mToken.setLatestRate(_earnerRate);
+        _mToken.setPrincipalOfTotalEarningSupply(amountEarning_);
+        _mToken.setTotalNonEarningSupply(nonEarningSupply_);
+
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, amountEarning_);
+
+        _mToken.setInternalBalanceOf(_bob, nonEarningSupply_);
+
+        uint256 expectedPrincipalBalance_ = amountEarning_ -
+            _getPrincipalAmountRoundedUp(uint240(transferAmount_), _mToken.currentIndex());
+
+        vm.prank(_alice);
+        _mToken.transfer(_bob, transferAmount_);
+
+        assertEq(_mToken.internalBalanceOf(_alice), expectedPrincipalBalance_);
+        assertEq(_mToken.internalBalanceOf(_bob), nonEarningSupply_ + transferAmount_);
+
+        assertEq(_mToken.totalNonEarningSupply(), nonEarningSupply_ + transferAmount_);
+        assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+
+        vm.assume(_mToken.balanceOf(_alice) != 0);
+
+        vm.prank(_alice);
+        _mToken.transfer(_bob, 1);
+
+        assertEq(_mToken.internalBalanceOf(_alice), expectedPrincipalBalance_ - 1);
+        assertEq(_mToken.internalBalanceOf(_bob), nonEarningSupply_ + transferAmount_ + 1);
+
+        assertEq(_mToken.totalNonEarningSupply(), nonEarningSupply_ + transferAmount_ + 1);
+        assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_ - 1);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+    }
+
     function test_transfer_fromNonEarner_toEarner() external {
         _mToken.setLatestRate(_earnerRate);
         _mToken.setPrincipalOfTotalEarningSupply(455);
@@ -297,6 +502,41 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalNonEarningSupply(), 500);
         assertEq(_mToken.principalOfTotalEarningSupply(), 909);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+    }
+
+    function testFuzz_transfer_fromNonEarner_toEarner(
+        uint256 earningSupply_,
+        uint256 nonEarningSupply_,
+        uint256 transferAmount_
+    ) external {
+        earningSupply_ = bound(earningSupply_, 1, type(uint112).max / 2);
+        nonEarningSupply_ = bound(nonEarningSupply_, 1, type(uint112).max / 2);
+        transferAmount_ = bound(transferAmount_, 1, nonEarningSupply_);
+
+        _mToken.setLatestRate(_earnerRate);
+        _mToken.setPrincipalOfTotalEarningSupply(earningSupply_);
+        _mToken.setTotalNonEarningSupply(nonEarningSupply_);
+
+        _mToken.setInternalBalanceOf(_alice, nonEarningSupply_);
+
+        _mToken.setIsEarning(_bob, true);
+        _mToken.setInternalBalanceOf(_bob, earningSupply_);
+
+        uint256 expectedPrincipalBalance_ = earningSupply_ +
+            _getPrincipalAmountRoundedDown(uint240(transferAmount_), _mToken.currentIndex());
+
+        vm.prank(_alice);
+        _mToken.transfer(_bob, transferAmount_);
+
+        assertEq(_mToken.internalBalanceOf(_alice), nonEarningSupply_ - transferAmount_);
+
+        assertEq(_mToken.internalBalanceOf(_bob), expectedPrincipalBalance_);
+
+        assertEq(_mToken.totalNonEarningSupply(), nonEarningSupply_ - transferAmount_);
+        assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
@@ -322,6 +562,46 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.principalOfTotalEarningSupply(), 1_364);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
+        assertEq(_mToken.latestUpdateTimestamp(), _start);
+    }
+
+    function testFuzz_transfer_fromEarner_toEarner(
+        uint256 aliceBalance_,
+        uint256 bobBalance_,
+        uint256 transferAmount_
+    ) external {
+        aliceBalance_ = bound(aliceBalance_, 1, type(uint112).max / 2);
+        bobBalance_ = bound(bobBalance_, 1, type(uint112).max / 2);
+        transferAmount_ = bound(transferAmount_, 1, aliceBalance_);
+
+        _mToken.setPrincipalOfTotalEarningSupply(aliceBalance_ + bobBalance_);
+        _mToken.setLatestRate(_earnerRate);
+
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, aliceBalance_);
+
+        _mToken.setIsEarning(_bob, true);
+        _mToken.setInternalBalanceOf(_bob, bobBalance_);
+
+        uint128 currentIndex_ = _mToken.currentIndex();
+
+        vm.prank(_alice);
+        _mToken.transfer(_bob, transferAmount_);
+
+        assertEq(
+            _mToken.internalBalanceOf(_alice),
+            aliceBalance_ - _getPrincipalAmountRoundedUp(uint240(transferAmount_), currentIndex_)
+        );
+
+        assertEq(
+            _mToken.internalBalanceOf(_bob),
+            bobBalance_ + _getPrincipalAmountRoundedUp(uint240(transferAmount_), currentIndex_)
+        );
+
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertEq(_mToken.principalOfTotalEarningSupply(), aliceBalance_ + bobBalance_);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), ContinuousIndexingMath.EXP_SCALED_ONE);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
@@ -366,6 +646,33 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
+    function testFuzz_startEarning_onBehalfOf(uint256 supply_) external {
+        supply_ = bound(supply_, 1, type(uint112).max);
+
+        vm.prank(_alice);
+        _mToken.allowEarningOnBehalf();
+
+        _mToken.setLatestRate(_earnerRate);
+        _mToken.setTotalNonEarningSupply(supply_);
+
+        _mToken.setInternalBalanceOf(_alice, supply_);
+
+        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
+
+        uint256 expectedPrincipalBalance_ = _getPrincipalAmountRoundedDown(uint240(supply_), _mToken.currentIndex());
+
+        _mToken.startEarningOnBehalfOf(_alice);
+
+        assertEq(_mToken.internalBalanceOf(_alice), expectedPrincipalBalance_);
+        assertEq(_mToken.isEarning(_alice), true);
+
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+    }
+
     function test_startEarning_notApprovedEarner() external {
         vm.expectRevert(IMToken.NotApprovedEarner.selector);
         vm.prank(_alice);
@@ -388,6 +695,31 @@ contract MTokenTests is Test {
 
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.principalOfTotalEarningSupply(), 909);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+    }
+
+    function testFuzz_startEarning(uint256 supply_) external {
+        supply_ = bound(supply_, 1, type(uint112).max);
+
+        _mToken.setLatestRate(_earnerRate);
+        _mToken.setTotalNonEarningSupply(supply_);
+
+        _mToken.setInternalBalanceOf(_alice, supply_);
+
+        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
+
+        uint256 expectedPrincipalBalance_ = _getPrincipalAmountRoundedDown(uint240(supply_), _mToken.currentIndex());
+
+        vm.prank(_alice);
+        _mToken.startEarning();
+
+        assertEq(_mToken.internalBalanceOf(_alice), expectedPrincipalBalance_);
+        assertEq(_mToken.isEarning(_alice), true);
+
+        assertEq(_mToken.totalNonEarningSupply(), 0);
+        assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
@@ -420,6 +752,31 @@ contract MTokenTests is Test {
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
+    function testFuzz_stopEarning_onBehalfOf(uint256 supply_) external {
+        supply_ = bound(supply_, 1, type(uint112).max / 10);
+
+        _mToken.setLatestRate(_earnerRate);
+        _mToken.setPrincipalOfTotalEarningSupply(supply_);
+
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, supply_);
+
+        _mToken.stopEarningOnBehalfOf(_alice);
+
+        // Since Alice has stopped earning, the principal balance should reflect the interest accumulated until now.
+        // To calculate this amount, we compute the present amount.
+        uint256 expectedPrincipalBalance_ = _getPresentAmountRoundedDown(uint112(supply_), _mToken.currentIndex());
+
+        assertEq(_mToken.isEarning(_alice), false);
+        assertEq(_mToken.internalBalanceOf(_alice), expectedPrincipalBalance_);
+
+        assertEq(_mToken.totalNonEarningSupply(), expectedPrincipalBalance_);
+        assertEq(_mToken.principalOfTotalEarningSupply(), 0);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+    }
+
     function test_stopEarning() external {
         _mToken.setLatestRate(_earnerRate);
         _mToken.setPrincipalOfTotalEarningSupply(909);
@@ -435,6 +792,33 @@ contract MTokenTests is Test {
         assertEq(_mToken.hasAllowedEarningOnBehalf(_alice), false);
 
         assertEq(_mToken.totalNonEarningSupply(), 999);
+        assertEq(_mToken.principalOfTotalEarningSupply(), 0);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+    }
+
+    function testFuzz_stopEarning(uint256 supply_) external {
+        supply_ = bound(supply_, 1, type(uint112).max / 10);
+
+        _mToken.setLatestRate(_earnerRate);
+        _mToken.setPrincipalOfTotalEarningSupply(supply_);
+
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, supply_);
+
+        // Since Alice has stopped earning, the principal balance should reflect the interest accumulated until now.
+        // To calculate this amount, we compute the present amount.
+        uint256 expectedPrincipalBalance_ = _getPresentAmountRoundedDown(uint112(supply_), _mToken.currentIndex());
+
+        vm.prank(_alice);
+        _mToken.stopEarning();
+
+        assertEq(_mToken.isEarning(_alice), false);
+        assertEq(_mToken.hasAllowedEarningOnBehalf(_alice), false);
+        assertEq(_mToken.internalBalanceOf(_alice), expectedPrincipalBalance_);
+
+        assertEq(_mToken.totalNonEarningSupply(), expectedPrincipalBalance_);
         assertEq(_mToken.principalOfTotalEarningSupply(), 0);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
