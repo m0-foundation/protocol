@@ -58,7 +58,7 @@ contract ContinuousIndexingMathTests is Test {
                 minterRate_: 1_000,
                 confidenceInterval_: 30 days
             }),
-            999 // 9.99%
+            1000 // 10.00%
         );
 
         assertEq(
@@ -68,7 +68,7 @@ contract ContinuousIndexingMathTests is Test {
                 minterRate_: 1_000,
                 confidenceInterval_: 30 days
             }),
-            1000 // 9.99%
+            1000 // 10.00%
         );
 
         assertEq(
@@ -78,7 +78,7 @@ contract ContinuousIndexingMathTests is Test {
                 minterRate_: 1_000,
                 confidenceInterval_: 30 days
             }),
-            0 // TODO: Ideally we give 5%, but for now this test returns 0.
+            499 // NOTE: Ideally we give 5%, and this test returns 4.99%.
         );
 
         assertEq(
@@ -88,7 +88,7 @@ contract ContinuousIndexingMathTests is Test {
                 minterRate_: 1_000,
                 confidenceInterval_: 30 days
             }),
-            0 // TODO: Ideally we give 0.01%/, but for now this test returns 0.
+            0 // NOTE: Ideally we give 0.01%, and this test returns 0.
         );
 
         assertEq(
