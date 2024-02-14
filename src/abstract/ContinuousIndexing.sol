@@ -54,6 +54,10 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
 
     /// @inheritdoc IContinuousIndexing
     function currentIndex() public view virtual returns (uint128) {
+        // NOTE: in the extreme case where the elapsed time since the last update would overflow `type(uint32).max`,
+        //       return the latest recorded index.
+        if ((block.timestamp - _latestUpdateTimestamp) > type(uint32).max) return _latestIndex;
+
         // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `_latestUpdateTimestamp`.
         unchecked {
             return
