@@ -269,7 +269,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         }
     }
 
-    function checkPrincipalOfTotalSupplyOverflow(uint128 earnerIndex_) public returns (uint256) {
+    function checkPrincipalOfTotalSupplyOverflow(uint128 earnerIndex_) public view returns (uint256) {
         uint240 totalMSupply_ = uint240(_mToken.totalSupply());
         uint240 totalOwedM_ = _minterGateway.totalActiveOwedM() + _minterGateway.totalInactiveOwedM();
         uint240 totalNonEarningSupply_ = _mToken.totalNonEarningSupply();
