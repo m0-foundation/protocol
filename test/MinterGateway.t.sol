@@ -2345,6 +2345,32 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId_), 0);
     }
+    
+    function test_updateCollateral_zeroTimestamp() external {
+        uint256[] memory retrievalIds = new uint256[](0);
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+
+        uint256[] memory timestamps = new uint256[](1);
+        timestamps[0] = 0;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            100,
+            retrievalIds,
+            bytes32(0),
+            0,
+            _validator1Pk
+        );
+
+        vm.expectRevert(IMinterGateway.ZeroTimestamp.selector);
+
+        vm.prank(_minter1);
+        _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
+    }
 
     function test_updateCollateral_futureTimestamp() external {
         uint256[] memory retrievalIds = new uint256[](0);
