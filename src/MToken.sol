@@ -226,7 +226,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         }
 
         if (
-            principalOfTotalEarningSupply + _getPrincipalAmountRoundedDown(totalNonEarningSupply) >= type(uint112).max
+            uint256(principalOfTotalEarningSupply) + _getPrincipalAmountRoundedDown(totalNonEarningSupply) >= type(uint112).max
         ) {
             revert OverflowsPrincipalOfTotalSupply();
         }
