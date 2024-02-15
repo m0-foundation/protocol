@@ -1006,6 +1006,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
                 if (index_ > 0 && validators_[index_] <= validators_[index_ - 1]) revert InvalidSignatureOrder();
             }
 
+            // Check that the timestamp is not 0.
+            if (timestamps_[index_] == 0) revert ZeroTimestamp();
+
             // Check that the timestamp is not in the future.
             if (timestamps_[index_] > uint40(block.timestamp)) revert FutureTimestamp();
 
