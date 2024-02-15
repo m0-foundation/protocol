@@ -52,7 +52,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     uint16 public constant ONE = 10_000;
 
     /// @dev 10,000% in basis points.
-    uint32 public constant TEN_THOUSAND = 100 * uint32(ONE);
+    uint32 public constant SIXTY_FIVE = 65 * uint32(ONE);
 
     // keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadataHash,uint256 timestamp)")
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
@@ -484,7 +484,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function maxAllowedActiveOwedMOf(address minter_) public view returns (uint256) {
-        // NOTE: Since `mintRatio()` is capped at 10,000% (i.e. 1_000_000) this cannot overflow.
+        // NOTE: Since `mintRatio()` is capped at 650% (i.e. 65_000) this cannot overflow.
         unchecked {
             return _minterStates[minter_].isActive ? (uint256(collateralOf(minter_)) * mintRatio()) / ONE : 0;
         }
@@ -612,8 +612,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function mintRatio() public view returns (uint32) {
-        // NOTE: It is possible for the mint ratio to be greater than 100%, but capped at 10,000%.
-        return UIntMath.min32(TEN_THOUSAND, UIntMath.bound32(TTGRegistrarReader.getMintRatio(ttgRegistrar)));
+        // NOTE: It is possible for the mint ratio to be greater than 100%, but capped at 650%.
+        return UIntMath.min32(SIXTY_FIVE, UIntMath.bound32(TTGRegistrarReader.getMintRatio(ttgRegistrar)));
     }
 
     /// @inheritdoc IMinterGateway
