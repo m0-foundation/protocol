@@ -253,7 +253,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         mBalance_.isEarning = true;
 
         // Treat the raw balance as present amount for non earner.
-        uint240 amount_ = _balances[account_].rawBalance;
+        uint240 amount_ = mBalance_.rawBalance;
 
         if (amount_ == 0) return;
 
