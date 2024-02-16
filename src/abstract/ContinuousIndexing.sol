@@ -2,8 +2,6 @@
 
 pragma solidity 0.8.23;
 
-import { UIntMath } from "../../lib/common/src/libs/UIntMath.sol";
-
 import { IContinuousIndexing } from "../interfaces/IContinuousIndexing.sol";
 
 import { ContinuousIndexingMath } from "../libs/ContinuousIndexingMath.sol";
