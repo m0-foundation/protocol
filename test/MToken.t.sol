@@ -4,6 +4,8 @@ pragma solidity 0.8.23;
 
 import { stdError } from "../lib/forge-std/src/Test.sol";
 
+import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
+
 import { IMToken } from "../src/interfaces/IMToken.sol";
 
 import { TTGRegistrarReader } from "../src/libs/TTGRegistrarReader.sol";
@@ -97,6 +99,19 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
+    function test_mint_toNonEarner_overflowPrincipalOfTotalSupply() external {
+        // Set rate to 0 to keep index at 1.
+        _mToken.setLatestRate(0);
+        _mToken.setIsEarning(_alice, true);
+
+        vm.prank(_minterGateway);
+        _mToken.mint(_alice, type(uint112).max - 1);
+
+        vm.prank(_minterGateway);
+        vm.expectRevert(IMToken.OverflowsPrincipalOfTotalSupply.selector);
+        _mToken.mint(_bob, 2);
+    }
+
     function test_mint_toEarner() external {
         _mToken.setLatestRate(_earnerRate);
         _mToken.setIsEarning(_alice, true);
@@ -175,6 +190,17 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+    }
+
+    function test_mint_toEarner_overflowPrincipalOfTotalSupply() external {
+        // Set rate to 0 to keep index at 1.
+        _mToken.setLatestRate(0);
+        _mToken.setIsEarning(_alice, true);
+
+        vm.prank(_minterGateway);
+
+        vm.expectRevert(IMToken.OverflowsPrincipalOfTotalSupply.selector);
+        _mToken.mint(_alice, type(uint112).max);
     }
 
     /* ============ burn ============ */
@@ -483,6 +509,32 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
+    function test_transfer_fromEarner_toNonEarner_noOverflow() external {
+        // Earner balances being capped to type(uint112).max
+        // and non earners ones to type(uint240).max,
+        // it is not possible to overflow the non earning balances
+        // since the earning balances will always be lower.
+        uint256 aliceBalance_ = type(uint112).max;
+        uint256 bobBalance_ = 2;
+
+        // Set rate to 0 to keep index at 1.
+        _mToken.setLatestRate(0);
+
+        _mToken.setPrincipalOfTotalEarningSupply(aliceBalance_);
+        _mToken.setTotalNonEarningSupply(bobBalance_);
+
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, aliceBalance_);
+
+        _mToken.setInternalBalanceOf(_bob, bobBalance_);
+
+        vm.prank(_alice);
+        _mToken.transfer(_bob, aliceBalance_);
+
+        assertEq(_mToken.balanceOf(_alice), 0);
+        assertEq(_mToken.balanceOf(_bob), aliceBalance_ + bobBalance_);
+    }
+
     function test_transfer_fromNonEarner_toEarner() external {
         _mToken.setLatestRate(_earnerRate);
         _mToken.setPrincipalOfTotalEarningSupply(455);
@@ -540,6 +592,27 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+    }
+
+    function test_transfer_fromNonEarner_toEarner_overflow() external {
+        uint256 aliceBalance_ = type(uint112).max;
+        uint256 bobBalance_ = 2;
+
+        // Set rate to 0 to keep index at 1.
+        _mToken.setLatestRate(0);
+
+        _mToken.setTotalNonEarningSupply(aliceBalance_);
+        _mToken.setPrincipalOfTotalEarningSupply(bobBalance_);
+
+        _mToken.setInternalBalanceOf(_alice, aliceBalance_);
+
+        _mToken.setInternalBalanceOf(_bob, bobBalance_);
+        _mToken.setIsEarning(_bob, true);
+
+        vm.prank(_alice);
+
+        vm.expectRevert();
+        _mToken.transfer(_bob, aliceBalance_);
     }
 
     function test_transfer_fromEarner_toEarner() external {
@@ -727,6 +800,23 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+    }
+
+    function test_startEarning_overflow() external {
+        uint256 aliceBalance_ = uint256(type(uint112).max) + 20;
+
+        // Set rate to 0 to keep index at 1.
+        _mToken.setLatestRate(0);
+
+        _mToken.setTotalNonEarningSupply(aliceBalance_);
+        _mToken.setInternalBalanceOf(_alice, aliceBalance_);
+
+        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
+
+        vm.prank(_alice);
+
+        vm.expectRevert(UIntMath.InvalidUInt112.selector);
+        _mToken.startEarning();
     }
 
     /* ============ stopEarning ============ */

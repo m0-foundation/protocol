@@ -176,8 +176,9 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     function _addEarningAmount(address account_, uint112 principalAmount_) internal {
         unchecked {
             _balances[account_].rawBalance += principalAmount_;
-            principalOfTotalEarningSupply += principalAmount_;
         }
+
+        principalOfTotalEarningSupply += principalAmount_;
     }
 
     /**
@@ -186,6 +187,10 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param amount_  The amount to add.
      */
     function _addNonEarningAmount(address account_, uint240 amount_) internal {
+        // NOTE: Safe to use unchecked here since overflow of the total supply is checked in `_mint`.
+        //       When transferring from an earning account to a non-earning one,
+        //       the total non earning supply can't overflow since its max value is type(uint240).max
+        //       and the max value of the principal of total earning supply is type(uint112).max.
         unchecked {
             _balances[account_].rawBalance += amount_;
             totalNonEarningSupply += amount_;
@@ -225,8 +230,10 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
             _addNonEarningAmount(recipient_, UIntMath.safe240(amount_));
         }
 
+        // NOTE: Need to cast to uint256 to avoid silently overflowing uint112.
         if (
-            principalOfTotalEarningSupply + _getPrincipalAmountRoundedDown(totalNonEarningSupply) >= type(uint112).max
+            uint256(principalOfTotalEarningSupply) + _getPrincipalAmountRoundedDown(totalNonEarningSupply) >=
+            type(uint112).max
         ) {
             revert OverflowsPrincipalOfTotalSupply();
         }
@@ -369,6 +376,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     function _transferAmountInKind(address sender_, address recipient_, uint240 amount_) internal {
         _balances[sender_].rawBalance -= amount_;
 
+        // NOTE: When transferring an amount in kind, the `rawBalance` can't overflow
+        //       since the total supply would have overflowed first when minting.
         unchecked {
             _balances[recipient_].rawBalance += amount_;
         }
