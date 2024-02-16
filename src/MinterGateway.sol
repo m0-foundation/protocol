@@ -381,7 +381,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
         // Deactivate minter.
         _minterStates[minter_].isDeactivated = true;
-        _minterStates[minter_].isActive = false;
 
         _rawOwedM[minter_] = inactiveOwedM_; // Treat rawOwedM as inactive owed M since minter is now inactive.
 
