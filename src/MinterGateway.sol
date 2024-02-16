@@ -96,7 +96,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /// @notice Only allow active minter to call function.
-    /// @notice Only allow function for active minter.
     modifier onlyActiveMinter(address minter_) {
         _revertIfInactiveMinter(minter_);
 
@@ -1041,7 +1040,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             uint256 requiredThreshold_ = updateCollateralValidatorThreshold();
 
             unchecked {
-                // NOTE: BY this point, it is already established that `threshold_` is less than `requiredThreshold_`.
+                // NOTE: By this point, it is already established that `threshold_` is less than `requiredThreshold_`.
                 revert NotEnoughValidSignatures(requiredThreshold_ - threshold_, requiredThreshold_);
             }
         }
