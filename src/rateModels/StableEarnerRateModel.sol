@@ -29,6 +29,12 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
     /// @inheritdoc IStableEarnerRateModel
     uint32 public constant ONE = 10_000; // 100% in basis points.
 
+    /// @notice The scaling of rates in for exponent math.
+    uint256 internal constant EXP_SCALED_ONE = 1e12;
+
+    /// @notice The scaling of `EXP_SCALED_ONE` for wad maths operations.
+    int256 internal constant WAD_TO_EXP_SCALER = 1e6;
+
     /// @inheritdoc IEarnerRateModel
     address public immutable mToken;
 
@@ -101,13 +107,11 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
             confidenceInterval_
         );
 
-        // NOTE: 1e12 is `EXP_ONE` in ContinuousIndexingMath.
         int256 lnArg_ = int256(
-            1e12 + ((uint256(totalActiveOwedM_) * (deltaMinterIndex_ - 1e12)) / totalEarningSupply_)
+            EXP_SCALED_ONE + ((uint256(totalActiveOwedM_) * (deltaMinterIndex_ - EXP_SCALED_ONE)) / totalEarningSupply_)
         );
 
-        // NOTE: 1e18 is `WAD_ONE` in SignedWadMath, which a 1e6 scale greater than `EXP_ONE`.
-        int256 lnResult_ = wadLn(lnArg_ * 1e6) / 1e6; // Scale/Descale by 1e6 for SignedWadMath.
+        int256 lnResult_ = wadLn(lnArg_ * WAD_TO_EXP_SCALER) / WAD_TO_EXP_SCALER;
 
         uint256 expRate_ = (uint256(lnResult_) * ContinuousIndexingMath.SECONDS_PER_YEAR) / confidenceInterval_;
 
