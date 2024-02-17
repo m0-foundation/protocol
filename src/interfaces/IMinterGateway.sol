@@ -276,7 +276,7 @@ interface IMinterGateway is IContinuousIndexing {
     /**
      * @notice Activate an approved minter.
      * @dev    MUST revert if `minter` is not recorded as an approved minter in TTG Registrar.
-     * @dev    SHOULD revert if the minter is already active.
+     * @dev    MUST revert if `minter` has been deactivated.
      * @param  minter The address of the minter to activate
      */
     function activateMinter(address minter) external;
@@ -284,7 +284,7 @@ interface IMinterGateway is IContinuousIndexing {
     /**
      * @notice Deactivates an active minter.
      * @dev    MUST revert if the minter is not an approved minter.
-     * @dev    SHOULD revert if the minter is not active.
+     * @dev    MUST revert if the minter is not active.
      * @param  minter        The address of the minter to deactivate.
      * @return inactiveOwedM The inactive owed M for the deactivated minter.
      */
