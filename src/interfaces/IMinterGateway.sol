@@ -170,8 +170,8 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /**
      * @notice Emitted when penalty is imposed on minter.
      * @param  minter          The address of the minter.
-     * @param  principalAmount The principal amount of M tokens burned.
-     * @param  amount          The principal amount of penalty charge.
+     * @param  principalAmount The principal amount of penalty charge.
+     * @param  amount          The present amount of penalty charge.
      */
     event PenaltyImposed(address indexed minter, uint112 principalAmount, uint240 amount);
 
