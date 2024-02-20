@@ -2,10 +2,12 @@
 
 pragma solidity 0.8.23;
 
+import { IERC712 } from "../../lib/common/src/interfaces/IERC712.sol";
+
 import { IContinuousIndexing } from "./IContinuousIndexing.sol";
 
 /// @title Minter Gateway Interface.
-interface IMinterGateway is IContinuousIndexing {
+interface IMinterGateway is IContinuousIndexing, IERC712 {
     /******************************************************************************************************************\
     |                                                      Errors                                                      |
     \******************************************************************************************************************/
