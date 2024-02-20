@@ -531,6 +531,20 @@ contract MinterGatewayTests is TestUtils {
         assertEq(proposalTimestamp_, block.timestamp);
     }
 
+    function test_proposeMint_zeroMintAmount() external {
+        vm.expectRevert(IMinterGateway.ZeroMintAmount.selector);
+
+        vm.prank(_minter1);
+        _minterGateway.proposeMint(0, _alice);
+    }
+
+    function test_proposeMint_zeroMintDestination() external {
+        vm.expectRevert(IMinterGateway.ZeroMintDestination.selector);
+
+        vm.prank(_minter1);
+        _minterGateway.proposeMint(100e18, address(0));
+    }
+
     function test_proposeMint_frozenMinter() external {
         vm.prank(_validator1);
         _minterGateway.freezeMinter(_minter1);
@@ -934,6 +948,12 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(_minterGateway.activeOwedMOf(_minter1), 0);
         assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), 0);
+    }
+
+    function test_burnM_zeroBurnAmount() external {
+        vm.expectRevert(IMinterGateway.ZeroBurnAmount.selector);
+        vm.prank(_minter1);
+        _minterGateway.burnM(_minter1, 0);
     }
 
     function test_burnM_repayHalfOfOutstandingValue() external {
@@ -2117,6 +2137,12 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), ((minterCollateral_ / 2) * _mintRatio) / ONE);
     }
 
+    function test_proposeRetrieval_zeroRetrievalAmount() external {
+        vm.expectRevert(IMinterGateway.ZeroRetrievalAmount.selector);
+        vm.prank(_minter1);
+        _minterGateway.proposeRetrieval(0);
+    }
+
     function test_proposeRetrieval_inactiveMinter() external {
         _minterGateway.setIsActive(_minter1, false);
 
@@ -2351,7 +2377,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId_), 0);
     }
-    
+
     function test_updateCollateral_zeroTimestamp() external {
         uint256[] memory retrievalIds = new uint256[](0);
 
