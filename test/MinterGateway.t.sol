@@ -496,13 +496,17 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function testFuzz_proposeMint(uint256 amount_, uint256 minterCollateral_, address recipient_) external {
-        amount_ = bound(amount_, 0, type(uint240).max);
+        vm.assume(recipient_ != address(0));
+
+        amount_ = bound(amount_, 1, type(uint240).max);
         minterCollateral_ = bound(minterCollateral_, amount_, type(uint240).max);
 
         _minterGateway.setCollateralOf(_minter1, minterCollateral_);
         _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
 
-        amount_ = bound(amount_, 0, _minterGateway.maxAllowedActiveOwedMOf(_minter1));
+        if (_minterGateway.maxAllowedActiveOwedMOf(_minter1) == 0) return;
+
+        amount_ = bound(amount_, 1, _minterGateway.maxAllowedActiveOwedMOf(_minter1));
 
         uint48 expectedMintId_ = 1;
 
@@ -983,6 +987,8 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setPrincipalOfTotalActiveOwedM(principalOfActiveOwedM_);
 
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
+
+        if (activeOwedM / 2 == 0) return;
 
         vm.expectEmit();
         emit IMinterGateway.BurnExecuted(_minter1, uint112(principalOfActiveOwedM_ / 2), activeOwedM / 2, _alice);

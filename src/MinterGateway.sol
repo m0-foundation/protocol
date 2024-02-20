@@ -180,6 +180,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function proposeRetrieval(uint256 collateral_) external onlyActiveMinter(msg.sender) returns (uint48 retrievalId_) {
+        if (collateral_ == 0) revert ZeroRetrievalAmount();
+
         unchecked {
             retrievalId_ = ++_retrievalNonce;
         }
@@ -207,6 +209,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         uint256 amount_,
         address destination_
     ) external onlyActiveMinter(msg.sender) onlyUnfrozenMinter returns (uint48 mintId_) {
+        if (amount_ == 0) revert ZeroMintAmount();
+        if (destination_ == address(0)) revert ZeroMintDestination();
+
         uint240 safeAmount_ = UIntMath.safe240(amount_);
 
         _revertIfUndercollateralized(msg.sender, safeAmount_); // Ensure minter remains sufficiently collateralized.
@@ -283,6 +288,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function burnM(address minter_, uint256 maxAmount_) external returns (uint112 principalAmount_, uint240 amount_) {
+        if (maxAmount_ == 0) revert ZeroBurnAmount();
+
         (principalAmount_, amount_) = burnM(
             minter_,
             _getPrincipalAmountRoundedDown(UIntMath.safe240(maxAmount_)),

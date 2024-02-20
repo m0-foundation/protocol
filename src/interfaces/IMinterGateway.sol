@@ -82,6 +82,18 @@ interface IMinterGateway is IContinuousIndexing {
     /// @notice Emitted when calling `updateCollateral` if validator timestamp is 0.
     error ZeroTimestamp();
 
+    /// @notice Emitted when calling `proposeMint` if amount is 0.
+    error ZeroMintAmount();
+
+    /// @notice Emitted when calling `proposeMint` if destination is 0x0.
+    error ZeroMintDestination();
+
+    /// @notice Emitted when calling `burnM` if amount is 0.
+    error ZeroBurnAmount();
+
+    /// @notice Emitted when calling `proposeRetrieval` if collateral is 0.
+    error ZeroRetrievalAmount();
+
     /******************************************************************************************************************\
     |                                                      Events                                                      |
     \******************************************************************************************************************/

@@ -474,6 +474,8 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
         if (checkPrincipalOfTotalSupplyOverflow(_indexStore.currentEarnerIndex()) == 0) return;
 
+        if (amount_ == 0) return;
+
         vm.prank(mHolder_);
         _minterGateway.burnM(minter_, amount_);
     }
