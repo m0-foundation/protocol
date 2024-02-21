@@ -2747,6 +2747,6 @@ contract MinterGatewayTests is TestUtils {
 
         // Overflows `principalOfTotalEarningSupply` when minting excess owed M to the Vault.
         vm.expectRevert();
-        minterGateway_.mintM(2);
+        minterGateway_.mintM(3);
     }
 }

@@ -24,7 +24,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
     uint32 public constant RATE_CONFIDENCE_INTERVAL = 30 days;
 
     /// @inheritdoc IStableEarnerRateModel
-    uint32 public constant EXTRA_SAFETY_MULTIPLIER = 9_000; // 90% in basis points.
+    uint32 public constant EXTRA_SAFETY_MULTIPLIER = 10_000; // 100% in basis points.
 
     /// @inheritdoc IStableEarnerRateModel
     uint32 public constant ONE = 10_000; // 100% in basis points.

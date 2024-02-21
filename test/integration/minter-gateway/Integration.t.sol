@@ -225,7 +225,7 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         assertEq(_minterGateway.collateralOf(_minters[0]), 600_000e6);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minters[0]), 540_000000000);
-        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 500_176971951);
+        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 500_176971952);
     }
 
     function test_cancelMintProposalsAndFreezeMinter() external {

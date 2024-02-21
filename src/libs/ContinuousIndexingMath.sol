@@ -93,6 +93,12 @@ library ContinuousIndexingMath {
         }
     }
 
+    function multiplyIndicesUp(uint128 index, uint48 deltaIndex) internal pure returns (uint128 z) {
+        unchecked {
+            return UIntMath.safe128((uint256(index) * deltaIndex + (EXP_SCALED_ONE - 1)) / EXP_SCALED_ONE);
+        }
+    }
+
     /**
      * @notice Helper function to calculate e^rt (continuous compounding formula).
      * @dev    `uint64 yearlyRate` can accommodate 1000% interest per year.
