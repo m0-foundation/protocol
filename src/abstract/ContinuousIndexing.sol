@@ -51,19 +51,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     \******************************************************************************************************************/
 
     /// @inheritdoc IContinuousIndexing
-    function currentIndex() public view virtual returns (uint128) {
-        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `_latestUpdateTimestamp`.
-        unchecked {
-            return
-                ContinuousIndexingMath.multiplyIndices(
-                    _latestIndex,
-                    ContinuousIndexingMath.getContinuousIndex(
-                        ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
-                        uint32(block.timestamp - _latestUpdateTimestamp)
-                    )
-                );
-        }
-    }
+    function currentIndex() public view virtual returns (uint128);
 
     /// @inheritdoc IContinuousIndexing
     function latestIndex() public view virtual returns (uint128) {

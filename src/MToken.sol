@@ -9,10 +9,12 @@ import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 
 import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 
+import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
+import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
 /**
  * @title  MToken
@@ -128,6 +130,21 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /// @inheritdoc IMToken
     function isEarning(address account_) external view returns (bool isEarning_) {
         return _balances[account_].isEarning;
+    }
+
+    /// @inheritdoc IContinuousIndexing
+    function currentIndex() public view virtual override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
+        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `_latestUpdateTimestamp`.
+        unchecked {
+            return
+                ContinuousIndexingMath.multiplyIndicesDown(
+                    _latestIndex,
+                    ContinuousIndexingMath.getContinuousIndex(
+                        ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
+                        uint32(block.timestamp - _latestUpdateTimestamp)
+                    )
+                );
+        }
     }
 
     /******************************************************************************************************************\

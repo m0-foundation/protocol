@@ -79,17 +79,21 @@ library ContinuousIndexingMath {
      * @notice Helper function to calculate (`index` * `deltaIndex`) / `EXP_SCALED_ONE`, rounded down.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
-    function multiplyIndices(uint128 index, uint48 deltaIndex) internal pure returns (uint128 z) {
+    function multiplyIndicesDown(uint128 index, uint48 deltaIndex) internal pure returns (uint128 z) {
+        // TODO: Check overflow revert.
         unchecked {
-            // NOTE: While `multiplyUp` can mostly result in additional continuous compounding accuracy (mainly because
-            //       Padé exponent approximations always results in a lower value, and `multiplyUp` artificially
-            //       increases that value), for some smaller `r*t` values, it results in a higher effective index than
-            //       the "ideal". While not really an issue, this "often lower than, but sometimes higher than, ideal
-            //       index" may not be a good characteristic, and `multiplyUp` does cost a tiny bit more gas.
-            // NOTE: While technically possible for the result to be greater than `type(uint128).max`, having an index
-            //       greater than `type(uint128).max` is just not possible to support with this protocol and we can
-            //       safely assume such an index will never occur.
             return UIntMath.safe128((uint256(index) * deltaIndex) / EXP_SCALED_ONE);
+        }
+    }
+
+    /**
+     * @notice Helper function to calculate (`index` * `deltaIndex`) / `EXP_SCALED_ONE`, rounded up.
+     * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
+     */
+    function multiplyIndicesUp(uint128 index, uint48 deltaIndex) internal pure returns (uint128 z) {
+        // TODO: Check overflow revert.
+        unchecked {
+            return UIntMath.safe128((uint256(index) * deltaIndex + (EXP_SCALED_ONE - 1)) / EXP_SCALED_ONE);
         }
     }
 

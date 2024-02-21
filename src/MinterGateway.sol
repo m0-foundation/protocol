@@ -15,6 +15,7 @@ import { IMinterGateway } from "./interfaces/IMinterGateway.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
+import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
 /**
  * @title MinterGateway
@@ -644,6 +645,21 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /// @inheritdoc IMinterGateway
     function rateModel() public view returns (address) {
         return TTGRegistrarReader.getMinterRateModel(ttgRegistrar);
+    }
+
+    /// @inheritdoc IContinuousIndexing
+    function currentIndex() public view virtual override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
+        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `_latestUpdateTimestamp`.
+        unchecked {
+            return
+                ContinuousIndexingMath.multiplyIndicesUp(
+                    _latestIndex,
+                    ContinuousIndexingMath.getContinuousIndex(
+                        ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
+                        uint32(block.timestamp - _latestUpdateTimestamp)
+                    )
+                );
+        }
     }
 
     /******************************************************************************************************************\

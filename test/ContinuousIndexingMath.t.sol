@@ -331,7 +331,7 @@ contract ContinuousIndexingMathTests is Test {
 
         for (uint256 i; i < 52_560; ++i) {
             index = safe128(
-                continuousIndexingMath.multiplyIndices(
+                continuousIndexingMath.multiplyIndicesDown(
                     index,
                     continuousIndexingMath.getContinuousIndex(
                         continuousIndexingMath.convertFromBasisPoints(100_000), // 1000%
@@ -350,7 +350,7 @@ contract ContinuousIndexingMathTests is Test {
 
         for (uint256 i; i < 21_900; ++i) {
             index = safe128(
-                continuousIndexingMath.multiplyIndices(
+                continuousIndexingMath.multiplyIndicesDown(
                     index,
                     continuousIndexingMath.getContinuousIndex(
                         continuousIndexingMath.convertFromBasisPoints(10_000), // 100%
@@ -369,7 +369,7 @@ contract ContinuousIndexingMathTests is Test {
 
         for (uint256 i; i < 219_000; ++i) {
             index = safe128(
-                continuousIndexingMath.multiplyIndices(
+                continuousIndexingMath.multiplyIndicesDown(
                     index,
                     continuousIndexingMath.getContinuousIndex(
                         continuousIndexingMath.convertFromBasisPoints(1_000), // 10%

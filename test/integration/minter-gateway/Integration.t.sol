@@ -225,7 +225,7 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         assertEq(_minterGateway.collateralOf(_minters[0]), 600_000e6);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minters[0]), 540_000000000);
-        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 500_176971951);
+        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 500_176971952);
     }
 
     function test_cancelMintProposalsAndFreezeMinter() external {
@@ -300,12 +300,12 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         // TTG removes minter from the protocol.
         _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
+
         // Minter is deactivated in the protocol
         _minterGateway.deactivateMinter(_minters[0]);
 
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
-        // Danger zone - does not work for X seconds after deactivation
         vm.warp(block.timestamp + 1 seconds);
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 

@@ -24,7 +24,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
     uint32 public constant RATE_CONFIDENCE_INTERVAL = 30 days;
 
     /// @inheritdoc IStableEarnerRateModel
-    uint32 public constant EXTRA_SAFETY_MULTIPLIER = 9_000; // 90% in basis points.
+    uint32 public constant EXTRA_SAFETY_MULTIPLIER = 8_000; // 100% in basis points.
 
     /// @inheritdoc IStableEarnerRateModel
     uint32 public constant ONE = 10_000; // 100% in basis points.
@@ -96,11 +96,6 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
         if (confidenceInterval_ == 0) return 0;
 
         if (totalActiveOwedM_ == totalEarningSupply_) return minterRate_;
-
-        // NOTE: This often results in 0 safe earner rate, and can possibly be replaced with:
-        //       `if (totalActiveOwedM_ < totalEarningSupply_) return 0;`.
-        //       More research needed.
-        confidenceInterval_ = totalActiveOwedM_ > totalEarningSupply_ ? confidenceInterval_ : 1;
 
         uint48 deltaMinterIndex_ = ContinuousIndexingMath.getContinuousIndex(
             ContinuousIndexingMath.convertFromBasisPoints(minterRate_),
