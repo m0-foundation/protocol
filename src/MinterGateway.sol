@@ -326,7 +326,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     function cancelMint(address minter_, uint256 mintId_) external onlyApprovedValidator {
         uint48 id_ = _mintProposals[minter_].id;
 
-        if (id_ != mintId_) revert InvalidMintProposal();
+        if (id_ != mintId_ || id_ == 0) revert InvalidMintProposal();
 
         delete _mintProposals[minter_];
 
