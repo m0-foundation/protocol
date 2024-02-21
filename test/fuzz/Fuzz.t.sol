@@ -171,7 +171,7 @@ contract FuzzTests is IntegrationBaseSetup {
         _checkMainInvariant();
     }
 
-    function testFuzz_deactivateMinter_rateStabilityTest() external {
+    function test_deactivateMinter_rateStabilityTest() external {
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, uint256(0));
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 365 days);
         _registrar.updateConfig(TTGRegistrarReader.MINT_DELAY, uint256(0));
