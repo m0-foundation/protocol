@@ -288,8 +288,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function burnM(address minter_, uint256 maxAmount_) external returns (uint112 principalAmount_, uint240 amount_) {
-        if (maxAmount_ == 0) revert ZeroBurnAmount();
-
         (principalAmount_, amount_) = burnM(
             minter_,
             _getPrincipalAmountRoundedDown(UIntMath.safe240(maxAmount_)),
@@ -303,6 +301,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         uint256 maxPrincipalAmount_,
         uint256 maxAmount_
     ) public returns (uint112 principalAmount_, uint240 amount_) {
+        if (maxPrincipalAmount_ == 0 || maxAmount_ == 0) revert ZeroBurnAmount();
+
         bool isActive_ = _minterStates[minter_].isActive;
 
         if (isActive_) {

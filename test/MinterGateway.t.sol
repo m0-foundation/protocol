@@ -1556,9 +1556,9 @@ contract MinterGatewayTests is TestUtils {
         uint256 threeMissedIntervals = _updateCollateralInterval + (2 * _updateCollateralInterval) / 4;
         vm.warp(timestamp + threeMissedIntervals + 10);
 
-        // Burn 1 unit of M and impose penalty for 3 missed intervals
+        // Burn 2 units of M and impose penalty for 3 missed intervals
         vm.prank(_alice);
-        _minterGateway.burnM(_minter1, 1);
+        _minterGateway.burnM(_minter1, 2);
 
         uint256 penalizedUntil = _minterGateway.penalizedUntilOf(_minter1);
         assertEq(penalizedUntil, timestamp + threeMissedIntervals);
@@ -1566,9 +1566,9 @@ contract MinterGatewayTests is TestUtils {
         uint256 oneMoreMissedInterval = _updateCollateralInterval / 4;
         vm.warp(block.timestamp + oneMoreMissedInterval);
 
-        // Burn 1 unit of M and impose penalty for 1 more missed interval
+        // Burn 2 units of M and impose penalty for 1 more missed interval
         vm.prank(_alice);
-        _minterGateway.burnM(_minter1, 1);
+        _minterGateway.burnM(_minter1, 2);
 
         penalizedUntil = _minterGateway.penalizedUntilOf(_minter1);
         assertEq(penalizedUntil, timestamp + threeMissedIntervals + oneMoreMissedInterval);
