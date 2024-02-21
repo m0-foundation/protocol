@@ -998,6 +998,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
         // Stop processing if there are no more signatures or `threshold_` is reached.
         for (uint256 index_; index_ < signatures_.length && threshold_ > 0; ++index_) {
+            // Check that validator is approved by TTG.
+            if (!isValidatorApprovedByTTG(validators_[index_])) continue;
+
             unchecked {
                 // Check that validator address is unique and not accounted for
                 // NOTE: We revert here because this failure is entirely within the minter's control.
@@ -1018,9 +1021,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
                 metadataHash_,
                 timestamps_[index_]
             );
-
-            // Check that validator is approved by TTG.
-            if (!isValidatorApprovedByTTG(validators_[index_])) continue;
 
             // Check that ECDSA or ERC1271 signatures for given digest are valid.
             if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_])) continue;
