@@ -96,7 +96,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     \******************************************************************************************************************/
 
     /// @notice Only allow active minter to call function.
-    /// @notice Only allow function for active minter.
     modifier onlyActiveMinter(address minter_) {
         _revertIfInactiveMinter(minter_);
 
@@ -334,7 +333,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     function cancelMint(address minter_, uint256 mintId_) external onlyApprovedValidator {
         uint48 id_ = _mintProposals[minter_].id;
 
-        if (id_ != mintId_) revert InvalidMintProposal();
+        if (id_ != mintId_ || id_ == 0) revert InvalidMintProposal();
 
         delete _mintProposals[minter_];
 
@@ -388,7 +387,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
         // Deactivate minter.
         _minterStates[minter_].isDeactivated = true;
-        _minterStates[minter_].isActive = false;
 
         _rawOwedM[minter_] = inactiveOwedM_; // Treat rawOwedM as inactive owed M since minter is now inactive.
 
@@ -1007,6 +1005,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
         // Stop processing if there are no more signatures or `threshold_` is reached.
         for (uint256 index_; index_ < signatures_.length && threshold_ > 0; ++index_) {
+            // Check that validator is approved by TTG.
+            if (!isValidatorApprovedByTTG(validators_[index_])) continue;
+
             unchecked {
                 // Check that validator address is unique and not accounted for
                 // NOTE: We revert here because this failure is entirely within the minter's control.
@@ -1028,9 +1029,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
                 timestamps_[index_]
             );
 
-            // Check that validator is approved by TTG.
-            if (!isValidatorApprovedByTTG(validators_[index_])) continue;
-
             // Check that ECDSA or ERC1271 signatures for given digest are valid.
             if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_])) continue;
 
@@ -1049,7 +1047,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             uint256 requiredThreshold_ = updateCollateralValidatorThreshold();
 
             unchecked {
-                // NOTE: BY this point, it is already established that `threshold_` is less than `requiredThreshold_`.
+                // NOTE: By this point, it is already established that `threshold_` is less than `requiredThreshold_`.
                 revert NotEnoughValidSignatures(requiredThreshold_ - threshold_, requiredThreshold_);
             }
         }

@@ -2,10 +2,12 @@
 
 pragma solidity 0.8.23;
 
+import { IERC712 } from "../../lib/common/src/interfaces/IERC712.sol";
+
 import { IContinuousIndexing } from "./IContinuousIndexing.sol";
 
 /// @title Minter Gateway Interface.
-interface IMinterGateway is IContinuousIndexing {
+interface IMinterGateway is IContinuousIndexing, IERC712 {
     /******************************************************************************************************************\
     |                                                      Errors                                                      |
     \******************************************************************************************************************/
@@ -180,8 +182,8 @@ interface IMinterGateway is IContinuousIndexing {
     /**
      * @notice Emitted when penalty is imposed on minter.
      * @param  minter          The address of the minter.
-     * @param  principalAmount The principal amount of M tokens burned.
-     * @param  amount          The principal amount of penalty charge.
+     * @param  principalAmount The principal amount of penalty charge.
+     * @param  amount          The present amount of penalty charge.
      */
     event PenaltyImposed(address indexed minter, uint112 principalAmount, uint240 amount);
 
@@ -288,7 +290,7 @@ interface IMinterGateway is IContinuousIndexing {
     /**
      * @notice Activate an approved minter.
      * @dev    MUST revert if `minter` is not recorded as an approved minter in TTG Registrar.
-     * @dev    SHOULD revert if the minter is already active.
+     * @dev    MUST revert if `minter` has been deactivated.
      * @param  minter The address of the minter to activate
      */
     function activateMinter(address minter) external;
@@ -296,7 +298,7 @@ interface IMinterGateway is IContinuousIndexing {
     /**
      * @notice Deactivates an active minter.
      * @dev    MUST revert if the minter is not an approved minter.
-     * @dev    SHOULD revert if the minter is not active.
+     * @dev    MUST revert if the minter is not active.
      * @param  minter        The address of the minter to deactivate.
      * @return inactiveOwedM The inactive owed M for the deactivated minter.
      */

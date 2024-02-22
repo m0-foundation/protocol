@@ -21,7 +21,7 @@ library TTGRegistrarReader {
     /// @notice The earners list name in TTG.
     bytes32 internal constant EARNERS_LIST = "earners";
 
-    /// @notice The earners list name in TTG.
+    /// @notice The ignore earners list flag name in TTG.
     bytes32 internal constant EARNERS_LIST_IGNORED = "earners_list_ignored";
 
     /// @notice The name of parameter in TTG that defines the time to wait for mint request to be processed

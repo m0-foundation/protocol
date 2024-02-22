@@ -85,7 +85,7 @@ library ContinuousIndexingMath {
             //       Padé exponent approximations always results in a lower value, and `multiplyUp` artificially
             //       increases that value), for some smaller `r*t` values, it results in a higher effective index than
             //       the "ideal". While not really an issue, this "often lower than, but sometimes higher than, ideal
-            //       index" may no be a good characteristic, and `multiplyUp` does costs a tiny bit more gas.
+            //       index" may not be a good characteristic, and `multiplyUp` does cost a tiny bit more gas.
             // NOTE: While technically possible for the result to be greater than `type(uint128).max`, having an index
             //       greater than `type(uint128).max` is just not possible to support with this protocol and we can
             //       safely assume such an index will never occur.

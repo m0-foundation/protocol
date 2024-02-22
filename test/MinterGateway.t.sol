@@ -795,7 +795,7 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function testFuzz_cancelMint_byValidator(uint256 mintId_, address recipient_) external {
-        mintId_ = bound(mintId_, 0, type(uint48).max);
+        mintId_ = bound(mintId_, 1, type(uint48).max);
         _minterGateway.setMintProposalOf(_minter1, uint48(mintId_), 100, block.timestamp, recipient_);
 
         vm.expectEmit();
@@ -831,6 +831,12 @@ contract MinterGatewayTests is TestUtils {
         vm.expectRevert(IMinterGateway.InvalidMintProposal.selector);
         vm.prank(_validator1);
         _minterGateway.cancelMint(_alice, 1);
+    }
+
+    function test_cancelMint_invalidMintProposal_idZero() external {
+        vm.expectRevert(IMinterGateway.InvalidMintProposal.selector);
+        vm.prank(_validator1);
+        _minterGateway.cancelMint(_minter1, 0);
     }
 
     /* ============ freezeMinter ============ */
