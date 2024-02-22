@@ -10,6 +10,7 @@
     "contract-name-camelcase": "warn",
     "no-unused-vars": "warn",
     "no-global-import": "warn",
+    "no-unused-import": "warn",
     "comprehensive-interface": "off",
     "quotes": ["error", "double"],
     "const-name-snakecase": "off",

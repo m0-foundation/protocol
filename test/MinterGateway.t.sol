@@ -502,13 +502,17 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function testFuzz_proposeMint(uint256 amount_, uint256 minterCollateral_, address recipient_) external {
-        amount_ = bound(amount_, 0, type(uint240).max);
+        vm.assume(recipient_ != address(0));
+
+        amount_ = bound(amount_, 1, type(uint240).max);
         minterCollateral_ = bound(minterCollateral_, amount_, type(uint240).max);
 
         _minterGateway.setCollateralOf(_minter1, minterCollateral_);
         _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
 
-        amount_ = bound(amount_, 0, _minterGateway.maxAllowedActiveOwedMOf(_minter1));
+        if (_minterGateway.maxAllowedActiveOwedMOf(_minter1) == 0) return;
+
+        amount_ = bound(amount_, 1, _minterGateway.maxAllowedActiveOwedMOf(_minter1));
 
         uint48 expectedMintId_ = 1;
 
@@ -531,6 +535,20 @@ contract MinterGatewayTests is TestUtils {
         assertEq(proposalAmount_, amount_);
         assertEq(proposalrecipient_, recipient_);
         assertEq(proposalTimestamp_, block.timestamp);
+    }
+
+    function test_proposeMint_zeroMintAmount() external {
+        vm.expectRevert(IMinterGateway.ZeroMintAmount.selector);
+
+        vm.prank(_minter1);
+        _minterGateway.proposeMint(0, _alice);
+    }
+
+    function test_proposeMint_zeroMintDestination() external {
+        vm.expectRevert(IMinterGateway.ZeroMintDestination.selector);
+
+        vm.prank(_minter1);
+        _minterGateway.proposeMint(100e18, address(0));
     }
 
     function test_proposeMint_frozenMinter() external {
@@ -938,6 +956,12 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), 0);
     }
 
+    function test_burnM_zeroBurnAmount() external {
+        vm.expectRevert(IMinterGateway.ZeroBurnAmount.selector);
+        vm.prank(_minter1);
+        _minterGateway.burnM(_minter1, 0);
+    }
+
     function test_burnM_repayHalfOfOutstandingValue() external {
         _minterGateway.setCollateralOf(_minter1, 1000e18);
         _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
@@ -989,6 +1013,8 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setPrincipalOfTotalActiveOwedM(principalOfActiveOwedM_);
 
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
+
+        if (activeOwedM / 2 == 0) return;
 
         vm.expectEmit();
         emit IMinterGateway.BurnExecuted(_minter1, uint112(principalOfActiveOwedM_ / 2), activeOwedM / 2, _alice);
@@ -1536,9 +1562,9 @@ contract MinterGatewayTests is TestUtils {
         uint256 threeMissedIntervals = _updateCollateralInterval + (2 * _updateCollateralInterval) / 4;
         vm.warp(timestamp + threeMissedIntervals + 10);
 
-        // Burn 1 unit of M and impose penalty for 3 missed intervals
+        // Burn 2 units of M and impose penalty for 3 missed intervals
         vm.prank(_alice);
-        _minterGateway.burnM(_minter1, 1);
+        _minterGateway.burnM(_minter1, 2);
 
         uint256 penalizedUntil = _minterGateway.penalizedUntilOf(_minter1);
         assertEq(penalizedUntil, timestamp + threeMissedIntervals);
@@ -1546,9 +1572,9 @@ contract MinterGatewayTests is TestUtils {
         uint256 oneMoreMissedInterval = _updateCollateralInterval / 4;
         vm.warp(block.timestamp + oneMoreMissedInterval);
 
-        // Burn 1 unit of M and impose penalty for 1 more missed interval
+        // Burn 2 units of M and impose penalty for 1 more missed interval
         vm.prank(_alice);
-        _minterGateway.burnM(_minter1, 1);
+        _minterGateway.burnM(_minter1, 2);
 
         penalizedUntil = _minterGateway.penalizedUntilOf(_minter1);
         assertEq(penalizedUntil, timestamp + threeMissedIntervals + oneMoreMissedInterval);
@@ -2115,6 +2141,12 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId_), 0);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), ((minterCollateral_ / 2) * _mintRatio) / ONE);
+    }
+
+    function test_proposeRetrieval_zeroRetrievalAmount() external {
+        vm.expectRevert(IMinterGateway.ZeroRetrievalAmount.selector);
+        vm.prank(_minter1);
+        _minterGateway.proposeRetrieval(0);
     }
 
     function test_proposeRetrieval_inactiveMinter() external {
