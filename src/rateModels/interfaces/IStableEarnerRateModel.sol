@@ -9,8 +9,9 @@ interface IStableEarnerRateModel is IEarnerRateModel {
     /// @notice The interval over which there's confidence cash flow to earners will not exceed cash flows from minters.
     function RATE_CONFIDENCE_INTERVAL() external view returns (uint32);
 
-    /// @notice An multiplier that reduces the safe earner rate for extra safety.
-    function EXTRA_SAFETY_MULTIPLIER() external view returns (uint32);
+    /// @notice A multiplier that guarantees split of funds between Distribution vault and earners,
+    ///         and adds extra safety against overprinting of M token.
+    function EARNER_SPLIT_MULTIPLIER() external view returns (uint32);
 
     /// @notice 100% in basis points.
     function ONE() external view returns (uint32);

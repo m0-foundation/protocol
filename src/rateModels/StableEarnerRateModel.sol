@@ -24,7 +24,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
     uint32 public constant RATE_CONFIDENCE_INTERVAL = 30 days;
 
     /// @inheritdoc IStableEarnerRateModel
-    uint32 public constant EXTRA_SAFETY_MULTIPLIER = 9_000; // 90% in basis points.
+    uint32 public constant EARNER_SPLIT_MULTIPLIER = 9_000; // 90% in basis points.
 
     /// @inheritdoc IStableEarnerRateModel
     uint32 public constant ONE = 10_000; // 100% in basis points.
@@ -63,7 +63,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
             RATE_CONFIDENCE_INTERVAL
         );
 
-        return UIntMath.min256(baseRate(), (EXTRA_SAFETY_MULTIPLIER * safeEarnerRate_) / ONE);
+        return UIntMath.min256(baseRate(), (EARNER_SPLIT_MULTIPLIER * safeEarnerRate_) / ONE);
     }
 
     /// @inheritdoc IEarnerRateModel
@@ -78,6 +78,24 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
         uint32 minterRate_,
         uint32 confidenceInterval_
     ) public pure returns (uint32) {
+        if (totalActiveOwedM_ == 0) return 0;
+
+        if (totalEarningSupply_ == 0) return type(uint32).max;
+
+        if (totalActiveOwedM_ == totalEarningSupply_) return minterRate_;
+
+        return
+            totalActiveOwedM_ > totalEarningSupply_
+                ? _getStableRate(totalActiveOwedM_, totalEarningSupply_, minterRate_, confidenceInterval_)
+                : _getApproxRate(totalActiveOwedM_, totalEarningSupply_, minterRate_);
+    }
+
+    function _getStableRate(
+        uint240 totalActiveOwedM_,
+        uint240 totalEarningSupply_,
+        uint32 minterRate_,
+        uint32 confidenceInterval_
+    ) internal pure returns (uint32) {
         // To ensure cashflow safety, we start with `cashFlowOfActiveOwedM == cashFlowOfEarningSupply` over some time.
         // Effectively: p1 * exp(rate1 * dt) - p1 = p2 * exp(rate2 * dt) - p2
         //          So: rate2 = ln(1 + (p1 * (exp(rate1 * dt) - 1)) / p2) / dt
@@ -89,18 +107,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
         // 5. ln(1 + (totalActive * (delta_minterIndex - 1) / totalEarning)) = (earnerRate * dt) / SECONDS_PER_YEAR
         // 6. ln(1 + (totalActive * (delta_minterIndex - 1) / totalEarning)) * SECONDS_PER_YEAR / dt = earnerRate
 
-        if (totalActiveOwedM_ == 0) return 0;
-
-        if (totalEarningSupply_ == 0) return type(uint32).max;
-
         if (confidenceInterval_ == 0) return 0;
-
-        if (totalActiveOwedM_ == totalEarningSupply_) return minterRate_;
-
-        // NOTE: This often results in 0 safe earner rate, and can possibly be replaced with:
-        //       `if (totalActiveOwedM_ < totalEarningSupply_) return 0;`.
-        //       More research needed.
-        confidenceInterval_ = totalActiveOwedM_ > totalEarningSupply_ ? confidenceInterval_ : 1;
 
         uint48 deltaMinterIndex_ = ContinuousIndexingMath.getContinuousIndex(
             ContinuousIndexingMath.convertFromBasisPoints(minterRate_),
@@ -119,6 +126,20 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
 
         // NOTE: Do not need to do `UIntMath.safe256` because it is known that `lnResult_` will not be negative.
         uint40 safeRate_ = ContinuousIndexingMath.convertToBasisPoints(uint64(expRate_));
+
+        return (safeRate_ > type(uint32).max) ? type(uint32).max : uint32(safeRate_);
+    }
+
+    function _getApproxRate(
+        uint240 totalActiveOwedM_,
+        uint240 totalEarningSupply_,
+        uint32 minterRate_
+    ) internal pure returns (uint32) {
+        // To ensure cashflow safety, we start with `cashFlowOfActiveOwedM == cashFlowOfEarningSupply` over some time.
+        // We use approximation: p1 * rate1 = p2 * rate2
+        //                   So: rate2 = p1 * rate1 / p2
+
+        uint256 safeRate_ = (totalActiveOwedM_ * minterRate_) / totalEarningSupply_;
 
         return (safeRate_ > type(uint32).max) ? type(uint32).max : uint32(safeRate_);
     }
