@@ -371,94 +371,21 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     }
 
     function _mintMToMHolder(address minter_, address mHolder_, uint256 amount_) internal {
+        amount_ = bound(amount_, 100, 100e12);
+
         if (!_minterGateway.isActiveMinter(minter_)) return;
 
         amount_ = _updateCollateral(minter_, amount_);
 
         if (amount_ == 0) return;
 
-        uint128 currentEarnerIndex_ = _indexStore.setEarnerIndex(_mToken.updateIndex());
-        _indexStore.setMinterIndex(_minterGateway.updateIndex());
-
-        uint112 principalOfTotalEarningSupply_ = _mToken.principalOfTotalEarningSupply();
-        uint112 principalOfTotalNonEarningSupply_ = _getPrincipalAmountRoundedDown(
-            _mToken.totalNonEarningSupply(),
-            currentEarnerIndex_
-        );
-
-        if (_mToken.isEarning(mHolder_)) {
-            // It should not overflow principalOfTotalEarningSupply
-            if (principalOfTotalEarningSupply_ >= type(uint112).max) return;
-
-            if (
-                uint256(principalOfTotalEarningSupply_) +
-                    _getPrincipalAmountRoundedDown(uint240(amount_), currentEarnerIndex_) >=
-                type(uint112).max
-            ) {
-                amount_ = uint112(type(uint112).max - (principalOfTotalEarningSupply_ + 1));
-            }
-        } else {
-            // It should not overflow principalOfTotalNonEarningSupply
-            if (principalOfTotalNonEarningSupply_ >= type(uint112).max) return;
-
-            if (
-                uint256(principalOfTotalNonEarningSupply_) +
-                    _getPrincipalAmountRoundedDown(uint240(amount_), currentEarnerIndex_) >=
-                type(uint112).max
-            ) {
-                type(uint112).max - (principalOfTotalNonEarningSupply_);
-            }
-        }
-
-        // It should not overflow PrincipalOfTotalSupply
-        uint112 principalOfTotalSupply_ = principalOfTotalEarningSupply_ + principalOfTotalNonEarningSupply_;
-
-        if (principalOfTotalSupply_ >= type(uint112).max) return;
-
-        // currentPrincipalOfTotalEarningSupply_ + nextPrincipalOfTotalNonEarningSupply_
         if (
-            uint256(principalOfTotalSupply_) + _getPrincipalAmountRoundedDown(uint240(amount_), currentEarnerIndex_) >=
-            type(uint112).max
-        ) {
-            amount_ = type(uint112).max - (principalOfTotalSupply_ + 1);
-        }
-
-        // principalOfTotalOwedM = principalOfTotalActiveOwedM + principalOfTotalInactiveOwedM
-        uint112 principalOfTotalOwedM_ = _minterGateway.principalOfTotalActiveOwedM() +
-            _getPrincipalAmountRoundedUp(_minterGateway.totalInactiveOwedM(), currentEarnerIndex_);
-
-        // It should not overflow PrincipalOfTotalOwedM
-        if (principalOfTotalOwedM_ >= type(uint112).max) return;
-
-        // nextPrincipalOfTotalOwedM = principalOfTotalOwedM + principalAmount
-        if (
-            uint256(principalOfTotalOwedM_) + _getPrincipalAmountRoundedDown(uint240(amount_), currentEarnerIndex_) >=
-            type(uint112).max
-        ) {
-            amount_ = type(uint112).max - (principalOfTotalOwedM_ + 1);
-        }
-
-        uint240 nextTotalMSupply_ = uint240(_mToken.totalSupply() + amount_);
-        uint240 nextTotalOwedM_ = _minterGateway.totalActiveOwedM() +
-            _minterGateway.totalInactiveOwedM() +
-            uint240(amount_);
-
-        // If PrincipalOfTotalSupply will overflow when minting excess owed M to the vault, we return early.
-        if (
-            uint256(_mToken.principalOfTotalEarningSupply()) +
-                _getPrincipalAmountRoundedDown(_mToken.totalNonEarningSupply(), currentEarnerIndex_) +
-                _getPrincipalAmountRoundedUp(
-                    nextTotalOwedM_ > nextTotalMSupply_ ? nextTotalOwedM_ - nextTotalMSupply_ : 0,
-                    currentEarnerIndex_
-                ) +
-                amount_ >=
-            type(uint112).max
+            (((_minterGateway.totalOwedM() + amount_) * EXP_SCALED_ONE) / _minterGateway.currentIndex()) >=
+            type(uint112).max / 2
         ) return;
 
-        if (amount_ == 0) return;
-
-        // Return early if the amount of M to mint will cause the minter to exceed their max allowed active owed M
-        if (_minterGateway.activeOwedMOf(minter_) + amount_ > _minterGateway.maxAllowedActiveOwedMOf(minter_)) return;
+        if ((((_mToken.totalSupply() + amount_) * EXP_SCALED_ONE) / _mToken.currentIndex()) >= type(uint112).max / 2)
+            return;
 
         vm.prank(minter_);
         uint256 mintId_ = _minterGateway.proposeMint(amount_, mHolder_);
