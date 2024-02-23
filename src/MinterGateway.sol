@@ -265,8 +265,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         unchecked {
             uint256 newPrincipalOfTotalActiveOwedM_ = uint256(principalOfTotalActiveOwedM_) + principalAmount_;
 
-            // As an edge case precaution, prevent a mint that, if all own M (active and inactive) was converted to
-            // principal amount, would overflow the `principalOfTotalActiveOwedM_` (i.e. `type(uint112).max`).
+            // As an edge case precaution, prevent a mint that, if all owed M (active and inactive) was converted to
+            // principal amount, would overflow the principal of `totalOwedM` (i.e. `type(uint112).max`).
             if (
                 // NOTE: Round the principal up in favor of the protocol.
                 newPrincipalOfTotalActiveOwedM_ + _getPrincipalAmountRoundedUp(totalInactiveOwedM) >= type(uint112).max
