@@ -13,6 +13,7 @@ notes.md
 
 coverage/
 lcov.info
+gasreport.ansi
 
 .DS_Store
 

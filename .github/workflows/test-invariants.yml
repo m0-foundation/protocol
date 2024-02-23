@@ -1,0 +1,38 @@
+name: Forge Test Invariants
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  FOUNDRY_PROFILE: ci
+
+permissions: write-all
+
+jobs:
+  check:
+    name: Foundry project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Run Forge build
+        run: |
+          forge --version
+          make sizes
+        id: build
+
+      - name: Run Forge tests
+        run: npm run test-invariants
+        env:
+          # make fuzzing semi-deterministic to avoid noisy gas cost estimation
+          # due to non-deterministic fuzzing (but still use pseudo-random fuzzing seeds)
+          FOUNDRY_FUZZ_SEED: 0x${{ github.event.pull_request.base.sha || github.sha }}
+          MNEMONIC: ${{ secrets.MNEMONIC_FOR_TESTS }}
