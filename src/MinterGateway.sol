@@ -1005,14 +1005,14 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
         // Stop processing if there are no more signatures or `threshold_` is reached.
         for (uint256 index_; index_ < signatures_.length && threshold_ > 0; ++index_) {
-            // Check that validator is approved by TTG.
-            if (!isValidatorApprovedByTTG(validators_[index_])) continue;
-
             unchecked {
                 // Check that validator address is unique and not accounted for
                 // NOTE: We revert here because this failure is entirely within the minter's control.
                 if (index_ > 0 && validators_[index_] <= validators_[index_ - 1]) revert InvalidSignatureOrder();
             }
+
+            // Check that validator is approved by TTG.
+            if (!isValidatorApprovedByTTG(validators_[index_])) continue;
 
             // Check that the timestamp is not 0.
             if (timestamps_[index_] == 0) revert ZeroTimestamp();
