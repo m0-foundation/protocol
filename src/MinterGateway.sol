@@ -504,7 +504,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /// @inheritdoc IMinterGateway
     function collateralOf(address minter_) public view returns (uint240) {
         // If collateral was not updated by the deadline, assume that minter's collateral is zero.
-        if (block.timestamp > collateralExpiryTimestampOf(minter_)) return 0;
+        if (block.timestamp >= collateralExpiryTimestampOf(minter_)) return 0;
 
         uint240 totalPendingRetrievals_ = _minterStates[minter_].totalPendingRetrievals;
         uint240 collateral_ = _minterStates[minter_].collateral;

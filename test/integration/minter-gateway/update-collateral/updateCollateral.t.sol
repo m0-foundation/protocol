@@ -108,7 +108,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
         uint128 updateCollateralIndex_ = _minterGateway.latestIndex();
         assertEq(_minterGateway.latestIndex(), _minterGateway.currentIndex());
 
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1 hours);
+        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1 hours + 1 seconds);
 
         vm.warp(block.timestamp + 12 hours);
 
