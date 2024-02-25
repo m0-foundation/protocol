@@ -103,7 +103,6 @@ library ContinuousIndexingMath {
         unchecked {
             // NOTE: Casting `uint256(yearlyRate) * time` to a `uint72` is safe because the largest value is
             //      `type(uint64).max * type(uint32).max / SECONDS_PER_YEAR`, which is less than `type(uint72).max`.
-            // NOTE: Can replace `exponent` here with `exponentAssembly` for ~44 gas savings.
             return exponent(uint72((uint256(yearlyRate) * time) / SECONDS_PER_YEAR));
         }
     }
@@ -135,39 +134,6 @@ library ContinuousIndexingMath {
             // NOTE: Can cast to `uint48` because contents can never be larger than `type(uint48).max` for any `x`.
             //       Max `y` is ~200e12, before falling off. See links above for reference.
             return uint48(((additiveTerms + differentTerms) * 1e12) / (additiveTerms - differentTerms));
-        }
-    }
-
-    /**
-     * @notice Helper function to calculate y = e^x using R(4,4) Padé approximation:
-     *           e(x) = (1 + x/2 + 3(x^2)/28 + x^3/84 + x^4/1680) / (1 - x/2 + 3(x^2)/28 - x^3/84 + x^4/1680)
-     *           See: https://en.wikipedia.org/wiki/Pad%C3%A9_table
-     *           See: https://www.wolframalpha.com/input?i=PadeApproximant%5Bexp%5Bx%5D%2C%7Bx%2C0%2C%7B4%2C+4%7D%7D%5D
-     *         Despite itself being a whole number, `x` represents a real number scaled by `EXP_SCALED_ONE`, thus
-     *         allowing for y = e^x where x is a real number.
-     * @dev    Output `y` for a `uint72` input `x` will fit in `uint48`
-     */
-    function exponentAssembly(uint72 x) internal pure returns (uint48 y) {
-        // NOTE: This can be done unchecked even for `x = type(uint72).max`.
-        /// @solidity memory-safe-assembly
-        assembly {
-            y := mul(x, x) // temporarily use y as x^2
-
-            // `additiveTerms` is `(1 + 3(x^2)/28 + x^4/1680)`, and scaled by `84e27`.
-            // NOTE: `84e27` the cleanest and largest scalar, given `(additiveTerms + differentTerms) * 1e12` overflow.
-            // NOTE: The resulting `(x2 * x2) / 20e21` term has been split up in order to avoid overflow of `x2 * x2`.
-            let a := add(
-                0x10f6b2be4706a13fc20000000,
-                add(mul(0x2328, y), mul(sdiv(y, 0x2e90edd000), sdiv(y, 0x174876e800)))
-            )
-
-            // `differentTerms` is `(- x/2 - x^3/84)`, but positive (will be subtracted later), and scaled by `84e27`.
-            let d := mul(x, add(0x9536c708910000, sdiv(y, 0x3b9aca00)))
-
-            // Result needs to be scaled by `1e12`.
-            // NOTE: Can cast to `uint48` because contents can never be larger than `type(uint48).max` for any `x`.
-            //       Max `y` is ~200e12, before falling off. See links above for reference.
-            y := sdiv(mul(0xe8d4a51000, add(a, d)), sub(a, d))
         }
     }
 
