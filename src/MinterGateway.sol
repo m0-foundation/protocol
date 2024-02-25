@@ -818,7 +818,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         uint40 lastUpdateTimestamp_ = _minterStates[minter_].updateTimestamp;
 
         // MinterGateway already has more recent collateral update
-        if (newTimestamp_ < lastUpdateTimestamp_) revert StaleCollateralUpdate(newTimestamp_, lastUpdateTimestamp_);
+        if (newTimestamp_ <= lastUpdateTimestamp_) revert StaleCollateralUpdate(newTimestamp_, lastUpdateTimestamp_);
 
         _minterStates[minter_].collateral = amount_;
         _minterStates[minter_].updateTimestamp = newTimestamp_;
