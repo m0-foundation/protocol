@@ -12,6 +12,6 @@ interface IMinterRateModel is IRateModel {
     /// @notice The TTG Registrar contract address.
     function ttgRegistrar() external view returns (address);
 
-    /// @notice The base rate of the Earner Rate Model.
+    /// @notice The base rate of the Minter Rate Model.
     function baseRate() external view returns (uint256);
 }
