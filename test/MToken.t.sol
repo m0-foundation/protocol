@@ -212,7 +212,7 @@ contract MTokenTests is TestUtils {
     function test_burn_insufficientBalance_fromNonEarner() external {
         _mToken.setInternalBalanceOf(_alice, 999);
 
-        vm.expectRevert(stdError.arithmeticError);
+        vm.expectRevert(abi.encodeWithSelector(IMToken.InsufficientBalance.selector, _alice, 999, 1_000));
         vm.prank(_minterGateway);
         _mToken.burn(_alice, 1_000);
     }
@@ -223,7 +223,7 @@ contract MTokenTests is TestUtils {
         _mToken.setIsEarning(_alice, true);
         _mToken.setInternalBalanceOf(_alice, 908);
 
-        vm.expectRevert(stdError.arithmeticError);
+        vm.expectRevert(abi.encodeWithSelector(IMToken.InsufficientBalance.selector, _alice, 908, 910));
         vm.prank(_minterGateway);
         _mToken.burn(_alice, 1_000);
     }
@@ -370,7 +370,7 @@ contract MTokenTests is TestUtils {
         _mToken.setIsEarning(_alice, true);
         _mToken.setInternalBalanceOf(_alice, 908);
 
-        vm.expectRevert(stdError.arithmeticError);
+        vm.expectRevert(abi.encodeWithSelector(IMToken.InsufficientBalance.selector, _alice, 908, 910));
         vm.prank(_alice);
         _mToken.transfer(_bob, 1_000);
     }
