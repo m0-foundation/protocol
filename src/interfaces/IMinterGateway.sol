@@ -297,7 +297,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
 
     /**
      * @notice Deactivates an active minter.
-     * @dev    MUST revert if the minter is not an approved minter.
+     * @dev    MUST revert if the minter is still approved.
      * @dev    MUST revert if the minter is not active.
      * @param  minter        The address of the minter to deactivate.
      * @return inactiveOwedM The inactive owed M for the deactivated minter.
@@ -363,7 +363,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice The timestamp of the last collateral update of minter.
     function collateralUpdateTimestampOf(address minter) external view returns (uint40);
 
-    /// @notice The timestamp after which an additional penalty for a missed update interval will bee charged.
+    /// @notice The timestamp after which an additional penalty for a missed update interval will be charged.
     function collateralPenaltyDeadlineOf(address minter) external view returns (uint40);
 
     /// @notice The timestamp after which the minter's collateral is assumed to be 0 due to a missed update.
