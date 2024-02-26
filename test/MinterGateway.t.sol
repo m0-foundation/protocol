@@ -400,6 +400,44 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
     }
 
+    function test_updateCollateral_signatureDoubleCount() external {
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 2);
+
+        uint256 collateral = 100;
+        uint256[] memory retrievalIds = new uint256[](0);
+        uint256 timestamp = block.timestamp;
+
+        bytes memory signature1_ = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            timestamp,
+            _validator1Pk
+        );
+
+        address[] memory validators = new address[](3);
+        validators[0] = _validator1;
+        validators[1] = address(0xdead);
+        validators[2] = _validator1;
+
+        bytes[] memory signatures = new bytes[](3);
+        signatures[0] = signature1_;
+        signatures[1] = new bytes(0);
+        signatures[2] = signature1_;
+
+        uint256[] memory timestamps = new uint256[](3);
+        timestamps[0] = timestamp;
+        timestamps[1] = timestamp;
+        timestamps[2] = timestamp;
+
+        vm.expectRevert(IMinterGateway.InvalidSignatureOrder.selector);
+
+        vm.prank(_minter1);
+        _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
+    }
+
     function test_updateCollateral_notEnoughValidSignatures() external {
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
 
@@ -1440,6 +1478,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.penalizedUntilOf(_minter1), signatureTimestamp_);
     }
 
+    /* ============ burnM ============ */
     function test_burnM_imposePenaltyForExpiredCollateralValue() external {
         _minterGateway.setCollateralOf(_minter1, 100e18);
         _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
