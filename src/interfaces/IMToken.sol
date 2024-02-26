@@ -15,9 +15,6 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when principal of total supply (earning and non-earning) will overflow a `type(uint112).max`.
     error OverflowsPrincipalOfTotalSupply();
 
-    /// @notice Emitted when calling `startEarningOnBehalfOf` for an account that has not allowed the start of earning on their behalf.
-    error HasNotAllowedEarningOnBehalf();
-
     /// @notice Emitted when calling `stopEarning` for an account approved as earner by TTG.
     error IsApprovedEarner();
 
@@ -43,12 +40,6 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when account stops being an M earner.
     event StoppedEarning(address indexed account);
 
-    /// @notice Emitted when account has allowed anyone else to enable their earning.
-    event AllowedEarningOnBehalf(address indexed account);
-
-    /// @notice Emitted when account has disallowed anyone else from enabling their earning.
-    event DisallowedEarningOnBehalf(address indexed account);
-
     /******************************************************************************************************************\
     |                                         External Interactive Functions                                           |
     \******************************************************************************************************************/
@@ -70,26 +61,8 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Starts earning for caller if allowed by TTG.
     function startEarning() external;
 
-    /**
-     * @notice Starts earning for account if allowed by TTG.
-     * @param account The address of account to start earning for.
-     */
-    function startEarningOnBehalfOf(address account) external;
-
     /// @notice Stops earning for caller.
     function stopEarning() external;
-
-    /**
-     * @notice Stops earning for account.
-     * @param  account The address of account to stop earning for.
-     */
-    function stopEarningOnBehalfOf(address account) external;
-
-    /// @notice Allow anyone to call `startEarning` on behalf of the caller.
-    function allowEarningOnBehalf() external;
-
-    /// @notice Disallow anyone to call `startEarning` on behalf of the caller.
-    function disallowEarningOnBehalf() external;
 
     /******************************************************************************************************************\
     |                                          External View/Pure Functions                                            |
@@ -121,7 +94,4 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
 
     /// @notice Checks if account is an earner.
     function isEarning(address account) external view returns (bool);
-
-    /// @notice Checks if account has allowed the start of earning on their behalf.
-    function hasAllowedEarningOnBehalf(address account) external view returns (bool);
 }
