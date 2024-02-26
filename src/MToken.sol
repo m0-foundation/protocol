@@ -273,9 +273,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param principalAmount_ The principal amount to subtract.
      */
     function _subtractEarningAmount(address account_, uint112 principalAmount_) internal {
-        _balances[account_].rawBalance -= principalAmount_;
+        uint256 fromBalance_ = _balances[account_].rawBalance;
+        if (fromBalance_ < principalAmount_) revert InsufficientBalance(account_, fromBalance_, principalAmount_);
 
         unchecked {
+            // Overflow not possible: principalAmount_ <= fromBalance_.
+            _balances[account_].rawBalance -= principalAmount_;
             principalOfTotalEarningSupply -= principalAmount_;
         }
     }
@@ -286,9 +289,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param amount_  The amount to subtract.
      */
     function _subtractNonEarningAmount(address account_, uint240 amount_) internal {
-        _balances[account_].rawBalance -= amount_;
+        uint256 fromBalance_ = _balances[account_].rawBalance;
+        if (fromBalance_ < amount_) revert InsufficientBalance(account_, fromBalance_, amount_);
 
         unchecked {
+            // Overflow not possible: amount_ <= fromBalance_.
+            _balances[account_].rawBalance -= amount_;
             totalNonEarningSupply -= amount_;
         }
     }

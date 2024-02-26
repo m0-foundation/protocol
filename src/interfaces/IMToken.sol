@@ -30,6 +30,9 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     ///  @notice Emitted in constructor if TTG Registrar is 0x0.
     error ZeroTTGRegistrar();
 
+    /// @notice Emitted when calling `transfer` if sender's raw balance is insufficient.
+    error InsufficientBalance(address sender, uint256 rawBalance, uint256 needed);
+
     /******************************************************************************************************************\
     |                                                     Events                                                       |
     \******************************************************************************************************************/
