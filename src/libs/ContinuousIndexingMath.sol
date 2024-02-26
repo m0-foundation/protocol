@@ -178,7 +178,7 @@ library ContinuousIndexingMath {
      */
     function convertToBasisPoints(uint64 input) internal pure returns (uint40) {
         unchecked {
-            return uint32((uint256(input) * BPS_SCALED_ONE) / EXP_SCALED_ONE);
+            return uint40((uint256(input) * BPS_SCALED_ONE) / EXP_SCALED_ONE);
         }
     }
 
