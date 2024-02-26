@@ -115,11 +115,10 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
 
         uint256 expRate_ = (uint256(lnResult_) * ContinuousIndexingMath.SECONDS_PER_YEAR) / confidenceInterval_;
 
-        if (expRate_ > type(uint64).max) return type(uint32).max;
-
         // NOTE: Do not need to do `UIntMath.safe256` because it is known that `lnResult_` will not be negative.
-        uint40 safeRate_ = ContinuousIndexingMath.convertToBasisPoints(uint64(expRate_));
-
-        return (safeRate_ > type(uint32).max) ? type(uint32).max : uint32(safeRate_);
+        return
+            (expRate_ > type(uint64).max)
+                ? type(uint32).max
+                : ContinuousIndexingMath.convertToBasisPoints(uint64(expRate_));
     }
 }

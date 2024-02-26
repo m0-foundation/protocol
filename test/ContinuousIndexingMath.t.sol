@@ -309,7 +309,7 @@ contract ContinuousIndexingMathTests is Test {
 
     function test_convertToBasisPoints() external {
         assertEq(continuousIndexingMath.convertToBasisPoints(1_000000000000), 10_000);
-        assertEq(continuousIndexingMath.convertToBasisPoints(type(uint64).max), 184_467440737);
+        assertEq(continuousIndexingMath.convertToBasisPoints(type(uint64).max), 429_4967295);
     }
 
     function test_convertFromBasisPoints() external {

@@ -176,9 +176,10 @@ library ContinuousIndexingMath {
      * @param  input The input in 12-decimal representation.
      * @return The output in basis points.
      */
-    function convertToBasisPoints(uint64 input) internal pure returns (uint40) {
+    function convertToBasisPoints(uint64 input) internal pure returns (uint32) {
         unchecked {
-            return uint40((uint256(input) * BPS_SCALED_ONE) / EXP_SCALED_ONE);
+            uint256 scaledInput = (uint256(input) * BPS_SCALED_ONE) / EXP_SCALED_ONE;
+            return scaledInput > type(uint32).max ? type(uint32).max : uint32(scaledInput);
         }
     }
 
