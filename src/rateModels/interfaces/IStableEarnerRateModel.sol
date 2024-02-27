@@ -20,13 +20,11 @@ interface IStableEarnerRateModel is IEarnerRateModel {
      * @param  totalActiveOwedM   The total active owed M.
      * @param  totalEarningSupply The total earning supply of M Token.
      * @param  minterRate         The minter rate.
-     * @param  confidenceInterval The confidence interval.
      * @return The safe earner rate.
      */
     function getSafeEarnerRate(
         uint240 totalActiveOwedM,
         uint240 totalEarningSupply,
-        uint32 minterRate,
-        uint32 confidenceInterval
+        uint32 minterRate
     ) external pure returns (uint32);
 }
