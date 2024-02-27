@@ -352,6 +352,51 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
     }
 
+     function test_updateCollateral_staleCollateralUpdate_sameTimestamp() external {
+        uint256[] memory retrievalIds = new uint256[](0);
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+
+        uint256[] memory timestamps = new uint256[](1);
+        timestamps[0] = block.timestamp;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            100,
+            retrievalIds,
+            bytes32(0),
+            block.timestamp,
+            _validator1Pk
+        );
+
+        vm.prank(_minter1);
+        _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
+
+        uint256 lastUpdateTimestamp = _minterGateway.collateralUpdateTimestampOf(_minter1);
+        uint256 newTimestamp = lastUpdateTimestamp; // same timestamp
+
+        timestamps[0] = newTimestamp;
+        signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            100,
+            retrievalIds,
+            bytes32(0),
+            newTimestamp,
+            _validator1Pk
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IMinterGateway.StaleCollateralUpdate.selector, newTimestamp, lastUpdateTimestamp)
+        );
+
+        vm.prank(_minter1);
+        _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
+    }
+
     function test_updateCollateral_invalidSignatureOrder() external {
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
 
@@ -649,6 +694,26 @@ contract MinterGatewayTests is TestUtils {
 
         // check that normalizedPrincipal has been updated
         assertTrue(_minterGateway.principalOfActiveOwedMOf(_minter1) > 0);
+    }
+
+     function test_mintM_smallAmount() external {
+        uint256 amount = 1;
+        uint48 mintId = 1;
+
+        _minterGateway.setCollateralOf(_minter1, 100e6);
+        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+
+        _minterGateway.setMintProposalOf(_minter1, mintId, amount, block.timestamp, _alice);
+
+        vm.warp(block.timestamp + _mintDelay);
+
+        vm.expectEmit();
+        emit IMinterGateway.MintExecuted(mintId, 1, 1);
+
+        vm.prank(_minter1);
+        _minterGateway.mintM(mintId);
+
+        assertEq(_minterGateway.activeOwedMOf(_minter1), 2); // rounding up leads to owedM == 2 for minted M == 1
     }
 
     function testFuzz_mintM(uint256 amount_, uint256 minterCollateral_, address recipient_) external {
@@ -2251,7 +2316,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 timestamp = block.timestamp;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
         _minterGateway.setRawOwedMOf(_minter1, amount);
         _minterGateway.setPrincipalOfTotalActiveOwedM(amount);
 
@@ -2283,7 +2348,7 @@ contract MinterGatewayTests is TestUtils {
         validators[0] = _validator1;
 
         uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = timestamp;
+        timestamps[0] = timestamp + 1;
 
         bytes[] memory signatures = new bytes[](1);
 
@@ -2293,9 +2358,11 @@ contract MinterGatewayTests is TestUtils {
             collateral,
             retrievalIds,
             bytes32(0),
-            timestamp,
+            timestamp + 1,
             _validator1Pk
         );
+
+        vm.warp(timestamp + 1);
 
         // Close first retrieval proposal
         vm.prank(_minter1);
@@ -2313,11 +2380,13 @@ contract MinterGatewayTests is TestUtils {
             collateral,
             retrievalIds,
             bytes32(0),
-            timestamp,
+            timestamp + 2,
             _validator1Pk
         );
 
-        timestamps[0] = timestamp;
+        timestamps[0] = timestamp + 2;
+
+        vm.warp(timestamp + 2);
 
         // Close second retrieval request
         vm.prank(_minter1);
@@ -2371,7 +2440,7 @@ contract MinterGatewayTests is TestUtils {
         validators_[0] = _validator1;
 
         uint256[] memory timestamps_ = new uint256[](1);
-        timestamps_[0] = timestamp_;
+        timestamps_[0] = timestamp_ + 1;
 
         bytes[] memory signatures_ = new bytes[](1);
 
@@ -2381,9 +2450,11 @@ contract MinterGatewayTests is TestUtils {
             minterCollateral_,
             retrievalIds_,
             bytes32(0),
-            timestamp_,
+            timestamp_ + 1,
             _validator1Pk
         );
+
+        vm.warp(timestamp_ + 1);
 
         // Close first retrieval proposal
         vm.prank(_minter1);
@@ -2408,11 +2479,13 @@ contract MinterGatewayTests is TestUtils {
             minterCollateral_,
             retrievalIds_,
             bytes32(0),
-            timestamp_,
+            timestamp_ + 2,
             _validator1Pk
         );
 
-        timestamps_[0] = timestamp_;
+        timestamps_[0] = timestamp_ + 2;
+
+        vm.warp(timestamp_ + 2);
 
         // Close second retrieval request
         vm.prank(_minter1);

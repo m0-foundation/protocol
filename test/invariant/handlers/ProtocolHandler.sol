@@ -291,6 +291,8 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     }
 
     function _updateCollateral(address minter_, uint256 amount_) internal returns (uint256) {
+        vm.warp(block.timestamp + 1); // NOTE: temporary fix for the stale timestamp, TODO resolve time travelling issues
+
         uint240 collateralOfMinter_ = _minterGateway.collateralOf(minter_);
 
         // If the collateral of minter is already greater than the max allowed collateral, we return early.
