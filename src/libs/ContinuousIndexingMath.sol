@@ -80,7 +80,6 @@ library ContinuousIndexingMath {
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
     function multiplyIndicesDown(uint128 index, uint48 deltaIndex) internal pure returns (uint128 z) {
-        // TODO: Check overflow revert.
         unchecked {
             return UIntMath.safe128((uint256(index) * deltaIndex) / EXP_SCALED_ONE);
         }
@@ -91,7 +90,6 @@ library ContinuousIndexingMath {
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
     function multiplyIndicesUp(uint128 index, uint48 deltaIndex) internal pure returns (uint128 z) {
-        // TODO: Check overflow revert.
         unchecked {
             return UIntMath.safe128((uint256(index) * deltaIndex + (EXP_SCALED_ONE - 1)) / EXP_SCALED_ONE);
         }
