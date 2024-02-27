@@ -127,9 +127,9 @@ library ContinuousIndexingMath {
             uint256 x2 = uint256(x) * x;
 
             // `additiveTerms` is `(1 + 3(x^2)/28 + x^4/1680)`, and scaled by `84e27`.
-            // NOTE: `84e27` the cleanest and largest scalar, given `(additiveTerms + differentTerms) * 1e12` overflow.
+            // NOTE: `84e27` the cleanest and largest scalar, given the various intermediate overflow possibilities.
             // NOTE: The resulting `(x2 * x2) / 20e21` term has been split up in order to avoid overflow of `x2 * x2`.
-            uint256 additiveTerms = 84e27 + (9e3 * x2) + ((x2 / 2e11) * (x2 / 10e10));
+            uint256 additiveTerms = 84e27 + (9e3 * x2) + ((x2 / 2e11) * (x2 / 1e11));
 
             // `differentTerms` is `(- x/2 - x^3/84)`, but positive (will be subtracted later), and scaled by `84e27`.
             uint256 differentTerms = uint256(x) * (42e15 + (x2 / 1e9));
@@ -148,7 +148,7 @@ library ContinuousIndexingMath {
      */
     function convertToBasisPoints(uint64 input) internal pure returns (uint40) {
         unchecked {
-            return uint32((uint256(input) * BPS_SCALED_ONE) / EXP_SCALED_ONE);
+            return uint40((uint256(input) * BPS_SCALED_ONE) / EXP_SCALED_ONE);
         }
     }
 

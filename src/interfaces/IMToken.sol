@@ -24,14 +24,14 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when calling `mint`, `burn` not by Minter Gateway.
     error NotMinterGateway();
 
-    ///  @notice Emitted in constructor if Minter Gateway is 0x0.
+    /// @notice Emitted in constructor if Minter Gateway is 0x0.
     error ZeroMinterGateway();
 
-    ///  @notice Emitted in constructor if TTG Registrar is 0x0.
+    /// @notice Emitted in constructor if TTG Registrar is 0x0.
     error ZeroTTGRegistrar();
 
-    /// @notice Emitted when calling `transfer` if sender's raw balance is insufficient.
-    error InsufficientBalance(address sender, uint256 rawBalance, uint256 needed);
+    /// @notice Emitted when there is insufficient balance to decrement from `account`.
+    error InsufficientBalance(address account, uint256 rawBalance, uint256 amount);
 
     /******************************************************************************************************************\
     |                                                     Events                                                       |
