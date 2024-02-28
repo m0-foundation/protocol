@@ -205,8 +205,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         uint240 safeAmount_ = UIntMath.safe240(amount_);
 
         unchecked {
-            // As an edge case precaution, prevent a mint that, if all token (earning and non-earning) was converted to
-            // a principal earning amount, would overflow the `uint112 principalOfTotalEarningSupply`.
+            // As an edge case precaution, prevent a mint that, if all tokens (earning and non-earning) were converted
+            // to a principal earning amount, would overflow the `uint112 principalOfTotalEarningSupply`.
             if (
                 // NOTE: Round the principal up for worst case.
                 uint256(principalOfTotalEarningSupply) +

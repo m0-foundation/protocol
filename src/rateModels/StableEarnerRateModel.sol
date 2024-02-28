@@ -101,7 +101,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
 
         if (totalEarningSupply_ == 0) return type(uint32).max;
 
-        if (totalActiveOwedM_ < totalEarningSupply_) {
+        if (totalActiveOwedM_ <= totalEarningSupply_) {
             return uint32((totalActiveOwedM_ * minterRate_) / totalEarningSupply_);
         }
 
