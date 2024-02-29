@@ -4,6 +4,7 @@ pragma solidity 0.8.23;
 
 import { stdError } from "../lib/forge-std/src/Test.sol";
 
+import { IERC20Extended } from "../lib/common/src/interfaces/IERC20Extended.sol";
 import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
 import { IMToken } from "../src/interfaces/IMToken.sol";
@@ -71,6 +72,13 @@ contract MTokenTests is TestUtils {
     function test_mint_notMinterGateway() external {
         vm.expectRevert(IMToken.NotMinterGateway.selector);
         _mToken.mint(_alice, 0);
+    }
+
+    function test_mint_invalidRecipient() external {
+        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InvalidRecipient.selector, address(0)));
+
+        vm.prank(_minterGateway);
+        _mToken.mint(address(0), 1_000);
     }
 
     function test_mint_toNonEarner() external {
@@ -356,6 +364,15 @@ contract MTokenTests is TestUtils {
     }
 
     /* ============ transfer ============ */
+    function test_transfer_invalidRecipient() external {
+        _mToken.setInternalBalanceOf(_alice, 1_000);
+
+        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InvalidRecipient.selector, address(0)));
+
+        vm.prank(_alice);
+        _mToken.transfer(address(0), 1_000);
+    }
+
     function test_transfer_insufficientBalance_fromNonEarner_toNonEarner() external {
         _mToken.setInternalBalanceOf(_alice, 999);
 
