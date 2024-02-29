@@ -63,7 +63,7 @@ contract RateModelTests is Test {
                 totalEarningSupply_: 1_000_000,
                 minterRate_: 1_000
             }),
-            999 // ~10.00%
+            1000 // ~10.00%
         );
 
         assertEq(
