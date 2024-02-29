@@ -594,27 +594,6 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
     }
 
-    function test_transfer_fromNonEarner_toEarner_overflow() external {
-        uint256 aliceBalance_ = type(uint112).max;
-        uint256 bobBalance_ = 2;
-
-        // Set rate to 0 to keep index at 1.
-        _mToken.setLatestRate(0);
-
-        _mToken.setTotalNonEarningSupply(aliceBalance_);
-        _mToken.setPrincipalOfTotalEarningSupply(bobBalance_);
-
-        _mToken.setInternalBalanceOf(_alice, aliceBalance_);
-
-        _mToken.setInternalBalanceOf(_bob, bobBalance_);
-        _mToken.setIsEarning(_bob, true);
-
-        vm.prank(_alice);
-
-        vm.expectRevert();
-        _mToken.transfer(_bob, aliceBalance_);
-    }
-
     function test_transfer_fromEarner_toEarner() external {
         _mToken.setPrincipalOfTotalEarningSupply(1_364);
         _mToken.setLatestRate(_earnerRate);
@@ -820,7 +799,7 @@ contract MTokenTests is TestUtils {
         vm.warp(block.timestamp + 365 days);
 
         _expectedCurrentIndex = uint128(
-            ContinuousIndexingMath.multiplyIndices(
+            ContinuousIndexingMath.multiplyIndicesDown(
                 ContinuousIndexingMath.EXP_SCALED_ONE,
                 ContinuousIndexingMath.getContinuousIndex(
                     ContinuousIndexingMath.convertFromBasisPoints(_earnerRate),
@@ -862,7 +841,7 @@ contract MTokenTests is TestUtils {
         vm.warp(block.timestamp + 365 days);
 
         _expectedCurrentIndex = uint128(
-            ContinuousIndexingMath.multiplyIndices(
+            ContinuousIndexingMath.multiplyIndicesDown(
                 _expectedCurrentIndex,
                 ContinuousIndexingMath.getContinuousIndex(
                     ContinuousIndexingMath.convertFromBasisPoints(_earnerRate / 2),

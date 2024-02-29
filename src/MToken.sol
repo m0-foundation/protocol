@@ -9,10 +9,12 @@ import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 
 import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
 
+import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
+import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
 /**
  * @title  MToken
@@ -130,6 +132,21 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         return _balances[account_].isEarning;
     }
 
+    /// @inheritdoc IContinuousIndexing
+    function currentIndex() public view virtual override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
+        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `_latestUpdateTimestamp`.
+        unchecked {
+            return
+                ContinuousIndexingMath.multiplyIndicesDown(
+                    _latestIndex,
+                    ContinuousIndexingMath.getContinuousIndex(
+                        ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
+                        uint32(block.timestamp - _latestUpdateTimestamp)
+                    )
+                );
+        }
+    }
+
     /******************************************************************************************************************\
     |                                          Internal Interactive Functions                                          |
     \******************************************************************************************************************/
@@ -140,11 +157,11 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param principalAmount_ The principal amount to add.
      */
     function _addEarningAmount(address account_, uint112 principalAmount_) internal {
+        // NOTE: Safe to use unchecked here since overflow of the total supply is checked in `_mint`.
         unchecked {
             _balances[account_].rawBalance += principalAmount_;
+            principalOfTotalEarningSupply += principalAmount_;
         }
-
-        principalOfTotalEarningSupply += principalAmount_;
     }
 
     /**
@@ -154,9 +171,6 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      */
     function _addNonEarningAmount(address account_, uint240 amount_) internal {
         // NOTE: Safe to use unchecked here since overflow of the total supply is checked in `_mint`.
-        //       When transferring from an earning account to a non-earning one,
-        //       the total non earning supply can't overflow since its max value is type(uint240).max
-        //       and the max value of the principal of total earning supply is type(uint112).max.
         unchecked {
             _balances[account_].rawBalance += amount_;
             totalNonEarningSupply += amount_;
@@ -188,20 +202,27 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     function _mint(address recipient_, uint256 amount_) internal {
         emit Transfer(address(0), recipient_, amount_);
 
-        if (_balances[recipient_].isEarning) {
-            // NOTE: When minting a present amount, round the principal down in favor of the protocol.
-            _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(UIntMath.safe240(amount_)));
-            updateIndex();
-        } else {
-            _addNonEarningAmount(recipient_, UIntMath.safe240(amount_));
+        uint240 safeAmount_ = UIntMath.safe240(amount_);
+
+        unchecked {
+            // As an edge case precaution, prevent a mint that, if all tokens (earning and non-earning) were converted
+            // to a principal earning amount, would overflow the `uint112 principalOfTotalEarningSupply`.
+            if (
+                // NOTE: Round the principal up for worst case.
+                uint256(principalOfTotalEarningSupply) +
+                    _getPrincipalAmountRoundedUp(totalNonEarningSupply + safeAmount_) >=
+                type(uint112).max
+            ) {
+                revert OverflowsPrincipalOfTotalSupply();
+            }
         }
 
-        // NOTE: Need to cast to uint256 to avoid silently overflowing uint112.
-        if (
-            uint256(principalOfTotalEarningSupply) + _getPrincipalAmountRoundedDown(totalNonEarningSupply) >=
-            type(uint112).max
-        ) {
-            revert OverflowsPrincipalOfTotalSupply();
+        if (_balances[recipient_].isEarning) {
+            // NOTE: When minting a present amount, round the principal down in favor of the protocol.
+            _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(safeAmount_));
+            updateIndex();
+        } else {
+            _addNonEarningAmount(recipient_, safeAmount_);
         }
     }
 
@@ -273,11 +294,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param principalAmount_ The principal amount to subtract.
      */
     function _subtractEarningAmount(address account_, uint112 principalAmount_) internal {
-        uint256 fromBalance_ = _balances[account_].rawBalance;
-        if (fromBalance_ < principalAmount_) revert InsufficientBalance(account_, fromBalance_, principalAmount_);
+        uint256 rawBalance_ = _balances[account_].rawBalance;
+
+        if (rawBalance_ < principalAmount_) revert InsufficientBalance(account_, rawBalance_, principalAmount_);
 
         unchecked {
-            // Overflow not possible: principalAmount_ <= fromBalance_.
+            // Overflow not possible given the above check.
             _balances[account_].rawBalance -= principalAmount_;
             principalOfTotalEarningSupply -= principalAmount_;
         }
@@ -289,11 +311,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param amount_  The amount to subtract.
      */
     function _subtractNonEarningAmount(address account_, uint240 amount_) internal {
-        uint256 fromBalance_ = _balances[account_].rawBalance;
-        if (fromBalance_ < amount_) revert InsufficientBalance(account_, fromBalance_, amount_);
+        uint256 rawBalance_ = _balances[account_].rawBalance;
+
+        if (rawBalance_ < amount_) revert InsufficientBalance(account_, rawBalance_, amount_);
 
         unchecked {
-            // Overflow not possible: amount_ <= fromBalance_.
+            // Overflow not possible given the above check.
             _balances[account_].rawBalance -= amount_;
             totalNonEarningSupply -= amount_;
         }

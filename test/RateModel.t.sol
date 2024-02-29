@@ -8,105 +8,96 @@ import { StableEarnerRateModel } from "../src/rateModels/StableEarnerRateModel.s
 
 import { MockMinterGateway } from "./utils/Mocks.sol";
 
-contract ContinuousIndexingMathTests is Test {
-    StableEarnerRateModel internal stableModel;
-    MockMinterGateway internal minterGateway;
+contract RateModelTests is Test {
+    StableEarnerRateModel internal _stableModel;
+    MockMinterGateway internal _minterGateway;
 
     function setUp() external {
-        minterGateway = new MockMinterGateway();
-        minterGateway.setTtgRegistrar(address(1));
-        minterGateway.setMToken(address(1));
+        _minterGateway = new MockMinterGateway();
+        _minterGateway.setTtgRegistrar(address(1));
+        _minterGateway.setMToken(address(1));
 
-        stableModel = new StableEarnerRateModel(address(minterGateway));
+        _stableModel = new StableEarnerRateModel(address(_minterGateway));
     }
 
     function test_stableModel_getSafeEarnerRate() external {
         assertEq(
-            stableModel.getSafeEarnerRate({
+            _stableModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1_000_000,
                 totalEarningSupply_: 0,
-                minterRate_: 1_000,
-                confidenceInterval_: 30 days
+                minterRate_: 1_000
             }),
             type(uint32).max
         );
 
         assertEq(
-            stableModel.getSafeEarnerRate({
+            _stableModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1_000_000,
                 totalEarningSupply_: 1,
-                minterRate_: 1_000,
-                confidenceInterval_: 30 days
+                minterRate_: 1_000
             }),
             1097245 // 10,972.45%
         );
 
         assertEq(
-            stableModel.getSafeEarnerRate({
+            _stableModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1_000_000,
                 totalEarningSupply_: 500_000,
-                minterRate_: 1_000,
-                confidenceInterval_: 30 days
+                minterRate_: 1_000
             }),
             1991 // 19.91%
         );
 
         assertEq(
-            stableModel.getSafeEarnerRate({
+            _stableModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1_000_000,
                 totalEarningSupply_: 999_999,
-                minterRate_: 1_000,
-                confidenceInterval_: 30 days
+                minterRate_: 1_000
             }),
             1000 // 10.00%
         );
 
         assertEq(
-            stableModel.getSafeEarnerRate({
+            _stableModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1_000_000,
                 totalEarningSupply_: 1_000_000,
-                minterRate_: 1_000,
-                confidenceInterval_: 30 days
+                minterRate_: 1_000
             }),
-            1000 // 10.00%
+            1000 // ~10.00%
         );
 
         assertEq(
-            stableModel.getSafeEarnerRate({
+            _stableModel.getSafeEarnerRate({
                 totalActiveOwedM_: 500_000,
                 totalEarningSupply_: 1_000_000,
-                minterRate_: 1_000,
-                confidenceInterval_: 30 days
+                minterRate_: 1_000
             }),
-            499 // NOTE: Ideally we give 5%, and this test returns 4.99%.
+            500
         );
 
         assertEq(
-            stableModel.getSafeEarnerRate({
+            _stableModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1_091, // Lowest before result is 0
                 totalEarningSupply_: 1_000_000,
-                minterRate_: 1_000,
-                confidenceInterval_: 30 days
+                minterRate_: 1_000
             }),
-            0 // NOTE: Ideally we give 0.01%, and this test returns 0.
+            1
         );
 
         assertEq(
-            stableModel.getSafeEarnerRate({
+            _stableModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1,
                 totalEarningSupply_: 1_000_000,
-                minterRate_: 1_000,
-                confidenceInterval_: 30 days
+                minterRate_: 1_000
             }),
             0 // 0%
         );
 
         assertEq(
-            stableModel.getSafeEarnerRate({
+            _stableModel.getSafeEarnerRate({
                 totalActiveOwedM_: 0,
                 totalEarningSupply_: 1_000_000,
-                minterRate_: 1_000,
-                confidenceInterval_: 30 days
+                minterRate_: 1_000
             }),
             0 // 0%
         );

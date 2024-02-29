@@ -23,7 +23,7 @@ contract TestUtils is Test {
         uint32 elapsedTime_
     ) internal pure returns (uint128) {
         return
-            ContinuousIndexingMath.multiplyIndices(
+            ContinuousIndexingMath.multiplyIndicesUp(
                 initialIndex_,
                 ContinuousIndexingMath.getContinuousIndex(
                     ContinuousIndexingMath.convertFromBasisPoints(minterRate_),

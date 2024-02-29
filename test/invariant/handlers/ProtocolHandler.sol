@@ -9,6 +9,7 @@ import { StdUtils } from "../../../lib/forge-std/src/StdUtils.sol";
 
 import { IMToken } from "../../../src/interfaces/IMToken.sol";
 import { IMinterGateway } from "../../../src/interfaces/IMinterGateway.sol";
+import { IStableEarnerRateModel } from "../../../src/rateModels/interfaces/IStableEarnerRateModel.sol";
 
 import { TTGRegistrarReader } from "../../../src/libs/TTGRegistrarReader.sol";
 
@@ -34,23 +35,39 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     AddressSet internal _earners;
     AddressSet internal _nonEarners;
 
-    address _currentActor;
+    address internal _currentActor;
 
-    IndexStore public _indexStore;
-    TimestampStore public _timestampStore;
+    IndexStore internal _indexStore;
+    TimestampStore internal _timestampStore;
 
-    uint32 internal _currentTimestamp;
     uint256 internal _randomAmountSeed;
 
     modifier adjustTimestamp(uint256 timeJump_) {
-        _timestampStore.increaseCurrentTimestamp(uint32(_bound(timeJump_, 2 minutes, 10 days)));
+        uint32 rateConfidenceInterval_ = IStableEarnerRateModel(_mToken.rateModel()).RATE_CONFIDENCE_INTERVAL();
+        uint32 rateConfidenceExpires_ = uint32(_minterGateway.latestUpdateTimestamp()) + rateConfidenceInterval_;
+        uint32 timeUntilRateConfidenceExpires_ = rateConfidenceExpires_ - _timestampStore.currentTimestamp();
+
+        console2.log(
+            "--> rate confidence expires at %s, in %s",
+            rateConfidenceExpires_,
+            timeUntilRateConfidenceExpires_
+        );
+
+        // Warping past the confidence interval knowingly can lead to overprinting (i.e. broken invariants).
+        timeJump_ = _bound(timeJump_, 0, _min(timeUntilRateConfidenceExpires_, 10 days));
+
+        _timestampStore.increaseCurrentTimestamp(uint32(timeJump_));
         vm.warp(_timestampStore.currentTimestamp());
+
+        console2.log("--> time jump %s to %s", timeJump_, _timestampStore.currentTimestamp());
+
         _;
+
+        console2.log("--> totalOwedM %s, totalSupply %s", _minterGateway.totalOwedM(), _mToken.totalSupply());
     }
 
-    modifier useCurrentTimestamp() {
-        vm.warp(_timestampStore.currentTimestamp());
-        _;
+    function _min(uint32 a_, uint32 b_) internal pure returns (uint32) {
+        return a_ < b_ ? a_ : b_;
     }
 
     function _getMinter(uint256 minterIndexSeed_) internal view returns (address) {
@@ -72,8 +89,6 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         IndexStore indexStore_,
         TimestampStore timestampStore_
     ) {
-        _currentTimestamp = uint32(block.timestamp);
-
         _minterGateway = minterGateway_;
         _mToken = mToken_;
         _registrar = registrar_;
@@ -223,6 +238,8 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
         // We return early if the minter being deactivated is not active
         if (_minterGateway.isActiveMinter(minter_)) return;
+
+        console2.log("Deactivating minter %s at %s", minter_, block.timestamp);
 
         _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, minter_);
         _minterGateway.deactivateMinter(minter_);
@@ -392,7 +409,8 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         vm.prank(minter_);
         uint256 mintId_ = _minterGateway.proposeMint(amount_, mHolder_);
 
-        console2.log("Minting %s M to %s at %s", amount_, minter_, block.timestamp);
+        console2.log("Minting %s M to %s by minter %s", amount_, mHolder_, minter_);
+        console2.log("  Mint occurred at %s", block.timestamp);
 
         vm.prank(minter_);
         _minterGateway.mintM(mintId_);
@@ -400,6 +418,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
     function _burnMForMinterFromMHolder(address minter_, address mHolder_, uint256 amount_) internal {
         console2.log("Burning %s M for minter %s by %s", amount_, minter_, mHolder_);
+        console2.log("  Burn occurred at %s", block.timestamp);
 
         if (checkPrincipalOfTotalSupplyOverflow(_indexStore.currentEarnerIndex()) == 0) return;
 
@@ -419,6 +438,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
             : amount_;
 
         console2.log("Transferring %s M from %s to %s", amount_, sender_, recipient_);
+        console2.log("  Transfer occurred at %s", block.timestamp);
 
         vm.prank(sender_);
         _mToken.transfer(recipient_, amount_);

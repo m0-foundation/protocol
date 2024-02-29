@@ -24,7 +24,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
     uint32 public constant RATE_CONFIDENCE_INTERVAL = 30 days;
 
     /// @inheritdoc IStableEarnerRateModel
-    uint32 public constant EXTRA_SAFETY_MULTIPLIER = 9_000; // 90% in basis points.
+    uint32 public constant EXTRA_SAFETY_MULTIPLIER = 10_000; // 100% in basis points.
 
     /// @inheritdoc IStableEarnerRateModel
     uint32 public constant ONE = 10_000; // 100% in basis points.
@@ -59,8 +59,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
         uint256 safeEarnerRate_ = getSafeEarnerRate(
             IMinterGateway(minterGateway).totalActiveOwedM(),
             IMToken(mToken).totalEarningSupply(),
-            IMinterGateway(minterGateway).minterRate(),
-            RATE_CONFIDENCE_INTERVAL
+            IMinterGateway(minterGateway).minterRate()
         );
 
         return UIntMath.min256(baseRate(), (EXTRA_SAFETY_MULTIPLIER * safeEarnerRate_) / ONE);
@@ -75,36 +74,40 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
     function getSafeEarnerRate(
         uint240 totalActiveOwedM_,
         uint240 totalEarningSupply_,
-        uint32 minterRate_,
-        uint32 confidenceInterval_
+        uint32 minterRate_
     ) public pure returns (uint32) {
-        // To ensure cashflow safety, we start with `cashFlowOfActiveOwedM == cashFlowOfEarningSupply` over some time.
-        // Effectively: p1 * exp(rate1 * dt) - p1 = p2 * exp(rate2 * dt) - p2
-        //          So: rate2 = ln(1 + (p1 * (exp(rate1 * dt) - 1)) / p2) / dt
-        // 1. totalActive * delta_minterIndex - totalActive == totalEarning * delta_earnerIndex - totalEarning
-        // 2. totalActive * (delta_minterIndex - 1) == totalEarning * (delta_earnerIndex - 1)
-        // 3. totalActive * (delta_minterIndex - 1) / totalEarning == delta_earnerIndex - 1
+        // When `totalActiveOwedM_ >= totalEarningSupply_`, it is possible for the earner rate to be higher than the
+        // minter rate and still ensure cashflow safety over some period of time (`RATE_CONFIDENCE_INTERVAL`). To ensure
+        // cashflow safety, we start with `cashFlowOfActiveOwedM >= cashFlowOfEarningSupply` over some time `dt`.
+        // Effectively: p1 * (exp(rate1 * dt) - 1) >= p2 * (exp(rate2 * dt) - 1)
+        //          So: rate2 <= ln(1 + (p1 * (exp(rate1 * dt) - 1)) / p2) / dt
+        // 1. totalActive * (delta_minterIndex - 1) >= totalEarning * (delta_earnerIndex - 1)
+        // 2. totalActive * (delta_minterIndex - 1) / totalEarning >= delta_earnerIndex - 1
+        // 3. 1 + (totalActive * (delta_minterIndex - 1) / totalEarning) >= delta_earnerIndex
         // Substitute `delta_earnerIndex` with `exponent((earnerRate * dt) / SECONDS_PER_YEAR)`:
-        // 4. 1 + (totalActive * (delta_minterIndex - 1) / totalEarning) = exponent((earnerRate * dt) / SECONDS_PER_YEAR)
-        // 5. ln(1 + (totalActive * (delta_minterIndex - 1) / totalEarning)) = (earnerRate * dt) / SECONDS_PER_YEAR
-        // 6. ln(1 + (totalActive * (delta_minterIndex - 1) / totalEarning)) * SECONDS_PER_YEAR / dt = earnerRate
+        // 4. 1 + (totalActive * (delta_minterIndex - 1) / totalEarning) >= exponent((earnerRate * dt) / SECONDS_PER_YEAR)
+        // 5. ln(1 + (totalActive * (delta_minterIndex - 1) / totalEarning)) >= (earnerRate * dt) / SECONDS_PER_YEAR
+        // 6. ln(1 + (totalActive * (delta_minterIndex - 1) / totalEarning)) * SECONDS_PER_YEAR / dt >= earnerRate
+
+        // When `totalActiveOwedM_ < totalEarningSupply_`, the instantaneous earner cash flow must be less than the
+        // instantaneous minter cash flow. To ensure instantaneous cashflow safety, we we use the derivatives of the
+        // previous starting inequality, and substitute `dt = 0`.
+        // Effectively: p1 * rate1 >= p2 * rate2
+        //          So: rate2 <= p1 * rate1 / p2
+        // 1. totalActive * minterRate >= totalEarning * earnerRate
+        // 2. totalActive * minterRate / totalEarning >= earnerRate
 
         if (totalActiveOwedM_ == 0) return 0;
 
         if (totalEarningSupply_ == 0) return type(uint32).max;
 
-        if (confidenceInterval_ == 0) return 0;
-
-        if (totalActiveOwedM_ == totalEarningSupply_) return minterRate_;
-
-        // NOTE: This often results in 0 safe earner rate, and can possibly be replaced with:
-        //       `if (totalActiveOwedM_ < totalEarningSupply_) return 0;`.
-        //       More research needed.
-        confidenceInterval_ = totalActiveOwedM_ > totalEarningSupply_ ? confidenceInterval_ : 1;
+        if (totalActiveOwedM_ <= totalEarningSupply_) {
+            return uint32((totalActiveOwedM_ * minterRate_) / totalEarningSupply_);
+        }
 
         uint48 deltaMinterIndex_ = ContinuousIndexingMath.getContinuousIndex(
             ContinuousIndexingMath.convertFromBasisPoints(minterRate_),
-            confidenceInterval_
+            RATE_CONFIDENCE_INTERVAL
         );
 
         int256 lnArg_ = int256(
@@ -113,7 +116,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
 
         int256 lnResult_ = wadLn(lnArg_ * WAD_TO_EXP_SCALER) / WAD_TO_EXP_SCALER;
 
-        uint256 expRate_ = (uint256(lnResult_) * ContinuousIndexingMath.SECONDS_PER_YEAR) / confidenceInterval_;
+        uint256 expRate_ = (uint256(lnResult_) * ContinuousIndexingMath.SECONDS_PER_YEAR) / RATE_CONFIDENCE_INTERVAL;
 
         if (expRate_ > type(uint64).max) return type(uint32).max;
 

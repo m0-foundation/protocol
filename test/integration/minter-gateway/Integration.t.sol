@@ -225,7 +225,7 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         assertEq(_minterGateway.collateralOf(_minters[0]), 600_000e6);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minters[0]), 540_000000000);
-        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 500_176971951);
+        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 500_176971952);
     }
 
     function test_cancelMintProposalsAndFreezeMinter() external {
@@ -277,9 +277,88 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertEq(_minterGateway.activeOwedMOf(_minters[0]), 500_000_000001); // ~500k
     }
 
-    function test_deactivateMinterWithMajorityOfActiveOwedM() external {
-        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, 40000);
-        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, 40000);
+    function test_deactivateMinter_totalActiveOwedMGreaterThanTotalEarningSupply() external {
+        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, 400_000); // 4,000%
+        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, 40_000); // 400%
+
+        _minterGateway.activateMinter(_minters[0]);
+        _minterGateway.activateMinter(_minters[1]);
+
+        vm.prank(_alice);
+        _mToken.startEarning();
+
+        uint256 collateral = 1_000_000e6;
+        _updateCollateral(_minters[0], collateral);
+        _updateCollateral(_minters[1], collateral);
+
+        vm.warp(block.timestamp + 1 hours);
+
+        _mintM(_minters[0], 800e6, _bob);
+        _mintM(_minters[1], 250e6, _bob);
+        _mintM(_minters[1], 250e6, _alice);
+
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+
+        // TTG removes minter from the protocol.
+        _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
+
+        // Minter is deactivated in the protocol
+        _minterGateway.deactivateMinter(_minters[0]);
+
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+
+        assertEq(_minterGateway.totalActiveOwedM(), 500_457040);
+        assertEq(_mToken.totalEarningSupply(), 249_999999);
+        assertEq(_minterGateway.minterRate(), 40_000);
+        assertEq(_mToken.earnerRate(), 70_101);
+
+        uint256 timestamp_ = block.timestamp;
+
+        vm.warp(timestamp_ + 1 seconds);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "1 second");
+
+        vm.warp(timestamp_ + 1 minutes);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "1 minute");
+
+        vm.warp(timestamp_ + 1 hours);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "1 hour");
+
+        vm.warp(timestamp_ + 1 days);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "1 day");
+
+        vm.warp(timestamp_ + 30 days - 1 hours);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days - 1 hour");
+
+        vm.warp(timestamp_ + 30 days - 1 minutes);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days - 1 minute");
+
+        vm.warp(timestamp_ + 30 days - 1 seconds);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days - 1 second");
+
+        vm.warp(timestamp_ + 30 days);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days");
+
+        vm.warp(timestamp_ + 30 days + 1 seconds);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days + 1 second");
+
+        vm.warp(timestamp_ + 30 days + 1 minutes);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days + 1 minute");
+
+        // Sufficiently outside confidence interval of 30 days at this point.
+
+        vm.warp(timestamp_ + 30 days + 1 hours);
+        assertLe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days + 1 hour");
+
+        vm.warp(timestamp_ + 300 days);
+        assertLe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "300 days");
+
+        _minterGateway.updateIndex();
+        assertLe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+    }
+
+    function test_deactivateMinter_totalActiveOwedMLessThanTotalEarningSupply() external {
+        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, 400_000); // 4,000%
+        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, 40_000); // 400%
 
         _minterGateway.activateMinter(_minters[0]);
         _minterGateway.activateMinter(_minters[1]);
@@ -300,26 +379,54 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         // TTG removes minter from the protocol.
         _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
+
         // Minter is deactivated in the protocol
         _minterGateway.deactivateMinter(_minters[0]);
 
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
-        // Danger zone - does not work for X seconds after deactivation
-        vm.warp(block.timestamp + 1 seconds);
-        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        assertEq(_minterGateway.totalActiveOwedM(), 500_000001);
+        assertEq(_mToken.totalEarningSupply(), 1301_462521);
+        assertEq(_minterGateway.minterRate(), 40_000);
+        assertEq(_mToken.earnerRate(), 15_367);
 
-        vm.warp(block.timestamp + 5 seconds);
-        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        uint256 timestamp_ = block.timestamp;
 
-        vm.warp(block.timestamp + 98 seconds);
-        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        vm.warp(timestamp_ + 1 seconds);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "1 second");
 
-        vm.warp(block.timestamp + 1 hours);
-        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        vm.warp(timestamp_ + 1 minutes);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "1 minute");
 
-        vm.warp(block.timestamp + 600 days);
-        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
+        vm.warp(timestamp_ + 1 hours);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "1 hour");
+
+        vm.warp(timestamp_ + 1 days);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "1 day");
+
+        vm.warp(timestamp_ + 30 days - 1 hours);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days - 1 hour");
+
+        vm.warp(timestamp_ + 30 days - 1 minutes);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days - 1 minute");
+
+        vm.warp(timestamp_ + 30 days - 1 seconds);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days - 1 second");
+
+        vm.warp(timestamp_ + 30 days);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days");
+
+        vm.warp(timestamp_ + 30 days + 1 seconds);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days + 1 second");
+
+        vm.warp(timestamp_ + 30 days + 1 minutes);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days + 1 minute");
+
+        vm.warp(timestamp_ + 30 days + 1 hours);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days + 1 hour");
+
+        vm.warp(timestamp_ + 300 days);
+        assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "300 days");
 
         _minterGateway.updateIndex();
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());

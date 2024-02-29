@@ -289,7 +289,7 @@ contract ContinuousIndexingMathTests is Test {
 
     function test_convertToBasisPoints() external {
         assertEq(continuousIndexingMath.convertToBasisPoints(1_000000000000), 10_000);
-        assertEq(continuousIndexingMath.convertToBasisPoints(type(uint64).max), 4078814_305);
+        assertEq(continuousIndexingMath.convertToBasisPoints(type(uint64).max), 184467440_737);
     }
 
     function test_convertFromBasisPoints() external {
@@ -302,6 +302,22 @@ contract ContinuousIndexingMathTests is Test {
         uint48 maxExponent = 196_691035579298;
 
         assertEq(continuousIndexingMath.exponent(x), maxExponent); // Max of exponent.
+
+        assertLe(continuousIndexingMath.exponent(x - 1), maxExponent);
+        assertLe(continuousIndexingMath.exponent(x - 10), maxExponent);
+        assertLe(continuousIndexingMath.exponent(x - 100), maxExponent);
+        assertLe(continuousIndexingMath.exponent(x - 1000), maxExponent);
+        assertLe(continuousIndexingMath.exponent(x - 10000), maxExponent);
+        assertLe(continuousIndexingMath.exponent(x - 100000), maxExponent);
+        assertLe(continuousIndexingMath.exponent(x - 1000000), maxExponent);
+
+        assertLe(continuousIndexingMath.exponent(x + 1), maxExponent);
+        assertLe(continuousIndexingMath.exponent(x + 10), maxExponent);
+        assertLe(continuousIndexingMath.exponent(x + 100), maxExponent);
+        assertLe(continuousIndexingMath.exponent(x + 1000), maxExponent);
+        assertLe(continuousIndexingMath.exponent(x + 10000), maxExponent);
+        assertLe(continuousIndexingMath.exponent(x + 100000), maxExponent);
+        assertLe(continuousIndexingMath.exponent(x + 1000000), maxExponent);
 
         uint256 maxYearlyRateGivenHourlyUpdates = (x * 365 days) / 1 hours;
         uint256 maxYearlyRateGivenYearlyUpdates = (x * 365 days) / 365 days;
@@ -331,7 +347,7 @@ contract ContinuousIndexingMathTests is Test {
 
         for (uint256 i; i < 52_560; ++i) {
             index = safe128(
-                continuousIndexingMath.multiplyIndices(
+                continuousIndexingMath.multiplyIndicesDown(
                     index,
                     continuousIndexingMath.getContinuousIndex(
                         continuousIndexingMath.convertFromBasisPoints(100_000), // 1000%
@@ -350,7 +366,7 @@ contract ContinuousIndexingMathTests is Test {
 
         for (uint256 i; i < 21_900; ++i) {
             index = safe128(
-                continuousIndexingMath.multiplyIndices(
+                continuousIndexingMath.multiplyIndicesDown(
                     index,
                     continuousIndexingMath.getContinuousIndex(
                         continuousIndexingMath.convertFromBasisPoints(10_000), // 100%
@@ -369,7 +385,7 @@ contract ContinuousIndexingMathTests is Test {
 
         for (uint256 i; i < 219_000; ++i) {
             index = safe128(
-                continuousIndexingMath.multiplyIndices(
+                continuousIndexingMath.multiplyIndicesDown(
                     index,
                     continuousIndexingMath.getContinuousIndex(
                         continuousIndexingMath.convertFromBasisPoints(1_000), // 10%

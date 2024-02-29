@@ -24,8 +24,12 @@ contract ContinuousIndexingMathHarness {
         return ContinuousIndexingMath.multiplyUp(x, index);
     }
 
-    function multiplyIndices(uint128 index, uint48 deltaIndex) external pure returns (uint128 z) {
-        return ContinuousIndexingMath.multiplyIndices(index, deltaIndex);
+    function multiplyIndicesDown(uint128 index, uint48 deltaIndex) external pure returns (uint128 z) {
+        return ContinuousIndexingMath.multiplyIndicesDown(index, deltaIndex);
+    }
+
+    function multiplyIndicesUp(uint128 index, uint48 deltaIndex) external pure returns (uint128 z) {
+        return ContinuousIndexingMath.multiplyIndicesUp(index, deltaIndex);
     }
 
     function getContinuousIndex(uint64 yearlyRate, uint32 time) external pure returns (uint48 index) {

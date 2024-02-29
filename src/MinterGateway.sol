@@ -15,6 +15,7 @@ import { IMinterGateway } from "./interfaces/IMinterGateway.sol";
 import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
+import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
 /**
  * @title MinterGateway
@@ -266,9 +267,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
             uint256 newPrincipalOfTotalActiveOwedM_ = uint256(principalOfTotalActiveOwedM_) + principalAmount_;
 
             // As an edge case precaution, prevent a mint that, if all owed M (active and inactive) was converted to
-            // principal amount, would overflow the principal of `totalOwedM` (i.e. `type(uint112).max`).
+            // a principal active amount, would overflow the `uint112 principalOfTotalActiveOwedM`.
             if (
-                // NOTE: Round the principal up in favor of the protocol.
+                // NOTE: Round the principal up for worst case.
                 newPrincipalOfTotalActiveOwedM_ + _getPrincipalAmountRoundedUp(totalInactiveOwedM) >= type(uint112).max
             ) {
                 revert OverflowsPrincipalOfTotalOwedM();
@@ -644,6 +645,21 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /// @inheritdoc IMinterGateway
     function rateModel() public view returns (address) {
         return TTGRegistrarReader.getMinterRateModel(ttgRegistrar);
+    }
+
+    /// @inheritdoc IContinuousIndexing
+    function currentIndex() public view virtual override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
+        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `_latestUpdateTimestamp`.
+        unchecked {
+            return
+                ContinuousIndexingMath.multiplyIndicesUp(
+                    _latestIndex,
+                    ContinuousIndexingMath.getContinuousIndex(
+                        ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
+                        uint32(block.timestamp - _latestUpdateTimestamp)
+                    )
+                );
+        }
     }
 
     /******************************************************************************************************************\

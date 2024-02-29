@@ -2681,7 +2681,7 @@ contract MinterGatewayTests is TestUtils {
 
         vm.warp(timestamp + 1);
 
-        uint128 indexAfter1Second = ContinuousIndexingMath.multiplyIndices(
+        uint128 indexAfter1Second = ContinuousIndexingMath.multiplyIndicesUp(
             initialIndex,
             ContinuousIndexingMath.getContinuousIndex(
                 ContinuousIndexingMath.convertFromBasisPoints(uint32(_minterRate)),
@@ -2695,7 +2695,7 @@ contract MinterGatewayTests is TestUtils {
 
         vm.warp(timestamp + 31_536_000);
 
-        uint128 indexAfter1Year = ContinuousIndexingMath.multiplyIndices(
+        uint128 indexAfter1Year = ContinuousIndexingMath.multiplyIndicesUp(
             initialIndex,
             ContinuousIndexingMath.getContinuousIndex(
                 ContinuousIndexingMath.convertFromBasisPoints(uint32(_minterRate)),
@@ -2897,6 +2897,6 @@ contract MinterGatewayTests is TestUtils {
 
         // Overflows `principalOfTotalEarningSupply` when minting excess owed M to the Vault.
         vm.expectRevert();
-        minterGateway_.mintM(2);
+        minterGateway_.mintM(3);
     }
 }
