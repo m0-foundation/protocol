@@ -8,7 +8,7 @@ contract MTokenHarness is MToken {
     constructor(address ttgRegistrar_, address minterGateway_) MToken(ttgRegistrar_, minterGateway_) {}
 
     function setLatestIndex(uint256 index_) external {
-        _latestIndex = uint128(index_);
+        latestIndex = uint128(index_);
     }
 
     function setLatestRate(uint256 rate_) external {
@@ -16,7 +16,7 @@ contract MTokenHarness is MToken {
     }
 
     function setLatestUpdated(uint256 timestamp_) external {
-        _latestUpdateTimestamp = uint40(timestamp_);
+        latestUpdateTimestamp = uint40(timestamp_);
     }
 
     function setIsEarning(address account_, bool isEarning_) external {

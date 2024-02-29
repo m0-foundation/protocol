@@ -52,8 +52,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /// @dev 100% in basis points.
     uint16 public constant ONE = 10_000;
 
-    /// @dev 10,000% in basis points.
-    uint32 public constant SIXTY_FIVE = 65 * uint32(ONE);
+    /// @dev 650% in basis points.
+    uint32 public constant SIXTY_FIVE = 65_000;
 
     // keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadataHash,uint256 timestamp)")
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
@@ -440,6 +440,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     function excessOwedM() public view returns (uint240 excessOwedM_) {
         // NOTE: Can safely cast to `uint240` since we know M Token totalSupply constraints.
         uint240 totalMSupply_ = uint240(IMToken(mToken).totalSupply());
+
         uint240 totalOwedM_ = _getPresentAmountRoundedDown(principalOfTotalActiveOwedM, currentIndex()) +
             totalInactiveOwedM;
 
@@ -651,15 +652,15 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IContinuousIndexing
-    function currentIndex() public view virtual override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
-        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `_latestUpdateTimestamp`.
+    function currentIndex() public view override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
+        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `latestUpdateTimestamp`.
         unchecked {
             return
                 ContinuousIndexingMath.multiplyIndicesUp(
-                    _latestIndex,
+                    latestIndex,
                     ContinuousIndexingMath.getContinuousIndex(
                         ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
-                        uint32(block.timestamp - _latestUpdateTimestamp)
+                        uint32(block.timestamp - latestUpdateTimestamp)
                     )
                 );
         }

@@ -102,7 +102,7 @@ contract MinterGatewayHarness is MinterGateway {
     }
 
     function setLatestIndex(uint256 index_) external {
-        _latestIndex = uint128(index_);
+        latestIndex = uint128(index_);
     }
 
     function setLatestRate(uint256 rate_) external {
