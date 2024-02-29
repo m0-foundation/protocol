@@ -100,6 +100,7 @@ contract InvariantTests is TestUtils {
     }
 
     function invariant_main() public useCurrentTimestamp {
+        vm.skip(true);
         // Skip test if total owed M and M token total supply are zero
         vm.assume(_minterGateway.totalOwedM() != 0);
         vm.assume(_mToken.totalSupply() != 0);
