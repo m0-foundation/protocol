@@ -133,15 +133,15 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /// @inheritdoc IContinuousIndexing
-    function currentIndex() public view virtual override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
-        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `_latestUpdateTimestamp`.
+    function currentIndex() public view override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
+        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `latestUpdateTimestamp`.
         unchecked {
             return
                 ContinuousIndexingMath.multiplyIndicesDown(
-                    _latestIndex,
+                    latestIndex,
                     ContinuousIndexingMath.getContinuousIndex(
                         ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
-                        uint32(block.timestamp - _latestUpdateTimestamp)
+                        uint32(block.timestamp - latestUpdateTimestamp)
                     )
                 );
         }

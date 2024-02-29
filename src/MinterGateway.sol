@@ -440,6 +440,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     function excessOwedM() public view returns (uint240 excessOwedM_) {
         // NOTE: Can safely cast to `uint240` since we know M Token totalSupply constraints.
         uint240 totalMSupply_ = uint240(IMToken(mToken).totalSupply());
+
         uint240 totalOwedM_ = _getPresentAmountRoundedDown(principalOfTotalActiveOwedM, currentIndex()) +
             totalInactiveOwedM;
 
@@ -648,15 +649,15 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /// @inheritdoc IContinuousIndexing
-    function currentIndex() public view virtual override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
-        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `_latestUpdateTimestamp`.
+    function currentIndex() public view override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
+        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `latestUpdateTimestamp`.
         unchecked {
             return
                 ContinuousIndexingMath.multiplyIndicesUp(
-                    _latestIndex,
+                    latestIndex,
                     ContinuousIndexingMath.getContinuousIndex(
                         ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
-                        uint32(block.timestamp - _latestUpdateTimestamp)
+                        uint32(block.timestamp - latestUpdateTimestamp)
                     )
                 );
         }

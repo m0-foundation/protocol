@@ -11,19 +11,19 @@ import { ContinuousIndexingMath } from "../libs/ContinuousIndexingMath.sol";
  * @author M^0 Labs
  */
 abstract contract ContinuousIndexing is IContinuousIndexing {
-    /// @dev The latest updated index.
-    uint128 internal _latestIndex;
+    /// @inheritdoc IContinuousIndexing
+    uint128 public latestIndex;
 
     /// @dev The latest updated rate.
     uint32 internal _latestRate;
 
-    /// @dev The latest timestamp when the index was updated.
-    uint40 internal _latestUpdateTimestamp;
+    /// @inheritdoc IContinuousIndexing
+    uint40 public latestUpdateTimestamp;
 
     /// @notice Constructs the ContinuousIndexing contract.
     constructor() {
-        _latestIndex = ContinuousIndexingMath.EXP_SCALED_ONE;
-        _latestUpdateTimestamp = uint40(block.timestamp);
+        latestIndex = ContinuousIndexingMath.EXP_SCALED_ONE;
+        latestUpdateTimestamp = uint40(block.timestamp);
     }
 
     /******************************************************************************************************************\
@@ -32,16 +32,16 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
 
     /// @inheritdoc IContinuousIndexing
     function updateIndex() public virtual returns (uint128 currentIndex_) {
-        // NOTE: `_rate()` can depend indirectly on `_latestIndex` and `_latestUpdateTimestamp`, if the RateModel
+        // NOTE: `_rate()` can depend indirectly on `latestIndex` and `latestUpdateTimestamp`, if the RateModel
         //       depends on earning balances/supply, which depends on `currentIndex()`, so only update them after this.
         uint32 rate_ = _rate();
 
-        if (_latestUpdateTimestamp == block.timestamp && _latestRate == rate_) return _latestIndex;
+        if (latestUpdateTimestamp == block.timestamp && _latestRate == rate_) return latestIndex;
 
         // NOTE: `currentIndex()` depends on `_latestRate`, so only update it after this.
-        _latestIndex = currentIndex_ = currentIndex();
+        latestIndex = currentIndex_ = currentIndex();
         _latestRate = rate_;
-        _latestUpdateTimestamp = uint40(block.timestamp);
+        latestUpdateTimestamp = uint40(block.timestamp);
 
         emit IndexUpdated(currentIndex_, rate_);
     }
@@ -52,16 +52,6 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
 
     /// @inheritdoc IContinuousIndexing
     function currentIndex() public view virtual returns (uint128);
-
-    /// @inheritdoc IContinuousIndexing
-    function latestIndex() public view virtual returns (uint128) {
-        return _latestIndex;
-    }
-
-    /// @inheritdoc IContinuousIndexing
-    function latestUpdateTimestamp() public view virtual returns (uint40) {
-        return _latestUpdateTimestamp;
-    }
 
     /******************************************************************************************************************\
     |                                           Internal View/Pure Functions                                           |
