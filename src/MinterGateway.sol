@@ -52,8 +52,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     /// @dev 100% in basis points.
     uint16 public constant ONE = 10_000;
 
-    /// @dev 10,000% in basis points.
-    uint32 public constant SIXTY_FIVE = 65 * uint32(ONE);
+    /// @dev 650% in basis points.
+    uint32 public constant SIXTY_FIVE = 65_000;
 
     // keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadataHash,uint256 timestamp)")
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
