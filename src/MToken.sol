@@ -435,7 +435,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @dev   Reverts if the amount of a `mint` or `burn` is equal to 0.
      * @param amount_ Amount to check.
      */
-    function _revertIfInsufficientAmount(uint256 amount_) internal view {
+    function _revertIfInsufficientAmount(uint256 amount_) internal pure {
         if (amount_ == 0) revert InsufficientAmount(amount_);
     }
 
@@ -443,7 +443,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @dev   Reverts if the recipient of a `mint` or `transfer` is address(0).
      * @param recipient_ Address of the recipient to check.
      */
-    function _revertIfInvalidRecipient(address recipient_) internal view {
+    function _revertIfInvalidRecipient(address recipient_) internal pure {
         if (recipient_ == address(0)) revert InvalidRecipient(recipient_);
     }
 

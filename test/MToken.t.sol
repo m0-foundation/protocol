@@ -74,6 +74,13 @@ contract MTokenTests is TestUtils {
         _mToken.mint(_alice, 0);
     }
 
+    function test_mint_insufficientAmount() external {
+        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
+
+        vm.prank(_minterGateway);
+        _mToken.mint(_alice, 0);
+    }
+
     function test_mint_invalidRecipient() external {
         vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InvalidRecipient.selector, address(0)));
 
@@ -94,7 +101,7 @@ contract MTokenTests is TestUtils {
     }
 
     function testFuzz_mint_toNonEarner(uint256 amount_) external {
-        amount_ = bound(amount_, 0, type(uint112).max);
+        amount_ = bound(amount_, 1, type(uint112).max);
 
         vm.prank(_minterGateway);
         _mToken.mint(_alice, amount_);
@@ -157,7 +164,7 @@ contract MTokenTests is TestUtils {
     }
 
     function testFuzz_mint_toEarner(uint256 amount_) external {
-        amount_ = bound(amount_, 0, type(uint112).max);
+        amount_ = bound(amount_, 1, type(uint112).max);
 
         _mToken.setLatestRate(_earnerRate);
         _mToken.setIsEarning(_alice, true);
@@ -214,6 +221,13 @@ contract MTokenTests is TestUtils {
     /* ============ burn ============ */
     function test_burn_notMinterGateway() external {
         vm.expectRevert(IMToken.NotMinterGateway.selector);
+        _mToken.burn(_alice, 0);
+    }
+
+    function test_burn_insufficientAmount() external {
+        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
+
+        vm.prank(_minterGateway);
         _mToken.burn(_alice, 0);
     }
 
@@ -332,6 +346,7 @@ contract MTokenTests is TestUtils {
         _mToken.setInternalBalanceOf(_alice, expectedPrincipalBalance_);
 
         uint256 burnAmount_ = _mToken.balanceOf(_alice) / 2;
+        vm.assume(burnAmount_ != 0);
 
         vm.prank(_minterGateway);
         _mToken.burn(_alice, burnAmount_);
@@ -347,6 +362,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
 
         uint256 balanceOfAlice_ = _mToken.balanceOf(_alice);
+
         assertEq(
             _mToken.balanceOf(_alice),
             _getPresentAmountRoundedDown(uint112(expectedPrincipalBalance_), _mToken.currentIndex())

@@ -5,7 +5,6 @@
 [submodule "lib/common"]
 	path = lib/common
 	url = git@github.com:MZero-Labs/common.git
-	branch = fix/WEB3-776-transfer-revert
 [submodule "lib/solmate"]
 	path = lib/solmate
 	url = https://github.com/transmissions11/solmate
