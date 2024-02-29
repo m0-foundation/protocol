@@ -156,7 +156,15 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         );
 
         uint240 safeCollateral_ = UIntMath.safe240(collateral_);
-        uint240 totalResolvedCollateralRetrieval_ = _resolvePendingRetrievals(msg.sender, retrievalIds_);
+        (uint240 totalResolvedCollateralRetrieval_, uint240 updatedTotalPendingRetrievals_) = _resolvePendingRetrievals(
+            msg.sender,
+            retrievalIds_
+        );
+
+        // NOTE: Revert if the new collateral value is less than sum of all pending retrievals.
+        if (safeCollateral_ < updatedTotalPendingRetrievals_) {
+            revert RetrievalsExceedCollateral(updatedTotalPendingRetrievals_, safeCollateral_);
+        }
 
         emit CollateralUpdated(
             msg.sender,
@@ -776,14 +784,16 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
     }
 
     /**
-     * @dev   Resolves the collateral retrieval IDs and updates the total pending collateral retrieval amount.
-     * @param minter_       The address of the minter.
-     * @param retrievalIds_ The list of outstanding collateral retrieval IDs to resolve.
+     * @dev    Resolves the collateral retrieval IDs and updates the total pending collateral retrieval amount.
+     * @param  minter_       The address of the minter.
+     * @param  retrievalIds_ The list of outstanding collateral retrieval IDs to resolve.
+     * @return totalResolvedCollateralRetrieval_ The total resolved collateral retrieval amount.
+     * @return totalPendingRetrievals_           The total pending retrievals for the minter.
      */
     function _resolvePendingRetrievals(
         address minter_,
         uint256[] calldata retrievalIds_
-    ) internal returns (uint240 totalResolvedCollateralRetrieval_) {
+    ) internal returns (uint240 totalResolvedCollateralRetrieval_, uint240 totalPendingRetrievals_) {
         for (uint256 index_; index_ < retrievalIds_.length; ++index_) {
             uint48 retrievalId_ = UIntMath.safe48(retrievalIds_[index_]);
             uint240 pendingCollateralRetrieval_ = _pendingCollateralRetrievals[minter_][retrievalId_];
@@ -804,7 +814,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
         unchecked {
             // NOTE: The `proposeRetrieval` function already ensures that `totalPendingRetrievals` is the sum of all
             // `_pendingCollateralRetrievals`.
-            _minterStates[minter_].totalPendingRetrievals -= totalResolvedCollateralRetrieval_;
+            totalPendingRetrievals_ = _minterStates[minter_]
+                .totalPendingRetrievals -= totalResolvedCollateralRetrieval_;
         }
     }
 
