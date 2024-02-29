@@ -352,7 +352,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
     }
 
-     function test_updateCollateral_staleCollateralUpdate_sameTimestamp() external {
+    function test_updateCollateral_staleCollateralUpdate_sameTimestamp() external {
         uint256[] memory retrievalIds = new uint256[](0);
 
         address[] memory validators = new address[](1);
@@ -696,7 +696,7 @@ contract MinterGatewayTests is TestUtils {
         assertTrue(_minterGateway.principalOfActiveOwedMOf(_minter1) > 0);
     }
 
-     function test_mintM_smallAmount() external {
+    function test_mintM_smallAmount() external {
         uint256 amount = 1;
         uint48 mintId = 1;
 
@@ -2391,6 +2391,34 @@ contract MinterGatewayTests is TestUtils {
         // Close second retrieval request
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
+
+        assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), 0);
+        assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId), 0);
+    }
+
+    function test_proposeRetrieval_deactivateMinter() external {
+        uint256 collateral = 100e18;
+        uint256 amount = 60e18;
+        uint256 timestamp = block.timestamp;
+
+        _minterGateway.setCollateralOf(_minter1, collateral);
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
+        _minterGateway.setRawOwedMOf(_minter1, amount);
+        _minterGateway.setPrincipalOfTotalActiveOwedM(amount);
+
+        uint240 retrievalAmount = 10e18;
+
+        vm.prank(_minter1);
+        uint256 retrievalId = _minterGateway.proposeRetrieval(retrievalAmount);
+
+        assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), retrievalAmount);
+        assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId), retrievalAmount);
+
+        // deactivate minter
+        _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
+
+        vm.prank(_alice);
+        uint240 inactiveOwedM = _minterGateway.deactivateMinter(_minter1);
 
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId), 0);

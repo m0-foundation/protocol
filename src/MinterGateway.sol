@@ -579,12 +579,15 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
 
     /// @inheritdoc IMinterGateway
     function pendingCollateralRetrievalOf(address minter_, uint256 retrievalId_) external view returns (uint240) {
-        return _pendingCollateralRetrievals[minter_][UIntMath.safe48(retrievalId_)];
+        return
+            _minterStates[minter_].isDeactivated
+                ? 0
+                : _pendingCollateralRetrievals[minter_][UIntMath.safe48(retrievalId_)];
     }
 
     /// @inheritdoc IMinterGateway
     function totalPendingCollateralRetrievalOf(address minter_) external view returns (uint240) {
-        return _minterStates[minter_].totalPendingRetrievals;
+        return _minterStates[minter_].isDeactivated ? 0 : _minterStates[minter_].totalPendingRetrievals;
     }
 
     /// @inheritdoc IMinterGateway
