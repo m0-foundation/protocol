@@ -4,7 +4,7 @@ pragma solidity 0.8.23;
 
 import { SignatureChecker } from "../lib/common/src/libs/SignatureChecker.sol";
 
-import { ERC712 } from "../lib/common/src/ERC712.sol";
+import { ERC712Extended } from "../lib/common/src/ERC712Extended.sol";
 import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
 import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
@@ -22,7 +22,7 @@ import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
  * @author M^0 Labs
  * @notice Minting Gateway of M Token for all approved by TTG and activated minters.
  */
-contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
+contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     struct MintProposal {
         // 1st slot
         uint48 id;
@@ -122,7 +122,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712 {
      * @param  ttgRegistrar_ The address of the TTG Registrar contract.
      * @param  mToken_        The address of the M Token.
      */
-    constructor(address ttgRegistrar_, address mToken_) ContinuousIndexing() ERC712("MinterGateway") {
+    constructor(address ttgRegistrar_, address mToken_) ContinuousIndexing() ERC712Extended("MinterGateway") {
         if ((ttgRegistrar = ttgRegistrar_) == address(0)) revert ZeroTTGRegistrar();
         if ((ttgVault = TTGRegistrarReader.getVault(ttgRegistrar_)) == address(0)) revert ZeroTTGVault();
         if ((mToken = mToken_) == address(0)) revert ZeroMToken();
