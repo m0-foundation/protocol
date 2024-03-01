@@ -346,7 +346,7 @@ contract ContinuousIndexingMathTests is Test {
         uint128 index = _EXP_SCALED_ONE;
 
         for (uint256 i; i < 52_560; ++i) {
-            index = safe128(
+            index = uint128(
                 continuousIndexingMath.multiplyIndicesDown(
                     index,
                     continuousIndexingMath.getContinuousIndex(
@@ -365,7 +365,7 @@ contract ContinuousIndexingMathTests is Test {
         uint128 index = _EXP_SCALED_ONE;
 
         for (uint256 i; i < 21_900; ++i) {
-            index = safe128(
+            index = uint128(
                 continuousIndexingMath.multiplyIndicesDown(
                     index,
                     continuousIndexingMath.getContinuousIndex(
@@ -384,7 +384,7 @@ contract ContinuousIndexingMathTests is Test {
         uint128 index = _EXP_SCALED_ONE;
 
         for (uint256 i; i < 219_000; ++i) {
-            index = safe128(
+            index = uint128(
                 continuousIndexingMath.multiplyIndicesDown(
                     index,
                     continuousIndexingMath.getContinuousIndex(
@@ -396,11 +396,6 @@ contract ContinuousIndexingMathTests is Test {
         }
 
         assertEq(index, 114200697247308241422562109115999467493);
-    }
-
-    function safe128(uint256 n) internal pure returns (uint128) {
-        if (n > type(uint128).max) revert();
-        return uint128(n);
     }
 
     function assertEqPrecision(uint256 a_, uint256 b_, uint256 precision_) internal {

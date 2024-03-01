@@ -102,7 +102,9 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
         if (totalEarningSupply_ == 0) return type(uint32).max;
 
         if (totalActiveOwedM_ <= totalEarningSupply_) {
-            return uint32((totalActiveOwedM_ * minterRate_) / totalEarningSupply_);
+            // NOTE: `totalActiveOwedM_ * minterRate_` can revert due to overflow, so in some distant future, a new
+            //       rate model contract may be needed that handles this differently.
+            return uint32((uint256(totalActiveOwedM_) * minterRate_) / totalEarningSupply_);
         }
 
         uint48 deltaMinterIndex_ = ContinuousIndexingMath.getContinuousIndex(
@@ -110,6 +112,8 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
             RATE_CONFIDENCE_INTERVAL
         );
 
+        // NOTE: `totalActiveOwedM_ * deltaMinterIndex_` can revert due to overflow, so in some distant future, a new
+        //       rate model contract may be needed that handles this differently.
         int256 lnArg_ = int256(
             EXP_SCALED_ONE + ((uint256(totalActiveOwedM_) * (deltaMinterIndex_ - EXP_SCALED_ONE)) / totalEarningSupply_)
         );

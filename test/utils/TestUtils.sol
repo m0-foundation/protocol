@@ -23,11 +23,13 @@ contract TestUtils is Test {
         uint32 elapsedTime_
     ) internal pure returns (uint128) {
         return
-            ContinuousIndexingMath.multiplyIndicesUp(
-                initialIndex_,
-                ContinuousIndexingMath.getContinuousIndex(
-                    ContinuousIndexingMath.convertFromBasisPoints(minterRate_),
-                    elapsedTime_
+            uint128(
+                ContinuousIndexingMath.multiplyIndicesUp(
+                    initialIndex_,
+                    ContinuousIndexingMath.getContinuousIndex(
+                        ContinuousIndexingMath.convertFromBasisPoints(minterRate_),
+                        elapsedTime_
+                    )
                 )
             );
     }
