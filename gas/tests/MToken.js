@@ -81,8 +81,7 @@ describe("MToken", () => {
     );
 
     await accounts.forEach(async (account) => {
-      await mToken.connect(account).allowEarningOnBehalf();
-      await mToken["startEarningOnBehalfOf(address)"](account.address);
+      await mToken.connect(account).startEarning();
     });
 
     await time.increase(31_536_000); // 1 year
@@ -123,21 +122,12 @@ describe("MToken", () => {
       const isEarning = await mToken.isEarning(account.address);
 
       if (!isEarning && randomNumber2 <= 1) {
-        await mToken.connect(account)["startEarning()"]();
+        await mToken.connect(account).startEarning();
         continue;
       }
 
       if (isEarning && randomNumber2 <= 2) {
-        await mToken.connect(account)["stopEarning()"]();
-        continue;
-      }
-
-      const hasAllowedEarningOnBehalf = await mToken.hasAllowedEarningOnBehalf(
-        account.address,
-      );
-
-      if (!hasAllowedEarningOnBehalf && randomNumber2 <= 4) {
-        await mToken.connect(account).allowEarningOnBehalf();
+        await mToken.connect(account).stopEarning();
         continue;
       }
 
