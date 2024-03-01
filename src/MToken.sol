@@ -33,10 +33,10 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /// @inheritdoc IMToken
     address public immutable ttgRegistrar;
 
-    /// @dev The total amount of non earning M supply.
+    /// @inheritdoc IMToken
     uint240 public totalNonEarningSupply;
 
-    /// @dev The principal of the total amount of earning M supply. totalEarningSupply = principal * currentIndex.
+    /// @inheritdoc IMToken
     uint112 public principalOfTotalEarningSupply;
 
     /// @notice The balance of M for non-earner or principal of earning M balance for earners.
@@ -134,14 +134,17 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /// @inheritdoc IContinuousIndexing
     function currentIndex() public view override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
-        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `latestUpdateTimestamp`.
+        // NOTE: Safe to use unchecked here, since `block.timestamp` is always greater than `latestUpdateTimestamp`.
         unchecked {
             return
-                ContinuousIndexingMath.multiplyIndicesDown(
-                    latestIndex,
-                    ContinuousIndexingMath.getContinuousIndex(
-                        ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
-                        uint32(block.timestamp - latestUpdateTimestamp)
+                // NOTE: Cap the index to `type(uint128).max` to prevent overflow in present value math.
+                UIntMath.bound128(
+                    ContinuousIndexingMath.multiplyIndicesDown(
+                        latestIndex,
+                        ContinuousIndexingMath.getContinuousIndex(
+                            ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
+                            uint32(block.timestamp - latestUpdateTimestamp)
+                        )
                     )
                 );
         }

@@ -2709,11 +2709,13 @@ contract MinterGatewayTests is TestUtils {
 
         vm.warp(timestamp + 1);
 
-        uint128 indexAfter1Second = ContinuousIndexingMath.multiplyIndicesUp(
-            initialIndex,
-            ContinuousIndexingMath.getContinuousIndex(
-                ContinuousIndexingMath.convertFromBasisPoints(uint32(_minterRate)),
-                1
+        uint128 indexAfter1Second = uint128(
+            ContinuousIndexingMath.multiplyIndicesUp(
+                initialIndex,
+                ContinuousIndexingMath.getContinuousIndex(
+                    ContinuousIndexingMath.convertFromBasisPoints(uint32(_minterRate)),
+                    1
+                )
             )
         );
 
@@ -2723,11 +2725,13 @@ contract MinterGatewayTests is TestUtils {
 
         vm.warp(timestamp + 31_536_000);
 
-        uint128 indexAfter1Year = ContinuousIndexingMath.multiplyIndicesUp(
-            initialIndex,
-            ContinuousIndexingMath.getContinuousIndex(
-                ContinuousIndexingMath.convertFromBasisPoints(uint32(_minterRate)),
-                31_536_000
+        uint128 indexAfter1Year = uint128(
+            ContinuousIndexingMath.multiplyIndicesUp(
+                initialIndex,
+                ContinuousIndexingMath.getContinuousIndex(
+                    ContinuousIndexingMath.convertFromBasisPoints(uint32(_minterRate)),
+                    31_536_000
+                )
             )
         );
 

@@ -653,14 +653,17 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /// @inheritdoc IContinuousIndexing
     function currentIndex() public view override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
-        // NOTE: safe to use unchecked here, since `block.timestamp` is always greater than `latestUpdateTimestamp`.
+        // NOTE: Safe to use unchecked here, since `block.timestamp` is always greater than `latestUpdateTimestamp`.
         unchecked {
             return
-                ContinuousIndexingMath.multiplyIndicesUp(
-                    latestIndex,
-                    ContinuousIndexingMath.getContinuousIndex(
-                        ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
-                        uint32(block.timestamp - latestUpdateTimestamp)
+                // NOTE: Cap the index to `type(uint128).max` to prevent overflow in present value math.
+                UIntMath.bound128(
+                    ContinuousIndexingMath.multiplyIndicesUp(
+                        latestIndex,
+                        ContinuousIndexingMath.getContinuousIndex(
+                            ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
+                            uint32(block.timestamp - latestUpdateTimestamp)
+                        )
                     )
                 );
         }
@@ -871,6 +874,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         if (timeElapsed_ < updateInterval_) return (0, penalizeFrom_);
 
         missedIntervals_ = timeElapsed_ / updateInterval_;
+
+        // NOTE: Cannot really overflow a `uint40` since `missedIntervals_ * updateInterval_ <= timeElapsed_`.
         missedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);
     }
 

@@ -692,6 +692,27 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestUpdateTimestamp(), _start);
     }
 
+    function testFuzz_transfer_wholeBalance(uint256 index_, uint256 rate_, uint256 principal_) external {
+        _mToken.setLatestIndex(bound(index_, 1_111111111111, 10_000000000000));
+        _mToken.setLatestRate(bound(rate_, 10, 10_000));
+
+        uint256 principal_ = bound(principal_, 999999, 1_000_000_000_000000);
+
+        _mToken.setPrincipalOfTotalEarningSupply(principal_);
+        _mToken.setPrincipalOfTotalEarningSupply(principal_);
+
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, principal_);
+
+        uint256 balance_ = _mToken.balanceOf(_alice);
+
+        vm.prank(_alice);
+        _mToken.transfer(_bob, balance_);
+
+        assertEq(_mToken.balanceOf(_alice), 0);
+        assertEq(_mToken.balanceOf(_bob), balance_);
+    }
+
     /* ============ startEarning ============ */
     function test_startEarning_notApprovedEarner() external {
         vm.expectRevert(IMToken.NotApprovedEarner.selector);

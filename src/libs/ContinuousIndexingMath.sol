@@ -22,7 +22,7 @@ library ContinuousIndexingMath {
     uint56 internal constant EXP_SCALED_ONE = 1e12;
 
     /**
-     * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `index`, rounded down.
+     * @notice Helper function to calculate `(x * EXP_SCALED_ONE) / index`, rounded down.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
     function divideDown(uint240 x, uint128 index) internal pure returns (uint112 z) {
@@ -33,13 +33,13 @@ library ContinuousIndexingMath {
             //       only used for the purpose of principal/present amount calculations for continuous indexing, and
             //       so for an `x` to be large enough to overflow this, it would have to be a possible result of
             //       `multiplyDown` or `multiplyUp`, which would already satisfy
-            //       `uint256(x) * EXP_SCALED_ONE < type(uint256).max`.
+            //       `uint256(x) * EXP_SCALED_ONE < type(uint240).max`.
             return UIntMath.safe112((uint256(x) * EXP_SCALED_ONE) / index);
         }
     }
 
     /**
-     * @notice Helper function to calculate (`x` * `EXP_SCALED_ONE`) / `index`, rounded up.
+     * @notice Helper function to calculate `(x * EXP_SCALED_ONE) / index`, rounded up.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
     function divideUp(uint240 x, uint128 index) internal pure returns (uint112 z) {
@@ -50,13 +50,13 @@ library ContinuousIndexingMath {
             //       only used for the purpose of principal/present amount calculations for continuous indexing, and
             //       so for an `x` to be large enough to overflow this, it would have to be a possible result of
             //       `multiplyDown` or `multiplyUp`, which would already satisfy
-            //       `uint256(x) * EXP_SCALED_ONE < type(uint256).max`.
+            //       `uint256(x) * EXP_SCALED_ONE < type(uint240).max`.
             return UIntMath.safe112(((uint256(x) * EXP_SCALED_ONE) + index - 1) / index);
         }
     }
 
     /**
-     * @notice Helper function to calculate (`x` * `index`) / `EXP_SCALED_ONE`, rounded down.
+     * @notice Helper function to calculate `(x * index) / EXP_SCALED_ONE`, rounded down.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
     function multiplyDown(uint112 x, uint128 index) internal pure returns (uint240 z) {
@@ -66,7 +66,7 @@ library ContinuousIndexingMath {
     }
 
     /**
-     * @notice Helper function to calculate (`x` * `index`) / `EXP_SCALED_ONE`, rounded up.
+     * @notice Helper function to calculate `(x * index) / EXP_SCALED_ONE`, rounded up.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
     function multiplyUp(uint112 x, uint128 index) internal pure returns (uint240 z) {
@@ -76,22 +76,22 @@ library ContinuousIndexingMath {
     }
 
     /**
-     * @notice Helper function to calculate (`index` * `deltaIndex`) / `EXP_SCALED_ONE`, rounded down.
+     * @notice Helper function to calculate `(index * deltaIndex) / EXP_SCALED_ONE`, rounded down.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
-    function multiplyIndicesDown(uint128 index, uint48 deltaIndex) internal pure returns (uint128 z) {
+    function multiplyIndicesDown(uint128 index, uint48 deltaIndex) internal pure returns (uint144 z) {
         unchecked {
-            return UIntMath.safe128((uint256(index) * deltaIndex) / EXP_SCALED_ONE);
+            return uint144((uint256(index) * deltaIndex) / EXP_SCALED_ONE);
         }
     }
 
     /**
-     * @notice Helper function to calculate (`index` * `deltaIndex`) / `EXP_SCALED_ONE`, rounded up.
+     * @notice Helper function to calculate `(index * deltaIndex) / EXP_SCALED_ONE`, rounded up.
      * @dev    Inspired by USM (https://github.com/usmfum/USM/blob/master/contracts/WadMath.sol)
      */
-    function multiplyIndicesUp(uint128 index, uint48 deltaIndex) internal pure returns (uint128 z) {
+    function multiplyIndicesUp(uint128 index, uint48 deltaIndex) internal pure returns (uint144 z) {
         unchecked {
-            return UIntMath.safe128((uint256(index) * deltaIndex + (EXP_SCALED_ONE - 1)) / EXP_SCALED_ONE);
+            return uint144((uint256(index) * deltaIndex + (EXP_SCALED_ONE - 1)) / EXP_SCALED_ONE);
         }
     }
 

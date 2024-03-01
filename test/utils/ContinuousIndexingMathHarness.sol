@@ -24,11 +24,11 @@ contract ContinuousIndexingMathHarness {
         return ContinuousIndexingMath.multiplyUp(x, index);
     }
 
-    function multiplyIndicesDown(uint128 index, uint48 deltaIndex) external pure returns (uint128 z) {
+    function multiplyIndicesDown(uint128 index, uint48 deltaIndex) external pure returns (uint144 z) {
         return ContinuousIndexingMath.multiplyIndicesDown(index, deltaIndex);
     }
 
-    function multiplyIndicesUp(uint128 index, uint48 deltaIndex) external pure returns (uint128 z) {
+    function multiplyIndicesUp(uint128 index, uint48 deltaIndex) external pure returns (uint144 z) {
         return ContinuousIndexingMath.multiplyIndicesUp(index, deltaIndex);
     }
 
