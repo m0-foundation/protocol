@@ -216,6 +216,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
             // As an edge case precaution, prevent a mint that, if all tokens (earning and non-earning) were converted
             // to a principal earning amount, would overflow the `uint112 principalOfTotalEarningSupply`.
             if (
+                uint256(totalNonEarningSupply) + safeAmount_ > type(uint240).max ||
                 // NOTE: Round the principal up for worst case.
                 uint256(principalOfTotalEarningSupply) +
                     _getPrincipalAmountRoundedUp(totalNonEarningSupply + safeAmount_) >=
