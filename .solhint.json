@@ -16,6 +16,7 @@
     "const-name-snakecase": "off",
     "event-name-camelcase": "warn",
     "func-name-mixedcase": "off",
+    "immutable-vars-naming": "off",
     "modifier-name-mixedcase": "warn",
     "named-parameters-mapping": "warn",
     "private-vars-leading-underscore": [
