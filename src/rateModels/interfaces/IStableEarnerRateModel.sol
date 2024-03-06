@@ -4,8 +4,13 @@ pragma solidity 0.8.23;
 
 import { IEarnerRateModel } from "./IEarnerRateModel.sol";
 
-/// @title Earner Rate Model Interface.
+/**
+ * @title  Earner Rate Model Interface.
+ * @author M^0 Labs
+ */
 interface IStableEarnerRateModel is IEarnerRateModel {
+    /* ============ View/Pure Functions ============ */
+
     /// @notice The interval over which there's confidence cash flow to earners will not exceed cash flows from minters.
     function RATE_CONFIDENCE_INTERVAL() external view returns (uint32);
 

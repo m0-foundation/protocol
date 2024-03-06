@@ -22,10 +22,14 @@ import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
  * @notice ERC20 M Token.
  */
 contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
+    /* ============ Structs ============ */
+
     struct MBalance {
         bool isEarning;
         uint240 rawBalance; // Balance (for a non earning account) or principal balance that accrued interest.
     }
+
+    /* ============ Variables ============ */
 
     /// @inheritdoc IMToken
     address public immutable minterGateway;
@@ -42,12 +46,16 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /// @notice The balance of M for non-earner or principal of earning M balance for earners.
     mapping(address account => MBalance balance) internal _balances;
 
+    /* ============ Modifiers ============ */
+
     /// @dev Modifier to check if caller is Minter Gateway.
     modifier onlyMinterGateway() {
         if (msg.sender != minterGateway) revert NotMinterGateway();
 
         _;
     }
+
+    /* ============ Constructor ============ */
 
     /**
      * @notice Constructs the M Token contract.
@@ -59,9 +67,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         if ((minterGateway = minterGateway_) == address(0)) revert ZeroMinterGateway();
     }
 
-    /******************************************************************************************************************\
-    |                                      External/Public Interactive Functions                                       |
-    \******************************************************************************************************************/
+    /* ============ Interactive Functions ============ */
 
     /// @inheritdoc IMToken
     function mint(address account_, uint256 amount_) external onlyMinterGateway {
@@ -84,9 +90,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         _stopEarning(msg.sender);
     }
 
-    /******************************************************************************************************************\
-    |                                       External/Public View/Pure Functions                                        |
-    \******************************************************************************************************************/
+    /* ============ View/Pure Functions ============ */
 
     /// @inheritdoc IMToken
     function rateModel() public view returns (address rateModel_) {
@@ -114,7 +118,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     function principalBalanceOf(address account_) external view returns (uint240 balance_) {
         MBalance storage mBalance_ = _balances[account_];
 
-        return mBalance_.isEarning ? uint112(mBalance_.rawBalance) : 0; // Treat the raw balance as principal for earner.
+        // Treat the raw balance as principal for earner.
+        return mBalance_.isEarning ? uint112(mBalance_.rawBalance) : 0;
     }
 
     /// @inheritdoc IERC20
@@ -150,9 +155,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         }
     }
 
-    /******************************************************************************************************************\
-    |                                          Internal Interactive Functions                                          |
-    \******************************************************************************************************************/
+    /* ============ Internal Interactive Functions ============ */
 
     /**
      * @dev   Adds principal to `_balances` of an earning account.
@@ -353,7 +356,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
                 _transferAmountInKind( // perform an in-kind transfer with...
                     sender_,
                     recipient_,
-                    senderIsEarning_ ? _getPrincipalAmountRoundedUp(safeAmount_) : safeAmount_ // the appropriate amount.
+                    senderIsEarning_ ? _getPrincipalAmountRoundedUp(safeAmount_) : safeAmount_ // the appropriate amount
                 );
         }
 
@@ -389,9 +392,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         }
     }
 
-    /******************************************************************************************************************\
-    |                                           Internal View/Pure Functions                                           |
-    \******************************************************************************************************************/
+    /* ============ Internal View/Pure Functions ============ */
 
     /**
      * @dev   Returns the present amount (rounded down) given the principal amount, using the current index.

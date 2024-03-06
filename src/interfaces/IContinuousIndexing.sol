@@ -2,8 +2,13 @@
 
 pragma solidity 0.8.23;
 
-/// @title Continuous Indexing Interface.
+/**
+ * @title  Continuous Indexing Interface.
+ * @author M^0 Labs
+ */
 interface IContinuousIndexing {
+    /* ============ Events ============ */
+
     /**
      * @notice Emitted when the index is updated.
      * @param  index The new index.
@@ -11,11 +16,15 @@ interface IContinuousIndexing {
      */
     event IndexUpdated(uint128 indexed index, uint32 indexed rate);
 
+    /* ============ Interactive Functions ============ */
+
     /**
      * @notice Updates the latest index and latest accrual time in storage.
      * @return index The new stored index for computing present amounts from principal amounts.
      */
     function updateIndex() external returns (uint128);
+
+    /* ============ View/Pure Functions ============ */
 
     /// @notice The current index that would be written to storage if `updateIndex` is called.
     function currentIndex() external view returns (uint128);

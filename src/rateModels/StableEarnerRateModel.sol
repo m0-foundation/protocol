@@ -20,6 +20,8 @@ import { IStableEarnerRateModel } from "./interfaces/IStableEarnerRateModel.sol"
  * @author M^0 Labs
  */
 contract StableEarnerRateModel is IStableEarnerRateModel {
+    /* ============ Variables ============ */
+
     /// @inheritdoc IStableEarnerRateModel
     uint32 public constant RATE_CONFIDENCE_INTERVAL = 30 days;
 
@@ -30,10 +32,10 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
     uint32 public constant ONE = 10_000; // 100% in basis points.
 
     /// @notice The scaling of rates in for exponent math.
-    uint256 internal constant EXP_SCALED_ONE = 1e12;
+    uint256 internal constant _EXP_SCALED_ONE = 1e12;
 
-    /// @notice The scaling of `EXP_SCALED_ONE` for wad maths operations.
-    int256 internal constant WAD_TO_EXP_SCALER = 1e6;
+    /// @notice The scaling of `_EXP_SCALED_ONE` for wad maths operations.
+    int256 internal constant _WAD_TO_EXP_SCALER = 1e6;
 
     /// @inheritdoc IEarnerRateModel
     address public immutable mToken;
@@ -44,6 +46,8 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
     /// @inheritdoc IEarnerRateModel
     address public immutable ttgRegistrar;
 
+    /* ============ Constructor ============ */
+
     /**
      * @notice Constructs the EarnerRateModel contract.
      * @param minterGateway_ The address of the Minter Gateway contract.
@@ -53,6 +57,8 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
         if ((ttgRegistrar = IMinterGateway(minterGateway_).ttgRegistrar()) == address(0)) revert ZeroTTGRegistrar();
         if ((mToken = IMinterGateway(minterGateway_).mToken()) == address(0)) revert ZeroMToken();
     }
+
+    /* ============ View/Pure Functions ============ */
 
     /// @inheritdoc IRateModel
     function rate() external view returns (uint256) {
@@ -76,6 +82,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
         uint240 totalEarningSupply_,
         uint32 minterRate_
     ) public pure returns (uint32) {
+        // solhint-disable max-line-length
         // When `totalActiveOwedM_ >= totalEarningSupply_`, it is possible for the earner rate to be higher than the
         // minter rate and still ensure cashflow safety over some period of time (`RATE_CONFIDENCE_INTERVAL`). To ensure
         // cashflow safety, we start with `cashFlowOfActiveOwedM >= cashFlowOfEarningSupply` over some time `dt`.
@@ -96,6 +103,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
         //          So: rate2 <= p1 * rate1 / p2
         // 1. totalActive * minterRate >= totalEarning * earnerRate
         // 2. totalActive * minterRate / totalEarning >= earnerRate
+        // solhint-enable max-line-length
 
         if (totalActiveOwedM_ == 0) return 0;
 
@@ -115,10 +123,11 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
         // NOTE: `totalActiveOwedM_ * deltaMinterIndex_` can revert due to overflow, so in some distant future, a new
         //       rate model contract may be needed that handles this differently.
         int256 lnArg_ = int256(
-            EXP_SCALED_ONE + ((uint256(totalActiveOwedM_) * (deltaMinterIndex_ - EXP_SCALED_ONE)) / totalEarningSupply_)
+            _EXP_SCALED_ONE +
+                ((uint256(totalActiveOwedM_) * (deltaMinterIndex_ - _EXP_SCALED_ONE)) / totalEarningSupply_)
         );
 
-        int256 lnResult_ = wadLn(lnArg_ * WAD_TO_EXP_SCALER) / WAD_TO_EXP_SCALER;
+        int256 lnResult_ = wadLn(lnArg_ * _WAD_TO_EXP_SCALER) / _WAD_TO_EXP_SCALER;
 
         uint256 expRate_ = (uint256(lnResult_) * ContinuousIndexingMath.SECONDS_PER_YEAR) / RATE_CONFIDENCE_INTERVAL;
 

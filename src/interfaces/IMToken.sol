@@ -6,11 +6,20 @@ import { IERC20Extended } from "../../lib/common/src/interfaces/IERC20Extended.s
 
 import { IContinuousIndexing } from "./IContinuousIndexing.sol";
 
-/// @title M Token Interface.
+/**
+ * @title  M Token Interface.
+ * @author M^0 Labs
+ */
 interface IMToken is IContinuousIndexing, IERC20Extended {
-    /******************************************************************************************************************\
-    |                                                     Errors                                                       |
-    \******************************************************************************************************************/
+    /* ============ Events ============ */
+
+    /// @notice Emitted when account starts being an M earner.
+    event StartedEarning(address indexed account);
+
+    /// @notice Emitted when account stops being an M earner.
+    event StoppedEarning(address indexed account);
+
+    /* ============ Custom Errors ============ */
 
     /// @notice Emitted when principal of total supply (earning and non-earning) will overflow a `type(uint112).max`.
     error OverflowsPrincipalOfTotalSupply();
@@ -33,19 +42,7 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when there is insufficient balance to decrement from `account`.
     error InsufficientBalance(address account, uint256 rawBalance, uint256 amount);
 
-    /******************************************************************************************************************\
-    |                                                     Events                                                       |
-    \******************************************************************************************************************/
-
-    /// @notice Emitted when account starts being an M earner.
-    event StartedEarning(address indexed account);
-
-    /// @notice Emitted when account stops being an M earner.
-    event StoppedEarning(address indexed account);
-
-    /******************************************************************************************************************\
-    |                                         External Interactive Functions                                           |
-    \******************************************************************************************************************/
+    /* ============ Interactive Functions ============ */
 
     /**
      * @notice Mints tokens.
@@ -67,9 +64,7 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Stops earning for caller.
     function stopEarning() external;
 
-    /******************************************************************************************************************\
-    |                                          External View/Pure Functions                                            |
-    \******************************************************************************************************************/
+    /* ============ View/Pure Functions ============ */
 
     /// @notice The address of the Minter Gateway contract.
     function minterGateway() external view returns (address);

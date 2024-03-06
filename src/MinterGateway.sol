@@ -18,11 +18,13 @@ import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
 /**
- * @title MinterGateway
+ * @title  MinterGateway
  * @author M^0 Labs
  * @notice Minting Gateway of M Token for all approved by TTG and activated minters.
  */
 contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
+    /* ============ Structs ============ */
+
     struct MintProposal {
         // 1st slot
         uint48 id;
@@ -45,9 +47,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         uint40 frozenUntilTimestamp;
     }
 
-    /******************************************************************************************************************\
-    |                                                    Variables                                                     |
-    \******************************************************************************************************************/
+    /* ============ Variables ============ */
 
     /// @dev 100% in basis points.
     uint16 public constant ONE = 10_000;
@@ -55,6 +55,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     /// @dev 650% in basis points.
     uint32 public constant SIXTY_FIVE = 65_000;
 
+    // solhint-disable-next-line max-line-length
     // keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadataHash,uint256 timestamp)")
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
         0x22b57ca54bd15c6234b29e87aa1d76a0841b6e65e63d7acacef989de0bc3ff9e;
@@ -92,9 +93,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     /// @dev The pending collateral retrievals of minter (retrieval ID, amount).
     mapping(address minter => mapping(uint48 retrievalId => uint240 amount)) internal _pendingCollateralRetrievals;
 
-    /******************************************************************************************************************\
-    |                                            Modifiers and Constructor                                             |
-    \******************************************************************************************************************/
+    /* ============ Modifiers ============ */
 
     /// @notice Only allow active minter to call function.
     modifier onlyActiveMinter(address minter_) {
@@ -117,6 +116,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         _;
     }
 
+    /* ============ Constructor ============ */
+
     /**
      * @notice Constructor.
      * @param  ttgRegistrar_ The address of the TTG Registrar contract.
@@ -128,9 +129,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         if ((mToken = mToken_) == address(0)) revert ZeroMToken();
     }
 
-    /******************************************************************************************************************\
-    |                                          External Interactive Functions                                          |
-    \******************************************************************************************************************/
+    /* ============ Interactive Functions ============ */
 
     /// @inheritdoc IMinterGateway
     function updateCollateral(
@@ -398,16 +397,16 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /// @inheritdoc IContinuousIndexing
     function updateIndex() public override(IContinuousIndexing, ContinuousIndexing) returns (uint128 index_) {
-        // NOTE: Since the currentIndex of the Minter Gateway and mToken are constant through this context's execution (since
-        //       the block.timestamp is not changing) we can compute excessOwedM without updating the mToken index.
+        // NOTE: Since the currentIndex of the Minter Gateway and mToken are constant through this context's execution
+        //       (the block.timestamp is not changing) we can compute excessOwedM without updating the mToken index.
         uint240 excessOwedM_ = excessOwedM();
 
         if (excessOwedM_ > 0) IMToken(mToken).mint(ttgVault, excessOwedM_); // Mint M to TTG Vault.
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the collateral
         //       update can result in a new rate, we should update the index here to lock in that rate.
-        // NOTE: With the current rate models, the minter rate does not depend on anything in the Minter Gateway or mToken, so
-        //       we can update the minter rate and index here.
+        // NOTE: With the current rate models, the minter rate does not depend on anything in the Minter Gateway
+        //       or mToken, so we can update the minter rate and index here.
         index_ = super.updateIndex(); // Update minter index and rate.
 
         // NOTE: Given the current implementation of the mToken transfers and its rate model, while it is possible for
@@ -416,9 +415,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         IMToken(mToken).updateIndex(); // Update earning index and rate.
     }
 
-    /******************************************************************************************************************\
-    |                                           External View/Pure Functions                                           |
-    \******************************************************************************************************************/
+    /* ============ View/Pure Functions ============ */
 
     /// @inheritdoc IMinterGateway
     function totalActiveOwedM() public view returns (uint240) {
@@ -596,9 +593,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         return _minterStates[minter_].frozenUntilTimestamp;
     }
 
-    /******************************************************************************************************************\
-    |                                       TTG Registrar Reader Functions                                            |
-    \******************************************************************************************************************/
+    /* ============ TTG Registrar Reader Functions ============ */
 
     /// @inheritdoc IMinterGateway
     function isMinterApproved(address minter_) public view returns (bool) {
@@ -669,9 +664,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         }
     }
 
-    /******************************************************************************************************************\
-    |                                          Internal Interactive Functions                                          |
-    \******************************************************************************************************************/
+    /* ============ Internal Interactive Functions ============ */
 
     /**
      * @dev   Imposes penalty on an active minter. Calling this for an inactive minter will break accounting.
@@ -847,17 +840,16 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         _minterStates[minter_].updateTimestamp = newTimestamp_;
     }
 
-    /******************************************************************************************************************\
-    |                                           Internal View/Pure Functions                                           |
-    \******************************************************************************************************************/
+    /* ============ Internal View/Pure Functions ============ */
 
     /**
      * @dev    Returns the penalization base and the penalized until timestamp.
      * @param  lastUpdateTimestamp_ The last timestamp at which the minter updated their collateral.
-     * @param  lastPenalizedUntil_  The last timestamp before which the minter shouldn't be penalized for missed updates.
+     * @param  lastPenalizedUntil_  The timestamp before which the minter shouldn't be penalized for missed updates.
      * @param  updateInterval_      The update collateral interval.
      * @return missedIntervals_     The number of missed update intervals.
-     * @return missedUntil_         The timestamp until which `missedIntervals_` covers, even if `missedIntervals_` is 0.
+     * @return missedUntil_         The timestamp until which `missedIntervals_` covers,
+     *                              even if `missedIntervals_` is 0.
      */
     function _getMissedCollateralUpdateParameters(
         uint40 lastUpdateTimestamp_,

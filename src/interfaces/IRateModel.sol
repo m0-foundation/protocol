@@ -2,7 +2,10 @@
 
 pragma solidity 0.8.23;
 
-/// @title Rate Model Interface.
+/**
+ * @title  Rate Model Interface.
+ * @author M^0 Labs
+ */
 interface IRateModel {
     /**
      * @notice Returns the current yearly rate in BPS.
