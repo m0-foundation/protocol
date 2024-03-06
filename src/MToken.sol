@@ -16,6 +16,18 @@ import { IRateModel } from "./interfaces/IRateModel.sol";
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
+/*
+
+███╗   ███╗    ████████╗ ██████╗ ██╗  ██╗███████╗███╗   ██╗
+████╗ ████║    ╚══██╔══╝██╔═══██╗██║ ██╔╝██╔════╝████╗  ██║
+██╔████╔██║       ██║   ██║   ██║█████╔╝ █████╗  ██╔██╗ ██║
+██║╚██╔╝██║       ██║   ██║   ██║██╔═██╗ ██╔══╝  ██║╚██╗██║
+██║ ╚═╝ ██║       ██║   ╚██████╔╝██║  ██╗███████╗██║ ╚████║
+╚═╝     ╚═╝       ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝
+                                                           
+
+*/
+
 /**
  * @title  MToken
  * @author M^0 Labs
