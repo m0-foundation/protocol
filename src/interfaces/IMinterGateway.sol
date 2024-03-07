@@ -14,6 +14,23 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /* ============ Events ============ */
 
     /**
+     * @notice Emitted when M tokens are burned and an inactive minter's owed M balance decreased.
+     * @param  minter The address of the minter.
+     * @param  amount The amount of M tokens burned.
+     * @param  payer  The address of the payer.
+     */
+    event BurnExecuted(address indexed minter, uint240 amount, address indexed payer);
+
+    /**
+     * @notice Emitted when M tokens are burned and an active minter's owed M balance decreased.
+     * @param  minter          The address of the minter.
+     * @param  principalAmount The principal amount of M tokens burned.
+     * @param  amount          The amount of M tokens burned.
+     * @param  payer           The address of the payer.
+     */
+    event BurnExecuted(address indexed minter, uint112 principalAmount, uint240 amount, address indexed payer);
+
+    /**
      * @notice Emitted when a minter's collateral is updated.
      * @param  minter                           Address of the minter
      * @param  collateral                       The latest amount of collateral
@@ -53,15 +70,6 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     event MinterFrozen(address indexed minter, uint40 frozenUntil);
 
     /**
-     * @notice Emitted when mint proposal is created.
-     * @param  mintId      The id of mint proposal.
-     * @param  minter      The address of the minter.
-     * @param  amount      The amount of M tokens to mint.
-     * @param  destination The address to mint to.
-     */
-    event MintProposed(uint48 indexed mintId, address indexed minter, uint240 amount, address indexed destination);
-
-    /**
      * @notice Emitted when mint proposal is canceled.
      * @param  mintId    The id of mint proposal.
      * @param  canceller The address of validator who cancelled the mint proposal.
@@ -77,21 +85,13 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     event MintExecuted(uint48 indexed mintId, uint112 principalAmount, uint240 amount);
 
     /**
-     * @notice Emitted when M tokens are burned and an inactive minter's owed M balance decreased.
-     * @param  minter The address of the minter.
-     * @param  amount The amount of M tokens burned.
-     * @param  payer  The address of the payer.
+     * @notice Emitted when mint proposal is created.
+     * @param  mintId      The id of mint proposal.
+     * @param  minter      The address of the minter.
+     * @param  amount      The amount of M tokens to mint.
+     * @param  destination The address to mint to.
      */
-    event BurnExecuted(address indexed minter, uint240 amount, address indexed payer);
-
-    /**
-     * @notice Emitted when M tokens are burned and an active minter's owed M balance decreased.
-     * @param  minter          The address of the minter.
-     * @param  principalAmount The principal amount of M tokens burned.
-     * @param  amount          The amount of M tokens burned.
-     * @param  payer           The address of the payer.
-     */
-    event BurnExecuted(address indexed minter, uint112 principalAmount, uint240 amount, address indexed payer);
+    event MintProposed(uint48 indexed mintId, address indexed minter, uint240 amount, address indexed destination);
 
     /**
      * @notice Emitted when penalty is imposed on minter.
@@ -118,8 +118,8 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
 
     /* ============ Custom Errors ============ */
 
-    /// @notice Emitted when principal of total owed M (active and inactive) will overflow a `type(uint112).max`.
-    error OverflowsPrincipalOfTotalOwedM();
+    /// @notice Emitted when calling `activateMinter` with a minter who was previously deactivated.
+    error DeactivatedMinter();
 
     /// @notice Emitted when repay will burn more M than the repay specified.
     error ExceedsMaxRepayAmount(uint240 amount, uint240 maxAmount);
@@ -133,17 +133,14 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice Emitted when calling `updateCollateral` if validator timestamp is in the future.
     error FutureTimestamp();
 
+    /// @notice Emitted when calling a function only allowed for active minters.
+    error InactiveMinter();
+
     /// @notice Emitted when calling `cancelMint` or `mintM` with invalid `mintId`.
     error InvalidMintProposal();
 
     /// @notice Emitted when calling `updateCollateral` if `validators` addresses are not ordered in ascending order.
     error InvalidSignatureOrder();
-
-    /// @notice Emitted when calling a function only allowed for active minters.
-    error InactiveMinter();
-
-    /// @notice Emitted when calling `activateMinter` with a minter who was previously deactivated.
-    error DeactivatedMinter();
 
     /// @notice Emitted when calling `activateMinter` if minter was not approved by TTG.
     error NotApprovedMinter();
@@ -153,6 +150,9 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
 
     /// @notice Emitted when calling `updateCollateral` if `validatorThreshold` of signatures was not reached.
     error NotEnoughValidSignatures(uint256 validSignatures, uint256 requiredThreshold);
+
+    /// @notice Emitted when principal of total owed M (active and inactive) will overflow a `type(uint112).max`.
+    error OverflowsPrincipalOfTotalOwedM();
 
     /// @notice Emitted when calling `mintM` if `mintDelay` time has not passed yet.
     error PendingMintProposal(uint40 activeTimestamp);
@@ -178,8 +178,20 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
      */
     error Undercollateralized(uint256 activeOwedM, uint256 maxAllowedOwedM);
 
+    /// @notice Emitted when calling `burnM` if amount is 0.
+    error ZeroBurnAmount();
+
     /// @notice Emitted in constructor if M Token is 0x0.
     error ZeroMToken();
+
+    /// @notice Emitted when calling `proposeMint` if amount is 0.
+    error ZeroMintAmount();
+
+    /// @notice Emitted when calling `proposeMint` if destination is 0x0.
+    error ZeroMintDestination();
+
+    /// @notice Emitted when calling `proposeRetrieval` if collateral is 0.
+    error ZeroRetrievalAmount();
 
     /// @notice Emitted in constructor if TTG Registrar is 0x0.
     error ZeroTTGRegistrar();
@@ -189,18 +201,6 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
 
     /// @notice Emitted when calling `updateCollateral` if validator timestamp is 0.
     error ZeroTimestamp();
-
-    /// @notice Emitted when calling `proposeMint` if amount is 0.
-    error ZeroMintAmount();
-
-    /// @notice Emitted when calling `proposeMint` if destination is 0x0.
-    error ZeroMintDestination();
-
-    /// @notice Emitted when calling `burnM` if amount is 0.
-    error ZeroBurnAmount();
-
-    /// @notice Emitted when calling `proposeRetrieval` if collateral is 0.
-    error ZeroRetrievalAmount();
 
     /* ============ Interactive Functions ============ */
 

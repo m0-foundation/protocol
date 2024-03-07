@@ -27,8 +27,13 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
 
     /* ============ Custom Errors ============ */
 
-    /// @notice Emitted when principal of total supply (earning and non-earning) will overflow a `type(uint112).max`.
-    error OverflowsPrincipalOfTotalSupply();
+    /**
+     * @notice Emitted when there is insufficient balance to decrement from `account`.
+     * @param  account     The account with insufficient balance.
+     * @param  rawBalance  The raw balance of the account.
+     * @param  amount      The amount to decrement the `rawBalance` by.
+     */
+    error InsufficientBalance(address account, uint256 rawBalance, uint256 amount);
 
     /// @notice Emitted when calling `stopEarning` for an account approved as earner by TTG.
     error IsApprovedEarner();
@@ -39,19 +44,14 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when calling `mint`, `burn` not by Minter Gateway.
     error NotMinterGateway();
 
+    /// @notice Emitted when principal of total supply (earning and non-earning) will overflow a `type(uint112).max`.
+    error OverflowsPrincipalOfTotalSupply();
+
     /// @notice Emitted in constructor if Minter Gateway is 0x0.
     error ZeroMinterGateway();
 
     /// @notice Emitted in constructor if TTG Registrar is 0x0.
     error ZeroTTGRegistrar();
-
-    /**
-     * @notice Emitted when there is insufficient balance to decrement from `account`.
-     * @param  account     The account with insufficient balance.
-     * @param  rawBalance  The raw balance of the account.
-     * @param  amount      The amount to decrement the `rawBalance` by.
-     */
-    error InsufficientBalance(address account, uint256 rawBalance, uint256 amount);
 
     /* ============ Interactive Functions ============ */
 
