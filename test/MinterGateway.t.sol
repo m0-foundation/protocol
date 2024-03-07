@@ -2418,7 +2418,7 @@ contract MinterGatewayTests is TestUtils {
         _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
 
         vm.prank(_alice);
-        uint240 inactiveOwedM = _minterGateway.deactivateMinter(_minter1);
+        _minterGateway.deactivateMinter(_minter1);
 
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), 0);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId), 0);

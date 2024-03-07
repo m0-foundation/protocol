@@ -5,10 +5,12 @@ pragma solidity 0.8.23;
 import { ITTGRegistrar } from "../interfaces/ITTGRegistrar.sol";
 
 /**
- * @title Library to read TTG (Two Token Governance) Registrar contract parameters.
+ * @title  Library to read TTG (Two Token Governance) Registrar contract parameters.
  * @author M^0 Labs
  */
 library TTGRegistrarReader {
+    /* ============ Variables ============ */
+
     /// @notice The name of parameter in TTG that defines the base earner rate.
     bytes32 internal constant BASE_EARNER_RATE = "base_earner_rate";
 
@@ -53,6 +55,8 @@ library TTGRegistrarReader {
 
     /// @notice The validators list name in TTG.
     bytes32 internal constant VALIDATORS_LIST = "validators";
+
+    /* ============ Internal View/Pure Functions ============ */
 
     /// @notice Gets the base earner rate.
     function getBaseEarnerRate(address registrar_) internal view returns (uint256) {

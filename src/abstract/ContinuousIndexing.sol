@@ -11,6 +11,8 @@ import { ContinuousIndexingMath } from "../libs/ContinuousIndexingMath.sol";
  * @author M^0 Labs
  */
 abstract contract ContinuousIndexing is IContinuousIndexing {
+    /* ============ Variables ============ */
+
     /// @inheritdoc IContinuousIndexing
     uint128 public latestIndex;
 
@@ -20,15 +22,15 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     /// @inheritdoc IContinuousIndexing
     uint40 public latestUpdateTimestamp;
 
+    /* ============ Constructor ============ */
+
     /// @notice Constructs the ContinuousIndexing contract.
     constructor() {
         latestIndex = ContinuousIndexingMath.EXP_SCALED_ONE;
         latestUpdateTimestamp = uint40(block.timestamp);
     }
 
-    /******************************************************************************************************************\
-    |                                      External/Public Interactive Functions                                       |
-    \******************************************************************************************************************/
+    /* ============ Interactive Functions ============ */
 
     /// @inheritdoc IContinuousIndexing
     function updateIndex() public virtual returns (uint128 currentIndex_) {
@@ -46,16 +48,30 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
         emit IndexUpdated(currentIndex_, rate_);
     }
 
-    /******************************************************************************************************************\
-    |                                       External/Public View/Pure Functions                                        |
-    \******************************************************************************************************************/
+    /* ============ View/Pure Functions ============ */
 
     /// @inheritdoc IContinuousIndexing
     function currentIndex() public view virtual returns (uint128);
 
-    /******************************************************************************************************************\
-    |                                           Internal View/Pure Functions                                           |
-    \******************************************************************************************************************/
+    /* ============ Internal View/Pure Functions ============ */
+
+    /**
+     * @dev    Returns the principal amount (rounded down) given the present amount, using the current index.
+     * @param  presentAmount_ The present amount.
+     * @return The principal amount rounded down.
+     */
+    function _getPrincipalAmountRoundedDown(uint240 presentAmount_) internal view returns (uint112) {
+        return _getPrincipalAmountRoundedDown(presentAmount_, currentIndex());
+    }
+
+    /**
+     * @dev    Returns the principal amount (rounded up) given the present amount and an index.
+     * @param  presentAmount_ The present amount.
+     * @return The principal amount rounded up.
+     */
+    function _getPrincipalAmountRoundedUp(uint240 presentAmount_) internal view returns (uint112) {
+        return _getPrincipalAmountRoundedUp(presentAmount_, currentIndex());
+    }
 
     /**
      * @dev    Returns the present amount (rounded down) given the principal amount and an index.
@@ -78,15 +94,6 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     }
 
     /**
-     * @dev    Returns the principal amount (rounded down) given the present amount, using the current index.
-     * @param  presentAmount_ The present amount.
-     * @return The principal amount rounded down.
-     */
-    function _getPrincipalAmountRoundedDown(uint240 presentAmount_) internal view returns (uint112) {
-        return _getPrincipalAmountRoundedDown(presentAmount_, currentIndex());
-    }
-
-    /**
      * @dev    Returns the principal amount given the present amount, using the current index.
      * @param  presentAmount_ The present amount.
      * @param  index_         An index.
@@ -94,15 +101,6 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
      */
     function _getPrincipalAmountRoundedDown(uint240 presentAmount_, uint128 index_) internal pure returns (uint112) {
         return ContinuousIndexingMath.divideDown(presentAmount_, index_);
-    }
-
-    /**
-     * @dev    Returns the principal amount (rounded up) given the present amount and an index.
-     * @param  presentAmount_ The present amount.
-     * @return The principal amount rounded up.
-     */
-    function _getPrincipalAmountRoundedUp(uint240 presentAmount_) internal view returns (uint112) {
-        return _getPrincipalAmountRoundedUp(presentAmount_, currentIndex());
     }
 
     /**

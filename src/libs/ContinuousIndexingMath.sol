@@ -5,12 +5,11 @@ pragma solidity 0.8.23;
 import { UIntMath } from "../../lib/common/src/libs/UIntMath.sol";
 
 /**
- * @title Arithmetic library with operations for calculating continuous indexing.
+ * @title  Arithmetic library with operations for calculating continuous indexing.
  * @author M^0 Labs
  */
 library ContinuousIndexingMath {
-    /// @notice Emitted when a division by zero occurs.
-    error DivisionByZero();
+    /* ============ Variables ============ */
 
     /// @notice The number of seconds in a year.
     uint32 internal constant SECONDS_PER_YEAR = 31_536_000;
@@ -20,6 +19,13 @@ library ContinuousIndexingMath {
 
     /// @notice The scaling of rates in for exponent math.
     uint56 internal constant EXP_SCALED_ONE = 1e12;
+
+    /* ============ Custom Errors ============ */
+
+    /// @notice Emitted when a division by zero occurs.
+    error DivisionByZero();
+
+    /* ============ Internal View/Pure Functions ============ */
 
     /**
      * @notice Helper function to calculate `(x * EXP_SCALED_ONE) / index`, rounded down.

@@ -6,14 +6,34 @@ import { IERC20Extended } from "../../lib/common/src/interfaces/IERC20Extended.s
 
 import { IContinuousIndexing } from "./IContinuousIndexing.sol";
 
-/// @title M Token Interface.
+/**
+ * @title  M Token Interface.
+ * @author M^0 Labs
+ */
 interface IMToken is IContinuousIndexing, IERC20Extended {
-    /******************************************************************************************************************\
-    |                                                     Errors                                                       |
-    \******************************************************************************************************************/
+    /* ============ Events ============ */
 
-    /// @notice Emitted when principal of total supply (earning and non-earning) will overflow a `type(uint112).max`.
-    error OverflowsPrincipalOfTotalSupply();
+    /**
+     * @notice Emitted when account starts being an M earner.
+     * @param  account The account that started earning.
+     */
+    event StartedEarning(address indexed account);
+
+    /**
+     * @notice Emitted when account stops being an M earner.
+     * @param  account The account that stopped earning.
+     */
+    event StoppedEarning(address indexed account);
+
+    /* ============ Custom Errors ============ */
+
+    /**
+     * @notice Emitted when there is insufficient balance to decrement from `account`.
+     * @param  account     The account with insufficient balance.
+     * @param  rawBalance  The raw balance of the account.
+     * @param  amount      The amount to decrement the `rawBalance` by.
+     */
+    error InsufficientBalance(address account, uint256 rawBalance, uint256 amount);
 
     /// @notice Emitted when calling `stopEarning` for an account approved as earner by TTG.
     error IsApprovedEarner();
@@ -24,28 +44,16 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when calling `mint`, `burn` not by Minter Gateway.
     error NotMinterGateway();
 
+    /// @notice Emitted when principal of total supply (earning and non-earning) will overflow a `type(uint112).max`.
+    error OverflowsPrincipalOfTotalSupply();
+
     /// @notice Emitted in constructor if Minter Gateway is 0x0.
     error ZeroMinterGateway();
 
     /// @notice Emitted in constructor if TTG Registrar is 0x0.
     error ZeroTTGRegistrar();
 
-    /// @notice Emitted when there is insufficient balance to decrement from `account`.
-    error InsufficientBalance(address account, uint256 rawBalance, uint256 amount);
-
-    /******************************************************************************************************************\
-    |                                                     Events                                                       |
-    \******************************************************************************************************************/
-
-    /// @notice Emitted when account starts being an M earner.
-    event StartedEarning(address indexed account);
-
-    /// @notice Emitted when account stops being an M earner.
-    event StoppedEarning(address indexed account);
-
-    /******************************************************************************************************************\
-    |                                         External Interactive Functions                                           |
-    \******************************************************************************************************************/
+    /* ============ Interactive Functions ============ */
 
     /**
      * @notice Mints tokens.
@@ -67,9 +75,7 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Stops earning for caller.
     function stopEarning() external;
 
-    /******************************************************************************************************************\
-    |                                          External View/Pure Functions                                            |
-    \******************************************************************************************************************/
+    /* ============ View/Pure Functions ============ */
 
     /// @notice The address of the Minter Gateway contract.
     function minterGateway() external view returns (address);
@@ -83,7 +89,11 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice The current value of earner rate in basis points.
     function earnerRate() external view returns (uint32);
 
-    /// @notice The principal of an earner M token balance.
+    /**
+     * @notice The principal of an earner M token balance.
+     * @param  account The account to get the principal balance of.
+     * @return The principal balance of the account.
+     */
     function principalBalanceOf(address account) external view returns (uint240);
 
     /// @notice The principal of the total earning supply of M Token.
@@ -95,6 +105,10 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice The total non-earning supply of M Token.
     function totalNonEarningSupply() external view returns (uint240);
 
-    /// @notice Checks if account is an earner.
+    /**
+     * @notice Checks if account is an earner.
+     * @param  account The account to check.
+     * @return True if account is an earner, false otherwise.
+     */
     function isEarning(address account) external view returns (bool);
 }

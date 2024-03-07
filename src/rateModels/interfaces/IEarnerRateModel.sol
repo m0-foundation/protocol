@@ -4,8 +4,13 @@ pragma solidity 0.8.23;
 
 import { IRateModel } from "../../interfaces/IRateModel.sol";
 
-/// @title Earner Rate Model Interface.
+/**
+ * @title  Earner Rate Model Interface.
+ * @author M^0 Labs
+ */
 interface IEarnerRateModel is IRateModel {
+    /* ============ Custom Errors ============ */
+
     /// @notice Emitted when M Token contract address is zero.
     error ZeroMToken();
 
@@ -14,6 +19,8 @@ interface IEarnerRateModel is IRateModel {
 
     /// @notice Emitted when TTG Registrar contract address is zero.
     error ZeroTTGRegistrar();
+
+    /* ============ View/Pure Functions ============ */
 
     /// @notice The M Token contract address.
     function mToken() external view returns (address);
