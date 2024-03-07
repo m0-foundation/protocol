@@ -36,9 +36,14 @@ import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /* ============ Structs ============ */
 
+    /**
+     * @notice MToken balance struct.
+     * @param  isEarning  True if the account is earning, false otherwise.
+     * @param  rawBalance Balance (for a non earning account) or principal balance that accrued interest.
+     */
     struct MBalance {
         bool isEarning;
-        uint240 rawBalance; // Balance (for a non earning account) or principal balance that accrued interest.
+        uint240 rawBalance;
     }
 
     /* ============ Variables ============ */
@@ -407,30 +412,32 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /* ============ Internal View/Pure Functions ============ */
 
     /**
-     * @dev   Returns the present amount (rounded down) given the principal amount, using the current index.
-     *        All present amounts are rounded down in favor of the protocol.
-     * @param principalAmount_ The principal amount.
+     * @dev    Returns the present amount (rounded down) given the principal amount, using the current index.
+     *         All present amounts are rounded down in favor of the protocol.
+     * @param  principalAmount_ The principal amount.
+     * @return The present amount.
      */
-    function _getPresentAmount(uint112 principalAmount_) internal view returns (uint240 amount_) {
+    function _getPresentAmount(uint112 principalAmount_) internal view returns (uint240) {
         return _getPresentAmount(principalAmount_, currentIndex());
     }
 
     /**
-     * @dev   Returns the present amount (rounded down) given the principal amount and an index.
-     *        All present amounts are rounded down in favor of the protocol, since they are assets.
-     * @param principalAmount_ The principal amount.
-     * @param index_           An index
+     * @dev    Returns the present amount (rounded down) given the principal amount and an index.
+     *         All present amounts are rounded down in favor of the protocol, since they are assets.
+     * @param  principalAmount_ The principal amount.
+     * @param  index_           An index
+     * @return The present amount.
      */
-    function _getPresentAmount(uint112 principalAmount_, uint128 index_) internal pure returns (uint240 amount_) {
+    function _getPresentAmount(uint112 principalAmount_, uint128 index_) internal pure returns (uint240) {
         return _getPresentAmountRoundedDown(principalAmount_, index_);
     }
 
     /**
      * @dev    Checks if earner was approved by TTG.
      * @param  account_    The account to check.
-     * @return isApproved_ True if approved, false otherwise.
+     * @return True if approved, false otherwise.
      */
-    function _isApprovedEarner(address account_) internal view returns (bool isApproved_) {
+    function _isApprovedEarner(address account_) internal view returns (bool) {
         return
             TTGRegistrarReader.isEarnersListIgnored(ttgRegistrar) ||
             TTGRegistrarReader.isApprovedEarner(ttgRegistrar, account_);

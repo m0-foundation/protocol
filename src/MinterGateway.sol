@@ -37,6 +37,13 @@ import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     /* ============ Structs ============ */
 
+    /**
+     * @notice Mint proposal struct.
+     * @param  id          The unique ID of the mint proposal.
+     * @param  createdAt   The timestamp at which the mint proposal was created.
+     * @param  destination The address to mint M to.
+     * @param  amount      The amount of M to mint.
+     */
     struct MintProposal {
         // 1st slot
         uint48 id;
@@ -46,6 +53,16 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         uint240 amount;
     }
 
+    /**
+     * @notice Minter state struct.
+     * @param  isActive                Whether the minter is active or not.
+     * @param  isDeactivated           Whether the minter is deactivated or not.
+     * @param  collateral              The amount of collateral the minter has.
+     * @param  totalPendingRetrievals  The total amount of pending retrievals.
+     * @param  updateTimestamp         The timestamp at which the minter last updated their collateral.
+     * @param  penalizedUntilTimestamp The timestamp until which the minter is penalized.
+     * @param  frozenUntilTimestamp    The timestamp until which the minter is frozen.
+     */
     struct MinterState {
         // 1st slot
         bool isActive;
@@ -61,14 +78,15 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /* ============ Variables ============ */
 
-    /// @dev 100% in basis points.
+    /// @inheritdoc IMinterGateway
     uint16 public constant ONE = 10_000;
 
-    /// @dev 650% in basis points.
+    /// @inheritdoc IMinterGateway
     uint32 public constant SIXTY_FIVE = 65_000;
 
     // solhint-disable-next-line max-line-length
-    // keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadataHash,uint256 timestamp)")
+    /// @dev keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadataHash,uint256 timestamp)")
+    /// @inheritdoc IMinterGateway
     bytes32 public constant UPDATE_COLLATERAL_TYPEHASH =
         0x22b57ca54bd15c6234b29e87aa1d76a0841b6e65e63d7acacef989de0bc3ff9e;
 
@@ -81,10 +99,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     /// @inheritdoc IMinterGateway
     address public immutable mToken;
 
-    /// @dev The total amount of inactive owed M, sum of all inactive minter's owed M.
+    /// @inheritdoc IMinterGateway
     uint240 public totalInactiveOwedM;
 
-    /// @dev The total amount of total active owed M, sum of all active minter's owed M.
+    /// @inheritdoc IMinterGateway
     uint112 public principalOfTotalActiveOwedM;
 
     /// @dev Nonce used to generate unique mint proposal IDs.
@@ -107,7 +125,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /* ============ Modifiers ============ */
 
-    /// @notice Only allow active minter to call function.
+    /**
+     * @notice Only allow active minter to call function.
+     * @param  minter_ The address of the minter to check.
+     */
     modifier onlyActiveMinter(address minter_) {
         _revertIfInactiveMinter(minter_);
 
@@ -765,10 +786,11 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /**
      * @dev    Repays active minter's owed M.
-     * @param  minter_          The address of the minter.
-     * @param  maxAmount_       The maximum amount of active owed M to repay.
-     * @return principalAmount_ The principal amount of active owed M that was actually repaid.
-     * @return amount_          The amount of active owed M that was actually repaid.
+     * @param  minter_             The address of the minter.
+     * @param  maxPrincipalAmount_ The maximum principal amount of active owed M to repay.
+     * @param  maxAmount_          The maximum amount of active owed M to repay.
+     * @return principalAmount_    The principal amount of active owed M that was actually repaid.
+     * @return amount_             The amount of active owed M that was actually repaid.
      */
     function _repayForActiveMinter(
         address minter_,
@@ -804,9 +826,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     }
 
     /**
-     * @dev   Resolves the collateral retrieval IDs and updates the total pending collateral retrieval amount.
-     * @param minter_       The address of the minter.
-     * @param retrievalIds_ The list of outstanding collateral retrieval IDs to resolve.
+     * @dev    Resolves the collateral retrieval IDs and updates the total pending collateral retrieval amount.
+     * @param  minter_                           The address of the minter.
+     * @param  retrievalIds_                     The list of outstanding collateral retrieval IDs to resolve.
+     * @return totalResolvedCollateralRetrieval_ The total amount of collateral retrieval resolved.
      */
     function _resolvePendingRetrievals(
         address minter_,
@@ -914,21 +937,23 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     }
 
     /**
-     * @dev   Returns the present amount (rounded up) given the principal amount, using the current index.
-     *        All present amounts are rounded up in favor of the protocol, since they are owed.
-     * @param principalAmount_ The principal amount.
+     * @dev    Returns the present amount (rounded up) given the principal amount, using the current index.
+     *         All present amounts are rounded up in favor of the protocol, since they are owed.
+     * @param  principalAmount_ The principal amount.
+     * @return The present amount.
      */
     function _getPresentAmount(uint112 principalAmount_) internal view returns (uint240) {
         return _getPresentAmountRoundedUp(principalAmount_, currentIndex());
     }
 
     /**
-     * @dev   Returns the EIP-712 digest for updateCollateral method.
-     * @param minter_       The address of the minter.
-     * @param collateral_   The amount of collateral.
-     * @param retrievalIds_ The list of outstanding collateral retrieval IDs to resolve.
-     * @param metadataHash_ The hash of metadata of the collateral update, reserved for future informational use.
-     * @param timestamp_    The timestamp of the collateral update.
+     * @dev    Returns the EIP-712 digest for updateCollateral method.
+     * @param  minter_       The address of the minter.
+     * @param  collateral_   The amount of collateral.
+     * @param  retrievalIds_ The list of outstanding collateral retrieval IDs to resolve.
+     * @param  metadataHash_ The hash of metadata of the collateral update, reserved for future informational use.
+     * @param  timestamp_    The timestamp of the collateral update.
+     * @return The EIP-712 digest.
      */
     function _getUpdateCollateralDigest(
         address minter_,
@@ -952,9 +977,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             );
     }
 
-    /**
-     * @dev Returns the current rate from the rate model contract.
-     */
+    /// @dev Returns the current rate from the rate model contract.
     function _rate() internal view override returns (uint32 rate_) {
         (bool success_, bytes memory returnData_) = rateModel().staticcall(
             abi.encodeWithSelector(IRateModel.rate.selector)

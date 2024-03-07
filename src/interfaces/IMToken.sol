@@ -13,10 +13,16 @@ import { IContinuousIndexing } from "./IContinuousIndexing.sol";
 interface IMToken is IContinuousIndexing, IERC20Extended {
     /* ============ Events ============ */
 
-    /// @notice Emitted when account starts being an M earner.
+    /**
+     * @notice Emitted when account starts being an M earner.
+     * @param  account The account that started earning.
+     */
     event StartedEarning(address indexed account);
 
-    /// @notice Emitted when account stops being an M earner.
+    /**
+     * @notice Emitted when account stops being an M earner.
+     * @param  account The account that stopped earning.
+     */
     event StoppedEarning(address indexed account);
 
     /* ============ Custom Errors ============ */
@@ -39,7 +45,12 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted in constructor if TTG Registrar is 0x0.
     error ZeroTTGRegistrar();
 
-    /// @notice Emitted when there is insufficient balance to decrement from `account`.
+    /**
+     * @notice Emitted when there is insufficient balance to decrement from `account`.
+     * @param  account     The account with insufficient balance.
+     * @param  rawBalance  The raw balance of the account.
+     * @param  amount      The amount to decrement the `rawBalance` by.
+     */
     error InsufficientBalance(address account, uint256 rawBalance, uint256 amount);
 
     /* ============ Interactive Functions ============ */
@@ -78,7 +89,11 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice The current value of earner rate in basis points.
     function earnerRate() external view returns (uint32);
 
-    /// @notice The principal of an earner M token balance.
+    /**
+     * @notice The principal of an earner M token balance.
+     * @param  account The account to get the principal balance of.
+     * @return The principal balance of the account.
+     */
     function principalBalanceOf(address account) external view returns (uint240);
 
     /// @notice The principal of the total earning supply of M Token.
@@ -90,6 +105,10 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice The total non-earning supply of M Token.
     function totalNonEarningSupply() external view returns (uint240);
 
-    /// @notice Checks if account is an earner.
+    /**
+     * @notice Checks if account is an earner.
+     * @param  account The account to check.
+     * @return True if account is an earner, false otherwise.
+     */
     function isEarning(address account) external view returns (bool);
 }

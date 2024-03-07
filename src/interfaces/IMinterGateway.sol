@@ -437,6 +437,9 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice Descaler for variables in basis points. Effectively, 100% in basis points.
     function ONE() external pure returns (uint16);
 
+    /// @notice Mint ratio cap. 650% in basis points.
+    function SIXTY_FIVE() external pure returns (uint32);
+
     /// @notice The EIP-712 typehash for the `updateCollateral` method.
     function UPDATE_COLLATERAL_TYPEHASH() external pure returns (bytes32);
 }
