@@ -55,9 +55,6 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
 
     /* ============ Internal View/Pure Functions ============ */
 
-    /// @dev To be overridden by the inheriting contract to return the current rate.
-    function _rate() internal view virtual returns (uint32);
-
     /**
      * @dev    Returns the principal amount (rounded down) given the present amount, using the current index.
      * @param  presentAmount_ The present amount.
@@ -115,4 +112,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     function _getPrincipalAmountRoundedUp(uint240 presentAmount_, uint128 index_) internal pure returns (uint112) {
         return ContinuousIndexingMath.divideUp(presentAmount_, index_);
     }
+
+    /// @dev To be overridden by the inheriting contract to return the current rate.
+    function _rate() internal view virtual returns (uint32);
 }
