@@ -39,7 +39,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /**
      * @notice MToken balance struct.
      * @param  isEarning  True if the account is earning, false otherwise.
-     * @param  rawBalance Balance (for a non earning account) or principal balance that accrued interest.
+     * @param  rawBalance Balance (for a non earning account) or balance principal (for an earning account).
      */
     struct MBalance {
         bool isEarning;
