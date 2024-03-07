@@ -696,7 +696,7 @@ contract MTokenTests is TestUtils {
         _mToken.setLatestIndex(bound(index_, 1_111111111111, 10_000000000000));
         _mToken.setLatestRate(bound(rate_, 10, 10_000));
 
-        uint256 principal_ = bound(principal_, 999999, 1_000_000_000_000000);
+        principal_ = bound(principal_, 999999, 1_000_000_000_000000);
 
         _mToken.setPrincipalOfTotalEarningSupply(principal_);
         _mToken.setPrincipalOfTotalEarningSupply(principal_);
