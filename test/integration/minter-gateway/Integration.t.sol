@@ -278,8 +278,8 @@ contract IntegrationTests is IntegrationBaseSetup {
     }
 
     function test_deactivateMinter_totalActiveOwedMGreaterThanTotalEarningSupply() external {
-        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, 400_000); // 4,000%
-        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, 40_000); // 400%
+        _registrar.updateConfig(MAX_EARNER_RATE, 400_000); // 4,000%
+        _registrar.updateConfig(BASE_MINTER_RATE, 40_000); // 400%
 
         _minterGateway.activateMinter(_minters[0]);
         _minterGateway.activateMinter(_minters[1]);
@@ -357,8 +357,8 @@ contract IntegrationTests is IntegrationBaseSetup {
     }
 
     function test_deactivateMinter_totalActiveOwedMLessThanTotalEarningSupply() external {
-        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, 400_000); // 4,000%
-        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, 40_000); // 400%
+        _registrar.updateConfig(MAX_EARNER_RATE, 400_000); // 4,000%
+        _registrar.updateConfig(BASE_MINTER_RATE, 40_000); // 400%
 
         _minterGateway.activateMinter(_minters[0]);
         _minterGateway.activateMinter(_minters[1]);
@@ -433,8 +433,8 @@ contract IntegrationTests is IntegrationBaseSetup {
     }
 
     function test_earnerRateIsHigherThanMinterRate() external {
-        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, 20000);
-        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, 40000);
+        _registrar.updateConfig(BASE_MINTER_RATE, 20000);
+        _registrar.updateConfig(MAX_EARNER_RATE, 40000);
 
         _minterGateway.activateMinter(_minters[0]);
         _minterGateway.activateMinter(_minters[1]);

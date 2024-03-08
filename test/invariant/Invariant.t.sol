@@ -54,8 +54,8 @@ contract InvariantTests is TestUtils {
         _minterGateway = IMinterGateway(minterGateway_);
         _mToken = IMToken(_minterGateway.mToken());
 
-        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, 400);
-        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, 400);
+        _registrar.updateConfig(MAX_EARNER_RATE, 400);
+        _registrar.updateConfig(BASE_MINTER_RATE, 400);
         _registrar.updateConfig(TTGRegistrarReader.EARNER_RATE_MODEL, earnerRateModel_);
         _registrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, minterRateModel_);
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, uint256(0));

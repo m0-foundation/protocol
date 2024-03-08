@@ -2864,7 +2864,7 @@ contract MinterGatewayTests is TestUtils {
             address(new StableEarnerRateModel(address(minterGateway_)))
         );
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, _earnerRate);
+        _ttgRegistrar.updateConfig(MAX_EARNER_RATE, _earnerRate);
         _ttgRegistrar.updateConfig(TTGRegistrarReader.EARNERS_LIST_IGNORED, 1);
 
         minterGateway_.setIsActive(_alice, true);

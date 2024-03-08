@@ -14,8 +14,8 @@ interface IStableEarnerRateModel is IEarnerRateModel {
     /// @notice The interval over which there's confidence cash flow to earners will not exceed cash flows from minters.
     function RATE_CONFIDENCE_INTERVAL() external view returns (uint32);
 
-    /// @notice An multiplier that reduces the safe earner rate for extra safety.
-    function EXTRA_SAFETY_MULTIPLIER() external view returns (uint32);
+    /// @notice The percent (in basis points) of the earner rate that will be effectively used.
+    function RATE_MULTIPLIER() external view returns (uint32);
 
     /// @notice 100% in basis points.
     function ONE() external view returns (uint32);

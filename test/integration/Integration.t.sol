@@ -22,13 +22,12 @@ contract IntegrationTests is IntegrationBaseSetup {
         uint256 latestMTokenUpdateTimestamp_ = block.timestamp;
 
         assertEq(_minterGateway.minterRate(), 1_000);
-        assertEq(_minterRateModel.baseRate(), 1_000);
         assertEq(_minterGateway.latestIndex(), 1_000000000000);
         assertEq(_minterGateway.currentIndex(), 1_000000000000);
         assertEq(_minterGateway.latestUpdateTimestamp(), latestMinterGatewayUpdateTimestamp_);
 
         assertEq(_mToken.earnerRate(), 0);
-        assertEq(_earnerRateModel.baseRate(), 1_000);
+        assertEq(_earnerRateModel.maxRate(), 1_000);
         assertEq(_mToken.rateModel(), address(_earnerRateModel));
         assertEq(_mToken.latestIndex(), 1_000000000000);
         assertEq(_mToken.currentIndex(), 1_000000000000);

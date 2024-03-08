@@ -104,14 +104,14 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         if (checkPrincipalOfTotalSupplyOverflow(_indexStore.currentEarnerIndex()) == 0) return;
 
         console2.log("Updating minter rate = %s at %s", rate_, block.timestamp);
-        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, rate_);
+        _registrar.updateConfig(BASE_MINTER_RATE, rate_);
     }
 
     function updateBaseEarnerRate(uint256 timeJumpSeed_, uint256 rate_) external adjustTimestamp(timeJumpSeed_) {
         rate_ = _bound(rate_, 10, 40_000); // [0.1%, 400%] in basis points
 
         console2.log("Updating earner rate = %s at %s", rate_, block.timestamp);
-        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, rate_);
+        _registrar.updateConfig(MAX_EARNER_RATE, rate_);
     }
 
     function updateMinterGatewayIndex(uint256 timeJumpSeed_) external adjustTimestamp(timeJumpSeed_) {

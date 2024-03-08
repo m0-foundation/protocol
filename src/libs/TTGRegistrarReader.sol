@@ -11,12 +11,6 @@ import { ITTGRegistrar } from "../interfaces/ITTGRegistrar.sol";
 library TTGRegistrarReader {
     /* ============ Variables ============ */
 
-    /// @notice The name of parameter in TTG that defines the base earner rate.
-    bytes32 internal constant BASE_EARNER_RATE = "base_earner_rate";
-
-    /// @notice The name of parameter in TTG that defines the base minter rate.
-    bytes32 internal constant BASE_MINTER_RATE = "base_minter_rate";
-
     /// @notice The name of parameter in TTG that defines the earner rate model contract.
     bytes32 internal constant EARNER_RATE_MODEL = "earner_rate_model";
 
@@ -57,16 +51,6 @@ library TTGRegistrarReader {
     bytes32 internal constant VALIDATORS_LIST = "validators";
 
     /* ============ Internal View/Pure Functions ============ */
-
-    /// @notice Gets the base earner rate.
-    function getBaseEarnerRate(address registrar_) internal view returns (uint256) {
-        return uint256(_get(registrar_, BASE_EARNER_RATE));
-    }
-
-    /// @notice Gets the base minter rate.
-    function getBaseMinterRate(address registrar_) internal view returns (uint256) {
-        return uint256(_get(registrar_, BASE_MINTER_RATE));
-    }
 
     /// @notice Gets the earner rate model contract address.
     function getEarnerRateModel(address registrar_) internal view returns (address) {

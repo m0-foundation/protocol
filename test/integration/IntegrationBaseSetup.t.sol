@@ -83,8 +83,8 @@ abstract contract IntegrationBaseSetup is TestUtils {
         _earnerRateModel = IEarnerRateModel(earnerRateModel_);
         _minterRateModel = IMinterRateModel(minterRateModel_);
 
-        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, _baseEarnerRate);
-        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, _baseMinterRate);
+        _registrar.updateConfig(MAX_EARNER_RATE, _baseEarnerRate);
+        _registrar.updateConfig(BASE_MINTER_RATE, _baseMinterRate);
         _registrar.updateConfig(TTGRegistrarReader.EARNER_RATE_MODEL, earnerRateModel_);
         _registrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, minterRateModel_);
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 1);
