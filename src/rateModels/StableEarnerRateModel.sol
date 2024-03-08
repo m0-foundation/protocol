@@ -6,11 +6,11 @@ import { wadLn } from "../../lib/solmate/src/utils/SignedWadMath.sol";
 import { UIntMath } from "../../lib/common/src/libs/UIntMath.sol";
 
 import { ContinuousIndexingMath } from "../libs/ContinuousIndexingMath.sol";
-import { TTGRegistrarReader } from "../libs/TTGRegistrarReader.sol";
 
 import { IMToken } from "../interfaces/IMToken.sol";
 import { IMinterGateway } from "../interfaces/IMinterGateway.sol";
 import { IRateModel } from "../interfaces/IRateModel.sol";
+import { ITTGRegistrar } from "../interfaces/ITTGRegistrar.sol";
 
 import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
 import { IStableEarnerRateModel } from "./interfaces/IStableEarnerRateModel.sol";
@@ -26,10 +26,13 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
     uint32 public constant RATE_CONFIDENCE_INTERVAL = 30 days;
 
     /// @inheritdoc IStableEarnerRateModel
-    uint32 public constant EXTRA_SAFETY_MULTIPLIER = 10_000; // 100% in basis points.
+    uint32 public constant RATE_MULTIPLIER = 10_000; // 100% in basis points.
 
     /// @inheritdoc IStableEarnerRateModel
     uint32 public constant ONE = 10_000; // 100% in basis points.
+
+    /// @notice The name of parameter in TTG that defines the max earner rate.
+    bytes32 internal constant _MAX_EARNER_RATE = "max_earner_rate";
 
     /// @notice The scaling of rates in for exponent math.
     uint256 internal constant _EXP_SCALED_ONE = 1e12;
@@ -68,12 +71,12 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
             IMinterGateway(minterGateway).minterRate()
         );
 
-        return UIntMath.min256(baseRate(), (EXTRA_SAFETY_MULTIPLIER * safeEarnerRate_) / ONE);
+        return UIntMath.min256(maxRate(), (RATE_MULTIPLIER * safeEarnerRate_) / ONE);
     }
 
     /// @inheritdoc IEarnerRateModel
-    function baseRate() public view returns (uint256 baseRate_) {
-        return TTGRegistrarReader.getBaseEarnerRate(ttgRegistrar);
+    function maxRate() public view returns (uint256) {
+        return uint256(ITTGRegistrar(ttgRegistrar).get(_MAX_EARNER_RATE));
     }
 
     /// @inheritdoc IStableEarnerRateModel

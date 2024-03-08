@@ -11,6 +11,10 @@ import { ContinuousIndexingMath } from "../../src/libs/ContinuousIndexingMath.so
 import { MinterGatewayHarness } from "./MinterGatewayHarness.sol";
 
 contract TestUtils is Test {
+    bytes32 internal constant MAX_EARNER_RATE = "max_earner_rate";
+
+    bytes32 internal constant BASE_MINTER_RATE = "base_minter_rate";
+
     /// @notice The scaling of rates in for exponent math.
     uint56 internal constant EXP_SCALED_ONE = 1e12;
 

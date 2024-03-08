@@ -2,10 +2,9 @@
 
 pragma solidity 0.8.23;
 
-import { TTGRegistrarReader } from "../libs/TTGRegistrarReader.sol";
-
 import { IRateModel } from "../interfaces/IRateModel.sol";
 import { IMinterRateModel } from "./interfaces/IMinterRateModel.sol";
+import { ITTGRegistrar } from "../interfaces/ITTGRegistrar.sol";
 
 /**
  * @title  Minter Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by Minter Gateway.
@@ -13,6 +12,9 @@ import { IMinterRateModel } from "./interfaces/IMinterRateModel.sol";
  */
 contract MinterRateModel is IMinterRateModel {
     /* ============ Variables ============ */
+
+    /// @notice The name of parameter in TTG that defines the base minter rate.
+    bytes32 internal constant _BASE_MINTER_RATE = "base_minter_rate";
 
     /// @inheritdoc IMinterRateModel
     address public immutable ttgRegistrar;
@@ -31,11 +33,6 @@ contract MinterRateModel is IMinterRateModel {
 
     /// @inheritdoc IRateModel
     function rate() external view returns (uint256 rate_) {
-        return baseRate();
-    }
-
-    /// @inheritdoc IMinterRateModel
-    function baseRate() public view returns (uint256 baseRate_) {
-        return TTGRegistrarReader.getBaseMinterRate(ttgRegistrar);
+        return uint256(ITTGRegistrar(ttgRegistrar).get(_BASE_MINTER_RATE));
     }
 }

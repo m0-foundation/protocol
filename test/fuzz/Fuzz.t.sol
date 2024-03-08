@@ -29,8 +29,8 @@ contract FuzzTests is IntegrationBaseSetup {
         mintAmountToNonEarner = bound(mintAmountToNonEarner, 1_000e6, 1_000e15);
         timeElapsed = bound(timeElapsed, 10, 10 days); // [10, 10 days]
 
-        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, minterRate);
-        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, earnerRate);
+        _registrar.updateConfig(BASE_MINTER_RATE, minterRate);
+        _registrar.updateConfig(MAX_EARNER_RATE, earnerRate);
 
         vm.prank(_mHolders[0]);
         _mToken.startEarning();
@@ -95,8 +95,8 @@ contract FuzzTests is IntegrationBaseSetup {
         minter2Amount = bound(minter2Amount, 1_000e6, 1_000e15);
         timeElapsed = bound(timeElapsed, 10, 10 days); // [10, 10 days]
 
-        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, minterRate);
-        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, earnerRate);
+        _registrar.updateConfig(BASE_MINTER_RATE, minterRate);
+        _registrar.updateConfig(MAX_EARNER_RATE, earnerRate);
 
         vm.prank(_mHolders[0]);
         _mToken.startEarning();
@@ -177,8 +177,8 @@ contract FuzzTests is IntegrationBaseSetup {
         uint256 timeElapsed1 = 134395;
         uint256 timeElapsed2 = 10;
 
-        _registrar.updateConfig(TTGRegistrarReader.BASE_MINTER_RATE, minterRate);
-        _registrar.updateConfig(TTGRegistrarReader.BASE_EARNER_RATE, earnerRate);
+        _registrar.updateConfig(BASE_MINTER_RATE, minterRate);
+        _registrar.updateConfig(MAX_EARNER_RATE, earnerRate);
 
         vm.prank(_mHolders[0]);
         _mToken.startEarning();
