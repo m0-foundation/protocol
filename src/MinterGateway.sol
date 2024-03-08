@@ -82,7 +82,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     uint16 public constant ONE = 10_000;
 
     /// @inheritdoc IMinterGateway
-    uint32 public constant SIXTY_FIVE = 65_000;
+    uint32 public constant MAX_MINT_RATIO = 65_000;
 
     // solhint-disable-next-line max-line-length
     /// @dev keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadataHash,uint256 timestamp)")
@@ -651,7 +651,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     /// @inheritdoc IMinterGateway
     function mintRatio() public view returns (uint32) {
         // NOTE: It is possible for the mint ratio to be greater than 100%, but capped at 650%.
-        return UIntMath.min32(SIXTY_FIVE, UIntMath.bound32(TTGRegistrarReader.getMintRatio(ttgRegistrar)));
+        return UIntMath.min32(MAX_MINT_RATIO, UIntMath.bound32(TTGRegistrarReader.getMintRatio(ttgRegistrar)));
     }
 
     /// @inheritdoc IMinterGateway
@@ -1085,7 +1085,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_])) continue;
 
             // Find minimum between all valid timestamps for valid signatures.
-            minTimestamp_ = UIntMath.min40(minTimestamp_, UIntMath.safe40(timestamps_[index_]));
+            minTimestamp_ = UIntMath.min40(minTimestamp_, uint40(timestamps_[index_]));
 
             unchecked {
                 --threshold_;

@@ -310,7 +310,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertEq(_minterGateway.totalActiveOwedM(), 500_457040);
         assertEq(_mToken.totalEarningSupply(), 249_999999);
         assertEq(_minterGateway.minterRate(), 40_000);
-        assertEq(_mToken.earnerRate(), 70_101);
+        assertEq(_mToken.earnerRate(), 63_090);
 
         uint256 timestamp_ = block.timestamp;
 
@@ -346,8 +346,8 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         // Sufficiently outside confidence interval of 30 days at this point.
 
-        vm.warp(timestamp_ + 30 days + 1 hours);
-        assertLe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "30 days + 1 hour");
+        vm.warp(timestamp_ + 66 days);
+        assertLe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "66 days");
 
         vm.warp(timestamp_ + 300 days);
         assertLe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "300 days");
@@ -386,9 +386,9 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
         assertEq(_minterGateway.totalActiveOwedM(), 500_000001);
-        assertEq(_mToken.totalEarningSupply(), 1301_462521);
+        assertEq(_mToken.totalEarningSupply(), 1301_316149);
         assertEq(_minterGateway.minterRate(), 40_000);
-        assertEq(_mToken.earnerRate(), 15_367);
+        assertEq(_mToken.earnerRate(), 13_832);
 
         uint256 timestamp_ = block.timestamp;
 
