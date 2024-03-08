@@ -1085,7 +1085,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_])) continue;
 
             // Find minimum between all valid timestamps for valid signatures.
-            minTimestamp_ = UIntMath.min40(minTimestamp_, UIntMath.safe40(timestamps_[index_]));
+            minTimestamp_ = UIntMath.min40(minTimestamp_, uint40(timestamps_[index_]));
 
             unchecked {
                 --threshold_;
