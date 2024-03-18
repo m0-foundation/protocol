@@ -11,7 +11,7 @@ contract TimestampStore {
         currentTimestamp = uint32(block.timestamp);
     }
 
-    function increaseCurrentTimestamp(uint32 timeJump_) external {
-        currentTimestamp += timeJump_;
+    function increaseCurrentTimestamp(uint32 timeJump_) external returns (uint32) {
+        return currentTimestamp += timeJump_;
     }
 }

@@ -48,26 +48,21 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         uint32 timeUntilRateConfidenceExpires_ = rateConfidenceExpires_ - _timestampStore.currentTimestamp();
 
         console2.log(
-            "--> rate confidence expires at %s, in %s",
+            "--> rate confidence expires at %s, in %s seconds",
             rateConfidenceExpires_,
             timeUntilRateConfidenceExpires_
         );
 
+        if (timeUntilRateConfidenceExpires_ == 0) return;
+
         // Warping past the confidence interval knowingly can lead to overprinting (i.e. broken invariants).
-        timeJump_ = _bound(timeJump_, 0, _min(timeUntilRateConfidenceExpires_, 10 days));
+        timeJump_ = _bound(timeJump_, 1, timeUntilRateConfidenceExpires_);
+        vm.warp(_timestampStore.increaseCurrentTimestamp(uint32(timeJump_)));
 
-        _timestampStore.increaseCurrentTimestamp(uint32(timeJump_));
-        vm.warp(_timestampStore.currentTimestamp());
-
-        console2.log("--> time jump %s to %s", timeJump_, _timestampStore.currentTimestamp());
+        console2.log("--> time jump by %s to %s", timeJump_, _timestampStore.currentTimestamp());
+        console2.log("--> totalOwedM %s, totalSupply %s", _minterGateway.totalOwedM(), _mToken.totalSupply());
 
         _;
-
-        console2.log("--> totalOwedM %s, totalSupply %s", _minterGateway.totalOwedM(), _mToken.totalSupply());
-    }
-
-    function _min(uint32 a_, uint32 b_) internal pure returns (uint32) {
-        return a_ < b_ ? a_ : b_;
     }
 
     function _getMinter(uint256 minterIndexSeed_) internal view returns (address) {
@@ -80,6 +75,10 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
     function _getNonEarner(uint256 nonEarnerIndexSeed_) internal view returns (address) {
         return _nonEarners.rand(nonEarnerIndexSeed_);
+    }
+
+    function _min(uint32 a_, uint32 b_) internal pure returns (uint32) {
+        return a_ < b_ ? a_ : b_;
     }
 
     constructor(
@@ -261,6 +260,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         }
 
         for (uint256 i = 0; i < _EARNERS_NUM; ++i) {
+            vm.warp(_timestampStore.increaseCurrentTimestamp(uint32(1)));
             _earners.add(makeAddr(string(abi.encodePacked("earner", i))));
 
             address earner_ = _earners.get(i);
@@ -275,6 +275,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         }
 
         for (uint256 i; i < _NON_EARNERS_NUM; ++i) {
+            vm.warp(_timestampStore.increaseCurrentTimestamp(uint32(1)));
             _nonEarners.add(makeAddr(string(abi.encodePacked("nonEarner", i))));
 
             address minter_ = _minters.get(i);
@@ -308,8 +309,6 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     }
 
     function _updateCollateral(address minter_, uint256 amount_) internal returns (uint256) {
-        vm.warp(block.timestamp + 1); // NOTE: temporary fix for the stale timestamp, TODO resolve time travelling issues
-
         uint240 collateralOfMinter_ = _minterGateway.collateralOf(minter_);
 
         // If the collateral of minter is already greater than the max allowed collateral, we return early.
@@ -410,7 +409,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         uint256 mintId_ = _minterGateway.proposeMint(amount_, mHolder_);
 
         console2.log("Minting %s M to %s by minter %s", amount_, mHolder_, minter_);
-        console2.log("  Mint occurred at %s", block.timestamp);
+        console2.log("Mint occurred at %s", block.timestamp);
 
         vm.prank(minter_);
         _minterGateway.mintM(mintId_);
