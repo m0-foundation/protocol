@@ -107,12 +107,9 @@ contract InvariantTests is TestUtils {
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "total owed M >= total M supply");
 
         _indexStore.setEarnerIndex(_mToken.updateIndex());
-
-        if (_handler.checkPrincipalOfTotalSupplyOverflow(_indexStore.currentEarnerIndex()) == 0) return;
-
         _indexStore.setMinterIndex(_minterGateway.updateIndex());
 
         // Can be off by 1 wei because of rounding up and down
-        assertEq(_minterGateway.totalOwedM(), _mToken.totalSupply(), "total owed M => total M supply");
+        assertApproxEqAbs(_minterGateway.totalOwedM(), _mToken.totalSupply(), 1, "total owed M => total M supply");
     }
 }

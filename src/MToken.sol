@@ -79,7 +79,10 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param  ttgRegistrar_ The address of the TTG Registrar contract.
      * @param  minterGateway_     The address of Minter Gateway.
      */
-    constructor(address ttgRegistrar_, address minterGateway_) ContinuousIndexing() ERC20Extended("M by M^0", "MONEY", 6) {
+    constructor(
+        address ttgRegistrar_,
+        address minterGateway_
+    ) ContinuousIndexing() ERC20Extended("M by M^0", "MONEY", 6) {
         if ((ttgRegistrar = ttgRegistrar_) == address(0)) revert ZeroTTGRegistrar();
         if ((minterGateway = minterGateway_) == address(0)) revert ZeroMinterGateway();
     }
