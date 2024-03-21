@@ -19,8 +19,6 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly-e15e33a07c0920189fc336391f538c3dad53da73
 
       - name: Install lcov
         uses: hrishikesh-kadam/setup-lcov@v1
@@ -36,6 +34,6 @@ jobs:
         with:
           coverage-files: lcov.info
           artifact-name: code-coverage-report
-          minimum-coverage: 60
+          minimum-coverage: 95
           github-token: ${{ secrets.GITHUB_TOKEN }}
           update-comment: true
