@@ -1,4 +1,4 @@
-name: Forge Test Invariants
+name: Forge Invariant Tests
 
 on:
   push:
@@ -6,17 +6,14 @@ on:
       - main
   pull_request:
 
-env:
-  FOUNDRY_PROFILE: ci
-
 permissions: write-all
 
 jobs:
   check:
-    name: Foundry project
+    name: Invariant Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -29,8 +26,8 @@ jobs:
           make sizes
         id: build
 
-      - name: Run Forge tests
-        run: npm run test-invariants
+      - name: Run Forge invariant tests
+        run: make invariant profile=ci
         env:
           # make fuzzing semi-deterministic to avoid noisy gas cost estimation
           # due to non-deterministic fuzzing (but still use pseudo-random fuzzing seeds)

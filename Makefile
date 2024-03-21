@@ -14,13 +14,27 @@ deploy-qa-sepolia :; FOUNDRY_PROFILE=production forge script script/Deploy.s.sol
 # Run slither
 slither :; FOUNDRY_PROFILE=production forge build --build-info --skip '*/test/**' --skip '*/script/**' --force && slither --compile-force-framework foundry --ignore-compile --sarif results.sarif --config-file slither.config.json .
 
+profile ?=default
+
 build:
 	@./build.sh -p production
 
-tests:
-	@./test.sh -p default
+test:
+	@./test.sh -p $(profile)
+
+fuzz:
+	@./test.sh -t testFuzz -p $(profile)
+
+integration:
+	@./test.sh -d test/integration -p $(profile)
+
+invariant:
+	@./test.sh -d test/invariant -p $(profile)
 
 gas-report:
+	forge test --no-match-path 'test/invariant/*' --gas-report > gasreport.ansi
+
+gas-report-hardhat:
 	npx hardhat test
 
 sizes:
