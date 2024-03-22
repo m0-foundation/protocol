@@ -99,7 +99,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
         // 5. ln(1 + (totalActive * (delta_minterIndex - 1) / totalEarning)) >= (earnerRate * dt) / SECONDS_PER_YEAR
         // 6. ln(1 + (totalActive * (delta_minterIndex - 1) / totalEarning)) * SECONDS_PER_YEAR / dt >= earnerRate
 
-        // When `totalActiveOwedM_ < totalEarningSupply_`, the instantaneous earner cash flow must be less than the
+        // When `totalActiveOwedM_ <= totalEarningSupply_`, the instantaneous earner cash flow must be less than the
         // instantaneous minter cash flow. To ensure instantaneous cashflow safety, we we use the derivatives of the
         // previous starting inequality, and substitute `dt = 0`.
         // Effectively: p1 * rate1 >= p2 * rate2
