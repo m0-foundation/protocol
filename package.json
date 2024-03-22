@@ -6,15 +6,17 @@
   "author": "M^0 Labs <contact@m0.xyz>",
   "license": "GPL-3.0",
   "scripts": {
-    "coverage": "forge coverage --report lcov && lcov --extract lcov.info -o lcov.info 'src/*' && genhtml lcov.info -o coverage",
+    "coverage": "forge coverage --no-match-path 'test/invariant/**/*.sol' --report lcov && lcov --extract lcov.info -o lcov.info 'src/*' && genhtml lcov.info -o coverage",
     "doc": "forge doc --serve --port 4000",
     "prettier": "prettier --write --plugin=prettier-plugin-solidity 'script/**/*.sol' 'src/**/*.sol' 'test/**/*.sol'",
     "slither": "forge build --build-info --skip '*/test/**' --skip '*/script/**' --force && slither --compile-force-framework foundry --ignore-compile --config-file slither.config.json --fail-high .",
     "solhint": "solhint -f stylish 'src/**/*.sol'",
     "solhint-fix": "solhint --fix 'src/**/*.sol'",
-    "test": "forge test",
-    "test-gas": "forge test --no-match-path 'test/invariant/*' --gas-report > gasreport.ansi",
-    "test-invariants": "forge test --match-path 'test/invariant/*'"
+    "test": "make -B test",
+    "test-gas": "make -B gas-report",
+    "test-fuzz": "make -B fuzz",
+    "test-integration": "forge -B integration",
+    "test-invariant": "forge -B invariant"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.6",

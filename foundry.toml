@@ -16,17 +16,28 @@ ignored_error_codes = []
 block_number = 17_740_856
 block_timestamp = 1_689_934_508
 
-[profile.default.fuzz]
-runs = 5000
-
-[profile.default.invariant]
-runs = 512
-depth = 25
-fail_on_revert = true
-
 [profile.production]
 evm_version = "shanghai"
 optimizer = true
 optimizer_runs = 999999
 build_info = true
 sizes = true
+
+[fuzz]
+runs = 5_000
+
+[invariant]
+runs = 512            # The number of calls to make in the invariant tests
+depth = 25            # The number of times to run the invariant tests
+call_override = false # Override calls
+fail_on_revert = true # Fail the test if the contract reverts
+
+[profile.ci]
+optimizer = true
+
+[profile.ci.fuzz]
+runs = 10_000
+
+[profile.ci.invariant]
+runs = 512
+depth = 250

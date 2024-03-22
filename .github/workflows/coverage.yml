@@ -6,9 +6,6 @@ on:
       - main
   pull_request:
 
-env:
-  FOUNDRY_PROFILE: ci
-
 permissions: write-all
 
 jobs:
@@ -16,14 +13,12 @@ jobs:
     name: Code Coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly-e15e33a07c0920189fc336391f538c3dad53da73
 
       - name: Install lcov
         uses: hrishikesh-kadam/setup-lcov@v1
@@ -35,10 +30,10 @@ jobs:
         id: coverage
 
       - name: Report code coverage
-        uses: zgosalvez/github-actions-report-lcov@v3
+        uses: zgosalvez/github-actions-report-lcov@v4
         with:
           coverage-files: lcov.info
           artifact-name: code-coverage-report
-          minimum-coverage: 60
+          minimum-coverage: 95
           github-token: ${{ secrets.GITHUB_TOKEN }}
           update-comment: true
