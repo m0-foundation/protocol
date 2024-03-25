@@ -23,3 +23,7 @@ node_modules/
 
 results.sarif
 yarn-error.log
+
+# Certora verification:
+.certora_internal
+certora/munged/*
