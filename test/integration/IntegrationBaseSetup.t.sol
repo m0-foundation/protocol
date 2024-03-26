@@ -13,14 +13,13 @@ import { IMinterGateway } from "../../src/interfaces/IMinterGateway.sol";
 import { IEarnerRateModel } from "../../src/rateModels/interfaces/IEarnerRateModel.sol";
 import { IMinterRateModel } from "../../src/rateModels/interfaces/IMinterRateModel.sol";
 
-import { DeployBase } from "../../script/DeployBase.s.sol";
+import { DeployBase } from "../../script/DeployBase.sol";
 
 import { MockTTGRegistrar } from "./../utils/Mocks.sol";
 import { TestUtils } from "./../utils/TestUtils.sol";
 
 /// @notice Common setup for integration tests
 abstract contract IntegrationBaseSetup is TestUtils {
-    address internal _deployer = makeAddr("deployer");
     address internal _vault = makeAddr("vault");
 
     address internal _alice = makeAddr("alice");
@@ -71,9 +70,10 @@ abstract contract IntegrationBaseSetup is TestUtils {
 
         _registrar.setVault(_vault);
 
+        // NOTE: Using `DeployBase` as a contract instead of a script, means that the deployer is `_deploy` itself.
         (address minterGateway_, address minterRateModel_, address earnerRateModel_) = _deploy.deploy(
-            _deployer,
-            0,
+            address(_deploy),
+            1,
             address(_registrar)
         );
 
