@@ -100,24 +100,24 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     function updateBaseMinterRate(uint256 timeJumpSeed_, uint256 rate_) external adjustTimestamp(timeJumpSeed_) {
         rate_ = _bound(rate_, 10, 40_000); // [0.1%, 400%] in basis points
 
-        console2.log("Updating minter rate = %s at %s", rate_, block.timestamp);
+        console2.log("Updating minter rate = %s at %s", rate_, vm.getBlockTimestamp());
         _registrar.updateConfig(BASE_MINTER_RATE, rate_);
     }
 
     function updateBaseEarnerRate(uint256 timeJumpSeed_, uint256 rate_) external adjustTimestamp(timeJumpSeed_) {
         rate_ = _bound(rate_, 10, 40_000); // [0.1%, 400%] in basis points
 
-        console2.log("Updating earner rate = %s at %s", rate_, block.timestamp);
+        console2.log("Updating earner rate = %s at %s", rate_, vm.getBlockTimestamp());
         _registrar.updateConfig(MAX_EARNER_RATE, rate_);
     }
 
     function updateMinterGatewayIndex(uint256 timeJumpSeed_) external adjustTimestamp(timeJumpSeed_) {
-        console2.log("Updating Minter Gateway index at %s", block.timestamp);
+        console2.log("Updating Minter Gateway index at %s", vm.getBlockTimestamp());
         _indexStore.setMinterIndex(_minterGateway.updateIndex());
     }
 
     function updateMTokenIndex(uint256 timeJumpSeed_) external adjustTimestamp(timeJumpSeed_) {
-        console2.log("Updating M Token index at %s", block.timestamp);
+        console2.log("Updating M Token index at %s", vm.getBlockTimestamp());
         _indexStore.setEarnerIndex(_mToken.updateIndex());
     }
 
@@ -233,7 +233,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         // We return early if the minter being deactivated is not active
         if (_minterGateway.isActiveMinter(minter_)) return;
 
-        console2.log("Deactivating minter %s at %s", minter_, block.timestamp);
+        console2.log("Deactivating minter %s at %s", minter_, vm.getBlockTimestamp());
 
         _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, minter_);
         _minterGateway.deactivateMinter(minter_);
@@ -241,7 +241,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
     function _generateRandomAmount(address minter_, uint256 modulus_) internal returns (uint256) {
         _randomAmountSeed++;
-        return uint256(keccak256(abi.encodePacked(block.timestamp, minter_, _randomAmountSeed))) % modulus_;
+        return uint256(keccak256(abi.encodePacked(vm.getBlockTimestamp(), minter_, _randomAmountSeed))) % modulus_;
     }
 
     function _initActors() internal {
@@ -361,7 +361,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
             : amount_;
 
         console2.log("Transferring %s M from %s to %s", amount_, sender_, recipient_);
-        console2.log("Transfer occurred at %s", block.timestamp);
+        console2.log("Transfer occurred at %s", vm.getBlockTimestamp());
 
         vm.prank(sender_);
         _mToken.transfer(recipient_, amount_);

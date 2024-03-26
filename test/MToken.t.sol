@@ -26,7 +26,7 @@ contract MTokenTests is TestUtils {
     address[] internal _accounts = [_alice, _bob, _charlie, _david];
 
     uint32 internal _earnerRate = ContinuousIndexingMath.BPS_SCALED_ONE / 10; // 10% APY
-    uint256 internal _start = block.timestamp;
+    uint256 internal _start = vm.getBlockTimestamp();
 
     uint128 internal _expectedCurrentIndex;
 
@@ -139,7 +139,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), 908);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
 
         vm.prank(_minterGateway);
         _mToken.mint(_alice, 1);
@@ -150,7 +150,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), 908);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
 
         vm.prank(_minterGateway);
         _mToken.mint(_alice, 2);
@@ -160,7 +160,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), 909);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
     function testFuzz_mint_toEarner(uint256 amount_) external {
@@ -179,7 +179,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
 
         vm.prank(_minterGateway);
         _mToken.mint(_alice, 1);
@@ -192,7 +192,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
 
         vm.prank(_minterGateway);
         _mToken.mint(_alice, 2);
@@ -204,7 +204,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
     function test_mint_toEarner_overflowPrincipalOfTotalSupply() external {
@@ -320,7 +320,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), 908);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
 
         vm.prank(_minterGateway);
         _mToken.burn(_alice, 998);
@@ -330,7 +330,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), 0);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
     function testFuzz_burn_fromEarner(uint256 amount_) external {
@@ -359,7 +359,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
 
         uint256 balanceOfAlice_ = _mToken.balanceOf(_alice);
 
@@ -376,7 +376,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), 0);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
     /* ============ transfer ============ */
@@ -477,7 +477,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), 454);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
 
         vm.prank(_alice);
         _mToken.transfer(_bob, 1);
@@ -491,7 +491,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), 453);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
     function testFuzz_transfer_fromEarner_toNonEarner(
@@ -525,7 +525,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
 
         vm.assume(_mToken.balanceOf(_alice) != 0);
 
@@ -539,7 +539,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_ - 1);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
     function test_transfer_fromEarner_toNonEarner_noOverflow() external {
@@ -589,7 +589,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), 909);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
     function testFuzz_transfer_fromNonEarner_toEarner(
@@ -624,7 +624,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
     function test_transfer_fromEarner_toEarner() external {
@@ -742,7 +742,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), 909);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
     function testFuzz_startEarning(uint256 supply_) external {
@@ -767,7 +767,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
     function test_startEarning_overflow() external {
@@ -809,7 +809,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), 0);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
     function testFuzz_stopEarning(uint256 supply_) external {
@@ -835,7 +835,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.principalOfTotalEarningSupply(), 0);
         assertEq(_mToken.earnerRate(), _earnerRate);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
-        assertEq(_mToken.latestUpdateTimestamp(), block.timestamp);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
     /* ============ updateIndex ============ */
@@ -850,14 +850,14 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestIndex(), expectedLatestIndex_);
         assertEq(_mToken.latestUpdateTimestamp(), expectedLatestUpdateTimestamp_);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(vm.getBlockTimestamp() + 365 days);
 
         _expectedCurrentIndex = uint128(
             ContinuousIndexingMath.multiplyIndicesDown(
                 ContinuousIndexingMath.EXP_SCALED_ONE,
                 ContinuousIndexingMath.getContinuousIndex(
                     ContinuousIndexingMath.convertFromBasisPoints(_earnerRate),
-                    uint32(block.timestamp - _start)
+                    uint32(vm.getBlockTimestamp() - _start)
                 )
             )
         );
@@ -871,7 +871,7 @@ contract MTokenTests is TestUtils {
         _mToken.updateIndex();
 
         expectedLatestIndex_ = _expectedCurrentIndex;
-        expectedLatestUpdateTimestamp_ = block.timestamp;
+        expectedLatestUpdateTimestamp_ = vm.getBlockTimestamp();
 
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
         assertEq(_mToken.earnerRate(), _earnerRate);
@@ -892,7 +892,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestIndex(), expectedLatestIndex_);
         assertEq(_mToken.latestUpdateTimestamp(), expectedLatestUpdateTimestamp_);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(vm.getBlockTimestamp() + 365 days);
 
         _expectedCurrentIndex = uint128(
             ContinuousIndexingMath.multiplyIndicesDown(
@@ -913,7 +913,7 @@ contract MTokenTests is TestUtils {
         _mToken.updateIndex();
 
         expectedLatestIndex_ = _expectedCurrentIndex;
-        expectedLatestUpdateTimestamp_ = block.timestamp;
+        expectedLatestUpdateTimestamp_ = vm.getBlockTimestamp();
 
         assertEq(_mToken.currentIndex(), _expectedCurrentIndex);
         assertEq(_mToken.earnerRate(), _earnerRate / 2);
@@ -927,7 +927,7 @@ contract MTokenTests is TestUtils {
 
         assertEq(_mToken.balanceOf(_alice), 1_000);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(vm.getBlockTimestamp() + 365 days);
 
         assertEq(_mToken.balanceOf(_alice), 1_000);
 
@@ -948,7 +948,7 @@ contract MTokenTests is TestUtils {
 
         assertEq(_mToken.balanceOf(_alice), 999);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(vm.getBlockTimestamp() + 365 days);
 
         assertEq(_mToken.balanceOf(_alice), 1_105);
 
@@ -968,7 +968,7 @@ contract MTokenTests is TestUtils {
 
         assertEq(_mToken.totalEarningSupply(), 999);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(vm.getBlockTimestamp() + 365 days);
 
         assertEq(_mToken.totalEarningSupply(), 1_105);
 
@@ -986,7 +986,7 @@ contract MTokenTests is TestUtils {
 
         assertEq(_mToken.totalNonEarningSupply(), 1_000);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(vm.getBlockTimestamp() + 365 days);
 
         assertEq(_mToken.totalNonEarningSupply(), 1_000);
 
@@ -1005,7 +1005,7 @@ contract MTokenTests is TestUtils {
 
         assertEq(_mToken.totalSupply(), 1_000);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(vm.getBlockTimestamp() + 365 days);
 
         assertEq(_mToken.totalSupply(), 1_000);
 
@@ -1024,7 +1024,7 @@ contract MTokenTests is TestUtils {
 
         assertEq(_mToken.totalSupply(), 999);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(vm.getBlockTimestamp() + 365 days);
 
         assertEq(_mToken.totalSupply(), 1_105);
 
@@ -1044,7 +1044,7 @@ contract MTokenTests is TestUtils {
 
         assertEq(_mToken.totalSupply(), 1_999);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(vm.getBlockTimestamp() + 365 days);
 
         assertEq(_mToken.totalSupply(), 2_105);
 

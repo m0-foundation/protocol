@@ -65,15 +65,15 @@ contract FuzzTests is IntegrationBaseSetup {
 
         _checkMainInvariant();
 
-        vm.warp(block.timestamp + timeElapsed);
+        vm.warp(vm.getBlockTimestamp() + timeElapsed);
 
         _checkMainInvariant();
 
-        vm.warp(block.timestamp + timeElapsed);
+        vm.warp(vm.getBlockTimestamp() + timeElapsed);
 
         _checkMainInvariant();
 
-        vm.warp(block.timestamp + timeElapsed);
+        vm.warp(vm.getBlockTimestamp() + timeElapsed);
 
         _checkMainInvariant();
     }
@@ -143,7 +143,7 @@ contract FuzzTests is IntegrationBaseSetup {
 
         _checkMainInvariant();
 
-        vm.warp(block.timestamp + timeElapsed);
+        vm.warp(vm.getBlockTimestamp() + timeElapsed);
 
         assertGe(
             IMinterGateway(_minterGateway).totalOwedM(),
@@ -160,7 +160,7 @@ contract FuzzTests is IntegrationBaseSetup {
             "total owed M >= total M supply"
         );
 
-        vm.warp(block.timestamp + timeElapsed);
+        vm.warp(vm.getBlockTimestamp() + timeElapsed);
 
         _checkMainInvariant();
     }
@@ -225,7 +225,7 @@ contract FuzzTests is IntegrationBaseSetup {
 
         _checkMainInvariant();
 
-        vm.warp(block.timestamp + timeElapsed1);
+        vm.warp(vm.getBlockTimestamp() + timeElapsed1);
 
         assertGe(
             IMinterGateway(_minterGateway).totalOwedM(),
@@ -242,11 +242,11 @@ contract FuzzTests is IntegrationBaseSetup {
             "total owed M >= total M supply"
         );
 
-        vm.warp(block.timestamp + timeElapsed1);
+        vm.warp(vm.getBlockTimestamp() + timeElapsed1);
 
         _checkMainInvariant();
 
-        vm.warp(block.timestamp + timeElapsed2);
+        vm.warp(vm.getBlockTimestamp() + timeElapsed2);
 
         _checkMainInvariant();
     }
