@@ -24,7 +24,7 @@ contract DeactivateMinter_IntegrationTest is IntegrationBaseSetup {
         assertEq(_minterGateway.activeOwedMOf(minter_), mintAmount_ + 1);
         assertEq(_mToken.balanceOf(_alice), mintAmount_);
 
-        vm.warp(block.timestamp + 25 hours);
+        vm.warp(vm.getBlockTimestamp() + 25 hours);
 
         uint128 indexAfter25Hours_ = _getContinuousIndexAt(_baseMinterRate, mintIndex_, 25 hours);
         uint112 penaltyPrincipal_ = ContinuousIndexingMath.divideDown(
@@ -43,7 +43,7 @@ contract DeactivateMinter_IntegrationTest is IntegrationBaseSetup {
 
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 48 hours);
 
-        vm.warp(block.timestamp + 36 hours);
+        vm.warp(vm.getBlockTimestamp() + 36 hours);
 
         _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, minter_);
 

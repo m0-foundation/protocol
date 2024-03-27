@@ -25,7 +25,7 @@ contract BurnM_IntegrationTest is IntegrationBaseSetup {
         assertEq(_minterGateway.activeOwedMOf(minter_), mintAmount_ + 1);
         assertEq(_mToken.balanceOf(_alice), mintAmount_);
 
-        vm.warp(block.timestamp + 25 hours);
+        vm.warp(vm.getBlockTimestamp() + 25 hours);
 
         uint128 indexAfter25Hours_ = _getContinuousIndexAt(_baseMinterRate, mintIndex_, 25 hours);
         uint112 penaltyPrincipal_ = ContinuousIndexingMath.divideDown(
@@ -52,7 +52,7 @@ contract BurnM_IntegrationTest is IntegrationBaseSetup {
 
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1 hours);
 
-        vm.warp(block.timestamp + 12 hours);
+        vm.warp(vm.getBlockTimestamp() + 12 hours);
 
         uint128 indexAfter12Hours_ = _getContinuousIndexAt(_baseMinterRate, burnIndex_, 12 hours);
 
@@ -80,7 +80,7 @@ contract BurnM_IntegrationTest is IntegrationBaseSetup {
 
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 48 hours);
 
-        vm.warp(block.timestamp + 24 hours);
+        vm.warp(vm.getBlockTimestamp() + 24 hours);
 
         uint128 indexAfter24Hours_ = _getContinuousIndexAt(_baseMinterRate, burnIndex_, 24 hours);
         burnAmountPrincipal_ = ContinuousIndexingMath.divideDown(burnAmount_, indexAfter24Hours_);

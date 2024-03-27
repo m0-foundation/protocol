@@ -26,7 +26,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
         assertEq(_minterGateway.activeOwedMOf(minter_), mintAmount_ + 1);
         assertEq(_mToken.balanceOf(_alice), mintAmount_);
 
-        vm.warp(block.timestamp + 25 hours);
+        vm.warp(vm.getBlockTimestamp() + 25 hours);
 
         uint128 indexAfter25Hours_ = _getContinuousIndexAt(_baseMinterRate, mintIndex_, 25 hours);
         uint112 penaltyPrincipal_ = ContinuousIndexingMath.divideDown(
@@ -88,7 +88,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
         assertEq(_minterGateway.activeOwedMOf(minter_), mintAmount_ + 1);
         assertEq(_mToken.balanceOf(_alice), mintAmount_);
 
-        vm.warp(block.timestamp + 25 hours);
+        vm.warp(vm.getBlockTimestamp() + 25 hours);
 
         uint128 indexAfter25Hours_ = _getContinuousIndexAt(_baseMinterRate, mintIndex_, 25 hours);
         uint112 penaltyPrincipal_ = ContinuousIndexingMath.divideDown(
@@ -110,18 +110,18 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
 
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1 hours + 1 seconds);
 
-        vm.warp(block.timestamp + 12 hours);
+        vm.warp(vm.getBlockTimestamp() + 12 hours);
 
         uint128 indexAfter12Hours_ = _getContinuousIndexAt(_baseMinterRate, updateCollateralIndex_, 12 hours);
 
         assertEq(_minterGateway.currentIndex(), indexAfter12Hours_);
 
-        vm.warp(block.timestamp + 1 hours);
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
 
         uint128 indexAfter13Hours_ = _getContinuousIndexAt(_baseMinterRate, updateCollateralIndex_, 13 hours);
         uint240 imposedPenalties_ = _minterGateway.getPenaltyForMissedCollateralUpdates(minter_);
 
-        vm.warp(block.timestamp - 1 hours);
+        vm.warp(vm.getBlockTimestamp() - 1 hours);
 
         penaltyPrincipal_ = ContinuousIndexingMath.divideDown(imposedPenalties_, indexAfter13Hours_);
 
@@ -136,7 +136,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
 
         _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 48 hours);
 
-        vm.warp(block.timestamp + 24 hours);
+        vm.warp(vm.getBlockTimestamp() + 24 hours);
 
         _updateCollateral(minter_, collateral_);
 
@@ -164,7 +164,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
         assertEq(_minterGateway.activeOwedMOf(minter_), mintAmount_ + 1);
         assertEq(_mToken.balanceOf(_alice), mintAmount_);
 
-        vm.warp(block.timestamp + 12 hours);
+        vm.warp(vm.getBlockTimestamp() + 12 hours);
 
         uint32 newMintRatio_ = 5_000; // 50% in bps
         _registrar.updateConfig(TTGRegistrarReader.MINT_RATIO, newMintRatio_);
@@ -195,7 +195,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
             ContinuousIndexingMath.multiplyUp(principalAmount_, _minterGateway.currentIndex())
         );
 
-        vm.warp(block.timestamp + 12 hours);
+        vm.warp(vm.getBlockTimestamp() + 12 hours);
 
         _updateCollateral(minter_, collateral_ * 2);
 
