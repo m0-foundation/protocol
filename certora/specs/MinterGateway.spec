@@ -113,6 +113,7 @@ function setLegalInitialState(env e) {
 	require !vaultIsEarning;  // vault cannot be earning
 }
 
+/* we exported the next rule into a separate spec since it requires excessive computation
 /// @title MZero Protocol Property 1: totalOwedM >= totalMSupply
 /// This property is mentioned in the MZero protocol engineering spec doc
 rule r01_totalOwedMExceedsTotalMSupply(method f) filtered {
@@ -140,7 +141,7 @@ rule r01_totalOwedMExceedsTotalMSupply(method f) filtered {
 	uint240 totalOwedMAfter = minterGateway.totalOwedM(e);
 	uint240 totalMSupplyAfter = minterGateway.totalMSupply(e);
 	assert totalOwedMBefore >= totalMSupplyBefore => totalOwedMAfter >= totalMSupplyAfter;
-}
+} */
 
 /// @title MZero Protocol Property 2: totalOwedM = totalActiveOwedM + totalInactiveOwedM
 /// This property is mentioned in the MZero protocol engineering spec doc
