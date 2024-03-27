@@ -108,7 +108,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
         // 2. totalActive * minterRate / totalEarning >= earnerRate
         // solhint-enable max-line-length
 
-        if (totalActiveOwedM_ == 0) return 0;
+        if (totalActiveOwedM_ == 0 || minterRate_ == 0) return 0;
 
         if (totalEarningSupply_ == 0) return type(uint32).max;
 

@@ -101,5 +101,10 @@ contract RateModelTests is Test {
             }),
             0 // 0%
         );
+
+        assertEq(
+            _stableModel.getSafeEarnerRate({ totalActiveOwedM_: 1_000_000, totalEarningSupply_: 0, minterRate_: 0 }),
+            0 // 0%
+        );
     }
 }
