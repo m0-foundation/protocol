@@ -18,21 +18,21 @@ invariant SumOfBalancesEqualsTotalSupply()
 	sumOfActiveBalances <= to_mathint(UINT112_MAX())
     {
         preserved with(env e) {
+			SumTrackingSetup(e);
 			setLegalInitialState(e);
-            SumTrackingSetup(e);
 			requireInvariant SumOfBalancesEqualsTotalSupplyMToken();
         }
 		preserved deactivateMinter(address minter) with (env e) {
+			SumTrackingSetup(e);
 			setLegalInitialState(e);
-            SumTrackingSetup(e);
 			require minterGateway.getPresentAmount(e, max_uint112) + minterGateway.totalInactiveOwedM(e) < max_uint240;
 			requireInvariant SumOfBalancesEqualsTotalSupplyMToken();
         }
 		preserved activateMinter(address minter) with (env e) {
 			/// Need to be proven:
 			require minterGateway._rawOwedM[minter] == 0;  // passes
+			SumTrackingSetup(e);
 			setLegalInitialState(e);
-            SumTrackingSetup(e);
 			requireInvariant SumOfBalancesEqualsTotalSupplyMToken();
 		}
     }
@@ -44,8 +44,8 @@ invariant SumOfBalancesEqualsTotalSupplyMToken()
 	sumOfActiveBalancesMToken == to_mathint(MToken.principalOfTotalEarningSupply)
     {
         preserved with(env e) {
+			SumTrackingSetup(e);
 			setLegalInitialState(e);
-            SumTrackingSetup(e);
 			requireInvariant SumOfBalancesEqualsTotalSupply();
         }
     }
@@ -119,8 +119,8 @@ rule r01_totalOwedMExceedsTotalMSupply(method f) filtered {
 	f -> !f.isView  // view functions are not interesting to verify since they obviously cannot violate this property
 }{
 	env e; calldataarg args;
-	setLegalInitialState(e);
 	SumTrackingSetup(e);
+	setLegalInitialState(e);
 
 	requireInvariant SumOfBalancesEqualsTotalSupplyMToken();
 	requireInvariant SumOfBalancesEqualsTotalSupply();
@@ -207,7 +207,7 @@ rule r13_minterMustWaitMintDelayTimeToMintM {
 			assert_uint256(createdAt + mintDelay) <= e.block.timestamp;
 }
 
-/// @title Sanity rule to check all the methods are accessible by the prover
+/// @title Sanity rule to check all methods are reachable and do not always revert.
 rule sanity(method f)
 {
 	env e;

@@ -19,13 +19,13 @@ function SumTrackingSetup_Minter(env e) {
     require sumOfBalances == sumOfBalances_init;
 	require sumOfActiveBalances == sumOfActiveBalances_init;
 	require sumOfInactiveBalances == sumOfInactiveBalances_init;
-    havoc didAccessAccount assuming 
-		forall address minter. !didAccessAccount@new[minter];
+    //havoc didAccessAccount assuming 
+	require forall address minter. !didAccessAccount[minter];
 }
 
 hook Sstore minterGateway._minterStates[KEY address minter].isActive bool isActive (bool wasActive) {
 	uint240 _balance =  minterGateway._rawOwedM[minter];
-	require to_mathint(_balance) <= to_mathint(UINT112_MAX());
+	//require to_mathint(_balance) <= to_mathint(UINT112_MAX());
 	if(isActive && !wasActive) {
 		sumOfActiveBalances = sumOfActiveBalances + _balance;
 		sumOfInactiveBalances = sumOfInactiveBalances - _balance;

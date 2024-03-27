@@ -97,6 +97,7 @@ function SumTrackingSetup_MToken(env e) {
 }
 
 function setAllRawBalanceAccessedToFalse() {
-	havoc g_rawBalanceAccessed assuming 
-        forall address a. !g_rawBalanceAccessed@new[a];
+	require forall address a. !g_rawBalanceAccessed[a];
+	//havoc g_rawBalanceAccessed assuming 
+    //    forall address a. !g_rawBalanceAccessed@new[a];
 }
