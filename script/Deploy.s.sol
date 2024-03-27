@@ -15,7 +15,7 @@ contract Deploy is Script, DeployBase {
     function run() external {
         (address deployer_, ) = deriveRememberKey(vm.envString("MNEMONIC"), 0);
 
-        console2.log("deployer: ", deployer_);
+        console2.log("Deployer:", deployer_);
 
         vm.startBroadcast(deployer_);
 
@@ -27,9 +27,9 @@ contract Deploy is Script, DeployBase {
 
         vm.stopBroadcast();
 
-        console2.log("Minter Gateway address: ", minterGateway_);
-        console2.log("M Token address: ", IMinterGateway(minterGateway_).mToken());
-        console2.log("Earner Rate Model address: ", earnerRateModel_);
-        console2.log("Minter Rate Model address: ", minterRateModel_);
+        console2.log("Minter Gateway address:", minterGateway_);
+        console2.log("M Token address:", IMinterGateway(minterGateway_).mToken());
+        console2.log("Earner Rate Model address:", earnerRateModel_);
+        console2.log("Minter Rate Model address:", minterRateModel_);
     }
 }

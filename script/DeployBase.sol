@@ -10,6 +10,15 @@ import { StableEarnerRateModel } from "../src/rateModels/StableEarnerRateModel.s
 import { MinterRateModel } from "../src/rateModels/MinterRateModel.sol";
 
 contract DeployBase {
+    /**
+     * @dev    Deploys TTG.
+     * @param  deployer_        The address of the account deploying the contracts.
+     * @param  deployerNonce_   The current nonce of the deployer.
+     * @param  ttgRegistrar_    The address of the TTG Registrar.
+     * @return minterGateway_   The address of the deployed Minter Gateway.
+     * @return minterRateModel_ The address of the deployed Minter Rate Model.
+     * @return earnerRateModel_ The address of the deployed Earner Rate Model.
+     */
     function deploy(
         address deployer_,
         uint256 deployerNonce_,
