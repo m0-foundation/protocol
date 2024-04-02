@@ -165,8 +165,11 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     ///         If `validators`, `signatures`, `timestamps` lengths do not match.
     error SignatureArrayLengthsMismatch();
 
-    /// @notice Emitted when calling `updateCollateral` if Minter Gateway has more fresh collateral update.
+    /// @notice Emitted when updating collateral with a timestamp older than the current last update timestamp.
     error StaleCollateralUpdate(uint40 newTimestamp, uint40 lastCollateralUpdate);
+
+    /// @notice Emitted when updating collateral with a timestamp older than the latest retrieval proposal date.
+    error ObsoleteCollateralUpdate(uint40 newTimestamp, uint40 latestProposedRetrievalTimestamp);
 
     /// @notice Emitted when calling `deactivateMinter` with a minter still approved in TTG Registrar.
     error StillApprovedMinter();
@@ -362,6 +365,9 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice The timestamp until which minter is already penalized for missed collateral updates.
     function penalizedUntilOf(address minter) external view returns (uint40);
 
+    /// @notice The timestamp when `minter` created their latest retrieval proposal.
+    function latestProposedRetrievalOf(address minter) external view returns (uint40);
+
     /// @notice The penalty for missed collateral updates. Penalized once per missed interval.
     function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint240);
 
@@ -386,10 +392,10 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
         address minter
     ) external view returns (uint48 mintId, uint40 createdAt, address destination, uint240 amount);
 
-    /// @notice The minter's proposeRetrieval proposal amount
+    /// @notice The amount of a pending retrieval request for an active minter.
     function pendingCollateralRetrievalOf(address minter, uint256 retrievalId) external view returns (uint240);
 
-    /// @notice The total amount of active proposeRetrieval requests per minter
+    /// @notice The total amount of pending retrieval requests for an active minter.
     function totalPendingCollateralRetrievalOf(address minter) external view returns (uint240);
 
     /// @notice The timestamp when minter becomes unfrozen after being frozen by validator.

@@ -74,6 +74,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         uint40 updateTimestamp;
         uint40 penalizedUntilTimestamp;
         uint40 frozenUntilTimestamp;
+        uint40 latestProposedRetrievalTimestamp;
     }
 
     /* ============ Variables ============ */
@@ -228,6 +229,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             revert RetrievalsExceedCollateral(updatedTotalPendingRetrievals_, currentCollateral_);
         }
 
+        minterState_.latestProposedRetrievalTimestamp = uint40(block.timestamp);
         minterState_.totalPendingRetrievals = updatedTotalPendingRetrievals_;
         _pendingCollateralRetrievals[msg.sender][retrievalId_] = safeCollateral_;
 
@@ -581,6 +583,11 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     }
 
     /// @inheritdoc IMinterGateway
+    function latestProposedRetrievalOf(address minter_) external view returns (uint40) {
+        return _minterStates[minter_].latestProposedRetrievalTimestamp;
+    }
+
+    /// @inheritdoc IMinterGateway
     function getPenaltyForMissedCollateralUpdates(address minter_) external view returns (uint240) {
         uint112 penaltyPrincipal_ = _getPenaltyPrincipalForMissedCollateralUpdates(minter_);
 
@@ -866,13 +873,22 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param newTimestamp_ The timestamp of the collateral update.
      */
     function _updateCollateral(address minter_, uint240 amount_, uint40 newTimestamp_) internal {
-        uint40 lastUpdateTimestamp_ = _minterStates[minter_].updateTimestamp;
+        MinterState storage minterState_ = _minterStates[minter_];
 
-        // MinterGateway already has more recent collateral update
+        uint40 lastUpdateTimestamp_ = minterState_.updateTimestamp;
+
+        // Revert if minter's last collateral update is more recent.
         if (newTimestamp_ <= lastUpdateTimestamp_) revert StaleCollateralUpdate(newTimestamp_, lastUpdateTimestamp_);
 
-        _minterStates[minter_].collateral = amount_;
-        _minterStates[minter_].updateTimestamp = newTimestamp_;
+        uint40 latestProposedRetrievalTimestamp_ = minterState_.latestProposedRetrievalTimestamp;
+
+        // Revert if minter's last created retrieval proposal is more recent.
+        if (newTimestamp_ <= latestProposedRetrievalTimestamp_) {
+            revert ObsoleteCollateralUpdate(newTimestamp_, latestProposedRetrievalTimestamp_);
+        }
+
+        minterState_.collateral = amount_;
+        minterState_.updateTimestamp = newTimestamp_;
     }
 
     /* ============ Internal View/Pure Functions ============ */
