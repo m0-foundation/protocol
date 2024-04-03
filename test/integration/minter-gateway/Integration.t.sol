@@ -14,12 +14,12 @@ contract IntegrationTests is IntegrationBaseSetup {
         vm.prank(_alice);
         _mToken.startEarning();
 
-        vm.warp(block.timestamp + 2 hours); // 2 hours after deploy, minter collects signatures.
+        vm.warp(vm.getBlockTimestamp() + 2 hours); // 2 hours after deploy, minter collects signatures.
 
         uint256 collateral = 1_000_000e6;
         uint256 lastUpdateTimestamp = _updateCollateral(_minters[0], collateral);
 
-        vm.warp(block.timestamp + 1 hours); // 1 hour later, minter proposes a mint.
+        vm.warp(vm.getBlockTimestamp() + 1 hours); // 1 hour later, minter proposes a mint.
 
         uint256 mintAmount = 500_000e6;
         _mintM(_minters[0], mintAmount, _alice);
@@ -32,7 +32,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         collateral = 1_200_000e6;
         _updateCollateral(_minters[0], collateral);
 
-        vm.warp(block.timestamp + 1 hours); // 1 hour later, minter proposes a mint.
+        vm.warp(vm.getBlockTimestamp() + 1 hours); // 1 hour later, minter proposes a mint.
 
         mintAmount = 200_000e6;
         _mintM(_minters[0], mintAmount, _bob);
@@ -43,10 +43,10 @@ contract IntegrationTests is IntegrationBaseSetup {
         );
 
         // Mint M to alice, so she can repay owed M of first minter.
-        vm.warp(block.timestamp + 1 hours); // 1 hour later,second minter updates collateral and proposes mint
+        vm.warp(vm.getBlockTimestamp() + 1 hours); // 1 hour later,second minter updates collateral and proposes mint
         _updateCollateral(_minters[1], collateral);
 
-        vm.warp(block.timestamp + 1 hours);
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
 
         mintAmount = 500_000e6;
         _mintM(_minters[1], mintAmount, _alice);
@@ -62,12 +62,12 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertEq(_mToken.balanceOf(_alice), aliceBalance - minterOwedM - 1);
 
         // Minter can mint again without imposing any penalties for missed collateral updates
-        vm.warp(block.timestamp + 60 days);
+        vm.warp(vm.getBlockTimestamp() + 60 days);
 
         collateral = 1_000_000e6;
         _updateCollateral(_minters[0], collateral);
 
-        vm.warp(block.timestamp + 1 hours);
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
 
         mintAmount = 900_000e6;
         _mintM(_minters[0], mintAmount, _alice);
@@ -87,14 +87,14 @@ contract IntegrationTests is IntegrationBaseSetup {
         vm.prank(_alice);
         _mToken.startEarning();
 
-        vm.warp(block.timestamp + 2 hours); // 2 hours after deploy, minters collect signatures.
+        vm.warp(vm.getBlockTimestamp() + 2 hours); // 2 hours after deploy, minters collect signatures.
 
         uint256 collateral = 1_500_000e6;
         uint256 lastUpdateTimestamp = _updateCollateral(_minters[0], collateral);
         _updateCollateral(_minters[1], collateral);
         _updateCollateral(_minters[2], collateral);
 
-        vm.warp(block.timestamp + 1 hours); // 1 hour later, minters propose mints.
+        vm.warp(vm.getBlockTimestamp() + 1 hours); // 1 hour later, minters propose mints.
 
         uint256 mintAmount = 500_000e6;
         address[] memory testMinters = new address[](3);
@@ -135,12 +135,12 @@ contract IntegrationTests is IntegrationBaseSetup {
     function test_deactivateMinterAndPayTheirInactiveOwedM() external {
         _minterGateway.activateMinter(_minters[0]);
 
-        vm.warp(block.timestamp + 2 hours); // 2 hours after deploy, minter collects signatures.
+        vm.warp(vm.getBlockTimestamp() + 2 hours); // 2 hours after deploy, minter collects signatures.
 
         uint256 collateral = 1_000_000e6;
         uint256 lastUpdateTimestamp = _updateCollateral(_minters[0], collateral);
 
-        vm.warp(block.timestamp + 1 hours); // 1 hour later, minter proposes a mint.
+        vm.warp(vm.getBlockTimestamp() + 1 hours); // 1 hour later, minter proposes a mint.
 
         uint256 mintAmount = 500_000e6;
         _mintM(_minters[0], mintAmount, _alice);
@@ -197,7 +197,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         uint256 collateral = 1_000_000e6;
         uint256 lastUpdateTimestamp = _updateCollateral(_minters[0], collateral);
 
-        vm.warp(block.timestamp + 1 hours); // 1 hour later, minter proposes a mint.
+        vm.warp(vm.getBlockTimestamp() + 1 hours); // 1 hour later, minter proposes a mint.
 
         uint256 mintAmount = 500_000e6;
         _mintM(_minters[0], mintAmount, _alice);
@@ -240,26 +240,26 @@ contract IntegrationTests is IntegrationBaseSetup {
         vm.prank(_minters[0]);
         uint256 mintId = _minterGateway.proposeMint(mintAmount, _alice);
 
-        vm.warp(block.timestamp + 1 hours); // 1 hour after the mint delay, validator cancels mint
+        vm.warp(vm.getBlockTimestamp() + 1 hours); // 1 hour after the mint delay, validator cancels mint
 
         vm.prank(_validators[0]);
         _minterGateway.cancelMint(_minters[0], mintId);
 
         // Validator freezes minter every hour
         for (uint256 i; i < 12; ++i) {
-            vm.warp(block.timestamp + 1 hours);
+            vm.warp(vm.getBlockTimestamp() + 1 hours);
 
             vm.prank(_validators[0]);
             _minterGateway.freezeMinter(_minters[0]);
 
             assertEq(_minterGateway.isFrozenMinter(_minters[0]), true);
-            assertEq(_minterGateway.frozenUntilOf(_minters[0]), block.timestamp + _minterFreezeTime);
+            assertEq(_minterGateway.frozenUntilOf(_minters[0]), vm.getBlockTimestamp() + _minterFreezeTime);
         }
 
         // Frozen minter needs to continue updating collateral to avoid penalties
         _updateCollateral(_minters[0], collateral);
 
-        vm.warp(block.timestamp + _minterFreezeTime / 2);
+        vm.warp(vm.getBlockTimestamp() + _minterFreezeTime / 2);
 
         // Minter is still frozen
         assertEq(_minterGateway.isFrozenMinter(_minters[0]), true);
@@ -267,7 +267,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         // Frozen minter needs to continue updating collateral to avoid penalties
         _updateCollateral(_minters[0], collateral);
 
-        vm.warp(block.timestamp + _minterFreezeTime / 2 + 1);
+        vm.warp(vm.getBlockTimestamp() + _minterFreezeTime / 2 + 1);
 
         // Minter is unfrozen and can mint now
         assertEq(_minterGateway.isFrozenMinter(_minters[0]), false);
@@ -291,7 +291,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         _updateCollateral(_minters[0], collateral);
         _updateCollateral(_minters[1], collateral);
 
-        vm.warp(block.timestamp + 1 hours);
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
 
         _mintM(_minters[0], 800e6, _bob);
         _mintM(_minters[1], 250e6, _bob);
@@ -312,7 +312,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertEq(_minterGateway.minterRate(), 40_000);
         assertEq(_mToken.earnerRate(), 63_090);
 
-        uint256 timestamp_ = block.timestamp;
+        uint256 timestamp_ = vm.getBlockTimestamp();
 
         vm.warp(timestamp_ + 1 seconds);
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "1 second");
@@ -370,7 +370,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         _updateCollateral(_minters[0], collateral);
         _updateCollateral(_minters[1], collateral);
 
-        vm.warp(block.timestamp + 1 hours);
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
 
         _mintM(_minters[0], 800e6, _alice);
         _mintM(_minters[1], 500e6, _alice);
@@ -390,7 +390,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertEq(_minterGateway.minterRate(), 40_000);
         assertEq(_mToken.earnerRate(), 13_832);
 
-        uint256 timestamp_ = block.timestamp;
+        uint256 timestamp_ = vm.getBlockTimestamp();
 
         vm.warp(timestamp_ + 1 seconds);
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply(), "1 second");
@@ -446,14 +446,14 @@ contract IntegrationTests is IntegrationBaseSetup {
         _updateCollateral(_minters[0], collateral);
         _updateCollateral(_minters[1], collateral);
 
-        vm.warp(block.timestamp + 1 hours);
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
 
         _mintM(_minters[0], 800e6, _bob);
         _mintM(_minters[1], 900e6, _alice);
 
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
-        vm.warp(block.timestamp + 30 days);
+        vm.warp(vm.getBlockTimestamp() + 30 days);
 
         assertGt(_minterGateway.totalOwedM(), _mToken.totalSupply());
     }

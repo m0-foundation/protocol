@@ -6,7 +6,8 @@
   "author": "M^0 Labs <contact@m0.xyz>",
   "license": "GPL-3.0",
   "scripts": {
-    "coverage": "forge coverage --no-match-path 'test/invariant/**/*.sol' --report lcov && lcov --extract lcov.info -o lcov.info 'src/*' && genhtml lcov.info -o coverage",
+    "coverage": "make -B coverage",
+    "coverage-summary": "make -B coverage-summary",
     "doc": "forge doc --serve --port 4000",
     "prettier": "prettier --write --plugin=prettier-plugin-solidity 'script/**/*.sol' 'src/**/*.sol' 'test/**/*.sol'",
     "slither": "forge build --build-info --skip '*/test/**' --skip '*/script/**' --force && slither --compile-force-framework foundry --ignore-compile --config-file slither.config.json --fail-high .",

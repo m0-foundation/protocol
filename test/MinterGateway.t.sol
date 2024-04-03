@@ -123,7 +123,7 @@ contract MinterGatewayTests is TestUtils {
     function test_updateCollateral() external {
         uint240 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
-        uint40 signatureTimestamp = uint40(block.timestamp);
+        uint40 signatureTimestamp = uint40(vm.getBlockTimestamp());
 
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
@@ -163,7 +163,7 @@ contract MinterGatewayTests is TestUtils {
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, threshold_);
 
         uint256[] memory retrievalIds_ = new uint256[](0);
-        uint40 signatureTimestamp_ = uint40(block.timestamp);
+        uint40 signatureTimestamp_ = uint40(vm.getBlockTimestamp());
         uint256[] memory timestamps_ = new uint256[](numberOfSignatures_);
 
         ValidatorAndKey[] memory validatorsAndKeys_ = new ValidatorAndKey[](numberOfSignatures_);
@@ -224,7 +224,7 @@ contract MinterGatewayTests is TestUtils {
     function test_updateCollateral_shortSignature() external {
         uint240 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
-        uint40 signatureTimestamp = uint40(block.timestamp);
+        uint40 signatureTimestamp = uint40(vm.getBlockTimestamp());
 
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
@@ -314,7 +314,7 @@ contract MinterGatewayTests is TestUtils {
         validators[0] = _validator1;
 
         uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = block.timestamp;
+        timestamps[0] = vm.getBlockTimestamp();
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
@@ -323,7 +323,7 @@ contract MinterGatewayTests is TestUtils {
             100,
             retrievalIds,
             bytes32(0),
-            block.timestamp,
+            vm.getBlockTimestamp(),
             _validator1Pk
         );
 
@@ -359,7 +359,7 @@ contract MinterGatewayTests is TestUtils {
         validators[0] = _validator1;
 
         uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = block.timestamp;
+        timestamps[0] = vm.getBlockTimestamp();
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
@@ -368,7 +368,7 @@ contract MinterGatewayTests is TestUtils {
             100,
             retrievalIds,
             bytes32(0),
-            block.timestamp,
+            vm.getBlockTimestamp(),
             _validator1Pk
         );
 
@@ -402,7 +402,7 @@ contract MinterGatewayTests is TestUtils {
 
         uint256 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
 
         bytes memory signature1_ = _getCollateralUpdateSignature(
             address(_minterGateway),
@@ -450,7 +450,7 @@ contract MinterGatewayTests is TestUtils {
 
         uint256 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
 
         bytes memory signature1_ = _getCollateralUpdateSignature(
             address(_minterGateway),
@@ -488,7 +488,7 @@ contract MinterGatewayTests is TestUtils {
 
         uint256 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
 
         bytes memory signature1_ = _getCollateralUpdateSignature(
             address(_minterGateway),
@@ -562,7 +562,7 @@ contract MinterGatewayTests is TestUtils {
         uint240 amount = 60e18;
 
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
         uint48 expectedMintId = _minterGateway.mintNonce() + 1;
 
@@ -581,7 +581,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(mintId_, mintId);
         assertEq(amount_, amount);
         assertEq(recipient_, _alice);
-        assertEq(timestamp_, block.timestamp);
+        assertEq(timestamp_, vm.getBlockTimestamp());
     }
 
     function testFuzz_proposeMint(uint256 amount_, uint256 minterCollateral_, address recipient_) external {
@@ -591,7 +591,7 @@ contract MinterGatewayTests is TestUtils {
         minterCollateral_ = bound(minterCollateral_, amount_, type(uint240).max);
 
         _minterGateway.setCollateralOf(_minter1, minterCollateral_);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
         if (_minterGateway.maxAllowedActiveOwedMOf(_minter1) == 0) return;
 
@@ -617,7 +617,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(proposalMintId_, mintId_);
         assertEq(proposalAmount_, amount_);
         assertEq(proposalrecipient_, recipient_);
-        assertEq(proposalTimestamp_, block.timestamp);
+        assertEq(proposalTimestamp_, vm.getBlockTimestamp());
     }
 
     function test_proposeMint_zeroMintAmount() external {
@@ -654,9 +654,9 @@ contract MinterGatewayTests is TestUtils {
 
     function test_proposeMint_undercollateralizedMint() external {
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
-        vm.warp(block.timestamp + _mintDelay);
+        vm.warp(vm.getBlockTimestamp() + _mintDelay);
 
         vm.expectRevert(abi.encodeWithSelector(IMinterGateway.Undercollateralized.selector, 100e18, 90e18));
 
@@ -670,11 +670,11 @@ contract MinterGatewayTests is TestUtils {
         uint48 mintId = 1;
 
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
-        _minterGateway.setMintProposalOf(_minter1, mintId, amount, block.timestamp, _alice);
+        _minterGateway.setMintProposalOf(_minter1, mintId, amount, vm.getBlockTimestamp(), _alice);
 
-        vm.warp(block.timestamp + _mintDelay);
+        vm.warp(vm.getBlockTimestamp() + _mintDelay);
 
         vm.expectEmit();
         emit IMinterGateway.MintExecuted(mintId, _minterGateway.getPrincipalAmountRoundedUp(80e18), 80e18);
@@ -701,11 +701,11 @@ contract MinterGatewayTests is TestUtils {
         uint48 mintId = 1;
 
         _minterGateway.setCollateralOf(_minter1, 100e6);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
-        _minterGateway.setMintProposalOf(_minter1, mintId, amount, block.timestamp, _alice);
+        _minterGateway.setMintProposalOf(_minter1, mintId, amount, vm.getBlockTimestamp(), _alice);
 
-        vm.warp(block.timestamp + _mintDelay);
+        vm.warp(vm.getBlockTimestamp() + _mintDelay);
 
         vm.expectEmit();
         emit IMinterGateway.MintExecuted(mintId, 1, 1);
@@ -726,11 +726,11 @@ contract MinterGatewayTests is TestUtils {
         minterCollateral_ += (minterCollateral_ * 20e18) / 1e18;
 
         _minterGateway.setCollateralOf(_minter1, minterCollateral_);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
-        _minterGateway.setMintProposalOf(_minter1, mintId_, amount_, block.timestamp, recipient_);
+        _minterGateway.setMintProposalOf(_minter1, mintId_, amount_, vm.getBlockTimestamp(), recipient_);
 
-        vm.warp(block.timestamp + _mintDelay);
+        vm.warp(vm.getBlockTimestamp() + _mintDelay);
 
         vm.expectEmit();
         emit IMinterGateway.MintExecuted(
@@ -777,7 +777,7 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_mintM_pendingMintRequest() external {
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
         uint256 activeTimestamp_ = timestamp + _mintDelay;
         uint48 mintId = 1;
 
@@ -792,7 +792,7 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_mintM_expiredMintRequest() external {
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
         uint256 deadline_ = timestamp + _mintDelay + _mintTTL;
         uint48 mintId = 1;
 
@@ -810,11 +810,11 @@ contract MinterGatewayTests is TestUtils {
         uint48 mintId = 1;
 
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
-        _minterGateway.setMintProposalOf(_minter1, mintId, 95e18, block.timestamp, _alice);
+        _minterGateway.setMintProposalOf(_minter1, mintId, 95e18, vm.getBlockTimestamp(), _alice);
 
-        vm.warp(block.timestamp + _mintDelay + 1);
+        vm.warp(vm.getBlockTimestamp() + _mintDelay + 1);
 
         vm.expectRevert(abi.encodeWithSelector(IMinterGateway.Undercollateralized.selector, 95e18, 90e18));
 
@@ -826,11 +826,11 @@ contract MinterGatewayTests is TestUtils {
         uint48 mintId = 1;
 
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - _updateCollateralInterval);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - _updateCollateralInterval);
 
-        _minterGateway.setMintProposalOf(_minter1, mintId, 95e18, block.timestamp, _alice);
+        _minterGateway.setMintProposalOf(_minter1, mintId, 95e18, vm.getBlockTimestamp(), _alice);
 
-        vm.warp(block.timestamp + _mintDelay + 1);
+        vm.warp(vm.getBlockTimestamp() + _mintDelay + 1);
 
         vm.expectRevert(abi.encodeWithSelector(IMinterGateway.Undercollateralized.selector, 95e18, 0));
 
@@ -846,7 +846,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_mintM_invalidMintRequest_mismatchOfIds() external {
         uint256 amount = 95e18;
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
         uint48 mintId = 1;
 
         _minterGateway.setMintProposalOf(_minter1, mintId, amount, timestamp, _alice);
@@ -863,11 +863,11 @@ contract MinterGatewayTests is TestUtils {
 
         _minterGateway.setPrincipalOfTotalActiveOwedM(type(uint112).max);
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
-        _minterGateway.setMintProposalOf(_minter1, mintId, amount, block.timestamp, _alice);
+        _minterGateway.setMintProposalOf(_minter1, mintId, amount, vm.getBlockTimestamp(), _alice);
 
-        vm.warp(block.timestamp + _mintDelay);
+        vm.warp(vm.getBlockTimestamp() + _mintDelay);
 
         vm.expectRevert(IMinterGateway.OverflowsPrincipalOfTotalOwedM.selector);
 
@@ -879,7 +879,7 @@ contract MinterGatewayTests is TestUtils {
     function test_cancelMint_byValidator() external {
         uint48 mintId = 1;
 
-        _minterGateway.setMintProposalOf(_minter1, mintId, 100, block.timestamp, _alice);
+        _minterGateway.setMintProposalOf(_minter1, mintId, 100, vm.getBlockTimestamp(), _alice);
 
         vm.expectEmit();
         emit IMinterGateway.MintCanceled(mintId, _validator1);
@@ -899,7 +899,7 @@ contract MinterGatewayTests is TestUtils {
 
     function testFuzz_cancelMint_byValidator(uint256 mintId_, address recipient_) external {
         mintId_ = bound(mintId_, 1, type(uint48).max);
-        _minterGateway.setMintProposalOf(_minter1, uint48(mintId_), 100, block.timestamp, recipient_);
+        _minterGateway.setMintProposalOf(_minter1, uint48(mintId_), 100, vm.getBlockTimestamp(), recipient_);
 
         vm.expectEmit();
         emit IMinterGateway.MintCanceled(uint48(mintId_), _validator1);
@@ -950,9 +950,9 @@ contract MinterGatewayTests is TestUtils {
         uint240 amount = 60e18;
 
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
-        uint40 frozenUntil = uint40(block.timestamp) + _minterFreezeTime;
+        uint40 frozenUntil = uint40(vm.getBlockTimestamp()) + _minterFreezeTime;
 
         vm.expectEmit();
         emit IMinterGateway.MinterFrozen(_minter1, frozenUntil);
@@ -985,7 +985,7 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_freezeMinter_sequence() external {
-        uint40 timestamp = uint40(block.timestamp);
+        uint40 timestamp = uint40(vm.getBlockTimestamp());
         uint40 frozenUntil = timestamp + _minterFreezeTime;
 
         vm.expectEmit();
@@ -1017,7 +1017,7 @@ contract MinterGatewayTests is TestUtils {
 
         // initiate harness functions
         _minterGateway.setCollateralOf(_minter1, 10000000e18);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
         uint112 principalOfActiveOwedM_ = _mintM(_minterGateway, _minter1, _alice, mintId_, mintAmount_, _mintDelay);
         uint240 activeOwedM_ = _minterGateway.activeOwedMOf(_minter1);
@@ -1042,7 +1042,7 @@ contract MinterGatewayTests is TestUtils {
         minterCollateral_ += (minterCollateral_ * 20e18) / 1e18;
 
         _minterGateway.setCollateralOf(_minter1, minterCollateral_);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
         uint112 principalOfActiveOwedM_ = _mintM(
             _minterGateway,
@@ -1073,7 +1073,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_burnM_repayHalfOfOutstandingValue() external {
         _minterGateway.setCollateralOf(_minter1, 1000e18);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
         uint112 principalOfActiveOwedM = 100e18;
 
@@ -1109,7 +1109,7 @@ contract MinterGatewayTests is TestUtils {
         minterCollateral_ = bound(minterCollateral_, principalOfActiveOwedM_, type(uint112).max);
 
         _minterGateway.setCollateralOf(_minter1, minterCollateral_);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
         vm.assume(principalOfActiveOwedM_ < _minterGateway.maxAllowedActiveOwedMOf(_minter1));
 
@@ -1163,11 +1163,11 @@ contract MinterGatewayTests is TestUtils {
         uint256 collateral = 100e18;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
         _minterGateway.setPrincipalOfTotalActiveOwedM(60e18);
 
-        vm.warp(block.timestamp + 3 * _updateCollateralInterval);
+        vm.warp(vm.getBlockTimestamp() + 3 * _updateCollateralInterval);
 
         uint240 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
@@ -1179,7 +1179,7 @@ contract MinterGatewayTests is TestUtils {
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
 
-        uint256 signatureTimestamp = block.timestamp;
+        uint256 signatureTimestamp = vm.getBlockTimestamp();
 
         uint256[] memory timestamps = new uint256[](1);
         timestamps[0] = signatureTimestamp;
@@ -1215,13 +1215,13 @@ contract MinterGatewayTests is TestUtils {
         minterCollateral_ = bound(minterCollateral_, principalOfActiveOwedM_ * 2, type(uint112).max);
 
         _minterGateway.setCollateralOf(_minter1, minterCollateral_);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
 
         _minterGateway.setRawOwedMOf(_minter1, principalOfActiveOwedM_);
         _minterGateway.setPrincipalOfTotalActiveOwedM(principalOfActiveOwedM_);
 
         uint40 missedIntervals_ = 3;
-        vm.warp(block.timestamp + missedIntervals_ * _updateCollateralInterval);
+        vm.warp(vm.getBlockTimestamp() + missedIntervals_ * _updateCollateralInterval);
 
         uint240 penalty_ = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
         uint240 expectedPenalty_ = _getPresentAmountRoundedUp(
@@ -1236,7 +1236,7 @@ contract MinterGatewayTests is TestUtils {
         address[] memory validators_ = new address[](1);
         validators_[0] = _validator1;
 
-        uint256 signatureTimestamp_ = block.timestamp;
+        uint256 signatureTimestamp_ = vm.getBlockTimestamp();
 
         uint256[] memory timestamps_ = new uint256[](1);
         timestamps_[0] = signatureTimestamp_;
@@ -1277,7 +1277,7 @@ contract MinterGatewayTests is TestUtils {
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
 
-        uint256 signatureTimestamp = block.timestamp;
+        uint256 signatureTimestamp = vm.getBlockTimestamp();
 
         uint256[] memory timestamps = new uint256[](1);
         timestamps[0] = signatureTimestamp;
@@ -1299,13 +1299,13 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setRawOwedMOf(_minter1, amount);
         _minterGateway.setPrincipalOfTotalActiveOwedM(amount);
 
-        vm.warp(block.timestamp + _updateCollateralInterval - 1);
+        vm.warp(vm.getBlockTimestamp() + _updateCollateralInterval - 1);
 
         uint256 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
         assertEq(penalty, 0);
 
         // Step 2 - Update Collateral with excessive outstanding value
-        signatureTimestamp = block.timestamp;
+        signatureTimestamp = vm.getBlockTimestamp();
         timestamps[0] = signatureTimestamp;
 
         signatures[0] = _getCollateralUpdateSignature(
@@ -1347,7 +1347,7 @@ contract MinterGatewayTests is TestUtils {
         address[] memory validators_ = new address[](1);
         validators_[0] = _validator1;
 
-        uint256 signatureTimestamp_ = block.timestamp;
+        uint256 signatureTimestamp_ = vm.getBlockTimestamp();
 
         uint256[] memory timestamps_ = new uint256[](1);
         timestamps_[0] = signatureTimestamp_;
@@ -1376,12 +1376,12 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setRawOwedMOf(_minter1, principalOfActiveOwedM_);
         _minterGateway.setPrincipalOfTotalActiveOwedM(principalOfActiveOwedM_);
 
-        vm.warp(block.timestamp + _updateCollateralInterval - 1);
+        vm.warp(vm.getBlockTimestamp() + _updateCollateralInterval - 1);
 
         assertEq(_minterGateway.getPenaltyForMissedCollateralUpdates(_minter1), 0);
 
         // Step 2 - Update Collateral with excessive outstanding value
-        signatureTimestamp_ = block.timestamp;
+        signatureTimestamp_ = vm.getBlockTimestamp();
         timestamps_[0] = signatureTimestamp_;
 
         signatures_[0] = _getCollateralUpdateSignature(
@@ -1422,11 +1422,11 @@ contract MinterGatewayTests is TestUtils {
 
     function test_updateCollateral_accrueBothPenalties() external {
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
         _minterGateway.setPrincipalOfTotalActiveOwedM(60e18);
 
-        vm.warp(block.timestamp + 2 * _updateCollateralInterval);
+        vm.warp(vm.getBlockTimestamp() + 2 * _updateCollateralInterval);
 
         uint240 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
@@ -1439,7 +1439,7 @@ contract MinterGatewayTests is TestUtils {
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
 
-        uint256 signatureTimestamp = block.timestamp;
+        uint256 signatureTimestamp = vm.getBlockTimestamp();
 
         uint256[] memory timestamps = new uint256[](1);
         timestamps[0] = signatureTimestamp;
@@ -1479,12 +1479,12 @@ contract MinterGatewayTests is TestUtils {
         newCollateral_ = bound(newCollateral_, ONE, principalOfActiveOwedM_);
 
         _minterGateway.setCollateralOf(_minter1, minterCollateral_);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
         _minterGateway.setRawOwedMOf(_minter1, principalOfActiveOwedM_);
         _minterGateway.setPrincipalOfTotalActiveOwedM(principalOfActiveOwedM_);
 
         uint40 missedIntervals_ = 2;
-        vm.warp(block.timestamp + missedIntervals_ * _updateCollateralInterval);
+        vm.warp(vm.getBlockTimestamp() + missedIntervals_ * _updateCollateralInterval);
 
         uint240 activeOwedM_ = _minterGateway.activeOwedMOf(_minter1);
         uint240 expectedMissedCollateralUpdatesPenalty_ = _getPresentAmountRoundedUp(
@@ -1497,7 +1497,7 @@ contract MinterGatewayTests is TestUtils {
             expectedMissedCollateralUpdatesPenalty_
         );
 
-        uint256 signatureTimestamp_ = block.timestamp;
+        uint256 signatureTimestamp_ = vm.getBlockTimestamp();
 
         uint256[] memory retrievalIds_ = new uint256[](0);
 
@@ -1546,11 +1546,11 @@ contract MinterGatewayTests is TestUtils {
     /* ============ burnM ============ */
     function test_burnM_imposePenaltyForExpiredCollateralValue() external {
         _minterGateway.setCollateralOf(_minter1, 100e18);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
         _minterGateway.setPrincipalOfTotalActiveOwedM(60e18);
 
-        vm.warp(block.timestamp + 3 * _updateCollateralInterval);
+        vm.warp(vm.getBlockTimestamp() + 3 * _updateCollateralInterval);
 
         uint240 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
@@ -1577,12 +1577,12 @@ contract MinterGatewayTests is TestUtils {
         minterCollateral_ = bound(minterCollateral_, principalOfActiveOwedM_, type(uint112).max / 2);
 
         _minterGateway.setCollateralOf(_minter1, minterCollateral_);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
         _minterGateway.setRawOwedMOf(_minter1, principalOfActiveOwedM_);
         _minterGateway.setPrincipalOfTotalActiveOwedM(principalOfActiveOwedM_);
 
         uint40 missedIntervals_ = 3;
-        vm.warp(block.timestamp + missedIntervals_ * _updateCollateralInterval);
+        vm.warp(vm.getBlockTimestamp() + missedIntervals_ * _updateCollateralInterval);
 
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
         uint240 missedCollateralUpdatesPenalty_ = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
@@ -1604,7 +1604,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_imposePenalty_penalizedUntil() external {
         uint256 collateral = 100e18;
-        uint256 lastUpdateTimestamp = block.timestamp;
+        uint256 lastUpdateTimestamp = vm.getBlockTimestamp();
 
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, lastUpdateTimestamp);
@@ -1626,7 +1626,7 @@ contract MinterGatewayTests is TestUtils {
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
 
-        uint256 signatureTimestamp = block.timestamp;
+        uint256 signatureTimestamp = vm.getBlockTimestamp();
 
         uint256[] memory timestamps = new uint256[](1);
         timestamps[0] = signatureTimestamp;
@@ -1659,7 +1659,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_imposePenalty_penalizedUntil_reducedInterval() external {
         uint256 collateral = 100e18;
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
 
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
@@ -1680,7 +1680,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(penalizedUntil, timestamp + threeMissedIntervals);
 
         uint256 oneMoreMissedInterval = _updateCollateralInterval / 4;
-        vm.warp(block.timestamp + oneMoreMissedInterval);
+        vm.warp(vm.getBlockTimestamp() + oneMoreMissedInterval);
 
         // Burn 2 units of M and impose penalty for 1 more missed interval
         vm.prank(_alice);
@@ -1692,7 +1692,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_imposePenalty_principalOfTotalActiveOwedMOverflows() external {
         uint256 collateral = 100e18;
-        uint256 lastUpdateTimestamp = block.timestamp;
+        uint256 lastUpdateTimestamp = vm.getBlockTimestamp();
 
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, lastUpdateTimestamp);
@@ -1719,7 +1719,7 @@ contract MinterGatewayTests is TestUtils {
         address[] memory validators = new address[](1);
         validators[0] = _validator1;
 
-        uint256 signatureTimestamp = block.timestamp;
+        uint256 signatureTimestamp = vm.getBlockTimestamp();
 
         uint256[] memory timestamps = new uint256[](1);
         timestamps[0] = signatureTimestamp;
@@ -1754,7 +1754,7 @@ contract MinterGatewayTests is TestUtils {
     ) external {
         principalOfActiveOwedM_ = bound(principalOfActiveOwedM_, ONE, type(uint112).max / 6);
         minterCollateral_ = bound(minterCollateral_, principalOfActiveOwedM_, type(uint112).max / 2);
-        uint256 lastUpdateTimestamp = block.timestamp;
+        uint256 lastUpdateTimestamp = vm.getBlockTimestamp();
 
         _minterGateway.setCollateralOf(_minter1, minterCollateral_);
         _minterGateway.setUpdateTimestampOf(_minter1, lastUpdateTimestamp);
@@ -1786,7 +1786,7 @@ contract MinterGatewayTests is TestUtils {
         address[] memory validators_ = new address[](1);
         validators_[0] = _validator1;
 
-        uint256 signatureTimestamp_ = block.timestamp;
+        uint256 signatureTimestamp_ = vm.getBlockTimestamp();
 
         uint256[] memory timestamps_ = new uint256[](1);
         timestamps_[0] = signatureTimestamp_;
@@ -1827,7 +1827,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_getPenaltyForMissedCollateralUpdates_noMissedIntervals() external {
         uint256 collateral = 100e18;
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
 
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
@@ -1841,7 +1841,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_getPenaltyForMissedCollateralUpdates_oneMissedInterval() external {
         uint256 collateral = 100e18;
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
 
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
@@ -1855,7 +1855,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_getPenaltyForMissedCollateralUpdates_threeMissedInterval() external {
         uint256 collateral = 100e18;
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
 
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
@@ -1869,7 +1869,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_getPenaltyForMissedCollateralUpdates_moreMissedIntervalsDueToReducedInterval() external {
         uint256 collateral = 100e18;
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
 
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
@@ -1890,7 +1890,7 @@ contract MinterGatewayTests is TestUtils {
 
     function test_getPenaltyForMissedCollateralUpdates_updateCollateralIntervalHasChanged() external {
         uint256 collateral = 100e18;
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
 
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
@@ -1910,7 +1910,7 @@ contract MinterGatewayTests is TestUtils {
         penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
         assertEq(penalty, (2 * _minterGateway.activeOwedMOf(_minter1) * _penaltyRate) / ONE);
 
-        vm.warp(block.timestamp + _updateCollateralInterval + 10);
+        vm.warp(vm.getBlockTimestamp() + _updateCollateralInterval + 10);
 
         // Penalized for 2 new `_updateCollateralInterval` interval = 3 penalty intervals
         penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
@@ -1952,12 +1952,12 @@ contract MinterGatewayTests is TestUtils {
         _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
 
         _minterGateway.setCollateralOf(_minter1, 2_000_000);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - 4 hours);
-        _minterGateway.setUnfrozenTimeOf(_minter1, block.timestamp + 4 days);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 4 hours);
+        _minterGateway.setUnfrozenTimeOf(_minter1, vm.getBlockTimestamp() + 4 days);
         _minterGateway.setRawOwedMOf(_minter1, 1_000_000);
         _minterGateway.setTotalPendingRetrievalsOf(_minter1, 500_000);
-        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp - 4 hours);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - _updateCollateralInterval + 10);
+        _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp() - 4 hours);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - _updateCollateralInterval + 10);
 
         _minterGateway.setPrincipalOfTotalActiveOwedM(1_000_000);
         _minterGateway.setLatestIndex(
@@ -1990,7 +1990,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 mintAmount = 1000000e18;
 
         _minterGateway.setCollateralOf(_minter1, mintAmount * 2);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - _updateCollateralInterval);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - _updateCollateralInterval);
         _minterGateway.setRawOwedMOf(_minter1, mintAmount);
         _minterGateway.setPrincipalOfTotalActiveOwedM(mintAmount);
 
@@ -2024,7 +2024,7 @@ contract MinterGatewayTests is TestUtils {
 
         uint240 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
-        uint40 signatureTimestamp1 = uint40(block.timestamp);
+        uint40 signatureTimestamp1 = uint40(vm.getBlockTimestamp());
         uint40 signatureTimestamp2 = signatureTimestamp1 - 10;
 
         address[] memory validators = new address[](2);
@@ -2076,10 +2076,10 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId), collateral);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), 0);
 
-        vm.warp(block.timestamp + 200);
+        vm.warp(vm.getBlockTimestamp() + 200);
 
-        signatureTimestamp1 = uint40(block.timestamp) - 100;
-        signatureTimestamp2 = uint40(block.timestamp) - 50;
+        signatureTimestamp1 = uint40(vm.getBlockTimestamp()) - 100;
+        signatureTimestamp2 = uint40(vm.getBlockTimestamp()) - 50;
 
         uint256[] memory newRetrievalIds = new uint256[](1);
 
@@ -2132,7 +2132,7 @@ contract MinterGatewayTests is TestUtils {
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(2)));
 
         uint256[] memory retrievalIds_ = new uint256[](0);
-        uint40 signatureTimestamp1_ = uint40(block.timestamp);
+        uint40 signatureTimestamp1_ = uint40(vm.getBlockTimestamp());
         uint40 signatureTimestamp2_ = signatureTimestamp1_ - 10;
 
         address[] memory validators_ = new address[](2);
@@ -2197,10 +2197,10 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId_), minterCollateral_);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), 0);
 
-        vm.warp(block.timestamp + 200);
+        vm.warp(vm.getBlockTimestamp() + 200);
 
-        signatureTimestamp1_ = uint40(block.timestamp) - 100;
-        signatureTimestamp2_ = uint40(block.timestamp) - 50;
+        signatureTimestamp1_ = uint40(vm.getBlockTimestamp()) - 100;
+        signatureTimestamp2_ = uint40(vm.getBlockTimestamp()) - 50;
 
         uint256[] memory newRetrievalIds_ = new uint256[](1);
 
@@ -2272,7 +2272,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 collateral = 100e18;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
         _minterGateway.setRawOwedMOf(_minter1, (collateral * _mintRatio) / ONE);
 
         uint256 retrievalAmount = 10e18;
@@ -2294,7 +2294,7 @@ contract MinterGatewayTests is TestUtils {
         uint256 collateral = 100e18;
 
         _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
         _minterGateway.setTotalPendingRetrievalsOf(_minter1, collateral);
 
         uint256 retrievalAmount = 10e18;
@@ -2313,7 +2313,7 @@ contract MinterGatewayTests is TestUtils {
     function test_proposeRetrieval_multipleProposals() external {
         uint256 collateral = 100e18;
         uint256 amount = 60e18;
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
 
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
@@ -2399,7 +2399,7 @@ contract MinterGatewayTests is TestUtils {
     function test_proposeRetrieval_deactivateMinter() external {
         uint256 collateral = 100e18;
         uint256 amount = 60e18;
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
 
         _minterGateway.setCollateralOf(_minter1, collateral);
         _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
@@ -2434,7 +2434,7 @@ contract MinterGatewayTests is TestUtils {
         // @dev prevents undercollateralization
         minterCollateral_ = bound(minterCollateral_, principalOfActiveOwedM_ * 3, type(uint112).max);
         retrievalAmount_ = bound(retrievalAmount_, 1, principalOfActiveOwedM_ / 2);
-        uint256 timestamp_ = block.timestamp;
+        uint256 timestamp_ = vm.getBlockTimestamp();
 
         _minterGateway.setCollateralOf(_minter1, minterCollateral_);
         _minterGateway.setUpdateTimestampOf(_minter1, timestamp_);
@@ -2563,7 +2563,7 @@ contract MinterGatewayTests is TestUtils {
         validators[0] = _validator1;
 
         uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = block.timestamp + 100;
+        timestamps[0] = vm.getBlockTimestamp() + 100;
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
@@ -2572,7 +2572,7 @@ contract MinterGatewayTests is TestUtils {
             100,
             retrievalIds,
             bytes32(0),
-            block.timestamp + 100,
+            vm.getBlockTimestamp() + 100,
             _validator1Pk
         );
 
@@ -2594,7 +2594,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         assertEq(_minterGateway.collateralOf(_minter1), 100);
-        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), block.timestamp);
+        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), vm.getBlockTimestamp());
     }
 
     function test_updateCollateral_someSignaturesAreInvalid() external {
@@ -2609,9 +2609,9 @@ contract MinterGatewayTests is TestUtils {
         validators[2] = validator3;
 
         uint256[] memory timestamps = new uint256[](3);
-        timestamps[0] = block.timestamp;
-        timestamps[1] = block.timestamp;
-        timestamps[2] = block.timestamp;
+        timestamps[0] = vm.getBlockTimestamp();
+        timestamps[1] = vm.getBlockTimestamp();
+        timestamps[2] = vm.getBlockTimestamp();
 
         bytes[] memory signatures = new bytes[](3);
         signatures[0] = _getCollateralUpdateSignature(
@@ -2620,7 +2620,7 @@ contract MinterGatewayTests is TestUtils {
             100,
             retrievalIds,
             bytes32(0),
-            block.timestamp,
+            vm.getBlockTimestamp(),
             _validator1Pk
         ); // valid signature
 
@@ -2630,7 +2630,7 @@ contract MinterGatewayTests is TestUtils {
             200,
             retrievalIds,
             bytes32(0),
-            block.timestamp,
+            vm.getBlockTimestamp(),
             _validator2Pk
         );
 
@@ -2640,7 +2640,7 @@ contract MinterGatewayTests is TestUtils {
             100,
             retrievalIds,
             bytes32(0),
-            block.timestamp,
+            vm.getBlockTimestamp(),
             validator3Pk
         );
 
@@ -2648,7 +2648,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         assertEq(_minterGateway.collateralOf(_minter1), 100);
-        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), block.timestamp);
+        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), vm.getBlockTimestamp());
     }
 
     /* ============ Getters ============ */
@@ -2703,7 +2703,7 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_activeOwedM_indexing() external {
-        uint256 timestamp = block.timestamp;
+        uint256 timestamp = vm.getBlockTimestamp();
         uint128 initialIndex = _minterGateway.latestIndex();
         _minterGateway.setRawOwedMOf(_minter1, 1000000e6);
 
@@ -2749,13 +2749,13 @@ contract MinterGatewayTests is TestUtils {
 
     function test_getMissedCollateralUpdateParameters_zeroNewUpdateInterval() external {
         (uint40 missedIntervals_, uint40 missedUntil_) = _minterGateway.getMissedCollateralUpdateParameters({
-            lastUpdateTimestamp_: uint40(block.timestamp) - 48 hours, // This does not matter
-            lastPenalizedUntil_: uint40(block.timestamp) - 24 hours, // This does not matter
+            lastUpdateTimestamp_: uint40(vm.getBlockTimestamp()) - 48 hours, // This does not matter
+            lastPenalizedUntil_: uint40(vm.getBlockTimestamp()) - 24 hours, // This does not matter
             updateInterval_: 0
         });
 
         assertEq(missedIntervals_, 0);
-        assertEq(missedUntil_, uint40(block.timestamp) - 24 hours);
+        assertEq(missedUntil_, uint40(vm.getBlockTimestamp()) - 24 hours);
     }
 
     function test_getMissedCollateralUpdateParameters_newMinter() external {
@@ -2811,42 +2811,51 @@ contract MinterGatewayTests is TestUtils {
 
     function test_collateralExpiryTimestampOf() external {
         // collateralExpiryTimestampOf should always be equal to updateTimestampOf + updateCollateralInterval
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
-        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), block.timestamp + _updateCollateralInterval);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
+        assertEq(
+            _minterGateway.collateralExpiryTimestampOf(_minter1),
+            vm.getBlockTimestamp() + _updateCollateralInterval
+        );
 
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1_234);
-        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), block.timestamp + 1234);
+        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), vm.getBlockTimestamp() + 1234);
 
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - 10_000);
-        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), block.timestamp - 10_000 + 1_234);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 10_000);
+        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), vm.getBlockTimestamp() - 10_000 + 1_234);
     }
 
     function test_collateralPenaltyDeadlineOf() external {
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
-        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp - 10);
-        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp + _updateCollateralInterval);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
+        _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp() - 10);
+        assertEq(
+            _minterGateway.collateralPenaltyDeadlineOf(_minter1),
+            vm.getBlockTimestamp() + _updateCollateralInterval
+        );
 
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - 10);
-        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp);
-        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp + _updateCollateralInterval);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 10);
+        _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp());
+        assertEq(
+            _minterGateway.collateralPenaltyDeadlineOf(_minter1),
+            vm.getBlockTimestamp() + _updateCollateralInterval
+        );
 
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1_234);
 
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp);
-        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp - 10);
-        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp + 1234);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
+        _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp() - 10);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), vm.getBlockTimestamp() + 1234);
 
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - 10);
-        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp);
-        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp + 1234);
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 10);
+        _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp());
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), vm.getBlockTimestamp() + 1234);
 
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - 10_000);
-        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp - 10_010);
-        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp - 10_000 + 9 * (1234));
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 10_000);
+        _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp() - 10_010);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), vm.getBlockTimestamp() - 10_000 + 9 * (1234));
 
-        _minterGateway.setUpdateTimestampOf(_minter1, block.timestamp - 10_010);
-        _minterGateway.setPenalizedUntilOf(_minter1, block.timestamp - 10_000);
-        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), block.timestamp - 10_000 + 9 * (1234));
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 10_010);
+        _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp() - 10_000);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), vm.getBlockTimestamp() - 10_000 + 9 * (1234));
     }
 
     /* ============ M Token ============ */
@@ -2883,7 +2892,7 @@ contract MinterGatewayTests is TestUtils {
         address[] memory validators_ = new address[](1);
         validators_[0] = _validator1;
 
-        uint40 signatureTimestamp = uint40(block.timestamp);
+        uint40 signatureTimestamp = uint40(vm.getBlockTimestamp());
         uint256[] memory timestamps_ = new uint256[](1);
         timestamps_[0] = signatureTimestamp;
 
@@ -2917,14 +2926,14 @@ contract MinterGatewayTests is TestUtils {
         // Mint an amount of M slightly above half of the maximum allowed.
         uint256 mintAmount_ = (uint256(type(uint112).max) * 1e7) / (2e7 - 11);
 
-        minterGateway_.setMintProposalOf(_alice, 1, mintAmount_, block.timestamp, _alice);
-        vm.warp(block.timestamp + _mintDelay);
+        minterGateway_.setMintProposalOf(_alice, 1, mintAmount_, vm.getBlockTimestamp(), _alice);
+        vm.warp(vm.getBlockTimestamp() + _mintDelay);
         vm.prank(_alice);
         minterGateway_.mintM(1);
 
-        minterGateway_.setMintProposalOf(_bob, 2, mintAmount_, block.timestamp, _bob);
+        minterGateway_.setMintProposalOf(_bob, 2, mintAmount_, vm.getBlockTimestamp(), _bob);
 
-        vm.warp(block.timestamp + _mintDelay);
+        vm.warp(vm.getBlockTimestamp() + _mintDelay);
         vm.prank(_bob);
 
         // Overflows `principalOfTotalEarningSupply` when minting excess owed M to the Vault.

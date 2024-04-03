@@ -47,9 +47,9 @@ contract TestUtils is Test {
         uint256 amount_,
         uint32 mintDelay_
     ) internal returns (uint112 principalOfActiveOwedM_) {
-        minterGateway_.setMintProposalOf(minter_, mintId_, amount_, block.timestamp, recipient_);
+        minterGateway_.setMintProposalOf(minter_, mintId_, amount_, vm.getBlockTimestamp(), recipient_);
 
-        vm.warp(block.timestamp + mintDelay_);
+        vm.warp(vm.getBlockTimestamp() + mintDelay_);
 
         vm.prank(minter_);
         (principalOfActiveOwedM_, ) = minterGateway_.mintM(mintId_);

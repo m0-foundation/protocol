@@ -2,8 +2,6 @@
 
 pragma solidity 0.8.23;
 
-import { Test } from "../../lib/forge-std/src/Test.sol";
-
 import { IMToken } from "../../src/interfaces/IMToken.sol";
 import { IMinterGateway } from "../../src/interfaces/IMinterGateway.sol";
 
@@ -12,7 +10,7 @@ import { TTGRegistrarReader } from "../../src/libs/TTGRegistrarReader.sol";
 import { MockTTGRegistrar } from "../utils/Mocks.sol";
 import { TestUtils } from "../utils/TestUtils.sol";
 
-import { DeployBase } from "../../script/DeployBase.s.sol";
+import { DeployBase } from "../../script/DeployBase.sol";
 
 import { ProtocolHandler } from "./handlers/ProtocolHandler.sol";
 
@@ -45,9 +43,10 @@ contract InvariantTests is TestUtils {
 
         _registrar.setVault(makeAddr("vault"));
 
+        // NOTE: Using `DeployBase` as a contract instead of a script, means that the deployer is `_deploy` itself.
         (address minterGateway_, address minterRateModel_, address earnerRateModel_) = _deploy.deploy(
-            _deployer,
-            0,
+            address(_deploy),
+            1,
             address(_registrar)
         );
 
