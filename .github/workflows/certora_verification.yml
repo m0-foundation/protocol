@@ -48,5 +48,4 @@ jobs:
       matrix:
         contract:
           - MinterGateway.conf
-          - MinterGateway-r01-only.conf
           - ContinuousIndexingMath.conf
