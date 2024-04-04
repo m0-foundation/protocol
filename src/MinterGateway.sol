@@ -1007,7 +1007,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param validator_ The address of the validator
      */
     function _revertIfNotApprovedValidator(address validator_) internal view {
-        if (!isValidatorApprovedByTTG(validator_)) revert NotApprovedValidator();
+        if (!isValidatorApprovedByTTG(validator_)) revert NotApprovedValidator(validator_);
     }
 
     /**
@@ -1051,12 +1051,13 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         uint256[] calldata timestamps_,
         bytes[] calldata signatures_
     ) internal view returns (uint40 minTimestamp_) {
-        uint256 threshold_ = updateCollateralValidatorThreshold();
+        if (signatures_.length != updateCollateralValidatorThreshold()) {
+            revert InvalidSignatureCount(signatures_.length, updateCollateralValidatorThreshold());
+        }
 
         minTimestamp_ = uint40(block.timestamp);
 
-        // Stop processing if there are no more signatures or `threshold_` is reached.
-        for (uint256 index_; index_ < signatures_.length && threshold_ > 0; ++index_) {
+        for (uint256 index_; index_ < signatures_.length; ++index_) {
             unchecked {
                 // Check that validator address is unique and not accounted for
                 // NOTE: We revert here because this failure is entirely within the minter's control.
@@ -1064,7 +1065,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             }
 
             // Check that validator is approved by TTG.
-            if (!isValidatorApprovedByTTG(validators_[index_])) continue;
+            if (!isValidatorApprovedByTTG(validators_[index_])) revert NotApprovedValidator(validators_[index_]);
 
             // Check that the timestamp is not 0.
             if (timestamps_[index_] == 0) revert ZeroTimestamp();
@@ -1082,26 +1083,11 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             );
 
             // Check that ECDSA or ERC1271 signatures for given digest are valid.
-            if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_])) continue;
+            if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_]))
+                revert InvalidSignature();
 
             // Find minimum between all valid timestamps for valid signatures.
             minTimestamp_ = UIntMath.min40(minTimestamp_, uint40(timestamps_[index_]));
-
-            unchecked {
-                --threshold_;
-            }
-        }
-
-        // NOTE: Due to STACK_TOO_DEEP issues, we need to refetch `requiredThreshold_` and compute the number of valid
-        //       signatures here, in order to emit the correct error message. However, the code will only reach this
-        //       point to inevitably revert, so the gas cost is not much of a concern.
-        if (threshold_ > 0) {
-            uint256 requiredThreshold_ = updateCollateralValidatorThreshold();
-
-            unchecked {
-                // NOTE: By this point, it is already established that `threshold_` is less than `requiredThreshold_`.
-                revert NotEnoughValidSignatures(requiredThreshold_ - threshold_, requiredThreshold_);
-            }
         }
     }
 }

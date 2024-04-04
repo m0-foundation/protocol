@@ -139,6 +139,10 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice Emitted when calling `cancelMint` or `mintM` with invalid `mintId`.
     error InvalidMintProposal();
 
+    /// @notice Emitted when calling `updateCollateral` if the number of signatures provided
+    ///         is different from the number of signatures required.
+    error InvalidSignatureCount(uint256 providedSignatures, uint256 requiredSignatures);
+
     /// @notice Emitted when calling `updateCollateral` if `validators` addresses are not ordered in ascending order.
     error InvalidSignatureOrder();
 
@@ -146,10 +150,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     error NotApprovedMinter();
 
     /// @notice Emitted when calling `cancelMint` or `freezeMinter` if validator was not approved by TTG.
-    error NotApprovedValidator();
-
-    /// @notice Emitted when calling `updateCollateral` if `validatorThreshold` of signatures was not reached.
-    error NotEnoughValidSignatures(uint256 validSignatures, uint256 requiredThreshold);
+    error NotApprovedValidator(address validator);
 
     /// @notice Emitted when principal of total owed M (active and inactive) will overflow a `type(uint112).max`.
     error OverflowsPrincipalOfTotalOwedM();
