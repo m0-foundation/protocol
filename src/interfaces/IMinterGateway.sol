@@ -155,6 +155,9 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice Emitted when principal of total owed M (active and inactive) will overflow a `type(uint112).max`.
     error OverflowsPrincipalOfTotalOwedM();
 
+    /// @notice Emitted when a validator provides a signature that is older than the last one.
+    error PastValidatorUpdateTimestamp(address validator);
+
     /// @notice Emitted when calling `mintM` if `mintDelay` time has not passed yet.
     error PendingMintProposal(uint40 activeTimestamp);
 

@@ -123,6 +123,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     /// @dev The pending collateral retrievals of minter (retrieval ID, amount).
     mapping(address minter => mapping(uint48 retrievalId => uint240 amount)) internal _pendingCollateralRetrievals;
 
+    /// @dev The last update timestamp of each validator for each minter.
+    mapping(address minter => mapping(address validator => uint40 lastUpdateTimestamp))
+        internal _lastValidatorUpdateTimestamp;
+
     /* ============ Modifiers ============ */
 
     /**
@@ -1065,10 +1069,14 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             }
 
             // Check that validator is approved by TTG.
-            if (!isValidatorApprovedByTTG(validators_[index_])) revert NotApprovedValidator(validators_[index_]);
+            _revertIfNotApprovedValidator(validators_[index_]);
 
             // Check that the timestamp is not 0.
             if (timestamps_[index_] == 0) revert ZeroTimestamp();
+
+            // Verify that the validator's signature is newer than the previous one.
+            if (timestamps_[index_] <= _lastValidatorUpdateTimestamp[minter_][validators_[index_]])
+                revert PastValidatorUpdateTimestamp(validators_[index_]);
 
             // Check that the timestamp is not in the future.
             if (timestamps_[index_] > uint40(block.timestamp)) revert FutureTimestamp();
