@@ -1062,12 +1062,11 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         minTimestamp_ = uint40(block.timestamp);
 
         for (uint256 index_; index_ < signatures_.length; ++index_) {
-            // NOTE: not needed anymore
-            // unchecked {
-            //     // Check that validator address is unique and not accounted for
-            //     // NOTE: We revert here because this failure is entirely within the minter's control.
-            //     if (index_ > 0 && validators_[index_] <= validators_[index_ - 1]) revert InvalidSignatureOrder();
-            // }
+            unchecked {
+                // Check that validator address is unique and not accounted for
+                // NOTE: We revert here because this failure is entirely within the minter's control.
+                if (index_ > 0 && validators_[index_] <= validators_[index_ - 1]) revert InvalidSignatureOrder();
+            }
 
             // Check that validator is approved by TTG.
             _revertIfNotApprovedValidator(validators_[index_]);
