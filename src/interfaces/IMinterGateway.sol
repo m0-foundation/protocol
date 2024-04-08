@@ -130,7 +130,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice Emitted when calling `mintM` or `proposeMint` by a minter who was frozen by validator.
     error FrozenMinter();
 
-    /// @notice Emitted when calling `updateCollateral` if validator timestamp is in the future.
+    /// @notice Emitted when calling `updateCollateral` with any validator timestamp in the future.
     error FutureTimestamp();
 
     /// @notice Emitted when calling a function only allowed for active minters.
@@ -145,8 +145,8 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice Emitted when calling `activateMinter` if minter was not approved by TTG.
     error NotApprovedMinter();
 
-    /// @notice Emitted when calling `cancelMint` or `freezeMinter` if validator was not approved by TTG.
-    error NotApprovedValidator();
+    /// @notice Emitted when calling `cancelMint` or `freezeMinter` if `validator` was not approved by TTG.
+    error NotApprovedValidator(address validator);
 
     /// @notice Emitted when calling `updateCollateral` if `validatorThreshold` of signatures was not reached.
     error NotEnoughValidSignatures(uint256 validSignatures, uint256 requiredThreshold);
@@ -167,6 +167,10 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
 
     /// @notice Emitted when updating collateral with a timestamp earlier than allowed.
     error StaleCollateralUpdate(uint40 newTimestamp, uint40 earliestAllowedTimestamp);
+
+    /// @notice Emitted when calling `updateCollateral` with any validator timestamp older than the last signature
+    ///         timestamp for that minter and validator.
+    error OutdatedValidatorTimestamp(address validator, uint256 timestamp, uint256 lastSignatureTimestamp);
 
     /// @notice Emitted when calling `deactivateMinter` with a minter still approved in TTG Registrar.
     error StillApprovedMinter();
@@ -199,7 +203,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice Emitted in constructor if TTG Distribution Vault is set to 0x0 in TTG Registrar.
     error ZeroTTGVault();
 
-    /// @notice Emitted when calling `updateCollateral` if validator timestamp is 0.
+    /// @notice Emitted when calling `updateCollateral` with any validator timestamp of 0.
     error ZeroTimestamp();
 
     /* ============ Interactive Functions ============ */
@@ -364,6 +368,14 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
 
     /// @notice The timestamp when `minter` created their latest retrieval proposal.
     function latestProposedRetrievalTimestampOf(address minter) external view returns (uint40);
+
+    /**
+     * @notice Returns the last signature timestamp used by `validator` to update collateral for `minter`.
+     * @param  minter    The address of the minter.
+     * @param  validator The address of the validator.
+     * @return The last signature timestamp used.
+     */
+    function getLastSignatureTimestamp(address minter, address validator) external view returns (uint256);
 
     /// @notice The penalty for missed collateral updates. Penalized once per missed interval.
     function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint240);

@@ -124,6 +124,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     /// @dev The pending collateral retrievals of minter (retrieval ID, amount).
     mapping(address minter => mapping(uint48 retrievalId => uint240 amount)) internal _pendingCollateralRetrievals;
 
+    /// @dev The last update signature timestamp of each validator for each minter.
+    mapping(address minter => mapping(address validator => uint256 timestamp)) internal _lastSignatureTimestamp;
+
     /* ============ Modifiers ============ */
 
     /**
@@ -588,6 +591,11 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     }
 
     /// @inheritdoc IMinterGateway
+    function getLastSignatureTimestamp(address minter_, address validator_) external view returns (uint256) {
+        return _lastSignatureTimestamp[minter_][validator_];
+    }
+
+    /// @inheritdoc IMinterGateway
     function getPenaltyForMissedCollateralUpdates(address minter_) external view returns (uint240) {
         uint112 penaltyPrincipal_ = _getPenaltyPrincipalForMissedCollateralUpdates(minter_);
 
@@ -1021,7 +1029,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param validator_ The address of the validator
      */
     function _revertIfNotApprovedValidator(address validator_) internal view {
-        if (!isValidatorApprovedByTTG(validator_)) revert NotApprovedValidator();
+        if (!isValidatorApprovedByTTG(validator_)) revert NotApprovedValidator(validator_);
     }
 
     /**
@@ -1064,58 +1072,88 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         address[] calldata validators_,
         uint256[] calldata timestamps_,
         bytes[] calldata signatures_
-    ) internal view returns (uint40 minTimestamp_) {
-        uint256 threshold_ = updateCollateralValidatorThreshold();
-
+    ) internal returns (uint40 minTimestamp_) {
         minTimestamp_ = uint40(block.timestamp);
 
-        // Stop processing if there are no more signatures or `threshold_` is reached.
-        for (uint256 index_; index_ < signatures_.length && threshold_ > 0; ++index_) {
+        uint256 validCount_;
+
+        for (uint256 index_; index_ < signatures_.length; ++index_) {
             unchecked {
                 // Check that validator address is unique and not accounted for
                 // NOTE: We revert here because this failure is entirely within the minter's control.
                 if (index_ > 0 && validators_[index_] <= validators_[index_ - 1]) revert InvalidSignatureOrder();
             }
 
-            // Check that validator is approved by TTG.
-            if (!isValidatorApprovedByTTG(validators_[index_])) continue;
-
-            // Check that the timestamp is not 0.
-            if (timestamps_[index_] == 0) revert ZeroTimestamp();
-
-            // Check that the timestamp is not in the future.
-            if (timestamps_[index_] > uint40(block.timestamp)) revert FutureTimestamp();
-
-            // NOTE: Need to store the variable here to avoid a stack too deep error.
-            bytes32 digest_ = _getUpdateCollateralDigest(
-                minter_,
-                collateral_,
-                retrievalIds_,
-                metadataHash_,
-                timestamps_[index_]
-            );
-
-            // Check that ECDSA or ERC1271 signatures for given digest are valid.
-            if (!SignatureChecker.isValidSignature(validators_[index_], digest_, signatures_[index_])) continue;
+            if (
+                !_verifyValidatorSignature(
+                    minter_,
+                    collateral_,
+                    retrievalIds_,
+                    metadataHash_,
+                    validators_[index_],
+                    timestamps_[index_],
+                    signatures_[index_]
+                )
+            ) continue;
 
             // Find minimum between all valid timestamps for valid signatures.
             minTimestamp_ = UIntMath.min40(minTimestamp_, uint40(timestamps_[index_]));
 
             unchecked {
-                --threshold_;
+                ++validCount_;
             }
         }
 
-        // NOTE: Due to STACK_TOO_DEEP issues, we need to refetch `requiredThreshold_` and compute the number of valid
-        //       signatures here, in order to emit the correct error message. However, the code will only reach this
-        //       point to inevitably revert, so the gas cost is not much of a concern.
-        if (threshold_ > 0) {
-            uint256 requiredThreshold_ = updateCollateralValidatorThreshold();
+        uint256 requiredThreshold_ = updateCollateralValidatorThreshold();
 
-            unchecked {
-                // NOTE: By this point, it is already established that `threshold_` is less than `requiredThreshold_`.
-                revert NotEnoughValidSignatures(requiredThreshold_ - threshold_, requiredThreshold_);
-            }
-        }
+        if (validCount_ < requiredThreshold_) revert NotEnoughValidSignatures(validCount_, requiredThreshold_);
+    }
+
+    /**
+     * @dev    Checks that a signature is a valid validator signature.
+     * @param  minter_       The address of the minter.
+     * @param  collateral_   The amount of collateral.
+     * @param  retrievalIds_ The list of outstanding collateral retrieval IDs to resolve.
+     * @param  metadataHash_ The hash of metadata of the collateral update, reserved for future informational use.
+     * @param  validator_    The address of a validator.
+     * @param  timestamp_    The timestamp for the collateral update signature.
+     * @param  signature_    The signature from the validator.
+     * @return valid_        Whether the signature is a valid validator signature.
+     */
+    function _verifyValidatorSignature(
+        address minter_,
+        uint256 collateral_,
+        uint256[] calldata retrievalIds_,
+        bytes32 metadataHash_,
+        address validator_,
+        uint256 timestamp_,
+        bytes calldata signature_
+    ) internal returns (bool valid_) {
+        // Check that the timestamp is not 0.
+        // NOTE: Revert here because this failure is entirely within the minter's control.
+        if (timestamp_ == 0) revert ZeroTimestamp();
+
+        // Check that the timestamp is not in the future.
+        // NOTE: Revert here because this failure is entirely within the minter's control.
+        if (timestamp_ > uint40(block.timestamp)) revert FutureTimestamp();
+
+        uint256 lastTimestamp_ = _lastSignatureTimestamp[minter_][validator_];
+
+        // Check that the timestamp is not older than the last signature timestamp.
+        // NOTE: Revert here because this failure is entirely within the minter's control.
+        if (timestamp_ <= lastTimestamp_) revert OutdatedValidatorTimestamp(validator_, timestamp_, lastTimestamp_);
+
+        // Check that validator is approved by TTG.
+        if (!isValidatorApprovedByTTG(validator_)) return false;
+
+        // Check that ECDSA or ERC1271 signatures for given digest are valid.
+        valid_ = SignatureChecker.isValidSignature(
+            validator_,
+            _getUpdateCollateralDigest(minter_, collateral_, retrievalIds_, metadataHash_, timestamp_),
+            signature_
+        );
+
+        // Save the last signature timestamp for the minter and validator combination.
+        _lastSignatureTimestamp[minter_][validator_] = timestamp_;
     }
 }

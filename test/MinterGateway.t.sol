@@ -50,12 +50,6 @@ contract MinterGatewayTests is TestUtils {
     MockTTGRegistrar internal _ttgRegistrar;
     MinterGatewayHarness internal _minterGateway;
 
-    // Helper for a fuzzing test
-    struct ValidatorAndKey {
-        address validator;
-        uint256 pk;
-    }
-
     function setUp() external {
         (_validator1, _validator1Pk) = makeAddrAndKey("validator1");
         (_validator2, _validator2Pk) = makeAddrAndKey("validator2");
@@ -157,61 +151,68 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), signatureTimestamp + _updateCollateralInterval);
         assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), signatureTimestamp + _updateCollateralInterval);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), (collateral * _mintRatio) / ONE);
+        assertEq(_minterGateway.getLastSignatureTimestamp(_minter1, _validator1), signatureTimestamp);
     }
 
-    function testFuzz_updateCollateral(uint256 collateral_, uint256 threshold_, uint256 numberOfSignatures_) external {
-        uint256 max_threshold = 5;
-        threshold_ = bound(threshold_, 1, max_threshold);
-        numberOfSignatures_ = bound(numberOfSignatures_, threshold_, max_threshold);
+    function testFuzz_updateCollateral(
+        uint256 collateral_,
+        uint256 threshold_,
+        uint256 numberOfSignatures_,
+        uint256 salt_
+    ) external {
+        salt_ /= 2; // Divide by 2 to avoid overflow.
+        threshold_ = bound(threshold_, 1, 5);
+        numberOfSignatures_ = bound(numberOfSignatures_, threshold_, threshold_ + 2); // Up to 2 extra.
         collateral_ = bound(collateral_, 0, type(uint240).max / _mintRatio);
         _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, threshold_);
 
-        uint256[] memory retrievalIds_ = new uint256[](0);
-        uint40 signatureTimestamp_ = uint40(vm.getBlockTimestamp());
         uint256[] memory timestamps_ = new uint256[](numberOfSignatures_);
-
-        ValidatorAndKey[] memory validatorsAndKeys_ = new ValidatorAndKey[](numberOfSignatures_);
+        uint256[] memory pks_ = new uint256[](numberOfSignatures_);
         address[] memory validators_ = new address[](numberOfSignatures_);
         bytes[] memory signatures_ = new bytes[](numberOfSignatures_);
 
-        for (uint256 i = 0; i < numberOfSignatures_; i++) {
-            address newValidator_;
-            uint256 newValidatorPk_;
+        uint40 mintTimestamp_;
 
+        for (uint256 i; i < numberOfSignatures_; ++i) {
             if (i == 0) {
-                (newValidator_, newValidatorPk_) = makeAddrAndKey(string(abi.encode("validator", i)));
+                (validators_[0], pks_[0]) = makeAddrAndKey(string(abi.encode("validator", i)));
             } else {
-                // @dev Next validator's address must be bigger to preserve right order of signers
-                uint256 extraSalt_;
-
-                while (newValidator_ <= validatorsAndKeys_[i - 1].validator) {
-                    (newValidator_, newValidatorPk_) = makeAddrAndKey(string(abi.encode("validator", i, extraSalt_)));
-                    extraSalt_++;
+                // Next validator's address must be bigger to preserve right order of signers
+                while (validators_[i] <= validators_[i - 1]) {
+                    (validators_[i], pks_[i]) = makeAddrAndKey(string(abi.encode("validator", i, salt_++)));
                 }
             }
 
-            validatorsAndKeys_[i] = ValidatorAndKey(newValidator_, newValidatorPk_);
-            validators_[i] = validatorsAndKeys_[i].validator;
             _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, validators_[i]);
-            timestamps_[i] = signatureTimestamp_;
+
+            timestamps_[i] = bound(
+                salt_++,
+                vm.getBlockTimestamp() - _updateCollateralInterval / 2,
+                vm.getBlockTimestamp()
+            );
+
+            if (i == 0 || timestamps_[i] < mintTimestamp_) {
+                mintTimestamp_ = uint40(timestamps_[i]);
+            }
+
             signatures_[i] = _getCollateralUpdateSignature(
                 address(_minterGateway),
                 _minter1,
                 collateral_,
-                retrievalIds_,
+                new uint256[](0),
                 bytes32(0),
-                signatureTimestamp_,
-                validatorsAndKeys_[i].pk
+                timestamps_[i],
+                pks_[i]
             );
         }
 
         vm.expectEmit();
-        emit IMinterGateway.CollateralUpdated(_minter1, uint240(collateral_), 0, bytes32(0), signatureTimestamp_);
+        emit IMinterGateway.CollateralUpdated(_minter1, uint240(collateral_), 0, bytes32(0), mintTimestamp_);
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(
             uint240(collateral_),
-            retrievalIds_,
+            new uint256[](0),
             bytes32(0),
             validators_,
             timestamps_,
@@ -219,10 +220,14 @@ contract MinterGatewayTests is TestUtils {
         );
 
         assertEq(_minterGateway.collateralOf(_minter1), uint240(collateral_));
-        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), signatureTimestamp_);
-        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), signatureTimestamp_ + _updateCollateralInterval);
-        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), signatureTimestamp_ + _updateCollateralInterval);
+        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), mintTimestamp_);
+        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), mintTimestamp_ + _updateCollateralInterval);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), mintTimestamp_ + _updateCollateralInterval);
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), (collateral_ * _mintRatio) / ONE);
+
+        for (uint256 i; i < numberOfSignatures_; ++i) {
+            assertEq(_minterGateway.getLastSignatureTimestamp(_minter1, validators_[i]), timestamps_[i]);
+        }
     }
 
     function test_updateCollateral_shortSignature() external {
@@ -926,8 +931,11 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_cancelMint_notApprovedValidator() external {
-        vm.expectRevert(IMinterGateway.NotApprovedValidator.selector);
-        vm.prank(makeAddr("someNonApprovedValidator"));
+        address nonApprovedValidator = makeAddr("someNonApprovedValidator");
+
+        vm.expectRevert(abi.encodeWithSelector(IMinterGateway.NotApprovedValidator.selector, nonApprovedValidator));
+
+        vm.prank(nonApprovedValidator);
         _minterGateway.cancelMint(_minter1, 1);
     }
 
@@ -1010,7 +1018,7 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_freezeMinter_notApprovedValidator() external {
-        vm.expectRevert(IMinterGateway.NotApprovedValidator.selector);
+        vm.expectRevert(abi.encodeWithSelector(IMinterGateway.NotApprovedValidator.selector, _alice));
         vm.prank(_alice);
         _minterGateway.freezeMinter(_minter1);
     }
@@ -2579,6 +2587,41 @@ contract MinterGatewayTests is TestUtils {
         );
 
         vm.expectRevert(IMinterGateway.FutureTimestamp.selector);
+
+        vm.prank(_minter1);
+        _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
+    }
+
+    function test_updateCollateral_outdatedValidatorTimestamp() external {
+        uint256[] memory retrievalIds = new uint256[](0);
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+
+        uint256[] memory timestamps = new uint256[](1);
+        timestamps[0] = vm.getBlockTimestamp() + 100;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            100,
+            retrievalIds,
+            bytes32(0),
+            vm.getBlockTimestamp() + 100,
+            _validator1Pk
+        );
+
+        _minterGateway.setLastSignatureTimestamp(_minter1, _validator1, timestamps[0]);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMinterGateway.OutdatedValidatorTimestamp.selector,
+                _validator1,
+                timestamps[0],
+                timestamps[0]
+            )
+        );
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
