@@ -1054,7 +1054,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         address[] calldata validators_,
         uint256[] calldata timestamps_,
         bytes[] calldata signatures_
-    ) internal view returns (uint40 minTimestamp_) {
+    ) internal returns (uint40 minTimestamp_) {
         if (signatures_.length != updateCollateralValidatorThreshold()) {
             revert InvalidSignatureCount(signatures_.length, updateCollateralValidatorThreshold());
         }
@@ -1062,11 +1062,12 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         minTimestamp_ = uint40(block.timestamp);
 
         for (uint256 index_; index_ < signatures_.length; ++index_) {
-            unchecked {
-                // Check that validator address is unique and not accounted for
-                // NOTE: We revert here because this failure is entirely within the minter's control.
-                if (index_ > 0 && validators_[index_] <= validators_[index_ - 1]) revert InvalidSignatureOrder();
-            }
+            // NOTE: not needed anymore
+            // unchecked {
+            //     // Check that validator address is unique and not accounted for
+            //     // NOTE: We revert here because this failure is entirely within the minter's control.
+            //     if (index_ > 0 && validators_[index_] <= validators_[index_ - 1]) revert InvalidSignatureOrder();
+            // }
 
             // Check that validator is approved by TTG.
             _revertIfNotApprovedValidator(validators_[index_]);
@@ -1096,6 +1097,14 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
             // Find minimum between all valid timestamps for valid signatures.
             minTimestamp_ = UIntMath.min40(minTimestamp_, uint40(timestamps_[index_]));
+
+            // Save the last update timestamp for the validator.
+            _saveValidatorTimestamp(minter_, validators_[index_], uint40(timestamps_[index_]));
+            // _lastValidatorUpdateTimestamp[minter_][validators_[index_]] = uint40(timestamps_[index_]);
         }
+    }
+
+    function _saveValidatorTimestamp(address minter_, address validator_, uint40 timestamp_) internal {
+        _lastValidatorUpdateTimestamp[minter_][validator_] = timestamp_;
     }
 }
