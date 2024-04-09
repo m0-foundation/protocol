@@ -22,6 +22,14 @@ yarn
 forge install
 ```
 
+### Env
+
+Copy `.env` and write down the env variables needed to run this project.
+
+```bash
+cp .env.example .env
+```
+
 ### Compile
 
 Run the following command to compile the contracts:
