@@ -62,6 +62,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param  updateTimestamp         The timestamp at which the minter last updated their collateral.
      * @param  penalizedUntilTimestamp The timestamp until which the minter is penalized.
      * @param  frozenUntilTimestamp    The timestamp until which the minter is frozen.
+     * @param  oldestUpdateTimestamp   The timestamp at which the minter first updated their collateral during the interval.
+     * @param  updateCount             The number of times the minter has updated their collateral during the interval.
      */
     struct MinterState {
         // 1st slot
@@ -74,6 +76,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         uint40 updateTimestamp;
         uint40 penalizedUntilTimestamp;
         uint40 frozenUntilTimestamp;
+        uint40 oldestUpdateTimestamp;
+        uint8 updateCount;
     }
 
     /* ============ Variables ============ */
@@ -644,6 +648,11 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     }
 
     /// @inheritdoc IMinterGateway
+    function maxUpdateCollateralPerInterval() public view returns (uint8) {
+        return UIntMath.bound8(TTGRegistrarReader.getMaxUpdateCollateralPerInterval(ttgRegistrar));
+    }
+
+    /// @inheritdoc IMinterGateway
     function updateCollateralValidatorThreshold() public view returns (uint256) {
         return TTGRegistrarReader.getUpdateCollateralValidatorThreshold(ttgRegistrar);
     }
@@ -867,12 +876,29 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      */
     function _updateCollateral(address minter_, uint240 amount_, uint40 newTimestamp_) internal {
         uint40 lastUpdateTimestamp_ = _minterStates[minter_].updateTimestamp;
+        uint8 updateCount_ = _minterStates[minter_].updateCount;
+
+        if (updateCount_ == 0) {
+            // Store the timestamp of the first collateral update during the current interval.
+            _minterStates[minter_].oldestUpdateTimestamp = uint40(block.timestamp);
+        }
 
         // MinterGateway already has more recent collateral update
         if (newTimestamp_ <= lastUpdateTimestamp_) revert StaleCollateralUpdate(newTimestamp_, lastUpdateTimestamp_);
 
+        uint8 maxUpdateCollateralPerInterval_ = maxUpdateCollateralPerInterval();
+        uint8 nextUpdateCount_ = updateCount_ + 1;
+
+        if (nextUpdateCount_ > maxUpdateCollateralPerInterval_) revert ExceedsMaxUpdateCollateralPerInterval();
+
         _minterStates[minter_].collateral = amount_;
         _minterStates[minter_].updateTimestamp = newTimestamp_;
+
+        // If this new collateral update is in a new interval, reset the update count, otherwise increment it.
+        _minterStates[minter_].updateCount = block.timestamp >
+            _minterStates[minter_].oldestUpdateTimestamp + maxUpdateCollateralPerInterval_
+            ? 0
+            : nextUpdateCount_;
     }
 
     /* ============ Internal View/Pure Functions ============ */

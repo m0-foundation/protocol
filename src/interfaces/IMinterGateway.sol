@@ -124,6 +124,9 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice Emitted when repay will burn more M than the repay specified.
     error ExceedsMaxRepayAmount(uint240 amount, uint240 maxAmount);
 
+    /// @notice Emitted if the collateral has been updated more than the max allowed number of times in an interval.
+    error ExceedsMaxUpdateCollateralPerInterval();
+
     /// @notice Emitted when calling `mintM` with a proposal that was created more than `mintDelay + mintTTL` time ago.
     error ExpiredMintProposal(uint40 deadline);
 
@@ -427,6 +430,9 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
 
     /// @notice The smart contract that defines the minter rate.
     function rateModel() external view returns (address);
+
+    /// @notice The maxium number of allowed collateral updates per interval.
+    function maxUpdateCollateralPerInterval() external view returns (uint8);
 
     /// @notice The interval that defines the required frequency of collateral updates.
     function updateCollateralInterval() external view returns (uint32);
