@@ -201,9 +201,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         _imposePenaltyIfMissedCollateralUpdates(msg.sender);
 
-        _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
-
         _imposePenaltyIfUndercollateralized(msg.sender);
+
+        _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the collateral
         //       update can result in a new rate, we should update the index here to lock in that rate.
@@ -779,8 +779,17 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         if (principalOfMaxAllowedActiveOwedM_ >= principalOfActiveOwedM_) return;
 
+        if (updateCollateralInterval() == 0) return; // TODO: add note, fixes inconsistency for penalties
+
+        uint256 timeDelta_ = UIntMath.min32(
+            updateCollateralInterval(),
+            uint32(block.timestamp - _minterStates[minter_].updateTimestamp)
+        );
+        uint256 principalOfUndercollateralized_ = principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_;
+        uint256 principalOfPenaltyBase_ = (principalOfUndercollateralized_ * timeDelta_) / updateCollateralInterval();
+
         unchecked {
-            _imposePenalty(minter_, principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_);
+            _imposePenalty(minter_, uint152(principalOfPenaltyBase_));
         }
     }
 
