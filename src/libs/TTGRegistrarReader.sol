@@ -44,6 +44,9 @@ library TTGRegistrarReader {
     /// @notice The name of parameter in TTG that required interval to update collateral.
     bytes32 internal constant UPDATE_COLLATERAL_INTERVAL = "update_collateral_interval";
 
+    /// @notice The parameter name in TTG that defines the max frequency of collateral updates per interval.
+    bytes32 internal constant MAX_UPDATE_COLLATERAL_FREQUENCY = "max_update_collateral_frequency";
+
     /// @notice The name of parameter that defines number of signatures required for successful collateral update
     bytes32 internal constant UPDATE_COLLATERAL_VALIDATOR_THRESHOLD = "update_collateral_threshold";
 
@@ -85,6 +88,11 @@ library TTGRegistrarReader {
     /// @notice Gets the update collateral interval.
     function getUpdateCollateralInterval(address registrar_) internal view returns (uint256) {
         return uint256(_get(registrar_, UPDATE_COLLATERAL_INTERVAL));
+    }
+
+    /// @notice Gets the max frequency of collateral updates per interval.
+    function getMaxUpdateCollateralFrequency(address registrar_) internal view returns (uint256) {
+        return uint256(_get(registrar_, MAX_UPDATE_COLLATERAL_FREQUENCY));
     }
 
     /// @notice Gets the update collateral validator threshold.

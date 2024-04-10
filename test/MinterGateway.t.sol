@@ -34,6 +34,7 @@ contract MinterGatewayTests is TestUtils {
 
     uint256 internal _updateCollateralThreshold = 1;
     uint32 internal _updateCollateralInterval = 2000;
+    uint32 internal _maxUpdateCollateralFrequency = 100;
     uint32 internal _minterFreezeTime = 1000;
     uint32 internal _mintDelay = 1000;
     uint32 internal _mintTTL = 500;
@@ -314,7 +315,7 @@ contract MinterGatewayTests is TestUtils {
         validators[0] = _validator1;
 
         uint256[] memory timestamps = new uint256[](1);
-        timestamps[0] = vm.getBlockTimestamp();
+        timestamps[0] = vm.getBlockTimestamp() - 1;
 
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = _getCollateralUpdateSignature(
@@ -323,29 +324,14 @@ contract MinterGatewayTests is TestUtils {
             100,
             retrievalIds,
             bytes32(0),
-            vm.getBlockTimestamp(),
+            timestamps[0],
             _validator1Pk
         );
 
-        vm.prank(_minter1);
-        _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
-
-        uint256 lastUpdateTimestamp = _minterGateway.collateralUpdateTimestampOf(_minter1);
-        uint256 newTimestamp = lastUpdateTimestamp - 1;
-
-        timestamps[0] = newTimestamp;
-        signatures[0] = _getCollateralUpdateSignature(
-            address(_minterGateway),
-            _minter1,
-            100,
-            retrievalIds,
-            bytes32(0),
-            newTimestamp,
-            _validator1Pk
-        );
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamps[0] + 1);
 
         vm.expectRevert(
-            abi.encodeWithSelector(IMinterGateway.StaleCollateralUpdate.selector, newTimestamp, lastUpdateTimestamp)
+            abi.encodeWithSelector(IMinterGateway.StaleCollateralUpdate.selector, timestamps[0], timestamps[0] + 1)
         );
 
         vm.prank(_minter1);
@@ -368,29 +354,14 @@ contract MinterGatewayTests is TestUtils {
             100,
             retrievalIds,
             bytes32(0),
-            vm.getBlockTimestamp(),
+            timestamps[0],
             _validator1Pk
         );
 
-        vm.prank(_minter1);
-        _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
-
-        uint256 lastUpdateTimestamp = _minterGateway.collateralUpdateTimestampOf(_minter1);
-        uint256 newTimestamp = lastUpdateTimestamp; // same timestamp
-
-        timestamps[0] = newTimestamp;
-        signatures[0] = _getCollateralUpdateSignature(
-            address(_minterGateway),
-            _minter1,
-            100,
-            retrievalIds,
-            bytes32(0),
-            newTimestamp,
-            _validator1Pk
-        );
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamps[0]);
 
         vm.expectRevert(
-            abi.encodeWithSelector(IMinterGateway.StaleCollateralUpdate.selector, newTimestamp, lastUpdateTimestamp)
+            abi.encodeWithSelector(IMinterGateway.StaleCollateralUpdate.selector, timestamps[0], timestamps[0])
         );
 
         vm.prank(_minter1);
@@ -555,6 +526,45 @@ contract MinterGatewayTests is TestUtils {
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
+    }
+
+    function test_updateCollateral_collateralUpdateTooSoon() external {
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.MAX_UPDATE_COLLATERAL_FREQUENCY, _maxUpdateCollateralFrequency);
+
+        uint256[] memory retrievalIds = new uint256[](0);
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+
+        uint256[] memory timestamps = new uint256[](1);
+        timestamps[0] = vm.getBlockTimestamp();
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            100,
+            retrievalIds,
+            bytes32(0),
+            vm.getBlockTimestamp(),
+            _validator1Pk
+        );
+
+        uint32 minDelay_ = _updateCollateralInterval / _maxUpdateCollateralFrequency;
+
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamps[0] - minDelay_ + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IMinterGateway.CollateralUpdateTooSoon.selector, minDelay_ - 1, minDelay_)
+        );
+
+        vm.prank(_minter1);
+        _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
+
+        _minterGateway.setUpdateTimestampOf(_minter1, timestamps[0] - minDelay_);
+
+        vm.prank(_minter1);
+        _minterGateway.updateCollateral(100, retrievalIds, bytes32(0), validators, timestamps, signatures);
     }
 
     /* ============ proposeMint ============ */

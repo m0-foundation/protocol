@@ -118,6 +118,13 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
 
     /* ============ Custom Errors ============ */
 
+    /**
+     * @notice Emitted when a collateral update is performed earlier than allowed.
+     * @param  timeSinceLastUpdate The amount of time since the last collateral update.
+     * @param  minimumDelay        The minimum amount of time required between collateral updates.
+     */
+    error CollateralUpdateTooSoon(uint32 timeSinceLastUpdate, uint32 minimumDelay);
+
     /// @notice Emitted when calling `activateMinter` with a minter who was previously deactivated.
     error DeactivatedMinter();
 
@@ -427,6 +434,9 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
 
     /// @notice The smart contract that defines the minter rate.
     function rateModel() external view returns (address);
+
+    /// @notice Used to calculate the minimum amount of time required between collateral updates.
+    function maxUpdateCollateralFrequency() external view returns (uint32);
 
     /// @notice The interval that defines the required frequency of collateral updates.
     function updateCollateralInterval() external view returns (uint32);

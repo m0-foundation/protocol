@@ -639,6 +639,11 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     }
 
     /// @inheritdoc IMinterGateway
+    function maxUpdateCollateralFrequency() public view returns (uint32) {
+        return UIntMath.bound32(TTGRegistrarReader.getMaxUpdateCollateralFrequency(ttgRegistrar));
+    }
+
+    /// @inheritdoc IMinterGateway
     function updateCollateralInterval() public view returns (uint32) {
         return UIntMath.bound32(TTGRegistrarReader.getUpdateCollateralInterval(ttgRegistrar));
     }
@@ -870,6 +875,20 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         // MinterGateway already has more recent collateral update
         if (newTimestamp_ <= lastUpdateTimestamp_) revert StaleCollateralUpdate(newTimestamp_, lastUpdateTimestamp_);
+
+        uint32 maxUpdateCollateralFrequency_ = maxUpdateCollateralFrequency();
+
+        if (maxUpdateCollateralFrequency_ != 0) {
+            unchecked {
+                // NOTE: Can be done unchecked since above code already prevents `newTimestamp_ < lastUpdateTimestamp_`.
+                uint32 timeSinceLastUpdate_ = uint32(newTimestamp_ - lastUpdateTimestamp_);
+                uint32 minimumDelay_ = updateCollateralInterval() / maxUpdateCollateralFrequency_;
+
+                if (timeSinceLastUpdate_ < minimumDelay_) {
+                    revert CollateralUpdateTooSoon(timeSinceLastUpdate_, minimumDelay_);
+                }
+            }
+        }
 
         _minterStates[minter_].collateral = amount_;
         _minterStates[minter_].updateTimestamp = newTimestamp_;
