@@ -401,22 +401,19 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     function deactivateMinter(address minter_) external onlyActiveMinter(minter_) returns (uint240 inactiveOwedM_) {
         if (isMinterApproved(minter_)) revert StillApprovedMinter();
 
+        _imposePenaltyIfMissedCollateralUpdates(minter_, uint40(block.timestamp));
+
         uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
 
+        inactiveOwedM_ = _getPresentAmount(principalOfActiveOwedM_);
+
         unchecked {
-            // As an edge case precaution, if the resulting principal plus penalties is greater than the max uint112,
-            // then max out the principal.
-            uint112 newPrincipalOfOwedM_ = UIntMath.bound112(
-                uint256(principalOfActiveOwedM_) +
-                    _getPenaltyPrincipalForMissedCollateralUpdates(minter_, uint40(block.timestamp))
-            );
-
-            inactiveOwedM_ = _getPresentAmount(newPrincipalOfOwedM_);
-
             // Treat rawOwedM as principal since minter is active.
             principalOfTotalActiveOwedM -= principalOfActiveOwedM_;
             totalInactiveOwedM += inactiveOwedM_;
         }
+
+        _rawOwedM[minter_] = inactiveOwedM_; // Treat rawOwedM as inactive owed M since minter is now inactive.
 
         emit MinterDeactivated(minter_, inactiveOwedM_, msg.sender);
 
@@ -426,8 +423,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         // Deactivate minter.
         _minterStates[minter_].isDeactivated = true;
-
-        _rawOwedM[minter_] = inactiveOwedM_; // Treat rawOwedM as inactive owed M since minter is now inactive.
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the
         //       deactivation can result in a new rate, we should update the index here to lock in that rate.
@@ -917,7 +912,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         uint40 lastPenalizedUntil_,
         uint32 updateInterval_,
         uint40 endTimestamp_
-    ) internal view returns (uint40 missedIntervals_, uint40 missedUntil_) {
+    ) internal pure returns (uint40 missedIntervals_, uint40 missedUntil_) {
         uint40 penalizeFrom_ = UIntMath.max40(lastUpdateTimestamp_, lastPenalizedUntil_);
 
         // If brand new minter or `updateInterval_` is 0, then there is no missed interval charge at all.
