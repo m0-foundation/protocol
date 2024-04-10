@@ -838,6 +838,60 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
     }
 
+    function test_stopEarningForAccount_isApprovedEarner() external {
+        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
+
+        vm.expectRevert(IMToken.IsApprovedEarner.selector);
+        _mToken.stopEarning(_alice);
+    }
+
+    function test_stopEarningForAccount() external {
+        _mToken.setLatestRate(_earnerRate);
+        _mToken.setPrincipalOfTotalEarningSupply(909);
+
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, 909);
+
+        vm.expectEmit();
+        emit IMToken.StoppedEarning(_alice);
+
+        _mToken.stopEarning(_alice);
+
+        assertEq(_mToken.internalBalanceOf(_alice), 999);
+        assertEq(_mToken.isEarning(_alice), false);
+
+        assertEq(_mToken.totalNonEarningSupply(), 999);
+        assertEq(_mToken.principalOfTotalEarningSupply(), 0);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
+    }
+
+    function testFuzz_stopEarningForAccount(uint256 supply_) external {
+        supply_ = bound(supply_, 1, type(uint112).max / 10);
+
+        _mToken.setLatestRate(_earnerRate);
+        _mToken.setPrincipalOfTotalEarningSupply(supply_);
+
+        _mToken.setIsEarning(_alice, true);
+        _mToken.setInternalBalanceOf(_alice, supply_);
+
+        // Since Alice has stopped earning, the principal balance should reflect the interest accumulated until now.
+        // To calculate this amount, we compute the present amount.
+        uint256 expectedPrincipalBalance_ = _getPresentAmountRoundedDown(uint112(supply_), _mToken.currentIndex());
+
+        _mToken.stopEarning(_alice);
+
+        assertEq(_mToken.isEarning(_alice), false);
+        assertEq(_mToken.internalBalanceOf(_alice), expectedPrincipalBalance_);
+
+        assertEq(_mToken.totalNonEarningSupply(), expectedPrincipalBalance_);
+        assertEq(_mToken.principalOfTotalEarningSupply(), 0);
+        assertEq(_mToken.earnerRate(), _earnerRate);
+        assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
+        assertEq(_mToken.latestUpdateTimestamp(), vm.getBlockTimestamp());
+    }
+
     /* ============ updateIndex ============ */
     function test_updateIndex() external {
         _mToken.setLatestRate(_earnerRate);

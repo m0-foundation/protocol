@@ -75,6 +75,13 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Stops earning for caller.
     function stopEarning() external;
 
+    /**
+     * @notice Stops earning for `account`.
+     * @dev    MUST revert if `account` is an approved earner in TTG Registrar.
+     * @param  account The account to stop earning for.
+     */
+    function stopEarning(address account) external;
+
     /* ============ View/Pure Functions ============ */
 
     /// @notice The address of the Minter Gateway contract.

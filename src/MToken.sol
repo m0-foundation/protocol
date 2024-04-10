@@ -101,13 +101,21 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /// @inheritdoc IMToken
     function startEarning() external {
-        _revertIfNotApprovedEarner(msg.sender);
+        if (!_isApprovedEarner(msg.sender)) revert NotApprovedEarner();
+
         _startEarning(msg.sender);
     }
 
     /// @inheritdoc IMToken
     function stopEarning() external {
         _stopEarning(msg.sender);
+    }
+
+    /// @inheritdoc IMToken
+    function stopEarning(address account_) external {
+        if (_isApprovedEarner(account_)) revert IsApprovedEarner();
+
+        _stopEarning(account_);
     }
 
     /* ============ View/Pure Functions ============ */
@@ -472,13 +480,5 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      */
     function _revertIfInvalidRecipient(address recipient_) internal pure {
         if (recipient_ == address(0)) revert InvalidRecipient(recipient_);
-    }
-
-    /**
-     * @dev   Reverts if account is not approved earner.
-     * @param account_ The account to check.
-     */
-    function _revertIfNotApprovedEarner(address account_) internal view {
-        if (!_isApprovedEarner(account_)) revert NotApprovedEarner();
     }
 }
