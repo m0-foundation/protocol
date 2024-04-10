@@ -205,9 +205,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         _imposePenaltyIfMissedCollateralUpdates(msg.sender);
 
-        _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
+        _imposePenaltyIfUndercollateralized(msg.sender, minTimestamp_);
 
-        _imposePenaltyIfUndercollateralized(msg.sender);
+        _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the collateral
         //       update can result in a new rate, we should update the index here to lock in that rate.
@@ -776,9 +776,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /**
      * @dev   Imposes penalty if minter is undercollateralized.
-     * @param minter_ The address of the minter
+     * @param minter_       The address of the minter.
+     * @param newTimestamp_ The timestamp of the collateral update.
      */
-    function _imposePenaltyIfUndercollateralized(address minter_) internal {
+    function _imposePenaltyIfUndercollateralized(address minter_, uint40 newTimestamp_) internal {
         uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
 
         if (principalOfActiveOwedM_ == 0) return;
@@ -794,8 +795,17 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         if (principalOfMaxAllowedActiveOwedM_ >= principalOfActiveOwedM_) return;
 
+        MinterState storage minterState_ = _minterStates[minter_];
+
+        uint40 penalizeFrom_ = UIntMath.max40(minterState_.updateTimestamp, minterState_.penalizedUntilTimestamp);
+
+        if (newTimestamp_ <= penalizeFrom_) return;
+
         unchecked {
-            _imposePenalty(minter_, principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_);
+            uint152 principalOfPenaltyBase_ = ((principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_) *
+                (newTimestamp_ - penalizeFrom_)) / updateCollateralInterval();
+
+            _imposePenalty(minter_, principalOfPenaltyBase_);
         }
     }
 
