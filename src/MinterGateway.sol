@@ -918,6 +918,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         // If brand new minter or `updateInterval_` is 0, then there is no missed interval charge at all.
         if (lastUpdateTimestamp_ == 0 || updateInterval_ == 0) return (0, penalizeFrom_);
 
+        if (endTimestamp_ <= penalizeFrom_) return (0, penalizeFrom_);
+
         uint40 timeElapsed_ = endTimestamp_ - penalizeFrom_;
 
         if (timeElapsed_ < updateInterval_) return (0, penalizeFrom_);
