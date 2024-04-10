@@ -342,7 +342,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     ) public returns (uint112 principalAmount_, uint240 amount_) {
         if (maxPrincipalAmount_ == 0 || maxAmount_ == 0) revert ZeroBurnAmount();
 
-        MinterState memory minterState_ = _minterStates[minter_];
+        MinterState storage minterState_ = _minterStates[minter_];
         bool isActive_ = minterState_.isActive;
 
         // Revert early if minter has not been activated.
@@ -396,9 +396,12 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     /// @inheritdoc IMinterGateway
     function activateMinter(address minter_) external {
         if (!isMinterApproved(minter_)) revert NotApprovedMinter();
-        if (_minterStates[minter_].isDeactivated) revert DeactivatedMinter();
 
-        _minterStates[minter_].isActive = true;
+        MinterState storage minterState_ = _minterStates[minter_];
+
+        if (minterState_.isDeactivated) revert DeactivatedMinter();
+
+        minterState_.isActive = true;
 
         emit MinterActivated(minter_, msg.sender);
     }
@@ -549,8 +552,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         // If collateral was not updated by the deadline, assume that minter's collateral is zero.
         if (block.timestamp >= collateralExpiryTimestampOf(minter_)) return 0;
 
-        uint240 totalPendingRetrievals_ = _minterStates[minter_].totalPendingRetrievals;
-        uint240 collateral_ = _minterStates[minter_].collateral;
+        MinterState storage minterState_ = _minterStates[minter_];
+        uint240 totalPendingRetrievals_ = minterState_.totalPendingRetrievals;
+        uint240 collateral_ = minterState_.collateral;
 
         // If the minter's total pending retrievals is greater than their collateral, then their collateral is zero.
         if (totalPendingRetrievals_ >= collateral_) return 0;
