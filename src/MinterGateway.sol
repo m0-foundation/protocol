@@ -203,7 +203,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             minTimestamp_
         );
 
-        _imposePenaltyIfMissedCollateralUpdates(msg.sender, minTimestamp_);
+        _imposePenaltyIfMissedCollateralUpdates(msg.sender);
 
         _imposePenaltyIfUndercollateralized(msg.sender, minTimestamp_);
 
@@ -345,7 +345,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         if (isActive_) {
             // NOTE: Penalize only for missed collateral updates, not for undercollateralization.
             // Undercollateralization within one update interval is forgiven.
-            _imposePenaltyIfMissedCollateralUpdates(minter_, uint40(block.timestamp));
+            _imposePenaltyIfMissedCollateralUpdates(minter_);
 
             (principalAmount_, amount_) = _repayForActiveMinter(
                 minter_,
@@ -401,7 +401,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     function deactivateMinter(address minter_) external onlyActiveMinter(minter_) returns (uint240 inactiveOwedM_) {
         if (isMinterApproved(minter_)) revert StillApprovedMinter();
 
-        _imposePenaltyIfMissedCollateralUpdates(minter_, uint40(block.timestamp));
+        _imposePenaltyIfMissedCollateralUpdates(minter_);
 
         uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
 
@@ -724,10 +724,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /**
      * @dev   Imposes penalty if minter missed collateral updates.
-     * @param minter_       The address of the minter.
-     * @param endTimestamp_ The timestamp to end the penalization interval.
+     * @param minter_ The address of the minter.
      */
-    function _imposePenaltyIfMissedCollateralUpdates(address minter_, uint40 endTimestamp_) internal {
+    function _imposePenaltyIfMissedCollateralUpdates(address minter_) internal {
         uint32 updateCollateralInterval_ = updateCollateralInterval();
 
         MinterState storage minterState_ = _minterStates[minter_];
@@ -735,8 +734,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         (uint40 missedIntervals_, uint40 missedUntil_) = _getMissedCollateralUpdateParameters(
             minterState_.updateTimestamp,
             minterState_.penalizedUntilTimestamp,
-            updateCollateralInterval_,
-            endTimestamp_
+            updateCollateralInterval_
         );
 
         if (missedIntervals_ == 0) return;
@@ -881,10 +879,13 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     function _updateCollateral(address minter_, uint240 amount_, uint40 newTimestamp_) internal {
         MinterState storage minterState_ = _minterStates[minter_];
 
-        // The earliest allowed timestamp for a collateral update is the maximum of the last update timestamp and the latest proposed retrieval timestamp.
+        // The earliest allowed timestamp for a collateral update is the maximum of:
+        //   - the last update timestamp,
+        //   - the latest proposed retrieval timestamp, and
+        //   - the current timestamp minus the update collateral interval.
         uint40 earliestAllowedTimestamp_ = UIntMath.max40(
-            minterState_.updateTimestamp,
-            minterState_.latestProposedRetrievalTimestamp
+            UIntMath.max40(minterState_.updateTimestamp, minterState_.latestProposedRetrievalTimestamp),
+            uint40(block.timestamp) - updateCollateralInterval()
         );
 
         if (newTimestamp_ <= earliestAllowedTimestamp_) {
@@ -902,7 +903,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param  lastUpdateTimestamp_ The last timestamp at which the minter updated their collateral.
      * @param  lastPenalizedUntil_  The timestamp before which the minter shouldn't be penalized for missed updates.
      * @param  updateInterval_      The update collateral interval.
-     * @param  endTimestamp_        The timestamp to end the penalization interval.
      * @return missedIntervals_     The number of missed update intervals.
      * @return missedUntil_         The timestamp until which `missedIntervals_` covers,
      *                              even if `missedIntervals_` is 0.
@@ -910,17 +910,14 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     function _getMissedCollateralUpdateParameters(
         uint40 lastUpdateTimestamp_,
         uint40 lastPenalizedUntil_,
-        uint32 updateInterval_,
-        uint40 endTimestamp_
-    ) internal pure returns (uint40 missedIntervals_, uint40 missedUntil_) {
+        uint32 updateInterval_
+    ) internal view returns (uint40 missedIntervals_, uint40 missedUntil_) {
         uint40 penalizeFrom_ = UIntMath.max40(lastUpdateTimestamp_, lastPenalizedUntil_);
 
         // If brand new minter or `updateInterval_` is 0, then there is no missed interval charge at all.
         if (lastUpdateTimestamp_ == 0 || updateInterval_ == 0) return (0, penalizeFrom_);
 
-        if (endTimestamp_ <= penalizeFrom_) return (0, penalizeFrom_);
-
-        uint40 timeElapsed_ = endTimestamp_ - penalizeFrom_;
+        uint40 timeElapsed_ = uint40(block.timestamp) - penalizeFrom_;
 
         if (timeElapsed_ < updateInterval_) return (0, penalizeFrom_);
 
@@ -932,14 +929,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /**
      * @dev    Returns the principal penalization base for a minter's missed collateral updates.
-     * @param  minter_       The address of the minter.
-     * @param  endTimestamp_ The timestamp to end the penalization interval.
+     * @param  minter_ The address of the minter.
      * @return The penalty principal.
      */
-    function _getPenaltyPrincipalForMissedCollateralUpdates(
-        address minter_,
-        uint40 endTimestamp_
-    ) internal view returns (uint112) {
+    function _getPenaltyPrincipalForMissedCollateralUpdates(address minter_) internal view returns (uint112) {
         uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
 
         if (principalOfActiveOwedM_ == 0) return 0;
@@ -953,8 +946,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         (uint40 missedIntervals_, ) = _getMissedCollateralUpdateParameters(
             minterState_.updateTimestamp,
             minterState_.penalizedUntilTimestamp,
-            updateCollateralInterval(),
-            endTimestamp_
+            updateCollateralInterval()
         );
 
         if (missedIntervals_ == 0) return 0;
