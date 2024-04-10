@@ -21,11 +21,11 @@ import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
 ███╗   ███╗██╗███╗   ██╗████████╗███████╗██████╗      ██████╗  █████╗ ████████╗███████╗██╗    ██╗ █████╗ ██╗   ██╗
 ████╗ ████║██║████╗  ██║╚══██╔══╝██╔════╝██╔══██╗    ██╔════╝ ██╔══██╗╚══██╔══╝██╔════╝██║    ██║██╔══██╗╚██╗ ██╔╝
-██╔████╔██║██║██╔██╗ ██║   ██║   █████╗  ██████╔╝    ██║  ███╗███████║   ██║   █████╗  ██║ █╗ ██║███████║ ╚████╔╝ 
-██║╚██╔╝██║██║██║╚██╗██║   ██║   ██╔══╝  ██╔══██╗    ██║   ██║██╔══██║   ██║   ██╔══╝  ██║███╗██║██╔══██║  ╚██╔╝  
-██║ ╚═╝ ██║██║██║ ╚████║   ██║   ███████╗██║  ██║    ╚██████╔╝██║  ██║   ██║   ███████╗╚███╔███╔╝██║  ██║   ██║   
-╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═╝  ╚═╝     ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝   
-                                                                                                                  
+██╔████╔██║██║██╔██╗ ██║   ██║   █████╗  ██████╔╝    ██║  ███╗███████║   ██║   █████╗  ██║ █╗ ██║███████║ ╚████╔╝
+██║╚██╔╝██║██║██║╚██╗██║   ██║   ██╔══╝  ██╔══██╗    ██║   ██║██╔══██║   ██║   ██╔══╝  ██║███╗██║██╔══██║  ╚██╔╝
+██║ ╚═╝ ██║██║██║ ╚████║   ██║   ███████╗██║  ██║    ╚██████╔╝██║  ██║   ██║   ███████╗╚███╔███╔╝██║  ██║   ██║
+╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═╝  ╚═╝     ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝
+
 
 */
 
@@ -561,21 +561,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     }
 
     /// @inheritdoc IMinterGateway
-    function collateralPenaltyDeadlineOf(address minter_) external view returns (uint40) {
-        MinterState storage minterState_ = _minterStates[minter_];
-        uint32 updateCollateralInterval_ = updateCollateralInterval();
-
-        (, uint40 missedUntil_) = _getMissedCollateralUpdateParameters(
-            minterState_.updateTimestamp,
-            minterState_.penalizedUntilTimestamp,
-            updateCollateralInterval_,
-            uint40(block.timestamp)
-        );
-
-        return missedUntil_ + updateCollateralInterval_;
-    }
-
-    /// @inheritdoc IMinterGateway
     function collateralExpiryTimestampOf(address minter_) public view returns (uint40) {
         unchecked {
             return _minterStates[minter_].updateTimestamp + updateCollateralInterval();
@@ -595,13 +580,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     /// @inheritdoc IMinterGateway
     function getLastSignatureTimestamp(address minter_, address validator_) external view returns (uint256) {
         return _lastSignatureTimestamp[minter_][validator_];
-    }
-
-    /// @inheritdoc IMinterGateway
-    function getPenaltyForMissedCollateralUpdates(address minter_) external view returns (uint240) {
-        uint112 penaltyPrincipal_ = _getPenaltyPrincipalForMissedCollateralUpdates(minter_, uint40(block.timestamp));
-
-        return (penaltyPrincipal_ == 0) ? 0 : _getPresentAmount(penaltyPrincipal_);
     }
 
     /// @inheritdoc IMinterGateway

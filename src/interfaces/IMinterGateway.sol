@@ -357,9 +357,6 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice The timestamp of the last collateral update of minter.
     function collateralUpdateTimestampOf(address minter) external view returns (uint40);
 
-    /// @notice The timestamp after which an additional penalty for a missed update interval will be charged.
-    function collateralPenaltyDeadlineOf(address minter) external view returns (uint40);
-
     /// @notice The timestamp after which the minter's collateral is assumed to be 0 due to a missed update.
     function collateralExpiryTimestampOf(address minter) external view returns (uint40);
 
@@ -376,9 +373,6 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
      * @return The last signature timestamp used.
      */
     function getLastSignatureTimestamp(address minter, address validator) external view returns (uint256);
-
-    /// @notice The penalty for missed collateral updates. Penalized once per missed interval.
-    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint240);
 
     /**
      * @notice Returns the EIP-712 digest for updateCollateral method.
