@@ -36,6 +36,15 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
 
         principalAmount_ += penaltyPrincipal_;
 
+        uint40 timeSinceLastUpdate_ = uint40(
+            vm.getBlockTimestamp() - _minterGateway.collateralUpdateTimestampOf(minter_) - 24 hours
+        );
+
+        uint112 undercollateralizedPenalty_ = (((principalAmount_ * timeSinceLastUpdate_) / 24 hours) * _penaltyRate) /
+            ONE;
+
+        principalAmount_ += undercollateralizedPenalty_;
+
         _updateCollateral(minter_, collateral_);
 
         assertEq(
@@ -64,6 +73,12 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
 
         principalAmount_ += penaltyPrincipal_;
 
+        timeSinceLastUpdate_ = uint40(vm.getBlockTimestamp() - updateCollateralTimestamp_ - 24 hours);
+
+        undercollateralizedPenalty_ = (((principalAmount_ * timeSinceLastUpdate_) / 24 hours) * newPenaltyRate_) / ONE;
+
+        principalAmount_ += undercollateralizedPenalty_;
+
         _updateCollateral(minter_, collateral_);
 
         assertEq(
@@ -83,7 +98,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
 
         _mintM(minter_, mintAmount_, _alice);
         uint128 mintIndex_ = _minterGateway.latestIndex();
-        uint112 principalAmount_ = ContinuousIndexingMath.divideUp(mintAmount_, mintIndex_);
+        uint112 principalAmount_ = ContinuousIndexingMath.divideDown(mintAmount_, mintIndex_);
 
         assertEq(_minterGateway.activeOwedMOf(minter_), mintAmount_ + 1);
         assertEq(_mToken.balanceOf(_alice), mintAmount_);
@@ -91,12 +106,21 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
         vm.warp(vm.getBlockTimestamp() + 25 hours);
 
         uint128 indexAfter25Hours_ = _getContinuousIndexAt(_baseMinterRate, mintIndex_, 25 hours);
-        uint112 penaltyPrincipal_ = ContinuousIndexingMath.divideDown(
+        uint112 penaltyPrincipal_ = ContinuousIndexingMath.divideUp(
             _minterGateway.getPenaltyForMissedCollateralUpdates(minter_),
             indexAfter25Hours_
         );
 
         principalAmount_ += penaltyPrincipal_;
+
+        uint40 timeSinceLastUpdate_ = uint40(
+            vm.getBlockTimestamp() - _minterGateway.collateralUpdateTimestampOf(minter_) - 24 hours
+        );
+
+        uint112 undercollateralizedPenalty_ = (((principalAmount_ * timeSinceLastUpdate_) / 24 hours) * _penaltyRate) /
+            ONE;
+
+        principalAmount_ += undercollateralizedPenalty_;
 
         _updateCollateral(minter_, collateral_);
 
@@ -186,9 +210,16 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
             )
         );
 
-        // penaltyBase = principalOfActiveOwedM - principalOfMaxAllowedActiveOwedM
-        principalAmount_ += ((principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_) * _penaltyRate) / ONE;
-        _updateCollateral(minter_, collateral_);
+        uint40 timeSinceLastUpdate_ = uint40(
+            vm.getBlockTimestamp() - _minterGateway.collateralUpdateTimestampOf(minter_)
+        );
+
+        uint112 undercollateralizedPenalty_ = ((((principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_) *
+            timeSinceLastUpdate_) / 24 hours) * _penaltyRate) / ONE;
+
+        principalAmount_ += undercollateralizedPenalty_;
+
+        _updateCollateral(minter_, collateral_ * 2);
 
         assertEq(
             _minterGateway.activeOwedMOf(minter_),

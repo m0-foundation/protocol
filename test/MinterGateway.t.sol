@@ -1329,7 +1329,11 @@ contract MinterGatewayTests is TestUtils {
 
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
         uint256 maxAllowedOwedM = (collateral * _mintRatio) / ONE;
-        uint240 expectedPenalty = uint240(((activeOwedM - maxAllowedOwedM) * _penaltyRate) / ONE);
+
+        uint240 expectedPenalty = uint240(
+            ((((activeOwedM - maxAllowedOwedM) * (_updateCollateralInterval - 1)) / _updateCollateralInterval) *
+                _penaltyRate) / ONE
+        );
 
         vm.expectEmit();
         emit IMinterGateway.PenaltyImposed(

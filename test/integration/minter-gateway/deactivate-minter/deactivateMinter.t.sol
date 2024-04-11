@@ -34,6 +34,15 @@ contract DeactivateMinter_IntegrationTest is IntegrationBaseSetup {
 
         principalAmount_ += penaltyPrincipal_;
 
+        uint40 timeSinceLastUpdate_ = uint40(
+            vm.getBlockTimestamp() - _minterGateway.collateralUpdateTimestampOf(minter_) - 24 hours
+        );
+
+        uint112 undercollateralizedPenalty_ = (((principalAmount_ * timeSinceLastUpdate_) / 24 hours) * _penaltyRate) /
+            ONE;
+
+        principalAmount_ += undercollateralizedPenalty_;
+
         _updateCollateral(minter_, collateral_);
 
         assertEq(
