@@ -165,11 +165,8 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     ///         If `validators`, `signatures`, `timestamps` lengths do not match.
     error SignatureArrayLengthsMismatch();
 
-    /// @notice Emitted when updating collateral with a timestamp older than the current last update timestamp.
-    error StaleCollateralUpdate(uint40 newTimestamp, uint40 lastCollateralUpdate);
-
-    /// @notice Emitted when updating collateral with a timestamp older than the latest retrieval proposal date.
-    error ObsoleteCollateralUpdate(uint40 newTimestamp, uint40 latestProposedRetrievalTimestamp);
+    /// @notice Emitted when updating collateral with a timestamp earlier than allowed.
+    error StaleCollateralUpdate(uint40 newTimestamp, uint40 earliestAllowedTimestamp);
 
     /// @notice Emitted when calling `deactivateMinter` with a minter still approved in TTG Registrar.
     error StillApprovedMinter();

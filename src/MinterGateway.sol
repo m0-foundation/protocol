@@ -875,16 +875,14 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     function _updateCollateral(address minter_, uint240 amount_, uint40 newTimestamp_) internal {
         MinterState storage minterState_ = _minterStates[minter_];
 
-        uint40 lastUpdateTimestamp_ = minterState_.updateTimestamp;
+        // The earliest allowed timestamp for a collateral update is the maximum of the last update timestamp and the latest proposed retrieval timestamp.
+        uint40 earliestAllowedTimestamp_ = UIntMath.max40(
+            minterState_.updateTimestamp,
+            minterState_.latestProposedRetrievalTimestamp
+        );
 
-        // Revert if minter's last collateral update is more recent.
-        if (newTimestamp_ <= lastUpdateTimestamp_) revert StaleCollateralUpdate(newTimestamp_, lastUpdateTimestamp_);
-
-        uint40 latestProposedRetrievalTimestamp_ = minterState_.latestProposedRetrievalTimestamp;
-
-        // Revert if minter's last created retrieval proposal is more recent.
-        if (newTimestamp_ <= latestProposedRetrievalTimestamp_) {
-            revert ObsoleteCollateralUpdate(newTimestamp_, latestProposedRetrievalTimestamp_);
+        if (newTimestamp_ <= earliestAllowedTimestamp_) {
+            revert StaleCollateralUpdate(newTimestamp_, earliestAllowedTimestamp_);
         }
 
         minterState_.collateral = amount_;
