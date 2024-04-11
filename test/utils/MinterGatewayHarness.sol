@@ -77,6 +77,10 @@ contract MinterGatewayHarness is MinterGateway {
         _minterStates[minter_].updateTimestamp = uint40(lastUpdated_);
     }
 
+    function setLatestProposedRetrievalTimestamp(address minter_, uint256 latestProposedRetrieval_) external {
+        _minterStates[minter_].latestProposedRetrievalTimestamp = uint40(latestProposedRetrieval_);
+    }
+
     function setUnfrozenTimeOf(address minter_, uint256 frozenTime_) external {
         _minterStates[minter_].frozenUntilTimestamp = uint40(frozenTime_);
     }
@@ -111,5 +115,9 @@ contract MinterGatewayHarness is MinterGateway {
 
     function setIsDeactivated(address minter_, bool isDeactivated_) external {
         _minterStates[minter_].isDeactivated = isDeactivated_;
+    }
+
+    function setLastSignatureTimestamp(address minter_, address validator_, uint256 timestamp_) external {
+        _lastSignatureTimestamp[minter_][validator_] = timestamp_;
     }
 }
