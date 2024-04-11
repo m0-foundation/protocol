@@ -3004,4 +3004,119 @@ contract MinterGatewayTests is TestUtils {
         vm.expectRevert();
         minterGateway_.mintM(3);
     }
+
+    /* ============ Sherlock ============ */
+
+    function test_maliciousValidator_impossibleAttack() external {
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(2)));
+
+        bytes[] memory signaturesToUseBeforeRedemptions = new bytes[](2);
+        bytes[] memory signaturesToUseToResolveRedemptions = new bytes[](2);
+
+        uint256[] memory timestampsToUseBeforeRedemptions = new uint256[](2);
+        uint256[] memory timestampsToUseToResolveRedemptions = new uint256[](2);
+
+        address[] memory validators = new address[](2);
+
+        // Arrange validator addresses in increasing order.
+        validators[0] = _validator2; // Malicious validator
+        validators[1] = _validator1;
+
+        timestampsToUseBeforeRedemptions[0] = vm.getBlockTimestamp();
+        timestampsToUseBeforeRedemptions[1] = vm.getBlockTimestamp() + 10; // Honest validator takes 10 seconds to check/sign.
+
+        signaturesToUseBeforeRedemptions[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            100e6,
+            new uint256[](0),
+            bytes32(0),
+            timestampsToUseBeforeRedemptions[0],
+            _validator2Pk
+        );
+
+        signaturesToUseBeforeRedemptions[1] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            100e6,
+            new uint256[](0),
+            bytes32(0),
+            timestampsToUseBeforeRedemptions[1],
+            _validator1Pk
+        );
+
+        // 100 seconds go by before the `updateCollateral()` goes through.
+        vm.warp(vm.getBlockTimestamp() + 100);
+
+        vm.prank(_minter1);
+        _minterGateway.updateCollateral(
+            100e6,
+            new uint256[](0),
+            bytes32(0),
+            validators,
+            timestampsToUseBeforeRedemptions,
+            signaturesToUseBeforeRedemptions
+        );
+
+        assertEq(_minterGateway.collateralOf(_minter1), 100e6);
+        assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), timestampsToUseBeforeRedemptions[0]);
+
+        // 100 seconds go by before making a retrieval request.
+        vm.warp(vm.getBlockTimestamp() + 100);
+
+        vm.prank(_minter1);
+        uint256 retrievalId = _minterGateway.proposeRetrieval(100e6);
+
+        uint256 retrievalTimestamp = vm.getBlockTimestamp();
+
+        // 100 seconds go by before retrievals are performed off-chain.
+        vm.warp(vm.getBlockTimestamp() + 100);
+
+        uint256[] memory retrievalIds = new uint256[](1);
+        retrievalIds[0] = retrievalId;
+
+        timestampsToUseToResolveRedemptions[0] = _minterGateway.collateralUpdateTimestampOf(_minter1) + 1; // Malicious validator gives signature as old as possible.
+        timestampsToUseToResolveRedemptions[1] = vm.getBlockTimestamp() + 10; // Honest validator takes 10 seconds to check/sign.
+
+        signaturesToUseToResolveRedemptions[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            0,
+            retrievalIds,
+            bytes32(0),
+            timestampsToUseToResolveRedemptions[0],
+            _validator2Pk
+        );
+
+        signaturesToUseToResolveRedemptions[1] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            0,
+            retrievalIds,
+            bytes32(0),
+            timestampsToUseToResolveRedemptions[1],
+            _validator1Pk
+        );
+
+        // 100 seconds go by before the `updateCollateral()` goes through.
+        vm.warp(vm.getBlockTimestamp() + 100);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMinterGateway.StaleCollateralUpdate.selector,
+                timestampsToUseToResolveRedemptions[0],
+                uint40(retrievalTimestamp)
+            )
+        );
+
+        vm.prank(_minter1);
+        _minterGateway.updateCollateral(
+            0,
+            retrievalIds,
+            bytes32(0),
+            validators,
+            timestampsToUseToResolveRedemptions,
+            signaturesToUseToResolveRedemptions
+        );
+    }
 }
