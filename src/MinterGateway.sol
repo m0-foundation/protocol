@@ -1118,7 +1118,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param  validator_    The address of a validator.
      * @param  timestamp_    The timestamp for the collateral update signature.
      * @param  signature_    The signature from the validator.
-     * @return valid_        Whether the signature is a valid validator signature.
+     * @return Whether the signature is a valid validator signature or not.
      */
     function _verifyValidatorSignature(
         address minter_,
@@ -1128,7 +1128,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         address validator_,
         uint256 timestamp_,
         bytes calldata signature_
-    ) internal returns (bool valid_) {
+    ) internal returns (bool) {
         // Check that the timestamp is not 0.
         // NOTE: Revert here because this failure is entirely within the minter's control.
         if (timestamp_ == 0) revert ZeroTimestamp();
@@ -1147,13 +1147,17 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         if (!isValidatorApprovedByTTG(validator_)) return false;
 
         // Check that ECDSA or ERC1271 signatures for given digest are valid.
-        valid_ = SignatureChecker.isValidSignature(
-            validator_,
-            _getUpdateCollateralDigest(minter_, collateral_, retrievalIds_, metadataHash_, timestamp_),
-            signature_
-        );
+        if (
+            !SignatureChecker.isValidSignature(
+                validator_,
+                _getUpdateCollateralDigest(minter_, collateral_, retrievalIds_, metadataHash_, timestamp_),
+                signature_
+            )
+        ) return false;
 
         // Save the last signature timestamp for the minter and validator combination.
         _lastSignatureTimestamp[minter_][validator_] = timestamp_;
+
+        return true;
     }
 }
