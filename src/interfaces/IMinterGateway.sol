@@ -363,7 +363,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     function penalizedUntilOf(address minter) external view returns (uint40);
 
     /// @notice The timestamp when `minter` created their latest retrieval proposal.
-    function latestProposedRetrievalOf(address minter) external view returns (uint40);
+    function latestProposedRetrievalTimestampOf(address minter) external view returns (uint40);
 
     /// @notice The penalty for missed collateral updates. Penalized once per missed interval.
     function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint240);

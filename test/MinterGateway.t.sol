@@ -2078,7 +2078,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(retrievalId, expectedRetrievalId);
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), collateral);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId), collateral);
-        assertEq(_minterGateway.latestProposedRetrievalOf(_minter1), vm.getBlockTimestamp());
+        assertEq(_minterGateway.latestProposedRetrievalTimestampOf(_minter1), vm.getBlockTimestamp());
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), 0);
 
         vm.warp(vm.getBlockTimestamp() + 200);
@@ -2196,7 +2196,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(retrievalId_, expectedRetrievalId_);
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), minterCollateral_);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId_), minterCollateral_);
-        assertEq(_minterGateway.latestProposedRetrievalOf(_minter1), vm.getBlockTimestamp());
+        assertEq(_minterGateway.latestProposedRetrievalTimestampOf(_minter1), vm.getBlockTimestamp());
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), 0);
 
         vm.warp(vm.getBlockTimestamp() + 200);
@@ -2331,7 +2331,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(retrievalId, expectedRetrievalId);
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), retrievalAmount);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId), retrievalAmount);
-        assertEq(_minterGateway.latestProposedRetrievalOf(_minter1), vm.getBlockTimestamp());
+        assertEq(_minterGateway.latestProposedRetrievalTimestampOf(_minter1), vm.getBlockTimestamp());
 
         // Second retrieval proposal
         vm.prank(_minter1);
@@ -2339,7 +2339,7 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), retrievalAmount * 2);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, newRetrievalId), retrievalAmount);
-        assertEq(_minterGateway.latestProposedRetrievalOf(_minter1), vm.getBlockTimestamp());
+        assertEq(_minterGateway.latestProposedRetrievalTimestampOf(_minter1), vm.getBlockTimestamp());
 
         uint256[] memory retrievalIds = new uint256[](1);
         retrievalIds[0] = newRetrievalId;
@@ -2412,7 +2412,7 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), retrievalAmount);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId), retrievalAmount);
-        assertEq(_minterGateway.latestProposedRetrievalOf(_minter1), vm.getBlockTimestamp());
+        assertEq(_minterGateway.latestProposedRetrievalTimestampOf(_minter1), vm.getBlockTimestamp());
 
         // deactivate minter
         _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
@@ -2453,7 +2453,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(retrievalId_, expectedRetrievalId_);
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), retrievalAmount_);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, retrievalId_), retrievalAmount_);
-        assertEq(_minterGateway.latestProposedRetrievalOf(_minter1), vm.getBlockTimestamp());
+        assertEq(_minterGateway.latestProposedRetrievalTimestampOf(_minter1), vm.getBlockTimestamp());
 
         // Second retrieval proposal
         vm.prank(_minter1);
@@ -2461,7 +2461,7 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(_minterGateway.totalPendingCollateralRetrievalOf(_minter1), retrievalAmount_ * 2);
         assertEq(_minterGateway.pendingCollateralRetrievalOf(_minter1, newRetrievalId_), retrievalAmount_);
-        assertEq(_minterGateway.latestProposedRetrievalOf(_minter1), vm.getBlockTimestamp());
+        assertEq(_minterGateway.latestProposedRetrievalTimestampOf(_minter1), vm.getBlockTimestamp());
 
         uint256[] memory retrievalIds_ = new uint256[](1);
         retrievalIds_[0] = newRetrievalId_;

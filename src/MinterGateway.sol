@@ -583,7 +583,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     }
 
     /// @inheritdoc IMinterGateway
-    function latestProposedRetrievalOf(address minter_) external view returns (uint40) {
+    function latestProposedRetrievalTimestampOf(address minter_) external view returns (uint40) {
         return _minterStates[minter_].latestProposedRetrievalTimestamp;
     }
 
