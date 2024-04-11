@@ -19,17 +19,21 @@ contract BurnM_IntegrationTest is IntegrationBaseSetup {
         _updateCollateral(minter_, collateral_);
 
         _mintM(minter_, mintAmount_, _alice);
+
         uint128 mintIndex_ = _minterGateway.latestIndex();
         uint112 principalAmount_ = ContinuousIndexingMath.divideUp(mintAmount_, mintIndex_);
+        uint240 activeOwedM_ = _minterGateway.activeOwedMOf(minter_);
 
-        assertEq(_minterGateway.activeOwedMOf(minter_), mintAmount_ + 1);
+        // 1 wei in excess cause we round up in favor of the protocol
+        assertEq(activeOwedM_, mintAmount_ + 1);
         assertEq(_mToken.balanceOf(_alice), mintAmount_);
 
         vm.warp(vm.getBlockTimestamp() + 25 hours);
 
+        activeOwedM_ = _minterGateway.activeOwedMOf(minter_);
         uint128 indexAfter25Hours_ = _getContinuousIndexAt(_baseMinterRate, mintIndex_, 25 hours);
-        uint112 penaltyPrincipal_ = ContinuousIndexingMath.divideDown(
-            _minterGateway.getPenaltyForMissedCollateralUpdates(minter_),
+        uint112 penaltyPrincipal_ = ContinuousIndexingMath.divideUp(
+            (activeOwedM_ * _penaltyRate) / ONE,
             indexAfter25Hours_
         );
 
@@ -56,8 +60,9 @@ contract BurnM_IntegrationTest is IntegrationBaseSetup {
 
         uint128 indexAfter12Hours_ = _getContinuousIndexAt(_baseMinterRate, burnIndex_, 12 hours);
 
-        penaltyPrincipal_ = ContinuousIndexingMath.divideDown(
-            _minterGateway.getPenaltyForMissedCollateralUpdates(minter_),
+        activeOwedM_ = _minterGateway.activeOwedMOf(minter_);
+        penaltyPrincipal_ = ContinuousIndexingMath.divideUp(
+            (activeOwedM_ * 18 * _penaltyRate) / ONE,
             indexAfter12Hours_
         );
 
@@ -83,6 +88,7 @@ contract BurnM_IntegrationTest is IntegrationBaseSetup {
         vm.warp(vm.getBlockTimestamp() + 24 hours);
 
         uint128 indexAfter24Hours_ = _getContinuousIndexAt(_baseMinterRate, burnIndex_, 24 hours);
+
         burnAmountPrincipal_ = ContinuousIndexingMath.divideDown(burnAmount_, indexAfter24Hours_);
 
         principalAmount_ -= burnAmountPrincipal_;
