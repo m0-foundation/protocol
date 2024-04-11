@@ -116,4 +116,8 @@ contract MinterGatewayHarness is MinterGateway {
     function setIsDeactivated(address minter_, bool isDeactivated_) external {
         _minterStates[minter_].isDeactivated = isDeactivated_;
     }
+
+    function setLastSignatureTimestamp(address minter_, address validator_, uint256 timestamp_) external {
+        _lastSignatureTimestamp[minter_][validator_] = timestamp_;
+    }
 }
