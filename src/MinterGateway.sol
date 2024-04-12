@@ -354,7 +354,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
             emit BurnExecuted(minter_, principalAmount_, amount_, msg.sender);
         } else {
-            amount_ = _repayForInactiveMinter(minter_, UIntMath.safe240(maxAmount_));
+            amount_ = _repayForDeactivatedMinter(minter_, UIntMath.safe240(maxAmount_));
 
             emit BurnExecuted(minter_, amount_, msg.sender);
         }
@@ -846,12 +846,12 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     }
 
     /**
-     * @dev    Repays inactive minter's owed M.
+     * @dev    Repays deactivated minter's owed M.
      * @param  minter_    The address of the minter.
      * @param  maxAmount_ The maximum amount of inactive owed M to repay.
      * @return amount_    The amount of inactive owed M that was actually repaid.
      */
-    function _repayForInactiveMinter(address minter_, uint240 maxAmount_) internal returns (uint240 amount_) {
+    function _repayForDeactivatedMinter(address minter_, uint240 maxAmount_) internal returns (uint240 amount_) {
         amount_ = UIntMath.min240(inactiveOwedMOf(minter_), maxAmount_);
 
         unchecked {
