@@ -683,7 +683,7 @@ contract MinterGatewayTests is TestUtils {
         vm.warp(vm.getBlockTimestamp() + _mintDelay);
 
         vm.expectEmit();
-        emit IMinterGateway.MintExecuted(mintId, _minterGateway.getPrincipalAmountRoundedUp(80e18), 80e18);
+        emit IMinterGateway.MintExecuted(mintId, _minter1, _minterGateway.getPrincipalAmountRoundedUp(80e18), 80e18);
 
         vm.prank(_minter1);
         _minterGateway.mintM(mintId);
@@ -714,7 +714,7 @@ contract MinterGatewayTests is TestUtils {
         vm.warp(vm.getBlockTimestamp() + _mintDelay);
 
         vm.expectEmit();
-        emit IMinterGateway.MintExecuted(mintId, 1, 1);
+        emit IMinterGateway.MintExecuted(mintId, _minter1, 1, 1);
 
         vm.prank(_minter1);
         _minterGateway.mintM(mintId);
@@ -741,6 +741,7 @@ contract MinterGatewayTests is TestUtils {
         vm.expectEmit();
         emit IMinterGateway.MintExecuted(
             mintId_,
+            _minter1,
             _minterGateway.getPrincipalAmountRoundedUp(uint240(amount_)),
             uint240(amount_)
         );
@@ -888,7 +889,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setMintProposalOf(_minter1, mintId, 100, vm.getBlockTimestamp(), _alice);
 
         vm.expectEmit();
-        emit IMinterGateway.MintCanceled(mintId, _validator1);
+        emit IMinterGateway.MintCanceled(mintId, _minter1, _validator1);
 
         vm.prank(_validator1);
         _minterGateway.cancelMint(_minter1, mintId);
@@ -908,7 +909,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setMintProposalOf(_minter1, uint48(mintId_), 100, vm.getBlockTimestamp(), recipient_);
 
         vm.expectEmit();
-        emit IMinterGateway.MintCanceled(uint48(mintId_), _validator1);
+        emit IMinterGateway.MintCanceled(uint48(mintId_), _minter1, _validator1);
 
         vm.prank(_validator1);
         _minterGateway.cancelMint(_minter1, mintId_);

@@ -298,7 +298,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         principalAmount_ = _getPrincipalAmountRoundedUp(amount_);
         uint112 principalOfTotalActiveOwedM_ = principalOfTotalActiveOwedM;
 
-        emit MintExecuted(id_, principalAmount_, amount_);
+        emit MintExecuted(id_, msg.sender, principalAmount_, amount_);
 
         unchecked {
             uint256 newPrincipalOfTotalActiveOwedM_ = uint256(principalOfTotalActiveOwedM_) + principalAmount_;
@@ -375,7 +375,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         delete _mintProposals[minter_];
 
-        emit MintCanceled(id_, msg.sender);
+        emit MintCanceled(id_, minter_, msg.sender);
     }
 
     /// @inheritdoc IMinterGateway
