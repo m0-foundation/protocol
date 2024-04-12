@@ -767,9 +767,11 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_mintM_inactiveMinter() external {
+        _minterGateway.setIsActive(_minter1, false);
+
         vm.expectRevert(IMinterGateway.InactiveMinter.selector);
 
-        vm.prank(makeAddr("someInactiveMinter"));
+        vm.prank(_minter1);
         _minterGateway.mintM(1);
     }
 
@@ -1075,12 +1077,6 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.principalOfActiveOwedMOf(_minter1), 0);
     }
 
-    function test_burnM_zeroBurnAmount() external {
-        vm.expectRevert(IMinterGateway.ZeroBurnAmount.selector);
-        vm.prank(_minter1);
-        _minterGateway.burnM(_minter1, 0);
-    }
-
     function test_burnM_repayHalfOfOutstandingValue() external {
         _minterGateway.setCollateralOf(_minter1, 1000e18);
         _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
@@ -1153,19 +1149,70 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.activeOwedMOf(_minter1), 0);
     }
 
-    function test_burnM_notEnoughBalanceToRepay() external {
-        uint256 principalOfActiveOwedM = 100e18;
+    function test_burnM_deactivatedMinter() external {
+        // Set minter as deactivated and inactive
+        _minterGateway.setIsActive(_minter1, false);
+        _minterGateway.setIsDeactivated(_minter1, true);
 
-        _minterGateway.setRawOwedMOf(_minter1, principalOfActiveOwedM);
+        uint256 rawOwedM_ = 1_000e6;
 
-        uint256 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
+        _minterGateway.setRawOwedMOf(_minter1, rawOwedM_);
+        _minterGateway.setTotalInactiveOwedM(rawOwedM_);
 
-        _mToken.setBurnFail(true);
+        assertEq(_minterGateway.rawOwedMOf(_minter1), rawOwedM_);
+        assertEq(_minterGateway.inactiveOwedMOf(_minter1), rawOwedM_);
+        assertEq(_minterGateway.totalInactiveOwedM(), rawOwedM_);
 
-        vm.expectRevert();
+        vm.expectEmit();
+        emit IMinterGateway.BurnExecuted(_minter1, uint240(rawOwedM_), _alice);
 
         vm.prank(_alice);
-        _minterGateway.burnM(_minter1, activeOwedM);
+        _minterGateway.burnM(_minter1, rawOwedM_);
+
+        assertEq(_minterGateway.rawOwedMOf(_minter1), 0);
+        assertEq(_minterGateway.inactiveOwedMOf(_minter1), 0);
+        assertEq(_minterGateway.totalInactiveOwedM(), 0);
+    }
+
+    function testFuzz_burnM_deactivatedMinter(uint256 rawOwedM_) external {
+        // Set minter as deactivated and inactive
+        _minterGateway.setIsActive(_minter1, false);
+        _minterGateway.setIsDeactivated(_minter1, true);
+
+        rawOwedM_ = bound(rawOwedM_, 1, type(uint112).max);
+
+        _minterGateway.setRawOwedMOf(_minter1, rawOwedM_);
+        _minterGateway.setTotalInactiveOwedM(rawOwedM_);
+
+        assertEq(_minterGateway.rawOwedMOf(_minter1), rawOwedM_);
+        assertEq(_minterGateway.inactiveOwedMOf(_minter1), rawOwedM_);
+        assertEq(_minterGateway.totalInactiveOwedM(), rawOwedM_);
+
+        vm.expectEmit();
+        emit IMinterGateway.BurnExecuted(_minter1, uint240(rawOwedM_), _alice);
+
+        vm.prank(_alice);
+        _minterGateway.burnM(_minter1, rawOwedM_);
+
+        assertEq(_minterGateway.rawOwedMOf(_minter1), 0);
+        assertEq(_minterGateway.inactiveOwedMOf(_minter1), 0);
+        assertEq(_minterGateway.totalInactiveOwedM(), 0);
+    }
+
+    function test_burnM_inactiveMinter() external {
+        // Set minter as inactive but not deactivated
+        _minterGateway.setIsActive(_minter1, false);
+
+        vm.expectRevert(IMinterGateway.InactiveMinter.selector);
+
+        vm.prank(_alice);
+        _minterGateway.burnM(_minter1, 100e6);
+    }
+
+    function test_burnM_zeroBurnAmount() external {
+        vm.expectRevert(IMinterGateway.ZeroBurnAmount.selector);
+        vm.prank(_minter1);
+        _minterGateway.burnM(_minter1, 0);
     }
 
     /* ============ penalties ============ */
@@ -2092,9 +2139,12 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_deactivateMinter_alreadyInactiveMinter() external {
+        _minterGateway.setIsActive(_minter1, false);
+
         vm.expectRevert(IMinterGateway.InactiveMinter.selector);
+
         vm.prank(_alice);
-        _minterGateway.deactivateMinter(makeAddr("someInactiveMinter"));
+        _minterGateway.deactivateMinter(_minter1);
     }
 
     /* ============ proposeRetrieval ============ */
