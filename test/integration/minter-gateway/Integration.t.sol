@@ -91,7 +91,8 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         uint256 collateral = 1_500_000e6;
         uint256 lastUpdateTimestamp = _updateCollateral(_minters[0], collateral);
-        _updateCollateral(_minters[1], collateral);
+
+        _updateCollateral(_minters[1], 555_556e6);
         _updateCollateral(_minters[2], collateral);
 
         vm.warp(vm.getBlockTimestamp() + 1 hours); // 1 hour later, minters propose mints.
@@ -117,7 +118,7 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         vm.warp(lastUpdateTimestamp + 15 hours);
         lastUpdateTimestamp = _updateCollateral(_minters[0], collateral);
-        _updateCollateral(_minters[1], collateral / 10); // minter is undercollateralized.
+        _updateCollateral(_minters[1], collateral); // minter is undercollateralized.
         _updateCollateral(_minters[2], collateral); // minter missed collateral update intervals.
 
         assertGt(_minterGateway.activeOwedMOf(_minters[1]), _minterGateway.activeOwedMOf(_minters[0]));
@@ -128,7 +129,7 @@ contract IntegrationTests is IntegrationBaseSetup {
             _minterGateway.activeOwedMOf(_minters[0]) +
                 _minterGateway.activeOwedMOf(_minters[1]) +
                 _minterGateway.activeOwedMOf(_minters[2]),
-            _mToken.balanceOf(_alice) + _mToken.balanceOf(_vault) + 1
+            _mToken.balanceOf(_alice) + _mToken.balanceOf(_vault) + 2
         );
     }
 

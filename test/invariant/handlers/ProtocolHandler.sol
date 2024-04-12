@@ -296,10 +296,14 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
         uint256[] memory timestamps = new uint256[](0);
         bytes[] memory signatures = new bytes[](0);
 
-        // Get penalty if missed collateral updates and increase collateral to avoid undercollateralization
-        collateralAmount_ += _minterGateway.getPenaltyForMissedCollateralUpdates(minter_);
-
         uint256 activeOwedMOfMinter_ = _minterGateway.activeOwedMOf(minter_);
+
+        // TODO: May need to take into account penalizedUntilTimestamp
+        uint256 missedIntervals_ = (vm.getBlockTimestamp() - _minterGateway.collateralUpdateTimestampOf(minter_)) /
+            _minterGateway.updateCollateralInterval();
+
+        // Get penalty if missed collateral updates and increase collateral to avoid undercollateralization.
+        collateralAmount_ += (activeOwedMOfMinter_ * missedIntervals_ * _minterGateway.penaltyRate()) / ONE;
 
         // Active owed M accrues interest, so we need to increase the collateral above the max allowed active owed M
         // to avoid undercollateralization. We take a 20% buffer.

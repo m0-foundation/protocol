@@ -18,21 +18,34 @@ contract DeactivateMinter_IntegrationTest is IntegrationBaseSetup {
         _updateCollateral(minter_, collateral_);
 
         _mintM(minter_, mintAmount_, _alice);
+
         uint128 mintIndex_ = _minterGateway.latestIndex();
         uint112 principalAmount_ = ContinuousIndexingMath.divideUp(mintAmount_, mintIndex_);
+        uint240 activeOwedM_ = _minterGateway.activeOwedMOf(minter_);
 
-        assertEq(_minterGateway.activeOwedMOf(minter_), mintAmount_ + 1);
+        // 1 wei in excess cause we round up in favor of the protocol
+        assertEq(activeOwedM_, mintAmount_ + 1);
         assertEq(_mToken.balanceOf(_alice), mintAmount_);
 
         vm.warp(vm.getBlockTimestamp() + 25 hours);
 
+        activeOwedM_ = _minterGateway.activeOwedMOf(minter_);
         uint128 indexAfter25Hours_ = _getContinuousIndexAt(_baseMinterRate, mintIndex_, 25 hours);
-        uint112 penaltyPrincipal_ = ContinuousIndexingMath.divideDown(
-            _minterGateway.getPenaltyForMissedCollateralUpdates(minter_),
+        uint112 missedUpdatePenalty_ = ContinuousIndexingMath.divideUp(
+            (activeOwedM_ * _penaltyRate) / ONE,
             indexAfter25Hours_
         );
 
-        principalAmount_ += penaltyPrincipal_;
+        principalAmount_ += missedUpdatePenalty_;
+
+        uint40 timeSinceLastUpdate_ = uint40(
+            vm.getBlockTimestamp() - _minterGateway.collateralUpdateTimestampOf(minter_) - 24 hours
+        );
+
+        uint112 undercollateralizedPenalty_ = (((principalAmount_ * timeSinceLastUpdate_) / 24 hours) * _penaltyRate) /
+            ONE;
+
+        principalAmount_ += undercollateralizedPenalty_;
 
         _updateCollateral(minter_, collateral_);
 

@@ -21,11 +21,11 @@ import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
 ███╗   ███╗██╗███╗   ██╗████████╗███████╗██████╗      ██████╗  █████╗ ████████╗███████╗██╗    ██╗ █████╗ ██╗   ██╗
 ████╗ ████║██║████╗  ██║╚══██╔══╝██╔════╝██╔══██╗    ██╔════╝ ██╔══██╗╚══██╔══╝██╔════╝██║    ██║██╔══██╗╚██╗ ██╔╝
-██╔████╔██║██║██╔██╗ ██║   ██║   █████╗  ██████╔╝    ██║  ███╗███████║   ██║   █████╗  ██║ █╗ ██║███████║ ╚████╔╝ 
-██║╚██╔╝██║██║██║╚██╗██║   ██║   ██╔══╝  ██╔══██╗    ██║   ██║██╔══██║   ██║   ██╔══╝  ██║███╗██║██╔══██║  ╚██╔╝  
-██║ ╚═╝ ██║██║██║ ╚████║   ██║   ███████╗██║  ██║    ╚██████╔╝██║  ██║   ██║   ███████╗╚███╔███╔╝██║  ██║   ██║   
-╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═╝  ╚═╝     ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝   
-                                                                                                                  
+██╔████╔██║██║██╔██╗ ██║   ██║   █████╗  ██████╔╝    ██║  ███╗███████║   ██║   █████╗  ██║ █╗ ██║███████║ ╚████╔╝
+██║╚██╔╝██║██║██║╚██╗██║   ██║   ██╔══╝  ██╔══██╗    ██║   ██║██╔══██║   ██║   ██╔══╝  ██║███╗██║██╔══██║  ╚██╔╝
+██║ ╚═╝ ██║██║██║ ╚████║   ██║   ███████╗██║  ██║    ╚██████╔╝██║  ██║   ██║   ███████╗╚███╔███╔╝██║  ██║   ██║
+╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═╝  ╚═╝     ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝
+
 
 */
 
@@ -205,9 +205,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         _imposePenaltyIfMissedCollateralUpdates(msg.sender);
 
-        _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
+        _imposePenaltyIfUndercollateralized(msg.sender, minTimestamp_);
 
-        _imposePenaltyIfUndercollateralized(msg.sender);
+        _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the collateral
         //       update can result in a new rate, we should update the index here to lock in that rate.
@@ -419,7 +419,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         emit MinterDeactivated(minter_, inactiveOwedM_, msg.sender);
 
-        // Reset reasonable aspects of minter's state.
+        // Reset reasonable aspects of minter's state
         delete _minterStates[minter_];
         delete _mintProposals[minter_];
 
@@ -776,9 +776,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /**
      * @dev   Imposes penalty if minter is undercollateralized.
-     * @param minter_ The address of the minter
+     * @param minter_       The address of the minter.
+     * @param newTimestamp_ The timestamp of the collateral update.
      */
-    function _imposePenaltyIfUndercollateralized(address minter_) internal {
+    function _imposePenaltyIfUndercollateralized(address minter_, uint40 newTimestamp_) internal {
         uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
 
         if (principalOfActiveOwedM_ == 0) return;
@@ -792,10 +793,31 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         // NOTE: Round the principal down in favor of the protocol since this is a max applied to the minter.
         uint112 principalOfMaxAllowedActiveOwedM_ = _getPrincipalAmountRoundedDown(uint240(maxAllowedActiveOwedM_));
 
+        // If the minter is not undercollateralized, then no penalty is imposed.
         if (principalOfMaxAllowedActiveOwedM_ >= principalOfActiveOwedM_) return;
 
+        MinterState storage minterState_ = _minterStates[minter_];
+
+        uint40 penalizeFrom_ = UIntMath.max40(minterState_.updateTimestamp, minterState_.penalizedUntilTimestamp);
+
+        if (newTimestamp_ <= penalizeFrom_) return;
+
+        uint32 updateCollateralInterval_ = updateCollateralInterval();
+
+        // NOTE: If `updateCollateralInterval_` is zero, then we can assume the minter would never call
+        //       `updateCollateral` (which is the only caller of this function) until they have collateral to report
+        //       that would not result in undercollaterilization penalties, so skip charging these penalties.
+        if (updateCollateralInterval_ == 0) return;
+
         unchecked {
-            _imposePenalty(minter_, principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_);
+            // NOTE: `newTimestamp_ - penalizeFrom_` will never be larger than `updateCollateralInterval_` since this
+            //       function is only called after `_imposePenaltyIfMissedCollateralUpdates`, which ensures that the
+            //       `penalizedUntilTimestamp` is within one `updateCollateralInterval_` of the `newTimestamp_`.
+            _imposePenalty(
+                minter_,
+                ((principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_) * (newTimestamp_ - penalizeFrom_)) /
+                    updateCollateralInterval_
+            );
         }
     }
 
@@ -883,10 +905,13 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     function _updateCollateral(address minter_, uint240 amount_, uint40 newTimestamp_) internal {
         MinterState storage minterState_ = _minterStates[minter_];
 
-        // The earliest allowed timestamp for a collateral update is the maximum of the last update timestamp and the latest proposed retrieval timestamp.
+        // The earliest allowed timestamp for a collateral update is the maximum of:
+        //   - the last update timestamp,
+        //   - the latest proposed retrieval timestamp, and
+        //   - the current timestamp minus the update collateral interval.
         uint40 earliestAllowedTimestamp_ = UIntMath.max40(
-            minterState_.updateTimestamp,
-            minterState_.latestProposedRetrievalTimestamp
+            UIntMath.max40(minterState_.updateTimestamp, minterState_.latestProposedRetrievalTimestamp),
+            uint40(block.timestamp) - updateCollateralInterval()
         );
 
         if (newTimestamp_ <= earliestAllowedTimestamp_) {
