@@ -10,7 +10,7 @@ import { TTGRegistrarReader } from "../src/libs/TTGRegistrarReader.sol";
 import { IMinterGateway } from "../src/interfaces/IMinterGateway.sol";
 import { ITTGRegistrar } from "../src/interfaces/ITTGRegistrar.sol";
 
-import { StableEarnerRateModel } from "../src/rateModels/StableEarnerRateModel.sol";
+import { EarnerRateModel } from "../src/rateModels/EarnerRateModel.sol";
 
 import { MockMToken, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
 import { MinterGatewayHarness } from "./utils/MinterGatewayHarness.sol";
@@ -3005,7 +3005,7 @@ contract MinterGatewayTests is TestUtils {
 
         _ttgRegistrar.updateConfig(
             TTGRegistrarReader.EARNER_RATE_MODEL,
-            address(new StableEarnerRateModel(address(minterGateway_)))
+            address(new EarnerRateModel(address(minterGateway_)))
         );
 
         _ttgRegistrar.updateConfig(MAX_EARNER_RATE, _earnerRate);

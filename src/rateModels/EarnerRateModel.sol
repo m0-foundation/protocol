@@ -13,22 +13,21 @@ import { IRateModel } from "../interfaces/IRateModel.sol";
 import { ITTGRegistrar } from "../interfaces/ITTGRegistrar.sol";
 
 import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
-import { IStableEarnerRateModel } from "./interfaces/IStableEarnerRateModel.sol";
 
 /**
  * @title  Earner Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by MToken.
  * @author M^0 Labs
  */
-contract StableEarnerRateModel is IStableEarnerRateModel {
+contract EarnerRateModel is IEarnerRateModel {
     /* ============ Variables ============ */
 
-    /// @inheritdoc IStableEarnerRateModel
+    /// @inheritdoc IEarnerRateModel
     uint32 public constant RATE_CONFIDENCE_INTERVAL = 30 days;
 
-    /// @inheritdoc IStableEarnerRateModel
+    /// @inheritdoc IEarnerRateModel
     uint32 public constant RATE_MULTIPLIER = 9_000; // 90% in basis points.
 
-    /// @inheritdoc IStableEarnerRateModel
+    /// @inheritdoc IEarnerRateModel
     uint32 public constant ONE = 10_000; // 100% in basis points.
 
     /// @notice The name of parameter in TTG that defines the max earner rate.
@@ -79,7 +78,7 @@ contract StableEarnerRateModel is IStableEarnerRateModel {
         return uint256(ITTGRegistrar(ttgRegistrar).get(_MAX_EARNER_RATE));
     }
 
-    /// @inheritdoc IStableEarnerRateModel
+    /// @inheritdoc IEarnerRateModel
     function getSafeEarnerRate(
         uint240 totalActiveOwedM_,
         uint240 totalEarningSupply_,

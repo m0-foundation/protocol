@@ -4,12 +4,12 @@ pragma solidity 0.8.23;
 
 import { Test } from "../lib/forge-std/src/Test.sol";
 
-import { StableEarnerRateModel } from "../src/rateModels/StableEarnerRateModel.sol";
+import { EarnerRateModel } from "../src/rateModels/EarnerRateModel.sol";
 
 import { MockMinterGateway } from "./utils/Mocks.sol";
 
 contract RateModelTests is Test {
-    StableEarnerRateModel internal _stableModel;
+    EarnerRateModel internal _earnerRateModel;
     MockMinterGateway internal _minterGateway;
 
     function setUp() external {
@@ -17,12 +17,12 @@ contract RateModelTests is Test {
         _minterGateway.setTtgRegistrar(address(1));
         _minterGateway.setMToken(address(1));
 
-        _stableModel = new StableEarnerRateModel(address(_minterGateway));
+        _earnerRateModel = new EarnerRateModel(address(_minterGateway));
     }
 
-    function test_stableModel_getSafeEarnerRate() external {
+    function test_earnerRateModel_getSafeEarnerRate() external {
         assertEq(
-            _stableModel.getSafeEarnerRate({
+            _earnerRateModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1_000_000,
                 totalEarningSupply_: 0,
                 minterRate_: 1_000
@@ -31,7 +31,7 @@ contract RateModelTests is Test {
         );
 
         assertEq(
-            _stableModel.getSafeEarnerRate({
+            _earnerRateModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1_000_000,
                 totalEarningSupply_: 1,
                 minterRate_: 1_000
@@ -40,7 +40,7 @@ contract RateModelTests is Test {
         );
 
         assertEq(
-            _stableModel.getSafeEarnerRate({
+            _earnerRateModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1_000_000,
                 totalEarningSupply_: 500_000,
                 minterRate_: 1_000
@@ -49,7 +49,7 @@ contract RateModelTests is Test {
         );
 
         assertEq(
-            _stableModel.getSafeEarnerRate({
+            _earnerRateModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1_000_000,
                 totalEarningSupply_: 999_999,
                 minterRate_: 1_000
@@ -58,7 +58,7 @@ contract RateModelTests is Test {
         );
 
         assertEq(
-            _stableModel.getSafeEarnerRate({
+            _earnerRateModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1_000_000,
                 totalEarningSupply_: 1_000_000,
                 minterRate_: 1_000
@@ -67,7 +67,7 @@ contract RateModelTests is Test {
         );
 
         assertEq(
-            _stableModel.getSafeEarnerRate({
+            _earnerRateModel.getSafeEarnerRate({
                 totalActiveOwedM_: 500_000,
                 totalEarningSupply_: 1_000_000,
                 minterRate_: 1_000
@@ -76,7 +76,7 @@ contract RateModelTests is Test {
         );
 
         assertEq(
-            _stableModel.getSafeEarnerRate({
+            _earnerRateModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1_091, // Lowest before result is 0
                 totalEarningSupply_: 1_000_000,
                 minterRate_: 1_000
@@ -85,7 +85,7 @@ contract RateModelTests is Test {
         );
 
         assertEq(
-            _stableModel.getSafeEarnerRate({
+            _earnerRateModel.getSafeEarnerRate({
                 totalActiveOwedM_: 1,
                 totalEarningSupply_: 1_000_000,
                 minterRate_: 1_000
@@ -94,7 +94,7 @@ contract RateModelTests is Test {
         );
 
         assertEq(
-            _stableModel.getSafeEarnerRate({
+            _earnerRateModel.getSafeEarnerRate({
                 totalActiveOwedM_: 0,
                 totalEarningSupply_: 1_000_000,
                 minterRate_: 1_000
@@ -103,7 +103,11 @@ contract RateModelTests is Test {
         );
 
         assertEq(
-            _stableModel.getSafeEarnerRate({ totalActiveOwedM_: 1_000_000, totalEarningSupply_: 0, minterRate_: 0 }),
+            _earnerRateModel.getSafeEarnerRate({
+                totalActiveOwedM_: 1_000_000,
+                totalEarningSupply_: 0,
+                minterRate_: 0
+            }),
             0 // 0%
         );
     }
