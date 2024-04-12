@@ -55,13 +55,7 @@ contract MockMToken {
 
     function mint(address account_, uint256 amount_) external {}
 
-    function burn(address /*account_*/, uint256 /*amount_*/) external view {
-        if (_burnFail) revert();
-    }
-
-    function setBurnFail(bool fail_) external {
-        _burnFail = fail_;
-    }
+    function burn(address account_, uint256 amount_) external {}
 
     function setCurrentIndex(uint256 index_) external {
         _currentIndex = index_;

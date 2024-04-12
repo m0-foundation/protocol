@@ -339,7 +339,11 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     ) public returns (uint112 principalAmount_, uint240 amount_) {
         if (maxPrincipalAmount_ == 0 || maxAmount_ == 0) revert ZeroBurnAmount();
 
-        bool isActive_ = _minterStates[minter_].isActive;
+        MinterState memory minterState_ = _minterStates[minter_];
+        bool isActive_ = minterState_.isActive;
+
+        // Revert early if minter has not been activated.
+        if (!isActive_ && !minterState_.isDeactivated) revert InactiveMinter();
 
         if (isActive_) {
             // NOTE: Penalize only for missed collateral updates, not for undercollateralization.
