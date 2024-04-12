@@ -425,7 +425,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     function isMinterApproved(address minter) external view returns (bool);
 
     /// @notice Checks if validator was approved by TTG
-    function isValidatorApprovedByTTG(address validator) external view returns (bool);
+    function isValidatorApproved(address validator) external view returns (bool);
 
     /// @notice The delay between mint proposal creation and its earliest execution.
     function mintDelay() external view returns (uint32);

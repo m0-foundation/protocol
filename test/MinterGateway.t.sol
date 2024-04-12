@@ -2911,9 +2911,9 @@ contract MinterGatewayTests is TestUtils {
         _ttgRegistrar.addToList(TTGRegistrarReader.MINTERS_LIST, peter);
         assertEq(_minterGateway.isMinterApproved(peter), true);
 
-        assertEq(_minterGateway.isValidatorApprovedByTTG(peter), false);
+        assertEq(_minterGateway.isValidatorApproved(peter), false);
         _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, peter);
-        assertEq(_minterGateway.isValidatorApprovedByTTG(peter), true);
+        assertEq(_minterGateway.isValidatorApproved(peter), true);
 
         _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validator1);
 

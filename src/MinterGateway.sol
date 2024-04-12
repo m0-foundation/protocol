@@ -649,7 +649,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     }
 
     /// @inheritdoc IMinterGateway
-    function isValidatorApprovedByTTG(address validator_) public view returns (bool) {
+    function isValidatorApproved(address validator_) public view returns (bool) {
         return TTGRegistrarReader.isApprovedValidator(ttgRegistrar, validator_);
     }
 
@@ -1054,7 +1054,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param validator_ The address of the validator
      */
     function _revertIfNotApprovedValidator(address validator_) internal view {
-        if (!isValidatorApprovedByTTG(validator_)) revert NotApprovedValidator(validator_);
+        if (!isValidatorApproved(validator_)) revert NotApprovedValidator(validator_);
     }
 
     /**
@@ -1169,7 +1169,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         if (timestamp_ <= lastTimestamp_) revert OutdatedValidatorTimestamp(validator_, timestamp_, lastTimestamp_);
 
         // Check that validator is approved by TTG.
-        if (!isValidatorApprovedByTTG(validator_)) return false;
+        if (!isValidatorApproved(validator_)) return false;
 
         // Check that ECDSA or ERC1271 signatures for given digest are valid.
         if (
