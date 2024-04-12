@@ -6,7 +6,7 @@ import { ContractHelper } from "../lib/common/src/ContractHelper.sol";
 
 import { MinterGateway } from "../src/MinterGateway.sol";
 import { MToken } from "../src/MToken.sol";
-import { StableEarnerRateModel } from "../src/rateModels/StableEarnerRateModel.sol";
+import { EarnerRateModel } from "../src/rateModels/EarnerRateModel.sol";
 import { MinterRateModel } from "../src/rateModels/MinterRateModel.sol";
 
 contract DeployBase {
@@ -33,7 +33,7 @@ contract DeployBase {
 
         minterGateway_ = address(new MinterGateway(ttgRegistrar_, mToken_));
         minterRateModel_ = address(new MinterRateModel(ttgRegistrar_));
-        earnerRateModel_ = address(new StableEarnerRateModel(minterGateway_));
+        earnerRateModel_ = address(new EarnerRateModel(minterGateway_));
     }
 
     function getExpectedMToken(address deployer_, uint256 deployerNonce_) public pure virtual returns (address) {

@@ -9,7 +9,7 @@ import { StdUtils } from "../../../lib/forge-std/src/StdUtils.sol";
 
 import { IMToken } from "../../../src/interfaces/IMToken.sol";
 import { IMinterGateway } from "../../../src/interfaces/IMinterGateway.sol";
-import { IStableEarnerRateModel } from "../../../src/rateModels/interfaces/IStableEarnerRateModel.sol";
+import { IEarnerRateModel } from "../../../src/rateModels/interfaces/IEarnerRateModel.sol";
 
 import { TTGRegistrarReader } from "../../../src/libs/TTGRegistrarReader.sol";
 
@@ -43,7 +43,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     uint256 internal _randomAmountSeed;
 
     modifier adjustTimestamp(uint256 timeJump_) {
-        uint32 rateConfidenceInterval_ = IStableEarnerRateModel(_mToken.rateModel()).RATE_CONFIDENCE_INTERVAL();
+        uint32 rateConfidenceInterval_ = IEarnerRateModel(_mToken.rateModel()).RATE_CONFIDENCE_INTERVAL();
         uint32 rateConfidenceExpires_ = uint32(_minterGateway.latestUpdateTimestamp()) + rateConfidenceInterval_;
         uint32 timeUntilRateConfidenceExpires_ = rateConfidenceExpires_ - _timestampStore.currentTimestamp();
 

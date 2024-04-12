@@ -26,7 +26,6 @@ import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 ██║ ╚═╝ ██║██║██║ ╚████║   ██║   ███████╗██║  ██║    ╚██████╔╝██║  ██║   ██║   ███████╗╚███╔███╔╝██║  ██║   ██║
 ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═╝  ╚═╝     ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝
 
-
 */
 
 /**
@@ -298,7 +297,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         principalAmount_ = _getPrincipalAmountRoundedUp(amount_);
         uint112 principalOfTotalActiveOwedM_ = principalOfTotalActiveOwedM;
 
-        emit MintExecuted(id_, principalAmount_, amount_);
+        emit MintExecuted(id_, msg.sender, principalAmount_, amount_);
 
         unchecked {
             uint256 newPrincipalOfTotalActiveOwedM_ = uint256(principalOfTotalActiveOwedM_) + principalAmount_;
@@ -355,7 +354,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
             emit BurnExecuted(minter_, principalAmount_, amount_, msg.sender);
         } else {
-            amount_ = _repayForInactiveMinter(minter_, UIntMath.safe240(maxAmount_));
+            amount_ = _repayForDeactivatedMinter(minter_, UIntMath.safe240(maxAmount_));
 
             emit BurnExecuted(minter_, amount_, msg.sender);
         }
@@ -375,7 +374,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         delete _mintProposals[minter_];
 
-        emit MintCanceled(id_, msg.sender);
+        emit MintCanceled(id_, minter_, msg.sender);
     }
 
     /// @inheritdoc IMinterGateway
@@ -649,7 +648,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     }
 
     /// @inheritdoc IMinterGateway
-    function isValidatorApprovedByTTG(address validator_) public view returns (bool) {
+    function isValidatorApproved(address validator_) public view returns (bool) {
         return TTGRegistrarReader.isApprovedValidator(ttgRegistrar, validator_);
     }
 
@@ -847,12 +846,12 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     }
 
     /**
-     * @dev    Repays inactive minter's owed M.
+     * @dev    Repays deactivated minter's owed M.
      * @param  minter_    The address of the minter.
      * @param  maxAmount_ The maximum amount of inactive owed M to repay.
      * @return amount_    The amount of inactive owed M that was actually repaid.
      */
-    function _repayForInactiveMinter(address minter_, uint240 maxAmount_) internal returns (uint240 amount_) {
+    function _repayForDeactivatedMinter(address minter_, uint240 maxAmount_) internal returns (uint240 amount_) {
         amount_ = UIntMath.min240(inactiveOwedMOf(minter_), maxAmount_);
 
         unchecked {
@@ -1054,7 +1053,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param validator_ The address of the validator
      */
     function _revertIfNotApprovedValidator(address validator_) internal view {
-        if (!isValidatorApprovedByTTG(validator_)) revert NotApprovedValidator(validator_);
+        if (!isValidatorApproved(validator_)) revert NotApprovedValidator(validator_);
     }
 
     /**
@@ -1169,7 +1168,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         if (timestamp_ <= lastTimestamp_) revert OutdatedValidatorTimestamp(validator_, timestamp_, lastTimestamp_);
 
         // Check that validator is approved by TTG.
-        if (!isValidatorApprovedByTTG(validator_)) return false;
+        if (!isValidatorApproved(validator_)) return false;
 
         // Check that ECDSA or ERC1271 signatures for given digest are valid.
         if (

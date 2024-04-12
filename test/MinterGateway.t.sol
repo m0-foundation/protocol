@@ -10,7 +10,7 @@ import { TTGRegistrarReader } from "../src/libs/TTGRegistrarReader.sol";
 import { IMinterGateway } from "../src/interfaces/IMinterGateway.sol";
 import { ITTGRegistrar } from "../src/interfaces/ITTGRegistrar.sol";
 
-import { StableEarnerRateModel } from "../src/rateModels/StableEarnerRateModel.sol";
+import { EarnerRateModel } from "../src/rateModels/EarnerRateModel.sol";
 
 import { MockMToken, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
 import { MinterGatewayHarness } from "./utils/MinterGatewayHarness.sol";
@@ -683,7 +683,7 @@ contract MinterGatewayTests is TestUtils {
         vm.warp(vm.getBlockTimestamp() + _mintDelay);
 
         vm.expectEmit();
-        emit IMinterGateway.MintExecuted(mintId, _minterGateway.getPrincipalAmountRoundedUp(80e18), 80e18);
+        emit IMinterGateway.MintExecuted(mintId, _minter1, _minterGateway.getPrincipalAmountRoundedUp(80e18), 80e18);
 
         vm.prank(_minter1);
         _minterGateway.mintM(mintId);
@@ -714,7 +714,7 @@ contract MinterGatewayTests is TestUtils {
         vm.warp(vm.getBlockTimestamp() + _mintDelay);
 
         vm.expectEmit();
-        emit IMinterGateway.MintExecuted(mintId, 1, 1);
+        emit IMinterGateway.MintExecuted(mintId, _minter1, 1, 1);
 
         vm.prank(_minter1);
         _minterGateway.mintM(mintId);
@@ -741,6 +741,7 @@ contract MinterGatewayTests is TestUtils {
         vm.expectEmit();
         emit IMinterGateway.MintExecuted(
             mintId_,
+            _minter1,
             _minterGateway.getPrincipalAmountRoundedUp(uint240(amount_)),
             uint240(amount_)
         );
@@ -888,7 +889,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setMintProposalOf(_minter1, mintId, 100, vm.getBlockTimestamp(), _alice);
 
         vm.expectEmit();
-        emit IMinterGateway.MintCanceled(mintId, _validator1);
+        emit IMinterGateway.MintCanceled(mintId, _minter1, _validator1);
 
         vm.prank(_validator1);
         _minterGateway.cancelMint(_minter1, mintId);
@@ -908,7 +909,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setMintProposalOf(_minter1, uint48(mintId_), 100, vm.getBlockTimestamp(), recipient_);
 
         vm.expectEmit();
-        emit IMinterGateway.MintCanceled(uint48(mintId_), _validator1);
+        emit IMinterGateway.MintCanceled(uint48(mintId_), _minter1, _validator1);
 
         vm.prank(_validator1);
         _minterGateway.cancelMint(_minter1, mintId_);
@@ -2910,9 +2911,9 @@ contract MinterGatewayTests is TestUtils {
         _ttgRegistrar.addToList(TTGRegistrarReader.MINTERS_LIST, peter);
         assertEq(_minterGateway.isMinterApproved(peter), true);
 
-        assertEq(_minterGateway.isValidatorApprovedByTTG(peter), false);
+        assertEq(_minterGateway.isValidatorApproved(peter), false);
         _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, peter);
-        assertEq(_minterGateway.isValidatorApprovedByTTG(peter), true);
+        assertEq(_minterGateway.isValidatorApproved(peter), true);
 
         _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validator1);
 
@@ -3004,7 +3005,7 @@ contract MinterGatewayTests is TestUtils {
 
         _ttgRegistrar.updateConfig(
             TTGRegistrarReader.EARNER_RATE_MODEL,
-            address(new StableEarnerRateModel(address(minterGateway_)))
+            address(new EarnerRateModel(address(minterGateway_)))
         );
 
         _ttgRegistrar.updateConfig(MAX_EARNER_RATE, _earnerRate);

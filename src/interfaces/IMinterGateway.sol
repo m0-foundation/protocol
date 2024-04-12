@@ -70,24 +70,26 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     event MinterFrozen(address indexed minter, uint40 frozenUntil);
 
     /**
-     * @notice Emitted when mint proposal is canceled.
-     * @param  mintId    The id of mint proposal.
-     * @param  canceller The address of validator who cancelled the mint proposal.
+     * @notice Emitted when a mint proposal is canceled.
+     * @param  mintId    The id of the canceled mint proposal.
+     * @param  minter    The address of the minter for which the mint was canceled.
+     * @param  canceller The address of the validator who canceled the mint proposal.
      */
-    event MintCanceled(uint48 indexed mintId, address indexed canceller);
+    event MintCanceled(uint48 indexed mintId, address indexed minter, address indexed canceller);
 
     /**
-     * @notice Emitted when mint proposal is executed.
-     * @param  mintId          The id of executed mint proposal.
+     * @notice Emitted when a mint proposal is executed.
+     * @param  mintId          The id of the executed mint proposal.
+     * @param  minter          The address of the minter that executed the mint.
      * @param  principalAmount The principal amount of M tokens minted.
      * @param  amount          The amount of M tokens minted.
      */
-    event MintExecuted(uint48 indexed mintId, uint112 principalAmount, uint240 amount);
+    event MintExecuted(uint48 indexed mintId, address indexed minter, uint112 principalAmount, uint240 amount);
 
     /**
-     * @notice Emitted when mint proposal is created.
+     * @notice Emitted when a mint proposal is created.
      * @param  mintId      The id of mint proposal.
-     * @param  minter      The address of the minter.
+     * @param  minter      The address of the minter that proposed the mint.
      * @param  amount      The amount of M tokens to mint.
      * @param  destination The address to mint to.
      */
@@ -423,7 +425,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     function isMinterApproved(address minter) external view returns (bool);
 
     /// @notice Checks if validator was approved by TTG
-    function isValidatorApprovedByTTG(address validator) external view returns (bool);
+    function isValidatorApproved(address validator) external view returns (bool);
 
     /// @notice The delay between mint proposal creation and its earliest execution.
     function mintDelay() external view returns (uint32);
