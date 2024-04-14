@@ -762,20 +762,18 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param minter_ The address of the minter.
      */
     function _imposePenaltyIfMissedCollateralUpdates(address minter_) internal {
-        uint32 updateCollateralInterval_ = updateCollateralInterval();
-
         MinterState storage minterState_ = _minterStates[minter_];
 
         (uint40 missedIntervals_, uint40 missedUntil_) = _getMissedCollateralUpdateParameters(
             minterState_.updateTimestamp,
             minterState_.penalizedUntilTimestamp,
-            updateCollateralInterval_
+            updateCollateralInterval()
         );
 
         if (missedIntervals_ == 0) return;
 
         // Save until when the minter has been penalized for missed intervals to prevent double penalizing them.
-        _minterStates[minter_].penalizedUntilTimestamp = missedUntil_;
+        minterState_.penalizedUntilTimestamp = missedUntil_;
 
         uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
 
@@ -953,12 +951,14 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         if (timeElapsed_ < updateInterval_) return (0, penalizeFrom_);
 
-        // NOTE: `updateInterval_` never equals 0, so the division is safe.
-        //       Its minimum is capped at `MIN_UPDATE_COLLATERAL_INTERVAL`.
-        missedIntervals_ = timeElapsed_ / updateInterval_;
+        unchecked {
+            // NOTE: `updateInterval_` never equals 0, so the division is safe.
+            //       Its minimum is capped at `MIN_UPDATE_COLLATERAL_INTERVAL`.
+            missedIntervals_ = timeElapsed_ / updateInterval_;
 
-        // NOTE: Cannot really overflow a `uint40` since `missedIntervals_ * updateInterval_ <= timeElapsed_`.
-        missedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);
+            // NOTE: Cannot really overflow a `uint40` since `missedIntervals_ * updateInterval_ <= timeElapsed_`.
+            missedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);
+        }
     }
 
     /**
