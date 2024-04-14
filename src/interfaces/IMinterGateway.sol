@@ -457,6 +457,9 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice Mint ratio cap. 650% in basis points.
     function MAX_MINT_RATIO() external pure returns (uint32);
 
+    /// @notice Update collateral interval lower cap in seconds.
+    function MIN_UPDATE_COLLATERAL_INTERVAL() external pure returns (uint32);
+
     /// @notice The EIP-712 typehash for the `updateCollateral` method.
     function UPDATE_COLLATERAL_TYPEHASH() external pure returns (bytes32);
 }

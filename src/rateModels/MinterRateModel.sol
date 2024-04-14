@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.23;
 
+import { UIntMath } from "../../lib/common/src/libs/UIntMath.sol";
+
 import { IRateModel } from "../interfaces/IRateModel.sol";
 import { IMinterRateModel } from "./interfaces/IMinterRateModel.sol";
 import { ITTGRegistrar } from "../interfaces/ITTGRegistrar.sol";
@@ -15,6 +17,9 @@ contract MinterRateModel is IMinterRateModel {
 
     /// @notice The name of parameter in TTG that defines the base minter rate.
     bytes32 internal constant _BASE_MINTER_RATE = "base_minter_rate";
+
+    /// @notice The maximum allowed rate in basis points.
+    uint256 public constant MAX_MINTER_RATE = 40_000; // 400%
 
     /// @inheritdoc IMinterRateModel
     address public immutable ttgRegistrar;
@@ -33,6 +38,6 @@ contract MinterRateModel is IMinterRateModel {
 
     /// @inheritdoc IRateModel
     function rate() external view returns (uint256 rate_) {
-        return uint256(ITTGRegistrar(ttgRegistrar).get(_BASE_MINTER_RATE));
+        return UIntMath.min256(uint256(ITTGRegistrar(ttgRegistrar).get(_BASE_MINTER_RATE)), MAX_MINTER_RATE);
     }
 }
