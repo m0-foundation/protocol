@@ -3041,6 +3041,40 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.updateCollateralInterval(), 3601);
     }
 
+    function test_updateCollateralIntervalIsGreaterThanCurrentTimestamp() external {
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, vm.getBlockTimestamp() + 10);
+        assertEq(_minterGateway.updateCollateralInterval(), vm.getBlockTimestamp() + 10);
+
+        uint240 collateral = 100;
+        uint256[] memory retrievalIds = new uint256[](0);
+        uint40 signatureTimestamp = uint40(vm.getBlockTimestamp());
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+
+        uint256[] memory timestamps = new uint256[](1);
+        timestamps[0] = signatureTimestamp;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp,
+            _validator1Pk
+        );
+
+        vm.expectEmit();
+        emit IMinterGateway.CollateralUpdated(_minter1, collateral, 0, bytes32(0), signatureTimestamp);
+
+        vm.prank(_minter1);
+        _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
+
+        assertEq(_minterGateway.collateralOf(_minter1), collateral);
+    }
+
     /* ============ M Token ============ */
     function test_mToken_addEarningAmount_overflow() external {
         address deployer_ = address(this);

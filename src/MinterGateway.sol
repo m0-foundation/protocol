@@ -913,10 +913,14 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         //   - the last update timestamp,
         //   - the latest proposed retrieval timestamp, and
         //   - the current timestamp minus the update collateral interval.
-        uint40 earliestAllowedTimestamp_ = UIntMath.max40(
-            UIntMath.max40(minterState_.updateTimestamp, minterState_.latestProposedRetrievalTimestamp),
-            uint40(block.timestamp) - updateCollateralInterval()
-        );
+        uint40 earliestAllowedTimestamp_;
+        unchecked {
+            // NOTE: Cannot underflow since `min40` is applied when `updateCollateralInterval()` > `block.timestamp`.
+            earliestAllowedTimestamp_ = UIntMath.max40(
+                UIntMath.max40(minterState_.updateTimestamp, minterState_.latestProposedRetrievalTimestamp),
+                uint40(block.timestamp) - UIntMath.min40(updateCollateralInterval(), uint40(block.timestamp))
+            );
+        }
 
         if (newTimestamp_ <= earliestAllowedTimestamp_) {
             revert StaleCollateralUpdate(newTimestamp_, earliestAllowedTimestamp_);
