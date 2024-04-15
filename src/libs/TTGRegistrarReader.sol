@@ -14,40 +14,40 @@ library TTGRegistrarReader {
     /// @notice The name of parameter in TTG that defines the earner rate model contract.
     bytes32 internal constant EARNER_RATE_MODEL = "earner_rate_model";
 
-    /// @notice The earners list name in TTG.
+    /// @notice The parameter name in TTG that defines the earners list.
     bytes32 internal constant EARNERS_LIST = "earners";
 
-    /// @notice The ignore earners list flag name in TTG.
+    /// @notice The parameter name in TTG that defines whether to ignore the earners list or not.
     bytes32 internal constant EARNERS_LIST_IGNORED = "earners_list_ignored";
 
-    /// @notice The name of parameter in TTG that defines the time to wait for mint request to be processed
+    /// @notice The parameter name in TTG that defines the time to wait for mint request to be processed.
     bytes32 internal constant MINT_DELAY = "mint_delay";
 
-    /// @notice The name of parameter in TTG that defines the mint ratio.
+    /// @notice The parameter name in TTG that defines the mint ratio.
     bytes32 internal constant MINT_RATIO = "mint_ratio"; // bps
 
-    /// @notice The name of parameter in TTG that defines the time while mint request can still be processed
+    /// @notice The parameter name in TTG that defines the time while mint request can still be processed.
     bytes32 internal constant MINT_TTL = "mint_ttl";
 
-    /// @notice The name of parameter in TTG that defines the time to freeze minter
+    /// @notice The parameter name in TTG that defines the time to freeze minter.
     bytes32 internal constant MINTER_FREEZE_TIME = "minter_freeze_time";
 
-    /// @notice The name of parameter in TTG that defines the minter rate model contract.
+    /// @notice The parameter name in TTG that defines the minter rate model contract.
     bytes32 internal constant MINTER_RATE_MODEL = "minter_rate_model";
 
-    /// @notice The minters list name in TTG.
+    /// @notice The parameter name in TTG that defines the minters list.
     bytes32 internal constant MINTERS_LIST = "minters";
 
-    /// @notice The name of parameter in TTG that defines the penalty rate.
-    bytes32 internal constant PENALTY_RATE = "penalty_rate";
+    /// @notice The parameter name in TTG that defines the penalty rate.
+    bytes32 internal constant PENALTY_RATE = "penalty_rate"; // bps
 
-    /// @notice The name of parameter in TTG that required interval to update collateral.
+    /// @notice The parameter name in TTG that defines the required interval to update collateral.
     bytes32 internal constant UPDATE_COLLATERAL_INTERVAL = "update_collateral_interval";
 
-    /// @notice The name of parameter that defines number of signatures required for successful collateral update
+    /// @notice The parameter name that defines number of signatures required for successful collateral update.
     bytes32 internal constant UPDATE_COLLATERAL_VALIDATOR_THRESHOLD = "update_collateral_threshold";
 
-    /// @notice The validators list name in TTG.
+    /// @notice The parameter name in TTG that defines the validators list.
     bytes32 internal constant VALIDATORS_LIST = "validators";
 
     /* ============ Internal View/Pure Functions ============ */

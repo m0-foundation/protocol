@@ -230,7 +230,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     ) external returns (uint40 minTimestamp);
 
     /**
-     * @notice Proposes retrieval of minter's offchain collateral
+     * @notice Proposes retrieval of minter's off-chain collateral
      * @param  collateral  The amount of collateral to retrieve
      * @return retrievalId The unique id of created retrieval proposal
      */
