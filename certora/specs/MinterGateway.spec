@@ -272,7 +272,7 @@ rule r16_validatorCanAlwaysFreezeAnyMinter() {
 	require e2.block.timestamp < 4102444800; // 01.01.2100 00:00:00
 	require e2.block.timestamp > 1704067200; // 01.01.2024 00:00:00
 
-	bool isValidator = isValidatorApprovedByTTG(e1, validator);
+	bool isValidator = isValidatorApproved(e1, validator);
 	minterGateway.freezeMinter(e2, minter);
 
 	assert e2.msg.sender == validator => isValidator && minterGateway._minterStates[minter].frozenUntilTimestamp >= assert_uint40(e2.block.timestamp);
@@ -282,7 +282,7 @@ rule r16_validatorCanAlwaysFreezeAnyMinter() {
 rule r16_validatorCanAlwaysCancelAnyExistingMintId() {
 	env e1; env e2; address minter; uint256 mintId; address validator;
 
-	bool isValidator = isValidatorApprovedByTTG(e1, validator);
+	bool isValidator = isValidatorApproved(e1, validator);
 	
 	uint48 idBefore = minterGateway._mintProposals[minter].id;
 	minterGateway.cancelMint(e2, minter, mintId);
