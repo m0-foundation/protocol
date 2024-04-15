@@ -35,7 +35,7 @@ contract MinterGatewayTests is TestUtils {
     uint256 internal _validator3Pk;
 
     uint256 internal _updateCollateralThreshold = 1;
-    uint32 internal _updateCollateralInterval = 2000;
+    uint32 internal _updateCollateralInterval = 20_000;
     uint32 internal _minterFreezeTime = 1000;
     uint32 internal _mintDelay = 1000;
     uint32 internal _mintTTL = 500;
@@ -2931,17 +2931,6 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.inactiveOwedMOf(_minter1), 1_000_000);
     }
 
-    function test_getMissedCollateralUpdateParameters_zeroNewUpdateInterval() external {
-        (uint40 missedIntervals_, uint40 missedUntil_) = _minterGateway.getMissedCollateralUpdateParameters({
-            lastUpdateTimestamp_: uint40(vm.getBlockTimestamp()) - 48 hours, // This does not matter
-            lastPenalizedUntil_: uint40(vm.getBlockTimestamp()) - 24 hours, // This does not matter
-            updateInterval_: 0
-        });
-
-        assertEq(missedIntervals_, 0);
-        assertEq(missedUntil_, uint40(vm.getBlockTimestamp()) - 24 hours);
-    }
-
     function test_getMissedCollateralUpdateParameters_newMinter() external {
         (uint40 missedIntervals_, uint40 missedUntil_) = _minterGateway.getMissedCollateralUpdateParameters({
             lastUpdateTimestamp_: 0,
@@ -3002,11 +2991,11 @@ contract MinterGatewayTests is TestUtils {
             vm.getBlockTimestamp() + _updateCollateralInterval
         );
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1_234);
-        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), vm.getBlockTimestamp() + 1234);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 3_700);
+        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), vm.getBlockTimestamp() + 3_700);
 
         _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 10_000);
-        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), vm.getBlockTimestamp() - 10_000 + 1_234);
+        assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), vm.getBlockTimestamp() - 10_000 + 3_700);
     }
 
     function test_collateralPenaltyDeadlineOf() external {
@@ -3024,23 +3013,66 @@ contract MinterGatewayTests is TestUtils {
             vm.getBlockTimestamp() + _updateCollateralInterval
         );
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1_234);
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 3_700);
 
         _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
         _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp() - 10);
-        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), vm.getBlockTimestamp() + 1234);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), vm.getBlockTimestamp() + 3_700);
 
         _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 10);
         _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp());
-        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), vm.getBlockTimestamp() + 1234);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), vm.getBlockTimestamp() + 3_700);
 
-        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 10_000);
-        _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp() - 10_010);
-        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), vm.getBlockTimestamp() - 10_000 + 9 * (1234));
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 30_000);
+        _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp() - 30_010);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), vm.getBlockTimestamp() - 30_000 + 9 * (3_700));
 
-        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 10_010);
-        _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp() - 10_000);
-        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), vm.getBlockTimestamp() - 10_000 + 9 * (1234));
+        _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 30_010);
+        _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp() - 30_000);
+        assertEq(_minterGateway.collateralPenaltyDeadlineOf(_minter1), vm.getBlockTimestamp() - 30_000 + 9 * (3_700));
+    }
+
+    function test_updateCollateralInterval_minimumCap() external {
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1);
+        assertEq(_minterGateway.updateCollateralInterval(), _minterGateway.MIN_UPDATE_COLLATERAL_INTERVAL());
+        assertEq(_minterGateway.updateCollateralInterval(), 3600);
+
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 3601);
+        assertEq(_minterGateway.updateCollateralInterval(), 3601);
+    }
+
+    function test_updateCollateralIntervalIsGreaterThanCurrentTimestamp() external {
+        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, vm.getBlockTimestamp() + 10);
+        assertEq(_minterGateway.updateCollateralInterval(), vm.getBlockTimestamp() + 10);
+
+        uint240 collateral = 100;
+        uint256[] memory retrievalIds = new uint256[](0);
+        uint40 signatureTimestamp = uint40(vm.getBlockTimestamp());
+
+        address[] memory validators = new address[](1);
+        validators[0] = _validator1;
+
+        uint256[] memory timestamps = new uint256[](1);
+        timestamps[0] = signatureTimestamp;
+
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = _getCollateralUpdateSignature(
+            address(_minterGateway),
+            _minter1,
+            collateral,
+            retrievalIds,
+            bytes32(0),
+            signatureTimestamp,
+            _validator1Pk
+        );
+
+        vm.expectEmit();
+        emit IMinterGateway.CollateralUpdated(_minter1, collateral, 0, bytes32(0), signatureTimestamp);
+
+        vm.prank(_minter1);
+        _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
+
+        assertEq(_minterGateway.collateralOf(_minter1), collateral);
     }
 
     /* ============ M Token ============ */

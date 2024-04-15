@@ -84,6 +84,9 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     /// @inheritdoc IMinterGateway
     uint32 public constant MAX_MINT_RATIO = 65_000;
 
+    /// @notice IMinterGateway
+    uint32 public constant MIN_UPDATE_COLLATERAL_INTERVAL = 3_600;
+
     // solhint-disable-next-line max-line-length
     /// @dev keccak256("UpdateCollateral(address minter,uint256 collateral,uint256[] retrievalIds,bytes32 metadataHash,uint256 timestamp)")
     /// @inheritdoc IMinterGateway
@@ -658,7 +661,11 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /// @inheritdoc IMinterGateway
     function updateCollateralInterval() public view returns (uint32) {
-        return UIntMath.bound32(TTGRegistrarReader.getUpdateCollateralInterval(ttgRegistrar));
+        return
+            UIntMath.max32(
+                UIntMath.bound32(TTGRegistrarReader.getUpdateCollateralInterval(ttgRegistrar)),
+                MIN_UPDATE_COLLATERAL_INTERVAL
+            );
     }
 
     /// @inheritdoc IMinterGateway
@@ -755,20 +762,18 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param minter_ The address of the minter.
      */
     function _imposePenaltyIfMissedCollateralUpdates(address minter_) internal {
-        uint32 updateCollateralInterval_ = updateCollateralInterval();
-
         MinterState storage minterState_ = _minterStates[minter_];
 
         (uint40 missedIntervals_, uint40 missedUntil_) = _getMissedCollateralUpdateParameters(
             minterState_.updateTimestamp,
             minterState_.penalizedUntilTimestamp,
-            updateCollateralInterval_
+            updateCollateralInterval()
         );
 
         if (missedIntervals_ == 0) return;
 
         // Save until when the minter has been penalized for missed intervals to prevent double penalizing them.
-        _minterStates[minter_].penalizedUntilTimestamp = missedUntil_;
+        minterState_.penalizedUntilTimestamp = missedUntil_;
 
         uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
 
@@ -805,21 +810,17 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         if (newTimestamp_ <= penalizeFrom_) return;
 
-        uint32 updateCollateralInterval_ = updateCollateralInterval();
-
-        // NOTE: If `updateCollateralInterval_` is zero, then we can assume the minter would never call
-        //       `updateCollateral` (which is the only caller of this function) until they have collateral to report
-        //       that would not result in undercollaterilization penalties, so skip charging these penalties.
-        if (updateCollateralInterval_ == 0) return;
-
         unchecked {
             // NOTE: `newTimestamp_ - penalizeFrom_` will never be larger than `updateCollateralInterval_` since this
             //       function is only called after `_imposePenaltyIfMissedCollateralUpdates`, which ensures that the
             //       `penalizedUntilTimestamp` is within one `updateCollateralInterval_` of the `newTimestamp_`.
+            //
+            // NOTE: `updateCollateralInterval()` never equals 0, so the division is safe.
+            //       Its minimum is capped at `MIN_UPDATE_COLLATERAL_INTERVAL`.
             _imposePenalty(
                 minter_,
                 ((principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_) * (newTimestamp_ - penalizeFrom_)) /
-                    updateCollateralInterval_
+                    updateCollateralInterval()
             );
         }
     }
@@ -912,10 +913,14 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         //   - the last update timestamp,
         //   - the latest proposed retrieval timestamp, and
         //   - the current timestamp minus the update collateral interval.
-        uint40 earliestAllowedTimestamp_ = UIntMath.max40(
-            UIntMath.max40(minterState_.updateTimestamp, minterState_.latestProposedRetrievalTimestamp),
-            uint40(block.timestamp) - updateCollateralInterval()
-        );
+        uint40 earliestAllowedTimestamp_;
+        unchecked {
+            // NOTE: Cannot underflow since `min40` is applied when `updateCollateralInterval()` > `block.timestamp`.
+            earliestAllowedTimestamp_ = UIntMath.max40(
+                UIntMath.max40(minterState_.updateTimestamp, minterState_.latestProposedRetrievalTimestamp),
+                uint40(block.timestamp) - UIntMath.min40(updateCollateralInterval(), uint40(block.timestamp))
+            );
+        }
 
         if (newTimestamp_ <= earliestAllowedTimestamp_) {
             revert StaleCollateralUpdate(newTimestamp_, earliestAllowedTimestamp_);
@@ -943,17 +948,21 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     ) internal view returns (uint40 missedIntervals_, uint40 missedUntil_) {
         uint40 penalizeFrom_ = UIntMath.max40(lastUpdateTimestamp_, lastPenalizedUntil_);
 
-        // If brand new minter or `updateInterval_` is 0, then there is no missed interval charge at all.
-        if (lastUpdateTimestamp_ == 0 || updateInterval_ == 0) return (0, penalizeFrom_);
+        // If brand new minter then there is no missed interval charge at all.
+        if (lastUpdateTimestamp_ == 0) return (0, penalizeFrom_);
 
         uint40 timeElapsed_ = uint40(block.timestamp) - penalizeFrom_;
 
         if (timeElapsed_ < updateInterval_) return (0, penalizeFrom_);
 
-        missedIntervals_ = timeElapsed_ / updateInterval_;
+        unchecked {
+            // NOTE: `updateInterval_` never equals 0, so the division is safe.
+            //       Its minimum is capped at `MIN_UPDATE_COLLATERAL_INTERVAL`.
+            missedIntervals_ = timeElapsed_ / updateInterval_;
 
-        // NOTE: Cannot really overflow a `uint40` since `missedIntervals_ * updateInterval_ <= timeElapsed_`.
-        missedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);
+            // NOTE: Cannot really overflow a `uint40` since `missedIntervals_ * updateInterval_ <= timeElapsed_`.
+            missedUntil_ = penalizeFrom_ + (missedIntervals_ * updateInterval_);
+        }
     }
 
     /**
