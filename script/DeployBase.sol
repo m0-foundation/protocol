@@ -29,33 +29,49 @@ contract DeployBase {
         // EarnerRateModel needs `minterGateway_` address and for `minterGateway_` to be deployed.
         // MinterRateModel needs `ttgRegistrar_` address.
 
-        address mToken_ = address(new MToken(ttgRegistrar_, getExpectedMinterGateway(deployer_, deployerNonce_)));
+        address mToken_ = address(new MToken(ttgRegistrar_, _getExpectedMinterGateway(deployer_, deployerNonce_)));
 
         minterGateway_ = address(new MinterGateway(ttgRegistrar_, mToken_));
         minterRateModel_ = address(new MinterRateModel(ttgRegistrar_));
         earnerRateModel_ = address(new EarnerRateModel(minterGateway_));
     }
 
-    function getExpectedMToken(address deployer_, uint256 deployerNonce_) public pure virtual returns (address) {
+    function _getExpectedMToken(address deployer_, uint256 deployerNonce_) internal pure returns (address) {
         return ContractHelper.getContractFrom(deployer_, deployerNonce_);
     }
 
-    function getExpectedMinterGateway(address deployer_, uint256 deployerNonce_) public pure virtual returns (address) {
+    function getExpectedMToken(address deployer_, uint256 deployerNonce_) public pure virtual returns (address) {
+        return _getExpectedMToken(deployer_, deployerNonce_);
+    }
+
+    function _getExpectedMinterGateway(address deployer_, uint256 deployerNonce_) internal pure returns (address) {
         return ContractHelper.getContractFrom(deployer_, deployerNonce_ + 1);
+    }
+
+    function getExpectedMinterGateway(address deployer_, uint256 deployerNonce_) public pure virtual returns (address) {
+        return _getExpectedMinterGateway(deployer_, deployerNonce_);
+    }
+
+    function _getExpectedMinterRateModel(address deployer_, uint256 deployerNonce_) internal pure returns (address) {
+        return ContractHelper.getContractFrom(deployer_, deployerNonce_ + 2);
     }
 
     function getExpectedMinterRateModel(
         address deployer_,
         uint256 deployerNonce_
     ) public pure virtual returns (address) {
-        return ContractHelper.getContractFrom(deployer_, deployerNonce_ + 2);
+        return _getExpectedMinterRateModel(deployer_, deployerNonce_);
+    }
+
+    function _getExpectedEarnerRateModel(address deployer_, uint256 deployerNonce_) internal pure returns (address) {
+        return ContractHelper.getContractFrom(deployer_, deployerNonce_ + 3);
     }
 
     function getExpectedEarnerRateModel(
         address deployer_,
         uint256 deployerNonce_
     ) public pure virtual returns (address) {
-        return ContractHelper.getContractFrom(deployer_, deployerNonce_ + 3);
+        return _getExpectedEarnerRateModel(deployer_, deployerNonce_);
     }
 
     function getDeployerNonceAfterProtocolDeployment(uint256 deployerNonce_) public pure virtual returns (uint256) {
