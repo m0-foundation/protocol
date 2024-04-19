@@ -98,10 +98,30 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /**
      * @notice Emitted when penalty is imposed on minter.
      * @param  minter          The address of the minter.
+     * @param  missedIntervals The number of update intervals missed.
      * @param  principalAmount The principal amount of penalty charge.
      * @param  amount          The present amount of penalty charge.
      */
-    event PenaltyImposed(address indexed minter, uint112 principalAmount, uint240 amount);
+    event MissedIntervalsPenaltyImposed(
+        address indexed minter,
+        uint40 missedIntervals,
+        uint112 principalAmount,
+        uint240 amount
+    );
+
+    /**
+     * @notice Emitted when penalty is imposed on minter.
+     * @param  minter          The address of the minter.
+     * @param  excessOwedM     The present amount of owed M in excess of allowed owed M.
+     * @param  principalAmount The principal amount of penalty charge.
+     * @param  amount          The present amount of penalty charge.
+     */
+    event UndercollateralizedPenaltyImposed(
+        address indexed minter,
+        uint240 excessOwedM,
+        uint112 principalAmount,
+        uint240 amount
+    );
 
     /**
      * @notice Emitted when a collateral retrieval proposal is created.

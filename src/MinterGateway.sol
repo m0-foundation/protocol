@@ -410,16 +410,12 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     function deactivateMinter(address minter_) external onlyActiveMinter(minter_) returns (uint240 inactiveOwedM_) {
         if (isMinterApproved(minter_)) revert StillApprovedMinter();
 
-        uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
+        _imposePenaltyIfMissedCollateralUpdates(minter_);
 
         unchecked {
-            // As an edge case precaution, if the resulting principal plus penalties is greater than the max uint112,
-            // then max out the principal.
-            uint112 newPrincipalOfOwedM_ = UIntMath.bound112(
-                uint256(principalOfActiveOwedM_) + _getPenaltyPrincipalForMissedCollateralUpdates(minter_)
-            );
+            uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
 
-            inactiveOwedM_ = _getPresentAmount(newPrincipalOfOwedM_);
+            inactiveOwedM_ = _getPresentAmount(principalOfActiveOwedM_);
 
             // Treat rawOwedM as principal since minter is active.
             principalOfTotalActiveOwedM -= principalOfActiveOwedM_;
@@ -729,16 +725,17 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     /* ============ Internal Interactive Functions ============ */
 
     /**
-     * @dev   Imposes penalty on an active minter. Calling this for an inactive minter will break accounting.
-     * @param minter_                 The address of the minter.
-     * @param principalOfPenaltyBase_ The principal of the base for penalization.
+     * @dev    Imposes penalty on an active minter. Calling this for an inactive minter will break accounting.
+     * @param  minter_                 The address of the minter.
+     * @param  principalOfPenaltyBase_ The principal of the base for penalization.
+     * @return The principal of the imposed penalty.
      */
-    function _imposePenalty(address minter_, uint152 principalOfPenaltyBase_) internal {
-        if (principalOfPenaltyBase_ == 0) return;
+    function _imposePenalty(address minter_, uint152 principalOfPenaltyBase_) internal returns (uint112) {
+        if (principalOfPenaltyBase_ == 0) return 0;
 
         uint32 penaltyRate_ = penaltyRate();
 
-        if (penaltyRate_ == 0) return;
+        if (penaltyRate_ == 0) return 0;
 
         unchecked {
             uint256 penaltyPrincipal_ = (uint256(principalOfPenaltyBase_) * penaltyRate_) / ONE;
@@ -757,7 +754,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
             _rawOwedM[minter_] += uint112(penaltyPrincipal_); // Treat rawOwedM as principal since minter is active.
 
-            emit PenaltyImposed(minter_, uint112(penaltyPrincipal_), _getPresentAmount(uint112(penaltyPrincipal_)));
+            return uint112(penaltyPrincipal_);
         }
     }
 
@@ -783,7 +780,16 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         if (principalOfActiveOwedM_ == 0) return;
 
-        _imposePenalty(minter_, uint152(principalOfActiveOwedM_) * missedIntervals_);
+        uint112 penaltyPrincipal_ = _imposePenalty(minter_, uint152(principalOfActiveOwedM_) * missedIntervals_);
+
+        if (penaltyPrincipal_ == 0) return;
+
+        emit MissedIntervalsPenaltyImposed(
+            minter_,
+            missedIntervals_,
+            penaltyPrincipal_,
+            _getPresentAmount(penaltyPrincipal_)
+        );
     }
 
     /**
@@ -815,16 +821,26 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         if (newTimestamp_ <= penalizeFrom_) return;
 
         unchecked {
+            uint112 principalOfExcessOwedM_ = principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_;
+
             // NOTE: `newTimestamp_ - penalizeFrom_` will never be larger than `updateCollateralInterval_` since this
             //       function is only called after `_imposePenaltyIfMissedCollateralUpdates`, which ensures that the
             //       `penalizedUntilTimestamp` is within one `updateCollateralInterval_` of the `newTimestamp_`.
             //
             // NOTE: `updateCollateralInterval()` never equals 0, so the division is safe.
             //       Its minimum is capped at `MIN_UPDATE_COLLATERAL_INTERVAL`.
-            _imposePenalty(
+            uint112 penaltyPrincipal_ = _imposePenalty(
                 minter_,
-                ((principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_) * (newTimestamp_ - penalizeFrom_)) /
-                    updateCollateralInterval()
+                (principalOfExcessOwedM_ * (newTimestamp_ - penalizeFrom_)) / updateCollateralInterval()
+            );
+
+            if (penaltyPrincipal_ == 0) return;
+
+            emit UndercollateralizedPenaltyImposed(
+                minter_,
+                _getPresentAmount(principalOfExcessOwedM_),
+                penaltyPrincipal_,
+                _getPresentAmount(penaltyPrincipal_)
             );
         }
     }
