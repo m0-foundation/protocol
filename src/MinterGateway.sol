@@ -412,13 +412,13 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         _imposePenaltyIfMissedCollateralUpdates(minter_);
 
+        uint112 principalOfOwedM_ = principalOfActiveOwedMOf(minter_);
+
+        inactiveOwedM_ = _getPresentAmount(principalOfOwedM_);
+
         unchecked {
-            uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
-
-            inactiveOwedM_ = _getPresentAmount(principalOfActiveOwedM_);
-
             // Treat rawOwedM as principal since minter is active.
-            principalOfTotalActiveOwedM -= principalOfActiveOwedM_;
+            principalOfTotalActiveOwedM -= principalOfOwedM_;
             totalInactiveOwedM += inactiveOwedM_;
         }
 
@@ -784,12 +784,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         if (penaltyPrincipal_ == 0) return;
 
-        emit MissedIntervalsPenaltyImposed(
-            minter_,
-            missedIntervals_,
-            penaltyPrincipal_,
-            _getPresentAmount(penaltyPrincipal_)
-        );
+        emit MissedIntervalsPenaltyImposed(minter_, missedIntervals_, _getPresentAmount(penaltyPrincipal_));
     }
 
     /**
@@ -821,6 +816,8 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         if (newTimestamp_ <= penalizeFrom_) return;
 
         unchecked {
+            uint40 timeSpan_ = newTimestamp_ - penalizeFrom_;
+
             uint112 principalOfExcessOwedM_ = principalOfActiveOwedM_ - principalOfMaxAllowedActiveOwedM_;
 
             // NOTE: `newTimestamp_ - penalizeFrom_` will never be larger than `updateCollateralInterval_` since this
@@ -831,7 +828,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             //       Its minimum is capped at `MIN_UPDATE_COLLATERAL_INTERVAL`.
             uint112 penaltyPrincipal_ = _imposePenalty(
                 minter_,
-                (principalOfExcessOwedM_ * (newTimestamp_ - penalizeFrom_)) / updateCollateralInterval()
+                (principalOfExcessOwedM_ * timeSpan_) / updateCollateralInterval()
             );
 
             if (penaltyPrincipal_ == 0) return;
@@ -839,7 +836,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             emit UndercollateralizedPenaltyImposed(
                 minter_,
                 _getPresentAmount(principalOfExcessOwedM_),
-                penaltyPrincipal_,
+                timeSpan_,
                 _getPresentAmount(penaltyPrincipal_)
             );
         }
