@@ -1653,12 +1653,7 @@ contract MinterGatewayTests is TestUtils {
         );
 
         vm.expectEmit();
-        emit IMinterGateway.MissedIntervalsPenaltyImposed(
-            _minter1,
-            3,
-            _minterGateway.getPrincipalAmountRoundedUp(penalty),
-            penalty
-        );
+        emit IMinterGateway.MissedIntervalsPenaltyImposed(_minter1, 3, penalty);
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
@@ -1812,7 +1807,7 @@ contract MinterGatewayTests is TestUtils {
         emit IMinterGateway.UndercollateralizedPenaltyImposed(
             _minter1,
             uint240(excessOwedM) + 1,
-            _minterGateway.getPrincipalAmountRoundedDown(penalty),
+            _updateCollateralInterval - 1,
             penalty
         );
 
@@ -1941,18 +1936,13 @@ contract MinterGatewayTests is TestUtils {
         uint240 undercollateralizedPenalty = ((activeOwedM + missedUpdatePenalty) * _penaltyRate) / (2 * ONE);
 
         vm.expectEmit();
-        emit IMinterGateway.MissedIntervalsPenaltyImposed(
-            _minter1,
-            2,
-            _minterGateway.getPrincipalAmountRoundedUp(missedUpdatePenalty),
-            missedUpdatePenalty
-        );
+        emit IMinterGateway.MissedIntervalsPenaltyImposed(_minter1, 2, missedUpdatePenalty);
 
         vm.expectEmit();
         emit IMinterGateway.UndercollateralizedPenaltyImposed(
             _minter1,
             activeOwedM + missedUpdatePenalty,
-            _minterGateway.getPrincipalAmountRoundedUp(undercollateralizedPenalty),
+            _updateCollateralInterval / 2,
             undercollateralizedPenalty
         );
 
@@ -2100,12 +2090,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.getPenaltyForMissedCollateralUpdates(_minter1), penalty);
 
         vm.expectEmit();
-        emit IMinterGateway.MissedIntervalsPenaltyImposed(
-            _minter1,
-            3,
-            _minterGateway.getPrincipalAmountRoundedUp(penalty),
-            penalty
-        );
+        emit IMinterGateway.MissedIntervalsPenaltyImposed(_minter1, 3, penalty);
 
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM);
@@ -2544,12 +2529,7 @@ contract MinterGatewayTests is TestUtils {
         uint240 penalty_ = (activeOwedM * _penaltyRate) / ONE;
 
         vm.expectEmit();
-        emit IMinterGateway.MissedIntervalsPenaltyImposed(
-            _minter1,
-            1,
-            _minterGateway.getPrincipalAmountRoundedUp(penalty_),
-            penalty_
-        );
+        emit IMinterGateway.MissedIntervalsPenaltyImposed(_minter1, 1, penalty_);
 
         vm.expectEmit();
         emit IMinterGateway.MinterDeactivated(_minter1, activeOwedM + penalty_, _alice);

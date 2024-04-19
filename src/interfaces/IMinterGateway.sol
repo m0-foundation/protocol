@@ -96,31 +96,25 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     event MintProposed(uint48 indexed mintId, address indexed minter, uint240 amount, address indexed destination);
 
     /**
-     * @notice Emitted when penalty is imposed on minter.
+     * @notice Emitted when a penalty is imposed on `minter` for missed update collateral intervals.
      * @param  minter          The address of the minter.
      * @param  missedIntervals The number of update intervals missed.
-     * @param  principalAmount The principal amount of penalty charge.
-     * @param  amount          The present amount of penalty charge.
+     * @param  penaltyAmount   The present amount of penalty charge.
      */
-    event MissedIntervalsPenaltyImposed(
-        address indexed minter,
-        uint40 missedIntervals,
-        uint112 principalAmount,
-        uint240 amount
-    );
+    event MissedIntervalsPenaltyImposed(address indexed minter, uint40 missedIntervals, uint240 penaltyAmount);
 
     /**
-     * @notice Emitted when penalty is imposed on minter.
-     * @param  minter          The address of the minter.
-     * @param  excessOwedM     The present amount of owed M in excess of allowed owed M.
-     * @param  principalAmount The principal amount of penalty charge.
-     * @param  amount          The present amount of penalty charge.
+     * @notice Emitted when a penalty is imposed on `minter` for undercollateralization.
+     * @param  minter        The address of the minter.
+     * @param  excessOwedM   The present amount of owed M in excess of allowed owed M.
+     * @param  timeSpan      The span of time over which the undercollateralization penalty was applied.
+     * @param  penaltyAmount The present amount of penalty charge.
      */
     event UndercollateralizedPenaltyImposed(
         address indexed minter,
         uint240 excessOwedM,
-        uint112 principalAmount,
-        uint240 amount
+        uint40 timeSpan,
+        uint240 penaltyAmount
     );
 
     /**
