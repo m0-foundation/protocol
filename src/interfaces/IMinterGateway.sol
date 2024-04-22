@@ -394,16 +394,6 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     function getLastSignatureTimestamp(address minter, address validator) external view returns (uint256);
 
     /**
-     * @notice Returns the penalties a minter will incur for missed update intervals and/or undercollateralization.
-     * @param  minter                     The address of the minter.
-     * @return missedIntervalsPenalty     The total penalty for missed collateral update intervals.
-     * @return undercollateralizedPenalty The total penalty for undercollateralization.
-     */
-    function getPenalties(
-        address minter
-    ) external view returns (uint240 missedIntervalsPenalty, uint240 undercollateralizedPenalty);
-
-    /**
      * @notice Returns the EIP-712 digest for updateCollateral method.
      * @param  minter       The address of the minter.
      * @param  collateral   The amount of collateral.
