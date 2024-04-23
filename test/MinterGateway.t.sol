@@ -1008,8 +1008,8 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(_minterGateway.collateralOf(_minter1), 0);
 
-        uint256 penaltyForMissedCollateralUpdates = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
-        uint256 minterActiveOwedM = mintAmount + penaltyForMissedCollateralUpdates; // 101
+        uint256 missedIntervalsPenalty = (_minterGateway.activeOwedMOf(_minter1) * 100 * _penaltyRate) / ONE;
+        uint256 minterActiveOwedM = mintAmount + missedIntervalsPenalty; // 101
 
         // Attempts to mint 50 M again but it reverts cause collateral is 0 because of missed collateral updates
         vm.expectRevert(abi.encodeWithSelector(IMinterGateway.Undercollateralized.selector, minterActiveOwedM, 0));
@@ -1053,7 +1053,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.maxAllowedActiveOwedMOf(_minter1), expectedMaxAllowedOwedM);
 
         // Collateral of Minter is 100 but his active owed M is 101, the Minter is undercollateralized
-        assertEq(_minterGateway.activeOwedMOf(_minter1), mintAmount + penaltyForMissedCollateralUpdates);
+        assertEq(_minterGateway.activeOwedMOf(_minter1), mintAmount + missedIntervalsPenalty);
 
         minterActiveOwedM += mintAmount; // 151
 
