@@ -146,12 +146,6 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
 
         assertEq(_minterGateway.currentIndex(), indexAfter12Hours_);
 
-        vm.warp(vm.getBlockTimestamp() + 1 hours);
-
-        uint128 indexAfter13Hours_ = _getContinuousIndexAt(_baseMinterRate, updateCollateralIndex_, 13 hours);
-
-        vm.warp(vm.getBlockTimestamp() - 1 hours);
-
         activeOwedM_ = _minterGateway.activeOwedMOf(minter_);
         missedUpdatePenalty_ = ContinuousIndexingMath.divideUp(
             (activeOwedM_ * 13 * _penaltyRate) / ONE,

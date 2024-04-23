@@ -96,12 +96,26 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     event MintProposed(uint48 indexed mintId, address indexed minter, uint240 amount, address indexed destination);
 
     /**
-     * @notice Emitted when penalty is imposed on minter.
+     * @notice Emitted when a penalty is imposed on `minter` for missed update collateral intervals.
      * @param  minter          The address of the minter.
-     * @param  principalAmount The principal amount of penalty charge.
-     * @param  amount          The present amount of penalty charge.
+     * @param  missedIntervals The number of update intervals missed.
+     * @param  penaltyAmount   The present amount of penalty charge.
      */
-    event PenaltyImposed(address indexed minter, uint112 principalAmount, uint240 amount);
+    event MissedIntervalsPenaltyImposed(address indexed minter, uint40 missedIntervals, uint240 penaltyAmount);
+
+    /**
+     * @notice Emitted when a penalty is imposed on `minter` for undercollateralization.
+     * @param  minter        The address of the minter.
+     * @param  excessOwedM   The present amount of owed M in excess of allowed owed M.
+     * @param  timeSpan      The span of time over which the undercollateralization penalty was applied.
+     * @param  penaltyAmount The present amount of penalty charge.
+     */
+    event UndercollateralizedPenaltyImposed(
+        address indexed minter,
+        uint240 excessOwedM,
+        uint40 timeSpan,
+        uint240 penaltyAmount
+    );
 
     /**
      * @notice Emitted when a collateral retrieval proposal is created.
@@ -378,9 +392,6 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
      * @return The last signature timestamp used.
      */
     function getLastSignatureTimestamp(address minter, address validator) external view returns (uint256);
-
-    /// @notice The penalty for missed collateral updates. Penalized once per missed interval.
-    function getPenaltyForMissedCollateralUpdates(address minter) external view returns (uint240);
 
     /**
      * @notice Returns the EIP-712 digest for updateCollateral method.

@@ -25,6 +25,8 @@ import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 ██║ ╚═╝ ██║       ██║   ╚██████╔╝██║  ██╗███████╗██║ ╚████║
 ╚═╝     ╚═╝       ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝
 
+-->> M is for Money. <<--
+
 */
 
 /**
