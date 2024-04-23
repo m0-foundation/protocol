@@ -1627,9 +1627,7 @@ contract MinterGatewayTests is TestUtils {
         vm.warp(vm.getBlockTimestamp() + 3 * _updateCollateralInterval);
 
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
-        uint240 penalty = (activeOwedM * 3 * _penaltyRate) / ONE;
-
-        assertEq(_minterGateway.getPenaltyForMissedCollateralUpdates(_minter1), penalty);
+        uint240 missedIntervalsPenalty = (activeOwedM * 3 * _penaltyRate) / ONE;
 
         uint256[] memory retrievalIds = new uint256[](0);
 
@@ -1653,14 +1651,14 @@ contract MinterGatewayTests is TestUtils {
         );
 
         vm.expectEmit();
-        emit IMinterGateway.MissedIntervalsPenaltyImposed(_minter1, 3, penalty);
+        emit IMinterGateway.MissedIntervalsPenaltyImposed(_minter1, 3, missedIntervalsPenalty);
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
         assertEq(
             _minterGateway.principalOfActiveOwedMOf(_minter1),
-            60e18 + _minterGateway.getPrincipalAmountRoundedUp(penalty)
+            60e18 + _minterGateway.getPrincipalAmountRoundedUp(missedIntervalsPenalty)
         );
     }
 
@@ -1797,24 +1795,22 @@ contract MinterGatewayTests is TestUtils {
         uint256 maxAllowedOwedM = (collateral * _mintRatio) / ONE;
         uint256 excessOwedM = activeOwedM - maxAllowedOwedM;
 
-        uint240 penalty = uint240(
+        uint240 undercollateralizedPenalty = uint240(
             (((excessOwedM * (_updateCollateralInterval - 1)) / _updateCollateralInterval) * _penaltyRate) / ONE
         );
-
-        assertEq(_minterGateway.getPenaltyForMissedCollateralUpdates(_minter1), 0);
 
         vm.expectEmit();
         emit IMinterGateway.UndercollateralizedPenaltyImposed(
             _minter1,
             uint240(excessOwedM) + 1,
             _updateCollateralInterval - 1,
-            penalty
+            undercollateralizedPenalty
         );
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(collateral, retrievalIds, bytes32(0), validators, timestamps, signatures);
 
-        assertEq(_minterGateway.activeOwedMOf(_minter1), activeOwedM + penalty);
+        assertEq(_minterGateway.activeOwedMOf(_minter1), activeOwedM + undercollateralizedPenalty);
     }
 
     function testFuzz_updateCollateral_imposePenaltyForUndercollateralization(
@@ -1860,8 +1856,6 @@ contract MinterGatewayTests is TestUtils {
 
         vm.warp(vm.getBlockTimestamp() + time_);
 
-        assertEq(_minterGateway.getPenaltyForMissedCollateralUpdates(_minter1), 0);
-
         // Step 2 - Update Collateral with excessive outstanding value
         timestamps_[0] = vm.getBlockTimestamp();
 
@@ -1881,7 +1875,10 @@ contract MinterGatewayTests is TestUtils {
         uint256 activeOwedM_ = _minterGateway.activeOwedMOf(_minter1);
         uint256 maxAllowedOwedM_ = (minterCollateral_ * _mintRatio) / ONE;
         uint256 excess_ = activeOwedM_ > maxAllowedOwedM_ ? activeOwedM_ - maxAllowedOwedM_ : 0;
-        uint240 penalty_ = uint240((((excess_ * time_) / _updateCollateralInterval) * _penaltyRate) / ONE);
+
+        uint240 undercollateralizedPenalty_ = uint240(
+            (((excess_ * time_) / _updateCollateralInterval) * _penaltyRate) / ONE
+        );
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(
@@ -1894,7 +1891,7 @@ contract MinterGatewayTests is TestUtils {
         );
 
         // 1 wei difference because of rounding
-        assertApproxEqAbs(_minterGateway.activeOwedMOf(_minter1), activeOwedM_ + penalty_, 1);
+        assertApproxEqAbs(_minterGateway.activeOwedMOf(_minter1), activeOwedM_ + undercollateralizedPenalty_, 1);
         assertEq(_minterGateway.penalizedUntilOf(_minter1), 0); // Should never have been set.
     }
 
@@ -1929,19 +1926,16 @@ contract MinterGatewayTests is TestUtils {
             _validator1Pk
         );
 
-        uint240 missedUpdatePenalty = (activeOwedM * 2 * _penaltyRate) / ONE;
-
-        assertEq(_minterGateway.getPenaltyForMissedCollateralUpdates(_minter1), missedUpdatePenalty);
-
-        uint240 undercollateralizedPenalty = ((activeOwedM + missedUpdatePenalty) * _penaltyRate) / (2 * ONE);
+        uint240 missedIntervalsPenalty = (activeOwedM * 2 * _penaltyRate) / ONE;
+        uint240 undercollateralizedPenalty = ((activeOwedM + missedIntervalsPenalty) * _penaltyRate) / (2 * ONE);
 
         vm.expectEmit();
-        emit IMinterGateway.MissedIntervalsPenaltyImposed(_minter1, 2, missedUpdatePenalty);
+        emit IMinterGateway.MissedIntervalsPenaltyImposed(_minter1, 2, missedIntervalsPenalty);
 
         vm.expectEmit();
         emit IMinterGateway.UndercollateralizedPenaltyImposed(
             _minter1,
-            activeOwedM + missedUpdatePenalty,
+            activeOwedM + missedIntervalsPenalty,
             _updateCollateralInterval / 2,
             undercollateralizedPenalty
         );
@@ -1951,7 +1945,7 @@ contract MinterGatewayTests is TestUtils {
 
         assertEq(
             _minterGateway.activeOwedMOf(_minter1),
-            activeOwedM + missedUpdatePenalty + undercollateralizedPenalty
+            activeOwedM + missedIntervalsPenalty + undercollateralizedPenalty
         );
 
         assertEq(_minterGateway.collateralUpdateTimestampOf(_minter1), timestamps[0]);
@@ -2029,11 +2023,6 @@ contract MinterGatewayTests is TestUtils {
             (principalOfActiveOwedM_ * missedUpdates_ * _penaltyRate) / ONE
         );
 
-        assertEq(
-            _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1),
-            _getPresentAmountRoundedUp(principalOfMissedUpdatePenalty_, _minterGateway.currentIndex())
-        );
-
         principalOfActiveOwedM_ += principalOfMissedUpdatePenalty_;
 
         uint240 principalOfMaxAllowedActiveOwedM_ = _getPrincipalAmountRoundedDown(
@@ -2085,19 +2074,17 @@ contract MinterGatewayTests is TestUtils {
         vm.warp(vm.getBlockTimestamp() + 3 * _updateCollateralInterval);
 
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
-        uint240 penalty = (activeOwedM * 3 * _penaltyRate) / ONE;
-
-        assertEq(_minterGateway.getPenaltyForMissedCollateralUpdates(_minter1), penalty);
+        uint240 missedIntervalsPenalty = (activeOwedM * 3 * _penaltyRate) / ONE;
 
         vm.expectEmit();
-        emit IMinterGateway.MissedIntervalsPenaltyImposed(_minter1, 3, penalty);
+        emit IMinterGateway.MissedIntervalsPenaltyImposed(_minter1, 3, missedIntervalsPenalty);
 
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM);
 
         assertEq(
             _minterGateway.principalOfActiveOwedMOf(_minter1),
-            _minterGateway.getPrincipalAmountRoundedUp(penalty)
+            _minterGateway.getPrincipalAmountRoundedUp(missedIntervalsPenalty)
         );
     }
 
@@ -2118,19 +2105,17 @@ contract MinterGatewayTests is TestUtils {
 
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
 
-        uint240 missedCollateralUpdatesPenalty_ = _getPresentAmountRoundedUp(
+        uint240 missedIntervalsPenalty_ = _getPresentAmountRoundedUp(
             uint112((principalOfActiveOwedM_ * missedIntervals_ * _penaltyRate) / ONE),
             _minterGateway.currentIndex()
         );
-
-        assertEq(_minterGateway.getPenaltyForMissedCollateralUpdates(_minter1), missedCollateralUpdatesPenalty_);
 
         vm.prank(_alice);
         _minterGateway.burnM(_minter1, activeOwedM);
 
         assertEq(
             _minterGateway.principalOfActiveOwedMOf(_minter1),
-            _getPrincipalAmountRoundedDown(missedCollateralUpdatesPenalty_, _minterGateway.currentIndex())
+            _getPrincipalAmountRoundedDown(missedIntervalsPenalty_, _minterGateway.currentIndex())
         );
     }
 
@@ -2143,16 +2128,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
         _minterGateway.setPrincipalOfTotalActiveOwedM(60e18);
 
-        vm.warp(lastUpdateTimestamp + _updateCollateralInterval - 1);
-
-        assertEq(_minterGateway.getPenaltyForMissedCollateralUpdates(_minter1), 0);
-
         vm.warp(lastUpdateTimestamp + _updateCollateralInterval + 10);
-
-        assertEq(
-            _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1),
-            (_minterGateway.activeOwedMOf(_minter1) * _penaltyRate) / ONE
-        );
 
         uint256[] memory retrievalIds = new uint256[](0);
 
@@ -2231,22 +2207,13 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setUpdateTimestampOf(_minter1, lastUpdateTimestamp);
         _minterGateway.setRawOwedMOf(_minter1, 60e18);
 
-        vm.warp(lastUpdateTimestamp + _updateCollateralInterval - 10);
-
-        assertEq(_minterGateway.getPenaltyForMissedCollateralUpdates(_minter1), 0);
-
         vm.warp(lastUpdateTimestamp + _updateCollateralInterval + 10);
 
-        assertEq(
-            _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1),
-            (_minterGateway.activeOwedMOf(_minter1) * _penaltyRate) / ONE
-        );
-
-        uint256 penalty = (_minterGateway.activeOwedMOf(_minter1) * _penaltyRate) / ONE;
-        uint256 penaltyPrincipal_ = _minterGateway.getPrincipalAmountRoundedUp(uint240(penalty));
+        uint240 missedIntervalsPenalty = (_minterGateway.activeOwedMOf(_minter1) * _penaltyRate) / ONE;
+        uint256 missedIntervalsPenaltyPrincipal_ = _minterGateway.getPrincipalAmountRoundedUp(missedIntervalsPenalty);
 
         // 1 is added to overflow `newPrincipalOfTotalActiveOwedM_`
-        uint256 principalOfTotalActiveOwedM_ = type(uint112).max - penaltyPrincipal_ + 1;
+        uint256 principalOfTotalActiveOwedM_ = type(uint112).max - missedIntervalsPenaltyPrincipal_ + 1;
         _minterGateway.setPrincipalOfTotalActiveOwedM(principalOfTotalActiveOwedM_);
 
         uint256[] memory retrievalIds = new uint256[](0);
@@ -2279,7 +2246,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.principalOfTotalActiveOwedM(), type(uint112).max);
         assertEq(
             _minterGateway.principalOfActiveOwedMOf(_minter1),
-            minterPrincipalOfActiveOwedMBefore_ + penaltyPrincipal_ - 1
+            minterPrincipalOfActiveOwedMBefore_ + missedIntervalsPenaltyPrincipal_ - 1
         );
     }
 
@@ -2297,15 +2264,10 @@ contract MinterGatewayTests is TestUtils {
 
         vm.warp(lastUpdateTimestamp + _updateCollateralInterval + 10);
 
-        uint112 penaltyPrincipal_ = uint112((principalOfActiveOwedM_ * _penaltyRate) / ONE);
-
-        assertEq(
-            _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1),
-            _getPresentAmountRoundedUp(penaltyPrincipal_, _minterGateway.currentIndex())
-        );
+        uint112 missedIntervalsPenaltyPrincipal_ = uint112((principalOfActiveOwedM_ * _penaltyRate) / ONE);
 
         // 1 is added to overflow `newPrincipalOfTotalActiveOwedM_`
-        uint256 principalOfTotalActiveOwedM_ = type(uint112).max - penaltyPrincipal_ + 1;
+        uint256 principalOfTotalActiveOwedM_ = type(uint112).max - missedIntervalsPenaltyPrincipal_ + 1;
         _minterGateway.setPrincipalOfTotalActiveOwedM(principalOfTotalActiveOwedM_);
 
         uint256[] memory retrievalIds_ = new uint256[](0);
@@ -2347,102 +2309,9 @@ contract MinterGatewayTests is TestUtils {
         // 1 wei difference because of rounding
         assertApproxEqAbs(
             _minterGateway.principalOfActiveOwedMOf(_minter1),
-            minterPrincipalOfActiveOwedMBefore_ + penaltyPrincipal_,
+            minterPrincipalOfActiveOwedMBefore_ + missedIntervalsPenaltyPrincipal_,
             1
         );
-    }
-
-    /* ============ getPenaltyForMissedCollateralUpdates ============ */
-    function test_getPenaltyForMissedCollateralUpdates_noMissedIntervals() external {
-        uint256 collateral = 100e18;
-        uint256 timestamp = vm.getBlockTimestamp();
-
-        _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
-        _minterGateway.setRawOwedMOf(_minter1, 60e18);
-
-        vm.warp(timestamp + _updateCollateralInterval - 10);
-
-        uint256 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
-        assertEq(penalty, 0);
-    }
-
-    function test_getPenaltyForMissedCollateralUpdates_oneMissedInterval() external {
-        uint256 collateral = 100e18;
-        uint256 timestamp = vm.getBlockTimestamp();
-
-        _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
-        _minterGateway.setRawOwedMOf(_minter1, 60e18);
-
-        vm.warp(timestamp + _updateCollateralInterval + 10);
-
-        uint256 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
-        assertEq(penalty, (_minterGateway.activeOwedMOf(_minter1) * _penaltyRate) / ONE);
-    }
-
-    function test_getPenaltyForMissedCollateralUpdates_threeMissedInterval() external {
-        uint256 collateral = 100e18;
-        uint256 timestamp = vm.getBlockTimestamp();
-
-        _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
-        _minterGateway.setRawOwedMOf(_minter1, 60e18);
-
-        vm.warp(timestamp + (3 * _updateCollateralInterval) + 10);
-
-        uint256 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
-        assertEq(penalty, (3 * (_minterGateway.activeOwedMOf(_minter1) * _penaltyRate)) / ONE);
-    }
-
-    function test_getPenaltyForMissedCollateralUpdates_moreMissedIntervalsDueToReducedInterval() external {
-        uint256 collateral = 100e18;
-        uint256 timestamp = vm.getBlockTimestamp();
-
-        _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
-        _minterGateway.setRawOwedMOf(_minter1, 60e18);
-
-        // Change update collateral interval, more frequent updates are required
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
-
-        vm.warp(timestamp + (3 * _updateCollateralInterval) + 10);
-
-        uint256 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
-
-        // Minter was expected to update within the previous interval. After that deadline, the new interval is imposed,
-        // so instead of 2 more missed intervals, since the interval was divided by 4, each of those 2 missed intervals
-        // is actually 4 missed intervals. Therefore, 9 missed intervals in total is expected.
-        assertEq(penalty, (12 * (_minterGateway.activeOwedMOf(_minter1) * _penaltyRate)) / ONE);
-    }
-
-    function test_getPenaltyForMissedCollateralUpdates_updateCollateralIntervalHasChanged() external {
-        uint256 collateral = 100e18;
-        uint256 timestamp = vm.getBlockTimestamp();
-
-        _minterGateway.setCollateralOf(_minter1, collateral);
-        _minterGateway.setUpdateTimestampOf(_minter1, timestamp);
-        _minterGateway.setRawOwedMOf(_minter1, 60e18);
-
-        vm.warp(timestamp + _updateCollateralInterval - 10);
-
-        uint256 penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
-        assertEq(penalty, 0);
-
-        // Change update collateral interval, more frequent updates are required
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 2);
-
-        vm.warp(timestamp + _updateCollateralInterval + 10);
-
-        // Penalized for first `_updateCollateralInterval` interval
-        penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
-        assertEq(penalty, (2 * _minterGateway.activeOwedMOf(_minter1) * _penaltyRate) / ONE);
-
-        vm.warp(vm.getBlockTimestamp() + _updateCollateralInterval + 10);
-
-        // Penalized for 2 new `_updateCollateralInterval` interval = 3 penalty intervals
-        penalty = _minterGateway.getPenaltyForMissedCollateralUpdates(_minter1);
-        assertEq(penalty, (4 * _minterGateway.activeOwedMOf(_minter1) * _penaltyRate) / ONE);
     }
 
     /* ============ activateMinter ============ */
@@ -2967,7 +2836,7 @@ contract MinterGatewayTests is TestUtils {
     ) external {
         principalOfActiveOwedM_ = bound(principalOfActiveOwedM_, ONE, type(uint112).max / 6);
 
-        // @dev prevents undercollateralization
+        // Prevents undercollateralization.
         minterCollateral_ = bound(minterCollateral_, principalOfActiveOwedM_ * 3, type(uint112).max);
         retrievalAmount_ = bound(retrievalAmount_, 1, principalOfActiveOwedM_ / 2);
         uint256 timestamp_ = vm.getBlockTimestamp();
