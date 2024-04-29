@@ -1746,6 +1746,9 @@ contract MinterGatewayTests is TestUtils {
 
         // 1 wei difference because of rounding
         assertApproxEqAbs(_minterGateway.activeOwedMOf(_minter1), activeOwedM_ + missedUpdatesPenalty_, 1);
+
+        if (principalOfMissedUpdatesPenalty_ == 0) return; // No change in `penalizedUntilTimestamp` if there are no missed updates
+
         assertEq(_minterGateway.penalizedUntilOf(_minter1), vm.getBlockTimestamp() - (_updateCollateralInterval / 2));
     }
 
@@ -2061,6 +2064,8 @@ contract MinterGatewayTests is TestUtils {
                 ),
             1
         );
+
+        if (principalOfMissedUpdatePenalty_ == 0) return; // No change in penalizedUntil if there are no missed updates
 
         assertEq(
             _minterGateway.penalizedUntilOf(_minter1),
