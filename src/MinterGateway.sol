@@ -63,6 +63,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param  updateTimestamp         The timestamp at which the minter last updated their collateral.
      * @param  penalizedUntilTimestamp The timestamp until which the minter is penalized.
      * @param  frozenUntilTimestamp    The timestamp until which the minter is frozen.
+     * @param  latestProposedRetrievalTimestamp The timestamp at which the minter last proposed a retrieval.
      */
     struct MinterState {
         // 1st slot
@@ -196,6 +197,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             signatures_
         );
 
+        _imposePenaltyIfMissedCollateralUpdates(msg.sender);
+
+        _imposePenaltyIfUndercollateralized(msg.sender, minTimestamp_);
+
         uint240 safeCollateral_ = UIntMath.safe240(collateral_);
         uint240 totalResolvedCollateralRetrieval_ = _resolvePendingRetrievals(msg.sender, retrievalIds_);
 
@@ -206,10 +211,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             metadataHash_,
             minTimestamp_
         );
-
-        _imposePenaltyIfMissedCollateralUpdates(msg.sender);
-
-        _imposePenaltyIfUndercollateralized(msg.sender, minTimestamp_);
 
         _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
 
