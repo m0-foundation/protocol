@@ -1732,6 +1732,8 @@ contract MinterGatewayTests is TestUtils {
 
         uint240 activeOwedM_ = _minterGateway.activeOwedMOf(_minter1);
 
+        if (activeOwedM_ == 0) return; // No penalty if there is no active owed M
+
         vm.prank(_minter1);
         _minterGateway.updateCollateral(
             minterCollateral_,
@@ -2036,6 +2038,8 @@ contract MinterGatewayTests is TestUtils {
         );
 
         uint240 activeOwedM_ = _minterGateway.activeOwedMOf(_minter1);
+
+        if (activeOwedM_ == 0) return; // No penalties to impose if no M is owed.
 
         vm.prank(_minter1);
         _minterGateway.updateCollateral(

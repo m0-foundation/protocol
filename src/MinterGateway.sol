@@ -402,6 +402,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         MinterState storage minterState_ = _minterStates[minter_];
 
+        // NOTE: deactivated once minters cannot be re-activated.
         if (minterState_.isDeactivated) revert DeactivatedMinter();
 
         minterState_.isActive = true;
@@ -759,6 +760,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param minter_ The address of the minter.
      */
     function _imposePenaltyIfMissedCollateralUpdates(address minter_) internal {
+        uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
+
+        if (principalOfActiveOwedM_ == 0) return;
+
         MinterState storage minterState_ = _minterStates[minter_];
 
         (uint40 missedIntervals_, uint40 missedUntil_) = _getMissedCollateralUpdateParameters(
@@ -771,10 +776,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         // Save until when the minter has been penalized for missed intervals to prevent double penalizing them.
         minterState_.penalizedUntilTimestamp = missedUntil_;
-
-        uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
-
-        if (principalOfActiveOwedM_ == 0) return;
 
         uint112 penaltyPrincipal_ = _imposePenalty(minter_, uint152(principalOfActiveOwedM_) * missedIntervals_);
 
