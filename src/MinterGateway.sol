@@ -402,7 +402,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         MinterState storage minterState_ = _minterStates[minter_];
 
-        // NOTE: deactivated once minters cannot be re-activated.
+        // NOTE: Once deactivated, a minter cannot be reactivated.
         if (minterState_.isDeactivated) revert DeactivatedMinter();
 
         minterState_.isActive = true;
