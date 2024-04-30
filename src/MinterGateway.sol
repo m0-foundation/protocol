@@ -774,12 +774,12 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         if (missedIntervals_ == 0) return;
 
+        // Save until when the minter has been penalized for missed intervals to prevent double penalizing them.
+        minterState_.penalizedUntilTimestamp = missedUntil_;
+
         uint112 penaltyPrincipal_ = _imposePenalty(minter_, uint152(principalOfActiveOwedM_) * missedIntervals_);
 
         if (penaltyPrincipal_ == 0) return;
-
-        // Save until when the minter has been penalized for missed intervals to prevent double penalizing them.
-        minterState_.penalizedUntilTimestamp = missedUntil_;
 
         emit MissedIntervalsPenaltyImposed(minter_, missedIntervals_, _getPresentAmount(penaltyPrincipal_));
     }
