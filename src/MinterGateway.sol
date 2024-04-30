@@ -1060,10 +1060,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     function _revertIfUndercollateralized(address minter_, uint240 additionalOwedM_) internal view {
         uint256 maxAllowedActiveOwedM_ = maxAllowedActiveOwedMOf(minter_);
 
-        // If the minter's max allowed active owed M is greater than the max uint240, then it's definitely greater than
-        // the max possible active owed M for the minter, which is capped at the max uint240.
-        if (maxAllowedActiveOwedM_ >= type(uint240).max) return;
-
         unchecked {
             uint256 finalActiveOwedM_ = uint256(activeOwedMOf(minter_)) + additionalOwedM_;
 
