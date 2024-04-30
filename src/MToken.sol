@@ -412,11 +412,14 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param amount_    The amount (present or principal) to transfer.
      */
     function _transferAmountInKind(address sender_, address recipient_, uint240 amount_) internal {
-        _balances[sender_].rawBalance -= amount_;
+        uint256 rawBalance_ = _balances[sender_].rawBalance;
+
+        if (rawBalance_ < amount_) revert InsufficientBalance(sender_, rawBalance_, amount_);
 
         // NOTE: When transferring an amount in kind, the `rawBalance` can't overflow
         //       since the total supply would have overflowed first when minting.
         unchecked {
+            _balances[sender_].rawBalance -= amount_;
             _balances[recipient_].rawBalance += amount_;
         }
     }
