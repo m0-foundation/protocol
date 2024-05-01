@@ -25,7 +25,7 @@ contract EarnerRateModel is IEarnerRateModel {
     uint32 public constant RATE_CONFIDENCE_INTERVAL = 30 days;
 
     /// @inheritdoc IEarnerRateModel
-    uint32 public constant RATE_MULTIPLIER = 9_000; // 90% in basis points.
+    uint32 public constant RATE_MULTIPLIER = 9_900; // 99% in basis points.
 
     /// @inheritdoc IEarnerRateModel
     uint32 public constant ONE = 10_000; // 100% in basis points.

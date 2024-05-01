@@ -311,7 +311,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertEq(_minterGateway.totalActiveOwedM(), 500_457040);
         assertEq(_mToken.totalEarningSupply(), 249_999999);
         assertEq(_minterGateway.minterRate(), 40_000);
-        assertEq(_mToken.earnerRate(), 63_090);
+        assertEq(_mToken.earnerRate(), 69_399);
 
         uint256 timestamp_ = vm.getBlockTimestamp();
 
@@ -387,9 +387,9 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
         assertEq(_minterGateway.totalActiveOwedM(), 500_000001);
-        assertEq(_mToken.totalEarningSupply(), 1301_316149);
+        assertEq(_mToken.totalEarningSupply(), 1301_447883);
         assertEq(_minterGateway.minterRate(), 40_000);
-        assertEq(_mToken.earnerRate(), 13_832);
+        assertEq(_mToken.earnerRate(), 15_213);
 
         uint256 timestamp_ = vm.getBlockTimestamp();
 
