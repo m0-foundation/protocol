@@ -392,7 +392,7 @@ contract MTokenTests is TestUtils {
     function test_transfer_insufficientBalance_fromNonEarner_toNonEarner() external {
         _mToken.setInternalBalanceOf(_alice, 999);
 
-        vm.expectRevert(stdError.arithmeticError);
+        vm.expectRevert(abi.encodeWithSelector(IMToken.InsufficientBalance.selector, _alice, 999, 1_000));
         vm.prank(_alice);
         _mToken.transfer(_bob, 1_000);
     }

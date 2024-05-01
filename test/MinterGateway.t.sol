@@ -1732,6 +1732,8 @@ contract MinterGatewayTests is TestUtils {
 
         uint240 activeOwedM_ = _minterGateway.activeOwedMOf(_minter1);
 
+        vm.assume(activeOwedM_ != 0); // No penalty if there is no active owed M
+
         vm.prank(_minter1);
         _minterGateway.updateCollateral(
             minterCollateral_,
@@ -1744,6 +1746,9 @@ contract MinterGatewayTests is TestUtils {
 
         // 1 wei difference because of rounding
         assertApproxEqAbs(_minterGateway.activeOwedMOf(_minter1), activeOwedM_ + missedUpdatesPenalty_, 1);
+
+        vm.assume(principalOfMissedUpdatesPenalty_ != 0); // No change in `penalizedUntilTimestamp` if there are no missed updates
+
         assertEq(_minterGateway.penalizedUntilOf(_minter1), vm.getBlockTimestamp() - (_updateCollateralInterval / 2));
     }
 
@@ -2037,6 +2042,8 @@ contract MinterGatewayTests is TestUtils {
 
         uint240 activeOwedM_ = _minterGateway.activeOwedMOf(_minter1);
 
+        vm.assume(activeOwedM_ != 0); // No penalties to impose if no M is owed.
+
         vm.prank(_minter1);
         _minterGateway.updateCollateral(
             minterCollateral_,
@@ -2057,6 +2064,8 @@ contract MinterGatewayTests is TestUtils {
                 ),
             1
         );
+
+        vm.assume(principalOfMissedUpdatePenalty_ != 0); // No change in penalizedUntil if there are no missed updates
 
         assertEq(
             _minterGateway.penalizedUntilOf(_minter1),

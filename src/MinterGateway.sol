@@ -63,6 +63,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param  updateTimestamp         The timestamp at which the minter last updated their collateral.
      * @param  penalizedUntilTimestamp The timestamp until which the minter is penalized.
      * @param  frozenUntilTimestamp    The timestamp until which the minter is frozen.
+     * @param  latestProposedRetrievalTimestamp The timestamp at which the minter last proposed a retrieval.
      */
     struct MinterState {
         // 1st slot
@@ -196,6 +197,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             signatures_
         );
 
+        _imposePenaltyIfMissedCollateralUpdates(msg.sender);
+
+        _imposePenaltyIfUndercollateralized(msg.sender, minTimestamp_);
+
         uint240 safeCollateral_ = UIntMath.safe240(collateral_);
         uint240 totalResolvedCollateralRetrieval_ = _resolvePendingRetrievals(msg.sender, retrievalIds_);
 
@@ -206,10 +211,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
             metadataHash_,
             minTimestamp_
         );
-
-        _imposePenaltyIfMissedCollateralUpdates(msg.sender);
-
-        _imposePenaltyIfUndercollateralized(msg.sender, minTimestamp_);
 
         _updateCollateral(msg.sender, safeCollateral_, minTimestamp_);
 
@@ -401,6 +402,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         MinterState storage minterState_ = _minterStates[minter_];
 
+        // NOTE: Once deactivated, a minter cannot be reactivated.
         if (minterState_.isDeactivated) revert DeactivatedMinter();
 
         minterState_.isActive = true;
@@ -758,6 +760,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      * @param minter_ The address of the minter.
      */
     function _imposePenaltyIfMissedCollateralUpdates(address minter_) internal {
+        uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
+
+        if (principalOfActiveOwedM_ == 0) return;
+
         MinterState storage minterState_ = _minterStates[minter_];
 
         (uint40 missedIntervals_, uint40 missedUntil_) = _getMissedCollateralUpdateParameters(
@@ -770,10 +776,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
         // Save until when the minter has been penalized for missed intervals to prevent double penalizing them.
         minterState_.penalizedUntilTimestamp = missedUntil_;
-
-        uint112 principalOfActiveOwedM_ = principalOfActiveOwedMOf(minter_);
-
-        if (principalOfActiveOwedM_ == 0) return;
 
         uint112 penaltyPrincipal_ = _imposePenalty(minter_, uint152(principalOfActiveOwedM_) * missedIntervals_);
 
@@ -1057,10 +1059,6 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
      */
     function _revertIfUndercollateralized(address minter_, uint240 additionalOwedM_) internal view {
         uint256 maxAllowedActiveOwedM_ = maxAllowedActiveOwedMOf(minter_);
-
-        // If the minter's max allowed active owed M is greater than the max uint240, then it's definitely greater than
-        // the max possible active owed M for the minter, which is capped at the max uint240.
-        if (maxAllowedActiveOwedM_ >= type(uint240).max) return;
 
         unchecked {
             uint256 finalActiveOwedM_ = uint256(activeOwedMOf(minter_)) + additionalOwedM_;
