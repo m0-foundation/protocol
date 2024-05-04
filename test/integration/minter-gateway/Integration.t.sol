@@ -3,6 +3,7 @@
 pragma solidity 0.8.23;
 
 import { TTGRegistrarReader } from "../../../src/libs/TTGRegistrarReader.sol";
+import { ContinuousIndexingMath } from "../../../src/libs/ContinuousIndexingMath.sol";
 
 import { IntegrationBaseSetup } from "../IntegrationBaseSetup.t.sol";
 
@@ -457,5 +458,230 @@ contract IntegrationTests is IntegrationBaseSetup {
         vm.warp(vm.getBlockTimestamp() + 30 days);
 
         assertGt(_minterGateway.totalOwedM(), _mToken.totalSupply());
+    }
+
+    function test_realisticLaunchParameters() external {
+        _registrar.updateConfig(BASE_MINTER_RATE, 100);
+        _registrar.updateConfig(MAX_EARNER_RATE, 500);
+        _registrar.updateConfig(TTGRegistrarReader.PENALTY_RATE, uint256(0));
+
+        _minterGateway.updateIndex();
+
+        // Check rates
+        assertEq(_minterGateway.currentIndex(), 1e12);
+        assertEq(_mToken.currentIndex(), 1e12);
+
+        assertEq(_minterGateway.minterRate(), 100);
+        assertEq(_mToken.earnerRate(), 0);
+
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
+
+        assertEq(_minterGateway.totalActiveOwedM(), 0);
+
+        assertEq(_minterGateway.currentIndex(), 1000001141552);
+        assertEq(_mToken.currentIndex(), 1e12);
+
+        _minterGateway.activateMinter(_minters[0]);
+
+        vm.prank(_alice);
+        _mToken.startEarning();
+
+        assertEq(_mToken.earnerRate(), 0);
+
+        uint256 collateral = 10_000_000e6;
+        _updateCollateral(_minters[0], collateral);
+
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
+
+        _mintM(_minters[0], 9_000_000e6, _alice);
+
+        // Rounding up for minter
+        assertEq(_minterGateway.totalActiveOwedM(), 9_000_000e6 + 1 wei);
+        assertEq(_minterGateway.totalOwedM(), 9_000_000e6 + 1 wei);
+        assertEq(_minterGateway.activeOwedMOf(_minters[0]), 9_000_000e6 + 1 wei);
+
+        assertEq(_mToken.totalEarningSupply(), 9_000_000e6);
+
+        assertEq(_mToken.balanceOf(_vault), 0);
+        assertEq(_minterGateway.minterRate(), 100);
+        assertEq(_mToken.earnerRate(), 89);
+
+        vm.warp(vm.getBlockTimestamp() + 25 days);
+
+        assertEq(_minterGateway.totalActiveOwedM(), 9006166495134);
+        assertEq(_mToken.totalEarningSupply(), 9005487973902);
+        assertEq(_minterGateway.excessOwedM(), 9006166495134 - 9005487973902 - 1 wei);
+
+        // Transfer half of balance to non-earning amount
+        uint256 transferBalance = _mToken.balanceOf(_alice) - 4_000_000e6;
+
+        vm.prank(_alice);
+        _mToken.transfer(_bob, transferBalance);
+
+        assertEq(_mToken.balanceOf(_alice), 4_000_000e6 - 1 wei);
+
+        assertEq(_minterGateway.minterRate(), 100);
+        assertEq(
+            _earnerRateModel.getSafeEarnerRate(
+                _minterGateway.totalActiveOwedM(),
+                _mToken.totalEarningSupply(),
+                _minterGateway.minterRate()
+            ),
+            225
+        );
+        assertEq(_mToken.earnerRate(), 202);
+
+        uint256 aliceBalanceAfterRateChange = _mToken.balanceOf(_alice);
+
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
+
+        uint256 aliceBalanceAfterOneHourAfterChange = _mToken.balanceOf(_alice);
+
+        assertEq(
+            aliceBalanceAfterOneHourAfterChange,
+            (aliceBalanceAfterRateChange *
+                ContinuousIndexingMath.getContinuousIndex(
+                    ContinuousIndexingMath.convertFromBasisPoints(202),
+                    1 hours
+                )) /
+                1e12 +
+                1 wei
+        );
+
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
+
+        vm.prank(_alice);
+        _mToken.transfer(_bob, 4_000_000e6 / 2);
+
+        assertEq(_mToken.earnerRate(), 404);
+
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
+
+        uint256 remainingBalance = _mToken.balanceOf(_alice);
+
+        vm.prank(_alice);
+        _mToken.transfer(_bob, remainingBalance);
+
+        assertEq(_mToken.balanceOf(_alice), 0);
+        assertEq(_mToken.totalEarningSupply(), 0);
+
+        assertEq(_mToken.earnerRate(), 500);
+    }
+
+    function test_realisticParametersMinterDeactivation() external {
+        _registrar.updateConfig(BASE_MINTER_RATE, 100);
+        _registrar.updateConfig(MAX_EARNER_RATE, 500);
+        _registrar.updateConfig(TTGRegistrarReader.PENALTY_RATE, uint256(0));
+
+        _minterGateway.updateIndex();
+
+        _minterGateway.activateMinter(_minters[0]);
+        _minterGateway.activateMinter(_minters[1]);
+
+        vm.prank(_alice);
+        _mToken.startEarning();
+
+        uint256 collateral = 5_000_000e6;
+
+        _updateCollateral(_minters[0], collateral);
+        _updateCollateral(_minters[1], collateral);
+
+        _mintM(_minters[0], 4_000_000e6, _alice);
+
+        assertEq(_minterGateway.minterRate(), 100);
+        assertEq(_mToken.earnerRate(), 89);
+
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
+
+        _mintM(_minters[1], 4_000_000e6, _alice);
+
+        assertEq(_minterGateway.minterRate(), 100);
+        assertEq(_mToken.earnerRate(), 90);
+
+        uint256 aliceBalance1 = _mToken.balanceOf(_alice);
+
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
+
+        uint256 aliceBalance2 = _mToken.balanceOf(_alice);
+
+        _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
+
+        _minterGateway.deactivateMinter(_minters[0]);
+
+        assertEq(_minterGateway.minterRate(), 100);
+        assertEq(_mToken.earnerRate(), 44);
+
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
+
+        uint256 aliceBalance3 = _mToken.balanceOf(_alice);
+
+        assertApproxEqAbs(aliceBalance3 - aliceBalance2, (aliceBalance2 - aliceBalance1) / 2, 1e6);
+    }
+
+    function test_realisticParametersZeroVaultDistribution_AllSupplyIsEarning() external {
+        _registrar.updateConfig(BASE_MINTER_RATE, 100);
+        _registrar.updateConfig(MAX_EARNER_RATE, 500);
+        _registrar.updateConfig(TTGRegistrarReader.PENALTY_RATE, uint256(0));
+
+        _minterGateway.updateIndex();
+
+        _minterGateway.activateMinter(_minters[0]);
+
+        vm.prank(_alice);
+        _mToken.startEarning();
+
+        uint256 collateral = 10_000_000e6;
+
+        _updateCollateral(_minters[0], collateral);
+
+        _mintM(_minters[0], 9_000_000e6, _alice);
+
+        assertEq(_minterGateway.minterRate(), 100);
+        assertEq(_mToken.earnerRate(), 89);
+
+        // Option 1
+        for (uint256 i; i < 365; ++i) {
+            vm.warp(vm.getBlockTimestamp() + 1 days);
+            _minterGateway.updateIndex();
+        }
+
+        // Option 2
+        // vm.warp(vm.getBlockTimestamp() + 365 days);
+        // _minterGateway.updateIndex();
+        // console2.log("m token earner rate = ", _mToken.earnerRate());
+
+        // Option 3
+        // for (uint256 i; i < 12; ++i) {
+        //     vm.warp(vm.getBlockTimestamp() + 30 days);
+        //     _minterGateway.updateIndex();
+        //     console2.log("m token earner rate = ", _mToken.earnerRate());
+        // }
+
+        // vm.warp(vm.getBlockTimestamp() + 5 days);
+        // _minterGateway.updateIndex();
+
+        assertApproxEqAbs(_mToken.balanceOf(_vault), (_minterGateway.activeOwedMOf(_minters[0]) * 10) / 10000, 10e6);
+    }
+
+    function test_reaslisticParametersZeroVaultDistribution_NoEarners() external {
+        _registrar.updateConfig(BASE_MINTER_RATE, 100);
+        _registrar.updateConfig(MAX_EARNER_RATE, 500);
+        _registrar.updateConfig(TTGRegistrarReader.PENALTY_RATE, uint256(0));
+
+        _minterGateway.activateMinter(_minters[0]);
+
+        uint256 collateral = 10_000_000e6;
+
+        _updateCollateral(_minters[0], collateral);
+
+        _mintM(_minters[0], 9_000_000e6, _alice);
+
+        // Option 1
+        for (uint256 i; i < 365; ++i) {
+            vm.warp(vm.getBlockTimestamp() + 1 days);
+            _minterGateway.updateIndex();
+        }
+
+        assertEq(_mToken.balanceOf(_vault) + 1 wei, _minterGateway.totalActiveOwedM() - 9_000_000e6);
     }
 }
