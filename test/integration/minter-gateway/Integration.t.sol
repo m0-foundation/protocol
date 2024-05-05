@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.23;
 
+import { console2 } from "../../../lib/forge-std/src/Test.sol";
+
 import { TTGRegistrarReader } from "../../../src/libs/TTGRegistrarReader.sol";
 import { ContinuousIndexingMath } from "../../../src/libs/ContinuousIndexingMath.sol";
 
@@ -639,6 +641,10 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertEq(_minterGateway.minterRate(), 100);
         assertEq(_mToken.earnerRate(), 89);
 
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
+
+        _minterGateway.updateIndex();
+
         // Option 1
         for (uint256 i; i < 365; ++i) {
             vm.warp(vm.getBlockTimestamp() + 1 days);
@@ -650,7 +656,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         // _minterGateway.updateIndex();
         // console2.log("m token earner rate = ", _mToken.earnerRate());
 
-        // Option 3
+        // // Option 3
         // for (uint256 i; i < 12; ++i) {
         //     vm.warp(vm.getBlockTimestamp() + 30 days);
         //     _minterGateway.updateIndex();
@@ -660,7 +666,16 @@ contract IntegrationTests is IntegrationBaseSetup {
         // vm.warp(vm.getBlockTimestamp() + 5 days);
         // _minterGateway.updateIndex();
 
-        assertApproxEqAbs(_mToken.balanceOf(_vault), (_minterGateway.activeOwedMOf(_minters[0]) * 10) / 10000, 10e6);
+        assertEq(
+            _minterGateway.activeOwedMOf(_minters[0]),
+            _mToken.balanceOf(_alice) + _mToken.balanceOf(_vault) + 1 wei
+        );
+
+        assertApproxEqAbs(
+            _mToken.balanceOf(_vault),
+            (_minterGateway.activeOwedMOf(_minters[0]) - 9_000_000e6) / 10,
+            100e6
+        );
     }
 
     function test_reaslisticParametersZeroVaultDistribution_NoEarners() external {
