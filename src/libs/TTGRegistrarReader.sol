@@ -44,7 +44,7 @@ library TTGRegistrarReader {
     /// @notice The parameter name in TTG that defines the required interval to update collateral.
     bytes32 internal constant UPDATE_COLLATERAL_INTERVAL = "update_collateral_interval";
 
-    /// @notice The parameter name that defines number of signatures required for successful collateral update.
+    /// @notice The parameter name that defines number of signatures required for a successful collateral update.
     bytes32 internal constant UPDATE_COLLATERAL_VALIDATOR_THRESHOLD = "update_collateral_threshold";
 
     /// @notice The parameter name in TTG that defines the validators list.
