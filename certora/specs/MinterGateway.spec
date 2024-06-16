@@ -9,7 +9,7 @@ function SumTrackingSetup(env e) {
 	SumTrackingSetup_Minter(e);
 }
 
-/// @title The sum of active/inactive balances equals to the respective total (in minterGateway)
+/// @title The sum of active/inactive balances equals the respective total (in minterGateway)
 invariant SumOfBalancesEqualsTotalSupply()
 	sumOfInactiveBalances == to_mathint(minterGateway.totalInactiveOwedM)
 	&&
