@@ -7,7 +7,7 @@ ghost mathint sumOfBalancesMToken { init_state axiom sumOfBalancesMToken == 0; }
 ghost mathint sumOfActiveBalancesMToken { init_state axiom sumOfActiveBalancesMToken == 0; }
 ghost mathint sumOfInactiveBalancesMToken { init_state axiom sumOfInactiveBalancesMToken == 0; }
 
-/// The initial value is being updated as we access the acounts balances one-by-one.
+/// The initial value is being updated as we access the accounts balances one-by-one.
 /// Should only be used as an initial value, never post-action!
 ghost mathint sumOfBalancesMToken_init { init_state axiom sumOfBalancesMToken_init == 0; }
 ghost mathint sumOfActiveBalancesMToken_init { init_state axiom sumOfActiveBalancesMToken_init == 0; }
