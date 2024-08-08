@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.23;
+pragma solidity 0.8.26;
 
 import { IContinuousIndexing } from "../interfaces/IContinuousIndexing.sol";
 
 import { ContinuousIndexingMath } from "../libs/ContinuousIndexingMath.sol";
 
 /**
- * @title Abstract Continuous Indexing Contract to handle rate/index updates in inheriting contracts.
+ * @title Abstract Continuous Indexing Contract to handle index updates in inheriting contracts.
  * @author M^0 Labs
  */
 abstract contract ContinuousIndexing is IContinuousIndexing {
@@ -15,9 +15,6 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
 
     /// @inheritdoc IContinuousIndexing
     uint128 public latestIndex;
-
-    /// @dev The latest updated rate.
-    uint32 internal _latestRate;
 
     /// @inheritdoc IContinuousIndexing
     uint40 public latestUpdateTimestamp;
@@ -33,19 +30,13 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     /* ============ Interactive Functions ============ */
 
     /// @inheritdoc IContinuousIndexing
-    function updateIndex() public virtual returns (uint128 currentIndex_) {
-        // NOTE: `_rate()` can depend indirectly on `latestIndex` and `latestUpdateTimestamp`, if the RateModel
-        //       depends on earning balances/supply, which depends on `currentIndex()`, so only update them after this.
-        uint32 rate_ = _rate();
+    function updateIndex(uint128 index_) public virtual {
+        if (index_ <= latestIndex) return;
 
-        if (latestUpdateTimestamp == block.timestamp && _latestRate == rate_) return latestIndex;
-
-        // NOTE: `currentIndex()` depends on `_latestRate`, so only update it after this.
-        latestIndex = currentIndex_ = currentIndex();
-        _latestRate = rate_;
+        latestIndex = index_;
         latestUpdateTimestamp = uint40(block.timestamp);
 
-        emit IndexUpdated(currentIndex_, rate_);
+        emit IndexUpdated(index_);
     }
 
     /* ============ View/Pure Functions ============ */
@@ -112,7 +103,4 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     function _getPrincipalAmountRoundedUp(uint240 presentAmount_, uint128 index_) internal pure returns (uint112) {
         return ContinuousIndexingMath.divideUp(presentAmount_, index_);
     }
-
-    /// @dev To be overridden by the inheriting contract to return the current rate.
-    function _rate() internal view virtual returns (uint32);
 }

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity 0.8.23;
+pragma solidity 0.8.26;
 
-import { ITTGRegistrar } from "../../src/interfaces/ITTGRegistrar.sol";
+import { IRegistrar } from "../../src/interfaces/IRegistrar.sol";
 
-contract MockTTGRegistrar is ITTGRegistrar {
-    address internal _vault;
+contract MockRegistrar is IRegistrar {
+    address public portal;
 
     mapping(bytes32 list => mapping(address account => bool isInList)) internal _isInList;
     mapping(bytes32 key => bytes32 value) internal _values;
@@ -26,8 +26,8 @@ contract MockTTGRegistrar is ITTGRegistrar {
         return _isInList[list_][account_];
     }
 
-    function setVault(address vault_) external {
-        _vault = vault_;
+    function setPortal(address portal_) external {
+        portal = portal_;
     }
 
     function updateConfig(bytes32 key_, address value_) external {
@@ -40,9 +40,5 @@ contract MockTTGRegistrar is ITTGRegistrar {
 
     function updateConfig(bytes32 key_, bytes32 value_) external {
         _values[key_] = value_;
-    }
-
-    function vault() external view returns (address) {
-        return _vault;
     }
 }

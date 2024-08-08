@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.23;
+pragma solidity 0.8.26;
 
 import { IERC20Extended } from "../../lib/common/src/interfaces/IERC20Extended.sol";
 
@@ -41,14 +41,14 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when calling `startEarning` for an account not approved as earner by the Registrar.
     error NotApprovedEarner();
 
-    /// @notice Emitted when calling `mint`, `burn` not by Minter Gateway.
-    error NotMinterGateway();
+    /// @notice Emitted when the caller is not the Portal.
+    error NotPortal();
 
     /// @notice Emitted when principal of total supply (earning and non-earning) will overflow a `type(uint112).max`.
     error OverflowsPrincipalOfTotalSupply();
 
-    /// @notice Emitted in constructor if the Minter Gateway address is 0x0.
-    error ZeroMinterGateway();
+    /// @notice Emitted in constructor if the Portal address in the Registrar is 0x0.
+    error ZeroPortal();
 
     /// @notice Emitted in constructor if the Registrar address is 0x0.
     error ZeroRegistrar();
@@ -56,20 +56,23 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /* ============ Interactive Functions ============ */
 
     /**
-     * @notice Mints tokens.
+     * @notice Updates the index and mints tokens.
+     * @dev    MUST only be callable by a trusted bridge.
      * @param  account The address of account to mint to.
      * @param  amount  The amount of M Token to mint.
+     * @param  index   The index to update to.
      */
-    function mint(address account, uint256 amount) external;
+    function mint(address account, uint256 amount, uint128 index) external;
 
     /**
      * @notice Burns tokens.
+     * @dev    MUST only be callable by a trusted bridge.
      * @param  account The address of account to burn from.
      * @param  amount  The amount of M Token to burn.
      */
     function burn(address account, uint256 amount) external;
 
-    /// @notice Starts earning for caller if allowed by the Registrar.
+    /// @notice Starts earning for caller if allowed by TTG.
     function startEarning() external;
 
     /// @notice Stops earning for caller.
@@ -84,17 +87,11 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
 
     /* ============ View/Pure Functions ============ */
 
-    /// @notice The address of the Minter Gateway.
-    function minterGateway() external view returns (address);
+    /// @notice The address of the M Portal contract.
+    function portal() external view returns (address);
 
-    /// @notice The address of the Registrar.
+    /// @notice The address of the Registrar contract.
     function registrar() external view returns (address);
-
-    /// @notice The address of the Registrar approved earner rate model.
-    function rateModel() external view returns (address);
-
-    /// @notice The current value of earner rate in basis points.
-    function earnerRate() external view returns (uint32);
 
     /**
      * @notice The principal of an earner M token balance.

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity 0.8.23;
+pragma solidity 0.8.26;
 
 import { IRegistrar } from "../../src/interfaces/IRegistrar.sol";
 
 contract MockRegistrar is IRegistrar {
-    address internal _vault;
+    address public portal;
 
     mapping(bytes32 list => mapping(address account => bool isInList)) internal _isInList;
     mapping(bytes32 key => bytes32 value) internal _values;
@@ -26,10 +26,6 @@ contract MockRegistrar is IRegistrar {
         return _isInList[list_][account_];
     }
 
-    function setVault(address vault_) external {
-        _vault = vault_;
-    }
-
     function updateConfig(bytes32 key_, address value_) external {
         _values[key_] = bytes32(uint256(uint160(value_)));
     }
@@ -42,70 +38,7 @@ contract MockRegistrar is IRegistrar {
         _values[key_] = value_;
     }
 
-    function vault() external view returns (address) {
-        return _vault;
-    }
-}
-
-contract MockMToken {
-    bool internal _burnFail;
-
-    uint256 internal _currentIndex;
-    uint256 internal _totalSupply;
-
-    function mint(address account_, uint256 amount_) external {}
-
-    function burn(address account_, uint256 amount_) external {}
-
-    function setCurrentIndex(uint256 index_) external {
-        _currentIndex = index_;
-    }
-
-    function setTotalSupply(uint256 totalSupply_) external {
-        _totalSupply = totalSupply_;
-    }
-
-    function updateIndex() public virtual returns (uint256 currentIndex_) {
-        return _currentIndex;
-    }
-
-    function updateRate() public virtual returns (uint256 rate_) {
-        return rate_;
-    }
-
-    function totalSupply() external view returns (uint256 totalSupply_) {
-        return _totalSupply;
-    }
-}
-
-contract MockMinterGateway {
-    address public mToken;
-    address public registrar;
-
-    uint256 public minterRate;
-    uint256 public totalActiveOwedM;
-
-    function setMToken(address mToken_) external {
-        mToken = mToken_;
-    }
-
-    function setMinterRate(uint256 minterRate_) external {
-        minterRate = minterRate_;
-    }
-
-    function setTotalActiveOwedM(uint256 totalActiveOwedM_) external {
-        totalActiveOwedM = totalActiveOwedM_;
-    }
-
-    function setRegistrar(address registrar_) external {
-        registrar = registrar_;
-    }
-}
-
-contract MockRateModel {
-    uint256 public rate;
-
-    function setRate(uint256 rate_) external {
-        rate = rate_;
+    function setPortal(address portal_) external {
+        portal = portal_;
     }
 }

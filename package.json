@@ -1,7 +1,7 @@
 {
   "name": "@mzero-labs/protocol",
-  "version": "1.0.0",
-  "description": "M^0 Protocol contracts",
+  "version": "2.0.0",
+  "description": "M^0 Spoke MToken contracts",
   "main": "index.js",
   "author": "M^0 Labs <contact@m0.xyz>",
   "license": "GPL-3.0",

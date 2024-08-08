@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.23;
+pragma solidity 0.8.26;
 
 import { ERC20Extended } from "../lib/common/src/ERC20Extended.sol";
 import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
@@ -11,28 +11,13 @@ import { RegistrarReader } from "./libs/RegistrarReader.sol";
 
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
-import { IRateModel } from "./interfaces/IRateModel.sol";
 
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
-import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
-
-/*
-
-███╗   ███╗    ████████╗ ██████╗ ██╗  ██╗███████╗███╗   ██╗
-████╗ ████║    ╚══██╔══╝██╔═══██╗██║ ██╔╝██╔════╝████╗  ██║
-██╔████╔██║       ██║   ██║   ██║█████╔╝ █████╗  ██╔██╗ ██║
-██║╚██╔╝██║       ██║   ██║   ██║██╔═██╗ ██╔══╝  ██║╚██╗██║
-██║ ╚═╝ ██║       ██║   ╚██████╔╝██║  ██╗███████╗██║ ╚████║
-╚═╝     ╚═╝       ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝
-
--->> M is for Money. <<--
-
-*/
 
 /**
  * @title  MToken
  * @author M^0 Labs
- * @notice ERC20 M Token.
+ * @notice ERC20 M Token living on other chains.
  */
 contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /* ============ Structs ============ */
@@ -50,7 +35,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /* ============ Variables ============ */
 
     /// @inheritdoc IMToken
-    address public immutable minterGateway;
+    address public immutable portal;
 
     /// @inheritdoc IMToken
     address public immutable registrar;
@@ -66,10 +51,9 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /* ============ Modifiers ============ */
 
-    /// @dev Modifier to check if caller is the Minter Gateway.
-    modifier onlyMinterGateway() {
-        if (msg.sender != minterGateway) revert NotMinterGateway();
-
+    /// @dev Modifier to check if caller is the Portal.
+    modifier onlyPortal() {
+        _revertIfNotPortal();
         _;
     }
 
@@ -77,24 +61,29 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /**
      * @notice Constructs the M Token contract.
-     * @param  registrar_     The address of the Registrar contract.
-     * @param  minterGateway_ The address of the Minter Gateway contract.
+     * @param  registrar_ The address of the Registrar contract.
      */
-    constructor(address registrar_, address minterGateway_) ContinuousIndexing() ERC20Extended("M by M^0", "M", 6) {
+    constructor(address registrar_) ContinuousIndexing() ERC20Extended("M by M^0", "M", 6) {
         if ((registrar = registrar_) == address(0)) revert ZeroRegistrar();
-        if ((minterGateway = minterGateway_) == address(0)) revert ZeroMinterGateway();
+        if ((portal = RegistrarReader.getPortal(registrar_)) == address(0)) revert ZeroPortal();
     }
 
     /* ============ Interactive Functions ============ */
 
     /// @inheritdoc IMToken
-    function mint(address account_, uint256 amount_) external onlyMinterGateway {
+    function mint(address account_, uint256 amount_, uint128 index_) external onlyPortal {
+        super.updateIndex(index_);
         _mint(account_, amount_);
     }
 
     /// @inheritdoc IMToken
-    function burn(address account_, uint256 amount_) external onlyMinterGateway {
+    function burn(address account_, uint256 amount_) external onlyPortal {
         _burn(account_, amount_);
+    }
+
+    /// @inheritdoc IContinuousIndexing
+    function updateIndex(uint128 index_) public override(IContinuousIndexing, ContinuousIndexing) onlyPortal {
+        super.updateIndex(index_);
     }
 
     /// @inheritdoc IMToken
@@ -117,16 +106,6 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /* ============ View/Pure Functions ============ */
-
-    /// @inheritdoc IMToken
-    function rateModel() public view returns (address rateModel_) {
-        return RegistrarReader.getEarnerRateModel(registrar);
-    }
-
-    /// @inheritdoc IMToken
-    function earnerRate() public view returns (uint32 earnerRate_) {
-        return _latestRate;
-    }
 
     /// @inheritdoc IMToken
     function totalEarningSupply() public view returns (uint240 totalEarningSupply_) {
@@ -164,21 +143,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /// @inheritdoc IContinuousIndexing
-    function currentIndex() public view override(ContinuousIndexing, IContinuousIndexing) returns (uint128) {
-        // NOTE: Safe to use unchecked here, since `block.timestamp` is always greater than `latestUpdateTimestamp`.
-        unchecked {
-            return
-                // NOTE: Cap the index to `type(uint128).max` to prevent overflow in present value math.
-                UIntMath.bound128(
-                    ContinuousIndexingMath.multiplyIndicesDown(
-                        latestIndex,
-                        ContinuousIndexingMath.getContinuousIndex(
-                            ContinuousIndexingMath.convertFromBasisPoints(_latestRate),
-                            uint32(block.timestamp - latestUpdateTimestamp)
-                        )
-                    )
-                );
-        }
+    function currentIndex() public view override(ContinuousIndexing, IContinuousIndexing) returns (uint128 index_) {
+        return latestIndex;
     }
 
     /* ============ Internal Interactive Functions ============ */
@@ -222,7 +188,6 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         if (_balances[account_].isEarning) {
             // NOTE: When burning a present amount, round the principal up in favor of the protocol.
             _subtractEarningAmount(account_, _getPrincipalAmountRoundedUp(UIntMath.safe240(amount_)));
-            updateIndex();
         } else {
             _subtractNonEarningAmount(account_, UIntMath.safe240(amount_));
         }
@@ -258,7 +223,6 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         if (_balances[recipient_].isEarning) {
             // NOTE: When minting a present amount, round the principal down in favor of the protocol.
             _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(safeAmount_));
-            updateIndex();
         } else {
             _addNonEarningAmount(recipient_, safeAmount_);
         }
@@ -292,8 +256,6 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
             principalOfTotalEarningSupply += principalAmount_;
             totalNonEarningSupply -= amount_;
         }
-
-        updateIndex();
     }
 
     /**
@@ -322,8 +284,6 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
             totalNonEarningSupply += amount_;
             principalOfTotalEarningSupply -= principalAmount_;
         }
-
-        updateIndex();
     }
 
     /**
@@ -398,8 +358,6 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
             _subtractNonEarningAmount(sender_, safeAmount_);
             _addEarningAmount(recipient_, _getPrincipalAmountRoundedDown(safeAmount_));
         }
-
-        updateIndex();
     }
 
     /**
@@ -446,25 +404,11 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /**
      * @dev    Checks if earner was approved by the Registrar.
-     * @param  account_    The account to check.
+     * @param  account_ The account to check.
      * @return True if approved, false otherwise.
      */
     function _isApprovedEarner(address account_) internal view returns (bool) {
-        return
-            RegistrarReader.isEarnersListIgnored(registrar) ||
-            RegistrarReader.isApprovedEarner(registrar, account_);
-    }
-
-    /**
-     * @dev    Gets the current earner rate from the Registrar approved rate model contract.
-     * @return rate_ The current earner rate.
-     */
-    function _rate() internal view override returns (uint32 rate_) {
-        (bool success_, bytes memory returnData_) = rateModel().staticcall(
-            abi.encodeWithSelector(IRateModel.rate.selector)
-        );
-
-        rate_ = (success_ && returnData_.length >= 32) ? UIntMath.bound32(abi.decode(returnData_, (uint256))) : 0;
+        return RegistrarReader.isEarnersListIgnored(registrar) || RegistrarReader.isApprovedEarner(registrar, account_);
     }
 
     /**
@@ -481,5 +425,10 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      */
     function _revertIfInvalidRecipient(address recipient_) internal pure {
         if (recipient_ == address(0)) revert InvalidRecipient(recipient_);
+    }
+
+    /// @dev Reverts if the caller is not the portal.
+    function _revertIfNotPortal() internal view {
+        if (msg.sender != portal) revert NotPortal();
     }
 }

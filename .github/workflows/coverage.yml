@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - spoke
   pull_request:
 
 permissions: write-all

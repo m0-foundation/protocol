@@ -1,8 +1,8 @@
-# M^0 Protocol
+# M^0 Spoke M Token
 
 ## Overview
 
-M^0 is an EVM-compatible, immutable protocol that enables minting and burning of the ERC20 token $M. It also allows for $M distributions to yield earners and governance token ($ZERO) holders. There are three main types of actors in the protocol - Minters, Validators, and Yield Earners - all of which are permissioned via governance. Protocol variables are also managed by governance and are stored in a Registrar configuration contract.
+An immutable, mintable, burnable, rebasing ERC20 token $M that allows earners to passively accrue yield. Minters, Burners, and Yield Earners are permissioned via governance.
 
 ## Development
 
@@ -107,7 +107,3 @@ yarn doc
 ```
 
 The command will generate the documentation in the `docs` folder and spinup a local server on port `4000` to view the documentation.
-
-## SC Architecture
-
-<img width="895" alt="protocol_architecture" src="https://github.com/MZero-Labs/protocol/assets/1220854/d9949243-e83b-4e1d-82ac-4d8c3f2bf5fc">

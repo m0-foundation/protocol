@@ -5,12 +5,11 @@ const { default: randSeed } = require("rand-seed");
 
 describe("MToken", () => {
   let mToken;
-  let rateModel;
   let registrar;
 
   let deployer;
 
-  let minterGateway;
+  let portal;
   let alice;
   let bob;
   let charlie;
@@ -22,8 +21,6 @@ describe("MToken", () => {
   const EARNERS_LIST_IGNORED_KEY = ethers.encodeBytes32String(
     "earners_list_ignored",
   );
-  const EARNERS_RATE_MODEL_KEY =
-    ethers.encodeBytes32String("earner_rate_model");
 
   const getRandomIntGenerator = (seed) => {
     const rand = new randSeed(seed);
@@ -32,7 +29,7 @@ describe("MToken", () => {
   };
 
   beforeEach(async () => {
-    [deployer, minterGateway, alice, bob, charlie, dave, elise] =
+    [deployer, portal, alice, bob, charlie, dave, elise] =
       await ethers.getSigners();
 
     accounts.push(alice);
@@ -41,23 +38,19 @@ describe("MToken", () => {
     accounts.push(dave);
     accounts.push(elise);
 
-    rateModel = await ethers.deployContract("MockRateModel");
-    registrar = await ethers.deployContract("MockTTGRegistrar");
+    registrar = await ethers.deployContract("MockRegistrar");
+
+    await registrar["setPortal(address)"](
+      await portal.getAddress(),
+    );
+
     mToken = await ethers.deployContract("MToken", [
       await registrar.getAddress(),
-      minterGateway.address,
     ]);
-
-    await registrar["updateConfig(bytes32, address)"](
-      EARNERS_RATE_MODEL_KEY,
-      await rateModel.getAddress(),
-    );
-    await rateModel.setRate(1_000);
-    await mToken.updateIndex();
   });
 
   it("tests minting to non-earners", async () => {
-    await time.increase(31_536_000); // 1 year
+    // TODO: fix
 
     await mToken.connect(minterGateway).mint(alice.address, 100);
     await mToken.connect(minterGateway).mint(bob.address, 200);
@@ -73,8 +66,6 @@ describe("MToken", () => {
   });
 
   it("tests minting to earners", async () => {
-    expect(await mToken.earnerRate()).to.equal(1_000);
-
     await registrar["updateConfig(bytes32, uint256)"](
       EARNERS_LIST_IGNORED_KEY,
       1,
@@ -84,7 +75,7 @@ describe("MToken", () => {
       await mToken.connect(account).startEarning();
     });
 
-    await time.increase(31_536_000); // 1 year
+    // TODO: fix
 
     await mToken.connect(minterGateway).mint(alice.address, 100);
     await mToken.connect(minterGateway).mint(bob.address, 200);
@@ -108,11 +99,7 @@ describe("MToken", () => {
     );
 
     for (let i = 0; i < 4_000; i++) {
-      const randomNumber1 = getRandomInt(-0.2 * 86_400, 86_400);
-
-      if (randomNumber1 >= 0) {
-        await time.increase(randomNumber1); // jump up to a day, 20% chance no jump
-      }
+      // TODO: fix
 
       const randomNumber2 = getRandomInt(0, 10);
       const randomNumber3 = getRandomInt(0, accounts.length);

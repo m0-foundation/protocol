@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity 0.8.23;
+pragma solidity 0.8.26;
 
 import { ContinuousIndexingMath } from "../../src/libs/ContinuousIndexingMath.sol";
 
@@ -22,29 +22,5 @@ contract ContinuousIndexingMathHarness {
 
     function multiplyUp(uint112 x, uint128 index) external pure returns (uint240 z) {
         return ContinuousIndexingMath.multiplyUp(x, index);
-    }
-
-    function multiplyIndicesDown(uint128 index, uint48 deltaIndex) external pure returns (uint144 z) {
-        return ContinuousIndexingMath.multiplyIndicesDown(index, deltaIndex);
-    }
-
-    function multiplyIndicesUp(uint128 index, uint48 deltaIndex) external pure returns (uint144 z) {
-        return ContinuousIndexingMath.multiplyIndicesUp(index, deltaIndex);
-    }
-
-    function getContinuousIndex(uint64 yearlyRate, uint32 time) external pure returns (uint48 index) {
-        return ContinuousIndexingMath.getContinuousIndex(yearlyRate, time);
-    }
-
-    function exponent(uint72 x) external pure returns (uint48 y) {
-        return ContinuousIndexingMath.exponent(x);
-    }
-
-    function convertToBasisPoints(uint64 input) external pure returns (uint40) {
-        return ContinuousIndexingMath.convertToBasisPoints(input);
-    }
-
-    function convertFromBasisPoints(uint32 input) external pure returns (uint64) {
-        return ContinuousIndexingMath.convertFromBasisPoints(input);
     }
 }
