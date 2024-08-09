@@ -2,52 +2,52 @@
 
 pragma solidity 0.8.23;
 
-import { ITTGRegistrar } from "../interfaces/ITTGRegistrar.sol";
+import { IRegistrar } from "../interfaces/IRegistrar.sol";
 
 /**
- * @title  Library to read TTG (Two Token Governance) Registrar contract parameters.
+ * @title  Library to read Registrar parameters.
  * @author M^0 Labs
  */
-library TTGRegistrarReader {
+library RegistrarReader {
     /* ============ Variables ============ */
 
-    /// @notice The name of parameter in TTG that defines the earner rate model contract.
+    /// @notice The parameter name in the Registrar that defines the earner rate model contract address.
     bytes32 internal constant EARNER_RATE_MODEL = "earner_rate_model";
 
-    /// @notice The parameter name in TTG that defines the earners list.
+    /// @notice The parameter name in the Registrar that defines the earners list.
     bytes32 internal constant EARNERS_LIST = "earners";
 
-    /// @notice The parameter name in TTG that defines whether to ignore the earners list or not.
+    /// @notice The parameter name in the Registrar that defines whether to ignore the earners list or not.
     bytes32 internal constant EARNERS_LIST_IGNORED = "earners_list_ignored";
 
-    /// @notice The parameter name in TTG that defines the time to wait for mint request to be processed.
+    /// @notice The parameter name in the Registrar that defines the time to wait for mint request to be processed.
     bytes32 internal constant MINT_DELAY = "mint_delay";
 
-    /// @notice The parameter name in TTG that defines the mint ratio.
+    /// @notice The parameter name in the Registrar that defines the mint ratio.
     bytes32 internal constant MINT_RATIO = "mint_ratio"; // bps
 
-    /// @notice The parameter name in TTG that defines the time while mint request can still be processed.
+    /// @notice The parameter name in the Registrar that defines the time while mint request can still be processed.
     bytes32 internal constant MINT_TTL = "mint_ttl";
 
-    /// @notice The parameter name in TTG that defines the time to freeze minter.
+    /// @notice The parameter name in the Registrar that defines the time to freeze minter.
     bytes32 internal constant MINTER_FREEZE_TIME = "minter_freeze_time";
 
-    /// @notice The parameter name in TTG that defines the minter rate model contract.
+    /// @notice The parameter name in the Registrar that defines the minter rate model contract address.
     bytes32 internal constant MINTER_RATE_MODEL = "minter_rate_model";
 
-    /// @notice The parameter name in TTG that defines the minters list.
+    /// @notice The parameter name in the Registrar that defines the minters list.
     bytes32 internal constant MINTERS_LIST = "minters";
 
-    /// @notice The parameter name in TTG that defines the penalty rate.
+    /// @notice The parameter name in the Registrar that defines the penalty rate.
     bytes32 internal constant PENALTY_RATE = "penalty_rate"; // bps
 
-    /// @notice The parameter name in TTG that defines the required interval to update collateral.
+    /// @notice The parameter name in the Registrar that defines the required interval to update collateral.
     bytes32 internal constant UPDATE_COLLATERAL_INTERVAL = "update_collateral_interval";
 
-    /// @notice The parameter name that defines number of signatures required for successful collateral update.
+    /// @notice The parameter name in the Registrar that defines number of signatures required for successful collateral update.
     bytes32 internal constant UPDATE_COLLATERAL_VALIDATOR_THRESHOLD = "update_collateral_threshold";
 
-    /// @notice The parameter name in TTG that defines the validators list.
+    /// @notice The parameter name in the Registrar that defines the validators list.
     bytes32 internal constant VALIDATORS_LIST = "validators";
 
     /* ============ Internal View/Pure Functions ============ */
@@ -117,9 +117,9 @@ library TTGRegistrarReader {
         return uint256(_get(registrar_, PENALTY_RATE));
     }
 
-    /// @notice Gets the vault contract address.
+    /// @notice Gets the Vault contract address.
     function getVault(address registrar_) internal view returns (address) {
-        return ITTGRegistrar(registrar_).vault();
+        return IRegistrar(registrar_).vault();
     }
 
     /// @notice Converts given bytes32 to address.
@@ -129,11 +129,11 @@ library TTGRegistrarReader {
 
     /// @notice Checks if the given list contains the given account.
     function _contains(address registrar_, bytes32 listName_, address account_) private view returns (bool) {
-        return ITTGRegistrar(registrar_).listContains(listName_, account_);
+        return IRegistrar(registrar_).listContains(listName_, account_);
     }
 
     /// @notice Gets the value of the given key.
     function _get(address registrar_, bytes32 key_) private view returns (bytes32) {
-        return ITTGRegistrar(registrar_).get(key_);
+        return IRegistrar(registrar_).get(key_);
     }
 }

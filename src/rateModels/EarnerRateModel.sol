@@ -10,12 +10,12 @@ import { ContinuousIndexingMath } from "../libs/ContinuousIndexingMath.sol";
 import { IMToken } from "../interfaces/IMToken.sol";
 import { IMinterGateway } from "../interfaces/IMinterGateway.sol";
 import { IRateModel } from "../interfaces/IRateModel.sol";
-import { ITTGRegistrar } from "../interfaces/ITTGRegistrar.sol";
+import { IRegistrar } from "../interfaces/IRegistrar.sol";
 
 import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
 
 /**
- * @title  Earner Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by MToken.
+ * @title  Earner Rate Model contract set in the Registrar and accessed by MToken.
  * @author M^0 Labs
  */
 contract EarnerRateModel is IEarnerRateModel {
@@ -30,7 +30,7 @@ contract EarnerRateModel is IEarnerRateModel {
     /// @inheritdoc IEarnerRateModel
     uint32 public constant ONE = 10_000; // 100% in basis points.
 
-    /// @notice The name of parameter in TTG that defines the max earner rate.
+    /// @notice The name of parameter in the Registrar that defines the max earner rate.
     bytes32 internal constant _MAX_EARNER_RATE = "max_earner_rate";
 
     /// @notice The scaling of rates in for exponent math.
@@ -46,17 +46,17 @@ contract EarnerRateModel is IEarnerRateModel {
     address public immutable minterGateway;
 
     /// @inheritdoc IEarnerRateModel
-    address public immutable ttgRegistrar;
+    address public immutable registrar;
 
     /* ============ Constructor ============ */
 
     /**
      * @notice Constructs the EarnerRateModel contract.
-     * @param minterGateway_ The address of the Minter Gateway contract.
+     * @param  minterGateway_ The address of the Minter Gateway contract.
      */
     constructor(address minterGateway_) {
         if ((minterGateway = minterGateway_) == address(0)) revert ZeroMinterGateway();
-        if ((ttgRegistrar = IMinterGateway(minterGateway_).ttgRegistrar()) == address(0)) revert ZeroTTGRegistrar();
+        if ((registrar = IMinterGateway(minterGateway_).registrar()) == address(0)) revert ZeroRegistrar();
         if ((mToken = IMinterGateway(minterGateway_).mToken()) == address(0)) revert ZeroMToken();
     }
 
@@ -75,7 +75,7 @@ contract EarnerRateModel is IEarnerRateModel {
 
     /// @inheritdoc IEarnerRateModel
     function maxRate() public view returns (uint256) {
-        return uint256(ITTGRegistrar(ttgRegistrar).get(_MAX_EARNER_RATE));
+        return uint256(IRegistrar(registrar).get(_MAX_EARNER_RATE));
     }
 
     /// @inheritdoc IEarnerRateModel

@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.23;
 
-import { ITTGRegistrar } from "../../src/interfaces/ITTGRegistrar.sol";
+import { IRegistrar } from "../../src/interfaces/IRegistrar.sol";
 
-contract MockTTGRegistrar is ITTGRegistrar {
+contract MockRegistrar is IRegistrar {
     address internal _vault;
 
     mapping(bytes32 list => mapping(address account => bool isInList)) internal _isInList;
@@ -80,7 +80,7 @@ contract MockMToken {
 
 contract MockMinterGateway {
     address public mToken;
-    address public ttgRegistrar;
+    address public registrar;
 
     uint256 public minterRate;
     uint256 public totalActiveOwedM;
@@ -97,8 +97,8 @@ contract MockMinterGateway {
         totalActiveOwedM = totalActiveOwedM_;
     }
 
-    function setTtgRegistrar(address ttgRegistrar_) external {
-        ttgRegistrar = ttgRegistrar_;
+    function setRegistrar(address registrar_) external {
+        registrar = registrar_;
     }
 }
 

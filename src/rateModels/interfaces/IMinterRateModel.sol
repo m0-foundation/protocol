@@ -5,17 +5,17 @@ pragma solidity 0.8.23;
 import { IRateModel } from "../../interfaces/IRateModel.sol";
 
 /**
- * @title Minter Rate Model Interface.
+ * @title  Minter Rate Model Interface.
  * @author M^0 Labs
  */
 interface IMinterRateModel is IRateModel {
     /* ============ Custom Errors ============ */
 
-    /// @notice Emitted when TTG Registrar contract address is zero.
-    error ZeroTTGRegistrar();
+    /// @notice Emitted when the Registrar address is zero.
+    error ZeroRegistrar();
 
     /* ============ View/Pure Functions ============ */
 
-    /// @notice The TTG Registrar contract address.
-    function ttgRegistrar() external view returns (address);
+    /// @notice The Registrar address.
+    function registrar() external view returns (address);
 }

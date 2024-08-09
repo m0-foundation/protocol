@@ -5,7 +5,7 @@ pragma solidity 0.8.23;
 import { MinterGateway } from "../../src/MinterGateway.sol";
 
 contract MinterGatewayHarness is MinterGateway {
-    constructor(address ttgRegistrar_, address mToken_) MinterGateway(ttgRegistrar_, mToken_) {}
+    constructor(address registrar_, address mToken_) MinterGateway(registrar_, mToken_) {}
 
     /******************************************************************************************************************\
     |                                                     Getters                                                      |

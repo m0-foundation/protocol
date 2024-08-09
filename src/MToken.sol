@@ -7,7 +7,7 @@ import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
 import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 
-import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
+import { RegistrarReader } from "./libs/RegistrarReader.sol";
 
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
@@ -53,7 +53,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     address public immutable minterGateway;
 
     /// @inheritdoc IMToken
-    address public immutable ttgRegistrar;
+    address public immutable registrar;
 
     /// @inheritdoc IMToken
     uint240 public totalNonEarningSupply;
@@ -66,7 +66,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /* ============ Modifiers ============ */
 
-    /// @dev Modifier to check if caller is Minter Gateway.
+    /// @dev Modifier to check if caller is the Minter Gateway.
     modifier onlyMinterGateway() {
         if (msg.sender != minterGateway) revert NotMinterGateway();
 
@@ -77,11 +77,11 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /**
      * @notice Constructs the M Token contract.
-     * @param  ttgRegistrar_ The address of the TTG Registrar contract.
-     * @param  minterGateway_     The address of Minter Gateway.
+     * @param  registrar_     The address of the Registrar contract.
+     * @param  minterGateway_ The address of the Minter Gateway contract.
      */
-    constructor(address ttgRegistrar_, address minterGateway_) ContinuousIndexing() ERC20Extended("M by M^0", "M", 6) {
-        if ((ttgRegistrar = ttgRegistrar_) == address(0)) revert ZeroTTGRegistrar();
+    constructor(address registrar_, address minterGateway_) ContinuousIndexing() ERC20Extended("M by M^0", "M", 6) {
+        if ((registrar = registrar_) == address(0)) revert ZeroRegistrar();
         if ((minterGateway = minterGateway_) == address(0)) revert ZeroMinterGateway();
     }
 
@@ -120,7 +120,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /// @inheritdoc IMToken
     function rateModel() public view returns (address rateModel_) {
-        return TTGRegistrarReader.getEarnerRateModel(ttgRegistrar);
+        return RegistrarReader.getEarnerRateModel(registrar);
     }
 
     /// @inheritdoc IMToken
@@ -445,18 +445,18 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /**
-     * @dev    Checks if earner was approved by TTG.
+     * @dev    Checks if earner was approved by the Registrar.
      * @param  account_    The account to check.
      * @return True if approved, false otherwise.
      */
     function _isApprovedEarner(address account_) internal view returns (bool) {
         return
-            TTGRegistrarReader.isEarnersListIgnored(ttgRegistrar) ||
-            TTGRegistrarReader.isApprovedEarner(ttgRegistrar, account_);
+            RegistrarReader.isEarnersListIgnored(registrar) ||
+            RegistrarReader.isApprovedEarner(registrar, account_);
     }
 
     /**
-     * @dev    Gets the current earner rate from TTG approved rate model contract.
+     * @dev    Gets the current earner rate from the Registrar approved rate model contract.
      * @return rate_ The current earner rate.
      */
     function _rate() internal view override returns (uint32 rate_) {

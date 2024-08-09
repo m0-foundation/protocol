@@ -5,9 +5,9 @@ pragma solidity 0.8.23;
 import { IMToken } from "../../src/interfaces/IMToken.sol";
 import { IMinterGateway } from "../../src/interfaces/IMinterGateway.sol";
 
-import { TTGRegistrarReader } from "../../src/libs/TTGRegistrarReader.sol";
+import { RegistrarReader } from "../../src/libs/RegistrarReader.sol";
 
-import { MockTTGRegistrar } from "../utils/Mocks.sol";
+import { MockRegistrar } from "../utils/Mocks.sol";
 import { TestUtils } from "../utils/TestUtils.sol";
 
 import { DeployBase } from "../../script/DeployBase.sol";
@@ -28,7 +28,7 @@ contract InvariantTests is TestUtils {
 
     IMToken internal _mToken;
     IMinterGateway internal _minterGateway;
-    MockTTGRegistrar internal _registrar;
+    MockRegistrar internal _registrar;
 
     modifier useCurrentTimestamp() {
         vm.warp(_timestampStore.currentTimestamp());
@@ -37,7 +37,7 @@ contract InvariantTests is TestUtils {
 
     function setUp() public {
         _deploy = new DeployBase();
-        _registrar = new MockTTGRegistrar();
+        _registrar = new MockRegistrar();
         _indexStore = new IndexStore();
         _timestampStore = new TimestampStore();
 
@@ -55,14 +55,14 @@ contract InvariantTests is TestUtils {
 
         _registrar.updateConfig(MAX_EARNER_RATE, 400);
         _registrar.updateConfig(BASE_MINTER_RATE, 400);
-        _registrar.updateConfig(TTGRegistrarReader.EARNER_RATE_MODEL, earnerRateModel_);
-        _registrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, minterRateModel_);
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, uint256(0));
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 365 days);
-        _registrar.updateConfig(TTGRegistrarReader.MINT_DELAY, uint256(0));
-        _registrar.updateConfig(TTGRegistrarReader.MINT_TTL, 365 days);
-        _registrar.updateConfig(TTGRegistrarReader.MINT_RATIO, 9_000);
-        _registrar.updateConfig(TTGRegistrarReader.PENALTY_RATE, uint256(0));
+        _registrar.updateConfig(RegistrarReader.EARNER_RATE_MODEL, earnerRateModel_);
+        _registrar.updateConfig(RegistrarReader.MINTER_RATE_MODEL, minterRateModel_);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, uint256(0));
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 365 days);
+        _registrar.updateConfig(RegistrarReader.MINT_DELAY, uint256(0));
+        _registrar.updateConfig(RegistrarReader.MINT_TTL, 365 days);
+        _registrar.updateConfig(RegistrarReader.MINT_RATIO, 9_000);
+        _registrar.updateConfig(RegistrarReader.PENALTY_RATE, uint256(0));
 
         _minterGateway.updateIndex();
 

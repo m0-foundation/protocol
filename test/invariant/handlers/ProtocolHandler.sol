@@ -11,10 +11,10 @@ import { IMToken } from "../../../src/interfaces/IMToken.sol";
 import { IMinterGateway } from "../../../src/interfaces/IMinterGateway.sol";
 import { IEarnerRateModel } from "../../../src/rateModels/interfaces/IEarnerRateModel.sol";
 
-import { TTGRegistrarReader } from "../../../src/libs/TTGRegistrarReader.sol";
+import { RegistrarReader } from "../../../src/libs/RegistrarReader.sol";
 
 import { AddressSet, LibAddressSet } from "../../utils/AddressSet.sol";
-import { MockTTGRegistrar } from "../../utils/Mocks.sol";
+import { MockRegistrar } from "../../utils/Mocks.sol";
 import { TestUtils } from "../../utils/TestUtils.sol";
 
 import { IndexStore } from "../stores/IndexStore.sol";
@@ -29,7 +29,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
     IMToken internal _mToken;
     IMinterGateway internal _minterGateway;
-    MockTTGRegistrar internal _registrar;
+    MockRegistrar internal _registrar;
 
     AddressSet internal _minters;
     AddressSet internal _earners;
@@ -84,7 +84,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
     constructor(
         IMinterGateway minterGateway_,
         IMToken mToken_,
-        MockTTGRegistrar registrar_,
+        MockRegistrar registrar_,
         IndexStore indexStore_,
         TimestampStore timestampStore_
     ) {
@@ -235,7 +235,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
         console2.log("Deactivating minter %s at %s", minter_, vm.getBlockTimestamp());
 
-        _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, minter_);
+        _registrar.removeFromList(RegistrarReader.MINTERS_LIST, minter_);
         _minterGateway.deactivateMinter(minter_);
     }
 
@@ -251,7 +251,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
 
             address minter_ = _minters.get(i);
 
-            _registrar.addToList(TTGRegistrarReader.MINTERS_LIST, minter_);
+            _registrar.addToList(RegistrarReader.MINTERS_LIST, minter_);
             _minterGateway.activateMinter(minter_);
         }
 
@@ -262,7 +262,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils, TestUtils {
             _earners.add(makeAddr(string(abi.encodePacked("earner", i))));
 
             address earner_ = _earners.get(i);
-            _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, earner_);
+            _registrar.addToList(RegistrarReader.EARNERS_LIST, earner_);
 
             address minter_ = _minters.get(i);
             _mintMToMHolder(minter_, earner_, _generateRandomAmount(minter_, type(uint104).max / _EARNERS_NUM));

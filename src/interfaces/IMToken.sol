@@ -35,10 +35,10 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
      */
     error InsufficientBalance(address account, uint256 rawBalance, uint256 amount);
 
-    /// @notice Emitted when calling `stopEarning` for an account approved as earner by TTG.
+    /// @notice Emitted when calling `stopEarning` for an account approved as earner by the Registrar.
     error IsApprovedEarner();
 
-    /// @notice Emitted when calling `startEarning` for an account not approved as earner by TTG.
+    /// @notice Emitted when calling `startEarning` for an account not approved as earner by the Registrar.
     error NotApprovedEarner();
 
     /// @notice Emitted when calling `mint`, `burn` not by Minter Gateway.
@@ -47,11 +47,11 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when principal of total supply (earning and non-earning) will overflow a `type(uint112).max`.
     error OverflowsPrincipalOfTotalSupply();
 
-    /// @notice Emitted in constructor if Minter Gateway is 0x0.
+    /// @notice Emitted in constructor if the Minter Gateway address is 0x0.
     error ZeroMinterGateway();
 
-    /// @notice Emitted in constructor if TTG Registrar is 0x0.
-    error ZeroTTGRegistrar();
+    /// @notice Emitted in constructor if the Registrar address is 0x0.
+    error ZeroRegistrar();
 
     /* ============ Interactive Functions ============ */
 
@@ -69,7 +69,7 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
      */
     function burn(address account, uint256 amount) external;
 
-    /// @notice Starts earning for caller if allowed by TTG.
+    /// @notice Starts earning for caller if allowed by the Registrar.
     function startEarning() external;
 
     /// @notice Stops earning for caller.
@@ -77,20 +77,20 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
 
     /**
      * @notice Stops earning for `account`.
-     * @dev    MUST revert if `account` is an approved earner in TTG Registrar.
+     * @dev    MUST revert if `account` is an approved earner in the Registrar.
      * @param  account The account to stop earning for.
      */
     function stopEarning(address account) external;
 
     /* ============ View/Pure Functions ============ */
 
-    /// @notice The address of the Minter Gateway contract.
+    /// @notice The address of the Minter Gateway.
     function minterGateway() external view returns (address);
 
-    /// @notice The address of the TTG Registrar contract.
-    function ttgRegistrar() external view returns (address);
+    /// @notice The address of the Registrar.
+    function registrar() external view returns (address);
 
-    /// @notice The address of TTG approved earner rate model.
+    /// @notice The address of the Registrar approved earner rate model.
     function rateModel() external view returns (address);
 
     /// @notice The current value of earner rate in basis points.

@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.23;
 
-import { TTGRegistrarReader } from "../../../src/libs/TTGRegistrarReader.sol";
+import { RegistrarReader } from "../../../src/libs/RegistrarReader.sol";
 
 import { IntegrationBaseSetup } from "../IntegrationBaseSetup.t.sol";
 
@@ -158,8 +158,8 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertEq(_minterGateway.activeOwedMOf(_minters[0]), _minterGateway.totalOwedM());
         assertEq(_minterGateway.inactiveOwedMOf(_minters[0]), 0);
 
-        // TTG removes minter from the minterGateway.
-        _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
+        // Registrar removes minter from the minterGateway.
+        _registrar.removeFromList(RegistrarReader.MINTERS_LIST, _minters[0]);
         // Minter is deactivated in the minterGateway
         _minterGateway.deactivateMinter(_minters[0]);
 
@@ -300,8 +300,8 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
-        // TTG removes minter from the protocol.
-        _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
+        // Registrar removes minter from the protocol.
+        _registrar.removeFromList(RegistrarReader.MINTERS_LIST, _minters[0]);
 
         // Minter is deactivated in the protocol
         _minterGateway.deactivateMinter(_minters[0]);
@@ -378,8 +378,8 @@ contract IntegrationTests is IntegrationBaseSetup {
 
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
-        // TTG removes minter from the protocol.
-        _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
+        // Registrar removes minter from the protocol.
+        _registrar.removeFromList(RegistrarReader.MINTERS_LIST, _minters[0]);
 
         // Minter is deactivated in the protocol
         _minterGateway.deactivateMinter(_minters[0]);

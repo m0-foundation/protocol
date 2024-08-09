@@ -3,7 +3,7 @@
 pragma solidity 0.8.23;
 
 import { ContinuousIndexingMath } from "../../../../src/libs/ContinuousIndexingMath.sol";
-import { TTGRegistrarReader } from "../../../../src/libs/TTGRegistrarReader.sol";
+import { RegistrarReader } from "../../../../src/libs/RegistrarReader.sol";
 
 import { IntegrationBaseSetup } from "../../IntegrationBaseSetup.t.sol";
 
@@ -56,7 +56,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
         assertEq(activeOwedM_, ContinuousIndexingMath.multiplyUp(principalAmount_, _minterGateway.currentIndex()));
 
         uint32 newPenaltyRate_ = 2_500; // 25% in bps
-        _registrar.updateConfig(TTGRegistrarReader.PENALTY_RATE, newPenaltyRate_);
+        _registrar.updateConfig(RegistrarReader.PENALTY_RATE, newPenaltyRate_);
 
         uint128 updateCollateralIndex_ = _minterGateway.latestIndex();
         uint256 updateCollateralTimestamp_ = _updateCollateral(minter_, collateral_);
@@ -138,7 +138,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
         uint128 updateCollateralIndex_ = _minterGateway.latestIndex();
         assertEq(_minterGateway.latestIndex(), _minterGateway.currentIndex());
 
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1 hours + 1 seconds);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1 hours + 1 seconds);
 
         vm.warp(vm.getBlockTimestamp() + 12 hours);
 
@@ -164,7 +164,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
 
         assertEq(activeOwedM_, ContinuousIndexingMath.multiplyUp(principalAmount_, _minterGateway.currentIndex()));
 
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 48 hours);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 48 hours);
 
         vm.warp(vm.getBlockTimestamp() + 24 hours);
 
@@ -199,7 +199,7 @@ contract UpdateCollateral_IntegrationTest is IntegrationBaseSetup {
         vm.warp(vm.getBlockTimestamp() + 12 hours);
 
         uint32 newMintRatio_ = 5_000; // 50% in bps
-        _registrar.updateConfig(TTGRegistrarReader.MINT_RATIO, newMintRatio_);
+        _registrar.updateConfig(RegistrarReader.MINT_RATIO, newMintRatio_);
 
         // Need to offset calculation by 1 hour since `_updateCollateral` warp the time by 1 hour.
         uint128 indexAfter13Hours_ = _getContinuousIndexAt(_baseMinterRate, mintIndex_, 13 hours);

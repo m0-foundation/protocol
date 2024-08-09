@@ -4,7 +4,7 @@ pragma solidity 0.8.23;
 
 import { stdError, Test } from "../../lib/forge-std/src/Test.sol";
 
-import { TTGRegistrarReader } from "../../src/libs/TTGRegistrarReader.sol";
+import { RegistrarReader } from "../../src/libs/RegistrarReader.sol";
 
 import { IMToken } from "../../src/interfaces/IMToken.sol";
 import { IMinterGateway } from "../../src/interfaces/IMinterGateway.sol";
@@ -19,9 +19,9 @@ contract FuzzTests is IntegrationBaseSetup {
         uint256 mintAmountToNonEarner,
         uint256 timeElapsed
     ) external {
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, uint256(0));
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 365 days);
-        _registrar.updateConfig(TTGRegistrarReader.MINT_DELAY, uint256(0));
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, uint256(0));
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 365 days);
+        _registrar.updateConfig(RegistrarReader.MINT_DELAY, uint256(0));
 
         minterRate = bound(minterRate, 100, 40000); // [0.1%, 400%] in basis points
         earnerRate = bound(earnerRate, minterRate, 40000); // [minterRate, 400%] in basis points
@@ -85,9 +85,9 @@ contract FuzzTests is IntegrationBaseSetup {
         uint256 minter2Amount,
         uint256 timeElapsed
     ) external {
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, uint256(0));
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 365 days);
-        _registrar.updateConfig(TTGRegistrarReader.MINT_DELAY, uint256(0));
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, uint256(0));
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 365 days);
+        _registrar.updateConfig(RegistrarReader.MINT_DELAY, uint256(0));
 
         minterRate = bound(minterRate, 100, 40000); // [0.1%, 400%] in basis points
         earnerRate = bound(earnerRate, minterRate, 40000); // [minterRate, 400%] in basis points
@@ -151,7 +151,7 @@ contract FuzzTests is IntegrationBaseSetup {
             "total owed M >= total M supply"
         );
 
-        _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
+        _registrar.removeFromList(RegistrarReader.MINTERS_LIST, _minters[0]);
         IMinterGateway(_minterGateway).deactivateMinter(_minters[0]);
 
         assertGe(
@@ -166,9 +166,9 @@ contract FuzzTests is IntegrationBaseSetup {
     }
 
     function test_deactivateMinter_rateStabilityTest() external {
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, uint256(0));
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 365 days);
-        _registrar.updateConfig(TTGRegistrarReader.MINT_DELAY, uint256(0));
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, uint256(0));
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 365 days);
+        _registrar.updateConfig(RegistrarReader.MINT_DELAY, uint256(0));
 
         uint256 minterRate = 4001;
         uint256 earnerRate = 4001;
@@ -233,7 +233,7 @@ contract FuzzTests is IntegrationBaseSetup {
             "total owed M >= total M supply"
         );
 
-        _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
+        _registrar.removeFromList(RegistrarReader.MINTERS_LIST, _minters[0]);
         IMinterGateway(_minterGateway).deactivateMinter(_minters[0]);
 
         assertGe(

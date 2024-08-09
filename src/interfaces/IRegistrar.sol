@@ -3,10 +3,10 @@
 pragma solidity 0.8.23;
 
 /**
- * @title  TTG (Two Token Governance) Registrar interface.
+ * @title  Registrar interface.
  * @author M^0 Labs
  */
-interface ITTGRegistrar {
+interface IRegistrar {
     /**
      * @notice Key value pair getter.
      * @param  key The key to get the value of.
@@ -22,6 +22,6 @@ interface ITTGRegistrar {
      */
     function listContains(bytes32 list, address account) external view returns (bool);
 
-    /// @notice Returns the vault contract address.
+    /// @notice Returns the Vault address.
     function vault() external view returns (address);
 }

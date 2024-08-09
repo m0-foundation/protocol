@@ -158,10 +158,10 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice Emitted when calling `updateCollateral` if `validators` addresses are not ordered in ascending order.
     error InvalidSignatureOrder();
 
-    /// @notice Emitted when calling `activateMinter` if minter was not approved by TTG.
+    /// @notice Emitted when calling `activateMinter` if minter was not approved by the Registrar.
     error NotApprovedMinter();
 
-    /// @notice Emitted when calling `cancelMint` or `freezeMinter` if `validator` was not approved by TTG.
+    /// @notice Emitted when calling `cancelMint` or `freezeMinter` if `validator` was not approved by the Registrar.
     error NotApprovedValidator(address validator);
 
     /// @notice Emitted when calling `updateCollateral` if `validatorThreshold` of signatures was not reached.
@@ -188,7 +188,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     ///         timestamp for that minter and validator.
     error OutdatedValidatorTimestamp(address validator, uint256 timestamp, uint256 lastSignatureTimestamp);
 
-    /// @notice Emitted when calling `deactivateMinter` with a minter still approved in TTG Registrar.
+    /// @notice Emitted when calling `deactivateMinter` with a minter still approved in the Registrar.
     error StillApprovedMinter();
 
     /**
@@ -201,7 +201,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice Emitted when calling `burnM` if amount is 0.
     error ZeroBurnAmount();
 
-    /// @notice Emitted in constructor if M Token is 0x0.
+    /// @notice Emitted in constructor if the M Token address is 0x0.
     error ZeroMToken();
 
     /// @notice Emitted when calling `proposeMint` if amount is 0.
@@ -213,11 +213,11 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice Emitted when calling `proposeRetrieval` if collateral is 0.
     error ZeroRetrievalAmount();
 
-    /// @notice Emitted in constructor if TTG Registrar is 0x0.
-    error ZeroTTGRegistrar();
+    /// @notice Emitted in constructor if the Registrar address is 0x0.
+    error ZeroRegistrar();
 
-    /// @notice Emitted in constructor if TTG Distribution Vault is set to 0x0 in TTG Registrar.
-    error ZeroTTGVault();
+    /// @notice Emitted in constructor if the Vault address is set to 0x0 in the Registrar.
+    error ZeroVault();
 
     /// @notice Emitted when calling `updateCollateral` with any validator timestamp of 0.
     error ZeroTimestamp();
@@ -307,7 +307,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
 
     /**
      * @notice Activate an approved minter.
-     * @dev    MUST revert if `minter` is not recorded as an approved minter in TTG Registrar.
+     * @dev    MUST revert if `minter` is not recorded as an approved minter in the Registrar.
      * @dev    MUST revert if `minter` has been deactivated.
      * @param  minter The address of the minter to activate
      */
@@ -324,14 +324,14 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
 
     /* ============ View/Pure Functions ============ */
 
-    /// @notice The address of M token
+    /// @notice The address of the M token.
     function mToken() external view returns (address);
 
-    /// @notice The address of TTG Registrar contract.
-    function ttgRegistrar() external view returns (address);
+    /// @notice The address of the Registrar.
+    function registrar() external view returns (address);
 
-    /// @notice The address of TTG Vault contract.
-    function ttgVault() external view returns (address);
+    /// @notice The address of the Vault.
+    function vault() external view returns (address);
 
     /// @notice The last saved value of Minter rate.
     function minterRate() external view returns (uint32);
@@ -423,19 +423,19 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice The timestamp when minter becomes unfrozen after being frozen by validator.
     function frozenUntilOf(address minter) external view returns (uint40);
 
-    /// @notice Checks if minter was activated after approval by TTG
+    /// @notice Checks if minter was activated after approval by the Registrar.
     function isActiveMinter(address minter) external view returns (bool);
 
-    /// @notice Checks if minter was deactivated after removal by TTG
+    /// @notice Checks if minter was deactivated after removal by the Registrar.
     function isDeactivatedMinter(address minter) external view returns (bool);
 
     /// @notice Checks if minter was frozen by validator
     function isFrozenMinter(address minter) external view returns (bool);
 
-    /// @notice Checks if minter was approved by TTG
+    /// @notice Checks if minter was approved by the Registrar.
     function isMinterApproved(address minter) external view returns (bool);
 
-    /// @notice Checks if validator was approved by TTG
+    /// @notice Checks if validator was approved by the Registrar.
     function isValidatorApproved(address validator) external view returns (bool);
 
     /// @notice The delay between mint proposal creation and its earliest execution.
@@ -453,7 +453,7 @@ interface IMinterGateway is IContinuousIndexing, IERC712 {
     /// @notice The % that defines penalty amount for missed collateral updates or excessive owedM value
     function penaltyRate() external view returns (uint32);
 
-    /// @notice The smart contract that defines the minter rate.
+    /// @notice The contract that defines the minter rate.
     function rateModel() external view returns (address);
 
     /// @notice The interval that defines the required frequency of collateral updates.

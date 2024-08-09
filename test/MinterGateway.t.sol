@@ -5,14 +5,14 @@ pragma solidity 0.8.23;
 import { ContractHelper } from "../lib/common/src/ContractHelper.sol";
 
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
-import { TTGRegistrarReader } from "../src/libs/TTGRegistrarReader.sol";
+import { RegistrarReader } from "../src/libs/RegistrarReader.sol";
 
 import { IMinterGateway } from "../src/interfaces/IMinterGateway.sol";
-import { ITTGRegistrar } from "../src/interfaces/ITTGRegistrar.sol";
+import { IRegistrar } from "../src/interfaces/IRegistrar.sol";
 
 import { EarnerRateModel } from "../src/rateModels/EarnerRateModel.sol";
 
-import { MockMToken, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
+import { MockMToken, MockRateModel, MockRegistrar } from "./utils/Mocks.sol";
 import { MinterGatewayHarness } from "./utils/MinterGatewayHarness.sol";
 import { MTokenHarness } from "./utils/MTokenHarness.sol";
 import { TestUtils } from "./utils/TestUtils.sol";
@@ -23,7 +23,7 @@ import { TestUtils } from "./utils/TestUtils.sol";
 contract MinterGatewayTests is TestUtils {
     address internal _alice = makeAddr("alice");
     address internal _bob = makeAddr("bob");
-    address internal _ttgVault = makeAddr("ttgVault");
+    address internal _vault = makeAddr("vault");
 
     address internal _minter1 = makeAddr("minter1");
 
@@ -47,7 +47,7 @@ contract MinterGatewayTests is TestUtils {
 
     MockMToken internal _mToken;
     MockRateModel internal _minterRateModel;
-    MockTTGRegistrar internal _ttgRegistrar;
+    MockRegistrar internal _registrar;
     MinterGatewayHarness internal _minterGateway;
 
     function setUp() external {
@@ -61,29 +61,29 @@ contract MinterGatewayTests is TestUtils {
 
         _mToken = new MockMToken();
 
-        _ttgRegistrar = new MockTTGRegistrar();
+        _registrar = new MockRegistrar();
 
-        _ttgRegistrar.setVault(_ttgVault);
+        _registrar.setVault(_vault);
 
-        _ttgRegistrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minter1);
-        _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validator1);
-        _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validator2);
-        _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validator3);
+        _registrar.addToList(RegistrarReader.MINTERS_LIST, _minter1);
+        _registrar.addToList(RegistrarReader.VALIDATORS_LIST, _validator1);
+        _registrar.addToList(RegistrarReader.VALIDATORS_LIST, _validator2);
+        _registrar.addToList(RegistrarReader.VALIDATORS_LIST, _validator3);
 
-        _ttgRegistrar.updateConfig(
-            TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD,
+        _registrar.updateConfig(
+            RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD,
             _updateCollateralThreshold
         );
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_FREEZE_TIME, _minterFreezeTime);
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_DELAY, _mintDelay);
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_TTL, _mintTTL);
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_RATIO, _mintRatio);
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, address(_minterRateModel));
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.PENALTY_RATE, _penaltyRate);
+        _registrar.updateConfig(RegistrarReader.MINTER_FREEZE_TIME, _minterFreezeTime);
+        _registrar.updateConfig(RegistrarReader.MINT_DELAY, _mintDelay);
+        _registrar.updateConfig(RegistrarReader.MINT_TTL, _mintTTL);
+        _registrar.updateConfig(RegistrarReader.MINT_RATIO, _mintRatio);
+        _registrar.updateConfig(RegistrarReader.MINTER_RATE_MODEL, address(_minterRateModel));
+        _registrar.updateConfig(RegistrarReader.PENALTY_RATE, _penaltyRate);
 
-        _minterGateway = new MinterGatewayHarness(address(_ttgRegistrar), address(_mToken));
+        _minterGateway = new MinterGatewayHarness(address(_registrar), address(_mToken));
 
         _minterGateway.setIsActive(_minter1, true);
         _minterGateway.setLatestRate(_minterRate); // This can be `minterGateway.updateIndex()`, but is not necessary.
@@ -91,30 +91,30 @@ contract MinterGatewayTests is TestUtils {
 
     /* ============ constructor ============ */
     function test_constructor() external {
-        assertEq(_minterGateway.ttgRegistrar(), address(_ttgRegistrar));
-        assertEq(_minterGateway.ttgVault(), _ttgVault);
+        assertEq(_minterGateway.registrar(), address(_registrar));
+        assertEq(_minterGateway.vault(), _vault);
         assertEq(_minterGateway.mToken(), address(_mToken));
     }
 
-    function test_constructor_zeroTTGRegistrar() external {
-        vm.expectRevert(IMinterGateway.ZeroTTGRegistrar.selector);
+    function test_constructor_zeroRegistrar() external {
+        vm.expectRevert(IMinterGateway.ZeroRegistrar.selector);
         _minterGateway = new MinterGatewayHarness(address(0), address(_mToken));
     }
 
-    function test_constructor_zeroTTGVault() external {
+    function test_constructor_zeroVault() external {
         vm.mockCall(
-            address(_ttgRegistrar),
-            abi.encodeWithSelector(ITTGRegistrar.vault.selector),
+            address(_registrar),
+            abi.encodeWithSelector(IRegistrar.vault.selector),
             abi.encode(address(0))
         );
 
-        vm.expectRevert(IMinterGateway.ZeroTTGVault.selector);
-        _minterGateway = new MinterGatewayHarness(address(_ttgRegistrar), address(_mToken));
+        vm.expectRevert(IMinterGateway.ZeroVault.selector);
+        _minterGateway = new MinterGatewayHarness(address(_registrar), address(_mToken));
     }
 
     function test_constructor_zeroMToken() external {
         vm.expectRevert(IMinterGateway.ZeroMToken.selector);
-        _minterGateway = new MinterGatewayHarness(address(_ttgRegistrar), address(0));
+        _minterGateway = new MinterGatewayHarness(address(_registrar), address(0));
     }
 
     /* ============ updateCollateral ============ */
@@ -158,7 +158,7 @@ contract MinterGatewayTests is TestUtils {
         threshold_ = bound(threshold_, 1, 5);
         numberOfSignatures_ = bound(numberOfSignatures_, threshold_, threshold_ + 2); // Up to 2 extra.
         collateral_ = bound(collateral_, 0, type(uint240).max / _mintRatio);
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, threshold_);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, threshold_);
 
         uint256[] memory timestamps_ = new uint256[](numberOfSignatures_);
         address[] memory validators_ = new address[](numberOfSignatures_);
@@ -184,7 +184,7 @@ contract MinterGatewayTests is TestUtils {
 
             validators_[i] = validator_;
 
-            _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, validators_[i]);
+            _registrar.addToList(RegistrarReader.VALIDATORS_LIST, validators_[i]);
 
             timestamps_[i] = bound(salt_++, blockTimestamp_ - (_updateCollateralInterval / 2), blockTimestamp_);
 
@@ -262,7 +262,7 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_updateCollateral_zeroThreshold() external {
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(0)));
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(0)));
 
         uint256[] memory retrievalIds = new uint256[](0);
         address[] memory validators = new address[](0);
@@ -277,7 +277,7 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_updateCollateral_someSignaturesAreInvalid() external {
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(1)));
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(1)));
 
         uint256[] memory retrievalIds = new uint256[](0);
 
@@ -542,7 +542,7 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_updateCollateral_validatorNotApproved() external {
-        _ttgRegistrar.removeFromList(TTGRegistrarReader.VALIDATORS_LIST, _validator1);
+        _registrar.removeFromList(RegistrarReader.VALIDATORS_LIST, _validator1);
 
         uint240 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
@@ -572,7 +572,7 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_updateCollateral_invalidSignatureOrder() external {
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
 
         uint256 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
@@ -620,7 +620,7 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_updateCollateral_signatureDoubleCount() external {
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 2);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 2);
 
         uint256 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
@@ -658,7 +658,7 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_updateCollateral_notEnoughValidSignatures() external {
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
 
         uint256 collateral = 100;
         uint256[] memory retrievalIds = new uint256[](0);
@@ -838,16 +838,16 @@ contract MinterGatewayTests is TestUtils {
     }
 
     function test_updateCollateral_intervalMinimumCap() external {
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1);
         assertEq(_minterGateway.updateCollateralInterval(), _minterGateway.MIN_UPDATE_COLLATERAL_INTERVAL());
         assertEq(_minterGateway.updateCollateralInterval(), 3600);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 3601);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 3601);
         assertEq(_minterGateway.updateCollateralInterval(), 3601);
     }
 
     function test_updateCollateral_intervalIsGreaterThanCurrentTimestamp() external {
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, vm.getBlockTimestamp() + 10);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, vm.getBlockTimestamp() + 10);
         assertEq(_minterGateway.updateCollateralInterval(), vm.getBlockTimestamp() + 10);
 
         uint240 collateral = 100;
@@ -2185,7 +2185,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setPrincipalOfTotalActiveOwedM(60e18);
 
         // Change update collateral interval, more frequent updates are required
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateCollateralInterval / 4);
 
         uint256 threeMissedIntervals = _updateCollateralInterval + (2 * _updateCollateralInterval) / 4;
         vm.warp(timestamp + threeMissedIntervals + 10);
@@ -2328,7 +2328,7 @@ contract MinterGatewayTests is TestUtils {
         _minterGateway.setIsActive(_minter1, false);
         assertEq(_minterGateway.isActiveMinter(_minter1), false);
 
-        _ttgRegistrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minter1);
+        _registrar.addToList(RegistrarReader.MINTERS_LIST, _minter1);
 
         vm.expectEmit();
         emit IMinterGateway.MinterActivated(_minter1, _alice);
@@ -2355,7 +2355,7 @@ contract MinterGatewayTests is TestUtils {
 
     /* ============ deactivateMinter ============ */
     function test_deactivateMinter() external {
-        _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
+        _registrar.removeFromList(RegistrarReader.MINTERS_LIST, _minter1);
 
         _minterGateway.setCollateralOf(_minter1, 2_000_000);
         _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 4 hours);
@@ -2402,7 +2402,7 @@ contract MinterGatewayTests is TestUtils {
 
         uint240 activeOwedM = _minterGateway.activeOwedMOf(_minter1);
 
-        _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
+        _registrar.removeFromList(RegistrarReader.MINTERS_LIST, _minter1);
 
         uint240 penalty_ = (activeOwedM * _penaltyRate) / ONE;
 
@@ -2433,7 +2433,7 @@ contract MinterGatewayTests is TestUtils {
 
     /* ============ proposeRetrieval ============ */
     function test_proposeRetrieval() external {
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(2)));
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(2)));
 
         uint240 collateral = 100;
         uint40 signatureTimestamp1 = uint40(vm.getBlockTimestamp());
@@ -2545,7 +2545,7 @@ contract MinterGatewayTests is TestUtils {
     function testFuzz_proposeRetrieval(uint256 minterCollateral_) external {
         minterCollateral_ = bound(minterCollateral_, 1, type(uint112).max);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(2)));
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(2)));
 
         address[] memory validators_ = new address[](2);
         validators_[0] = _validator2;
@@ -2829,7 +2829,7 @@ contract MinterGatewayTests is TestUtils {
         assertEq(_minterGateway.latestProposedRetrievalTimestampOf(_minter1), vm.getBlockTimestamp());
 
         // deactivate minter
-        _ttgRegistrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, _minter1);
+        _registrar.removeFromList(RegistrarReader.MINTERS_LIST, _minter1);
 
         vm.prank(_alice);
         _minterGateway.deactivateMinter(_minter1);
@@ -2948,7 +2948,7 @@ contract MinterGatewayTests is TestUtils {
 
     /* ============ Getters ============ */
     function test_emptyRateModel() external {
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, address(0));
+        _registrar.updateConfig(RegistrarReader.MINTER_RATE_MODEL, address(0));
 
         assertEq(_minterGateway.rate(), 0);
     }
@@ -3053,43 +3053,43 @@ contract MinterGatewayTests is TestUtils {
         assertEq(missedUntil_, 0);
     }
 
-    /* ============ TTG Parameters ============ */
-    function test_readTTGParameters() external {
+    /* ============ Registrar Parameters ============ */
+    function test_readRegistrarParameters() external {
         address peter = makeAddr("peter");
 
         assertEq(_minterGateway.isMinterApproved(peter), false);
-        _ttgRegistrar.addToList(TTGRegistrarReader.MINTERS_LIST, peter);
+        _registrar.addToList(RegistrarReader.MINTERS_LIST, peter);
         assertEq(_minterGateway.isMinterApproved(peter), true);
 
         assertEq(_minterGateway.isValidatorApproved(peter), false);
-        _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, peter);
+        _registrar.addToList(RegistrarReader.VALIDATORS_LIST, peter);
         assertEq(_minterGateway.isValidatorApproved(peter), true);
 
-        _ttgRegistrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validator1);
+        _registrar.addToList(RegistrarReader.VALIDATORS_LIST, _validator1);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_RATIO, 8000);
+        _registrar.updateConfig(RegistrarReader.MINT_RATIO, 8000);
         assertEq(_minterGateway.mintRatio(), 8000);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 3);
         assertEq(_minterGateway.updateCollateralValidatorThreshold(), 3);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 12 hours);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 12 hours);
         assertEq(_minterGateway.updateCollateralInterval(), 12 hours);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_FREEZE_TIME, 2 hours);
+        _registrar.updateConfig(RegistrarReader.MINTER_FREEZE_TIME, 2 hours);
         assertEq(_minterGateway.minterFreezeTime(), 2 hours);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_DELAY, 3 hours);
+        _registrar.updateConfig(RegistrarReader.MINT_DELAY, 3 hours);
         assertEq(_minterGateway.mintDelay(), 3 hours);
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINT_TTL, 4 hours);
+        _registrar.updateConfig(RegistrarReader.MINT_TTL, 4 hours);
         assertEq(_minterGateway.mintTTL(), 4 hours);
 
         MockRateModel minterRateModel = new MockRateModel();
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, address(minterRateModel));
+        _registrar.updateConfig(RegistrarReader.MINTER_RATE_MODEL, address(minterRateModel));
         assertEq(_minterGateway.rateModel(), address(minterRateModel));
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.PENALTY_RATE, 100);
+        _registrar.updateConfig(RegistrarReader.PENALTY_RATE, 100);
         assertEq(_minterGateway.penaltyRate(), 100);
     }
 
@@ -3102,7 +3102,7 @@ contract MinterGatewayTests is TestUtils {
             vm.getBlockTimestamp() + _updateCollateralInterval
         );
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 3_700);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 3_700);
         assertEq(_minterGateway.collateralExpiryTimestampOf(_minter1), vm.getBlockTimestamp() + 3_700);
 
         _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp() - 10_000);
@@ -3124,7 +3124,7 @@ contract MinterGatewayTests is TestUtils {
             vm.getBlockTimestamp() + _updateCollateralInterval
         );
 
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 3_700);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 3_700);
 
         _minterGateway.setUpdateTimestampOf(_minter1, vm.getBlockTimestamp());
         _minterGateway.setPenalizedUntilOf(_minter1, vm.getBlockTimestamp() - 10);
@@ -3147,19 +3147,19 @@ contract MinterGatewayTests is TestUtils {
     function test_mToken_addEarningAmount_overflow() external {
         address deployer_ = address(this);
         MTokenHarness mToken_ = new MTokenHarness(
-            address(_ttgRegistrar),
+            address(_registrar),
             ContractHelper.getContractFrom(deployer_, vm.getNonce(deployer_) + 1)
         );
 
-        MinterGatewayHarness minterGateway_ = new MinterGatewayHarness(address(_ttgRegistrar), address(mToken_));
+        MinterGatewayHarness minterGateway_ = new MinterGatewayHarness(address(_registrar), address(mToken_));
 
-        _ttgRegistrar.updateConfig(
-            TTGRegistrarReader.EARNER_RATE_MODEL,
+        _registrar.updateConfig(
+            RegistrarReader.EARNER_RATE_MODEL,
             address(new EarnerRateModel(address(minterGateway_)))
         );
 
-        _ttgRegistrar.updateConfig(MAX_EARNER_RATE, _earnerRate);
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.EARNERS_LIST_IGNORED, 1);
+        _registrar.updateConfig(MAX_EARNER_RATE, _earnerRate);
+        _registrar.updateConfig(RegistrarReader.EARNERS_LIST_IGNORED, 1);
 
         minterGateway_.setIsActive(_alice, true);
         minterGateway_.setIsActive(_bob, true);
@@ -3168,7 +3168,7 @@ contract MinterGatewayTests is TestUtils {
         mToken_.setLatestRate(_earnerRate);
         mToken_.setIsEarning(_alice, true);
         mToken_.setIsEarning(_bob, true);
-        mToken_.setIsEarning(_ttgVault, true);
+        mToken_.setIsEarning(_vault, true);
 
         // Update Collateral
         uint240 collateral_ = type(uint240).max;
@@ -3229,7 +3229,7 @@ contract MinterGatewayTests is TestUtils {
     /* ============ Sherlock ============ */
 
     function test_maliciousValidator_impossibleAttack() external {
-        _ttgRegistrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(2)));
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, bytes32(uint256(2)));
 
         bytes[] memory signaturesToUseBeforeRedemptions = new bytes[](2);
         bytes[] memory signaturesToUseToResolveRedemptions = new bytes[](2);

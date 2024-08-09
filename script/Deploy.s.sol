@@ -9,8 +9,8 @@ import { IMinterGateway } from "../src/interfaces/IMinterGateway.sol";
 import { DeployBase } from "./DeployBase.sol";
 
 contract Deploy is Script, DeployBase {
-    // NOTE: Ensure this is the correct TTG Registrar testnet/mainnet address.
-    address internal constant _TTG_REGISTRAR = 0x1EFeA064121f17379b267db17aCe135475514f8D;
+    // NOTE: Ensure this is the correct Registrar testnet/mainnet address.
+    address internal constant _REGISTRAR = 0x1EFeA064121f17379b267db17aCe135475514f8D;
 
     function run() external {
         (address deployer_, ) = deriveRememberKey(vm.envString("MNEMONIC"), 0);
@@ -22,7 +22,7 @@ contract Deploy is Script, DeployBase {
         (address minterGateway_, address minterRateModel_, address earnerRateModel_) = deploy(
             deployer_,
             vm.getNonce(deployer_),
-            _TTG_REGISTRAR
+            _REGISTRAR
         );
 
         vm.stopBroadcast();

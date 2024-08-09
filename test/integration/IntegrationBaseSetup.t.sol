@@ -5,7 +5,7 @@ pragma solidity 0.8.23;
 import { console2 } from "../../lib/forge-std/src/Test.sol";
 
 import { ContinuousIndexingMath } from "../../src/libs/ContinuousIndexingMath.sol";
-import { TTGRegistrarReader } from "../../src/libs/TTGRegistrarReader.sol";
+import { RegistrarReader } from "../../src/libs/RegistrarReader.sol";
 
 import { IMToken } from "../../src/interfaces/IMToken.sol";
 import { IMinterGateway } from "../../src/interfaces/IMinterGateway.sol";
@@ -15,7 +15,7 @@ import { IMinterRateModel } from "../../src/rateModels/interfaces/IMinterRateMod
 
 import { DeployBase } from "../../script/DeployBase.sol";
 
-import { MockTTGRegistrar } from "./../utils/Mocks.sol";
+import { MockRegistrar } from "./../utils/Mocks.sol";
 import { TestUtils } from "./../utils/TestUtils.sol";
 
 /// @notice Common setup for integration tests
@@ -62,11 +62,11 @@ abstract contract IntegrationBaseSetup is TestUtils {
     IMinterGateway internal _minterGateway;
     IEarnerRateModel internal _earnerRateModel;
     IMinterRateModel internal _minterRateModel;
-    MockTTGRegistrar internal _registrar;
+    MockRegistrar internal _registrar;
 
     function setUp() external {
         _deploy = new DeployBase();
-        _registrar = new MockTTGRegistrar();
+        _registrar = new MockRegistrar();
 
         _registrar.setVault(_vault);
 
@@ -85,30 +85,30 @@ abstract contract IntegrationBaseSetup is TestUtils {
 
         _registrar.updateConfig(MAX_EARNER_RATE, _baseEarnerRate);
         _registrar.updateConfig(BASE_MINTER_RATE, _baseMinterRate);
-        _registrar.updateConfig(TTGRegistrarReader.EARNER_RATE_MODEL, earnerRateModel_);
-        _registrar.updateConfig(TTGRegistrarReader.MINTER_RATE_MODEL, minterRateModel_);
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 1);
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateInterval);
-        _registrar.updateConfig(TTGRegistrarReader.MINT_DELAY, _mintDelay);
-        _registrar.updateConfig(TTGRegistrarReader.MINT_TTL, _mintTtl);
-        _registrar.updateConfig(TTGRegistrarReader.MINT_RATIO, _mintRatio);
-        _registrar.updateConfig(TTGRegistrarReader.PENALTY_RATE, _penaltyRate);
-        _registrar.updateConfig(TTGRegistrarReader.MINTER_FREEZE_TIME, _minterFreezeTime);
+        _registrar.updateConfig(RegistrarReader.EARNER_RATE_MODEL, earnerRateModel_);
+        _registrar.updateConfig(RegistrarReader.MINTER_RATE_MODEL, minterRateModel_);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_VALIDATOR_THRESHOLD, 1);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, _updateInterval);
+        _registrar.updateConfig(RegistrarReader.MINT_DELAY, _mintDelay);
+        _registrar.updateConfig(RegistrarReader.MINT_TTL, _mintTtl);
+        _registrar.updateConfig(RegistrarReader.MINT_RATIO, _mintRatio);
+        _registrar.updateConfig(RegistrarReader.PENALTY_RATE, _penaltyRate);
+        _registrar.updateConfig(RegistrarReader.MINTER_FREEZE_TIME, _minterFreezeTime);
 
-        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _mHolders[0]);
-        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _mHolders[1]);
-        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _mHolders[2]);
-        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _mHolders[3]);
+        _registrar.addToList(RegistrarReader.EARNERS_LIST, _mHolders[0]);
+        _registrar.addToList(RegistrarReader.EARNERS_LIST, _mHolders[1]);
+        _registrar.addToList(RegistrarReader.EARNERS_LIST, _mHolders[2]);
+        _registrar.addToList(RegistrarReader.EARNERS_LIST, _mHolders[3]);
 
-        _registrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validators[0]);
-        _registrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validators[1]);
-        _registrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validators[2]);
-        _registrar.addToList(TTGRegistrarReader.VALIDATORS_LIST, _validators[3]);
+        _registrar.addToList(RegistrarReader.VALIDATORS_LIST, _validators[0]);
+        _registrar.addToList(RegistrarReader.VALIDATORS_LIST, _validators[1]);
+        _registrar.addToList(RegistrarReader.VALIDATORS_LIST, _validators[2]);
+        _registrar.addToList(RegistrarReader.VALIDATORS_LIST, _validators[3]);
 
-        _registrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minters[0]);
-        _registrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minters[1]);
-        _registrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minters[2]);
-        _registrar.addToList(TTGRegistrarReader.MINTERS_LIST, _minters[3]);
+        _registrar.addToList(RegistrarReader.MINTERS_LIST, _minters[0]);
+        _registrar.addToList(RegistrarReader.MINTERS_LIST, _minters[1]);
+        _registrar.addToList(RegistrarReader.MINTERS_LIST, _minters[2]);
+        _registrar.addToList(RegistrarReader.MINTERS_LIST, _minters[3]);
 
         _minterGateway.updateIndex();
     }

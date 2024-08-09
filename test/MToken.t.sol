@@ -9,10 +9,10 @@ import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
 import { IMToken } from "../src/interfaces/IMToken.sol";
 
-import { TTGRegistrarReader } from "../src/libs/TTGRegistrarReader.sol";
+import { RegistrarReader } from "../src/libs/RegistrarReader.sol";
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
 
-import { MockMinterGateway, MockRateModel, MockTTGRegistrar } from "./utils/Mocks.sol";
+import { MockMinterGateway, MockRateModel, MockRegistrar } from "./utils/Mocks.sol";
 import { MTokenHarness } from "./utils/MTokenHarness.sol";
 import { TestUtils } from "./utils/TestUtils.sol";
 
@@ -31,7 +31,7 @@ contract MTokenTests is TestUtils {
     uint128 internal _expectedCurrentIndex;
 
     MockRateModel internal _earnerRateModel;
-    MockTTGRegistrar internal _registrar;
+    MockRegistrar internal _registrar;
     MTokenHarness internal _mToken;
 
     function setUp() external {
@@ -39,9 +39,9 @@ contract MTokenTests is TestUtils {
 
         _earnerRateModel.setRate(_earnerRate);
 
-        _registrar = new MockTTGRegistrar();
+        _registrar = new MockRegistrar();
 
-        _registrar.updateConfig(TTGRegistrarReader.EARNER_RATE_MODEL, address(_earnerRateModel));
+        _registrar.updateConfig(RegistrarReader.EARNER_RATE_MODEL, address(_earnerRateModel));
 
         _mToken = new MTokenHarness(address(_registrar), _minterGateway);
 
@@ -54,12 +54,12 @@ contract MTokenTests is TestUtils {
 
     /* ============ constructor ============ */
     function test_constructor() external {
-        assertEq(_mToken.ttgRegistrar(), address(_registrar));
+        assertEq(_mToken.registrar(), address(_registrar));
         assertEq(_mToken.minterGateway(), _minterGateway);
     }
 
-    function test_constructor_zeroTTGRegistrar() external {
-        vm.expectRevert(IMToken.ZeroTTGRegistrar.selector);
+    function test_constructor_zeroRegistrar() external {
+        vm.expectRevert(IMToken.ZeroRegistrar.selector);
         new MTokenHarness(address(0), _minterGateway);
     }
 
@@ -726,7 +726,7 @@ contract MTokenTests is TestUtils {
 
         _mToken.setInternalBalanceOf(_alice, 1_000);
 
-        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
+        _registrar.addToList(RegistrarReader.EARNERS_LIST, _alice);
 
         vm.prank(_alice);
 
@@ -753,7 +753,7 @@ contract MTokenTests is TestUtils {
 
         _mToken.setInternalBalanceOf(_alice, supply_);
 
-        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
+        _registrar.addToList(RegistrarReader.EARNERS_LIST, _alice);
 
         uint256 expectedPrincipalBalance_ = _getPrincipalAmountRoundedDown(uint240(supply_), _mToken.currentIndex());
 
@@ -779,7 +779,7 @@ contract MTokenTests is TestUtils {
         _mToken.setTotalNonEarningSupply(aliceBalance_);
         _mToken.setInternalBalanceOf(_alice, aliceBalance_);
 
-        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
+        _registrar.addToList(RegistrarReader.EARNERS_LIST, _alice);
 
         vm.prank(_alice);
 
@@ -839,7 +839,7 @@ contract MTokenTests is TestUtils {
     }
 
     function test_stopEarningForAccount_isApprovedEarner() external {
-        _registrar.addToList(TTGRegistrarReader.EARNERS_LIST, _alice);
+        _registrar.addToList(RegistrarReader.EARNERS_LIST, _alice);
 
         vm.expectRevert(IMToken.IsApprovedEarner.selector);
         _mToken.stopEarning(_alice);
@@ -1134,7 +1134,7 @@ contract MTokenTests is TestUtils {
 
     /* ============ emptyRateModel ============ */
     function test_emptyRateModel() external {
-        _registrar.updateConfig(TTGRegistrarReader.EARNER_RATE_MODEL, address(0));
+        _registrar.updateConfig(RegistrarReader.EARNER_RATE_MODEL, address(0));
 
         assertEq(_mToken.rate(), 0);
     }

@@ -3,7 +3,7 @@
 pragma solidity 0.8.23;
 
 import { ContinuousIndexingMath } from "../../../../src/libs/ContinuousIndexingMath.sol";
-import { TTGRegistrarReader } from "../../../../src/libs/TTGRegistrarReader.sol";
+import { RegistrarReader } from "../../../../src/libs/RegistrarReader.sol";
 
 import { IntegrationBaseSetup } from "../../IntegrationBaseSetup.t.sol";
 
@@ -54,7 +54,7 @@ contract BurnM_IntegrationTest is IntegrationBaseSetup {
 
         uint128 burnIndex_ = _minterGateway.latestIndex();
 
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1 hours);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 1 hours);
 
         vm.warp(vm.getBlockTimestamp() + 12 hours);
 
@@ -83,7 +83,7 @@ contract BurnM_IntegrationTest is IntegrationBaseSetup {
 
         burnIndex_ = _minterGateway.latestIndex();
 
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 48 hours);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 48 hours);
 
         vm.warp(vm.getBlockTimestamp() + 24 hours);
 

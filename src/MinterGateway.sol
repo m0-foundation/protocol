@@ -7,7 +7,7 @@ import { SignatureChecker } from "../lib/common/src/libs/SignatureChecker.sol";
 import { ERC712Extended } from "../lib/common/src/ERC712Extended.sol";
 import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
-import { TTGRegistrarReader } from "./libs/TTGRegistrarReader.sol";
+import { RegistrarReader } from "./libs/RegistrarReader.sol";
 
 import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
@@ -33,7 +33,7 @@ import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 /**
  * @title  MinterGateway
  * @author M^0 Labs
- * @notice Minting Gateway of M Token for all approved by TTG and activated minters.
+ * @notice Minting Gateway of M Token.
  */
 contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
     /* ============ Structs ============ */
@@ -97,10 +97,10 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         0x22b57ca54bd15c6234b29e87aa1d76a0841b6e65e63d7acacef989de0bc3ff9e;
 
     /// @inheritdoc IMinterGateway
-    address public immutable ttgRegistrar;
+    address public immutable registrar;
 
     /// @inheritdoc IMinterGateway
-    address public immutable ttgVault;
+    address public immutable vault;
 
     /// @inheritdoc IMinterGateway
     address public immutable mToken;
@@ -144,7 +144,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         _;
     }
 
-    /// @notice Only allow approved validator in TTG to call function.
+    /// @notice Only allow approved validator in the Registrar to call function.
     modifier onlyApprovedValidator() {
         _revertIfNotApprovedValidator(msg.sender);
 
@@ -162,12 +162,12 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /**
      * @notice Constructor.
-     * @param  ttgRegistrar_ The address of the TTG Registrar contract.
-     * @param  mToken_        The address of the M Token.
+     * @param  registrar_ The address of the Registrar contract.
+     * @param  mToken_    The address of the M Token contract.
      */
-    constructor(address ttgRegistrar_, address mToken_) ContinuousIndexing() ERC712Extended("MinterGateway") {
-        if ((ttgRegistrar = ttgRegistrar_) == address(0)) revert ZeroTTGRegistrar();
-        if ((ttgVault = TTGRegistrarReader.getVault(ttgRegistrar_)) == address(0)) revert ZeroTTGVault();
+    constructor(address registrar_, address mToken_) ContinuousIndexing() ERC712Extended("MinterGateway") {
+        if ((registrar = registrar_) == address(0)) revert ZeroRegistrar();
+        if ((vault = RegistrarReader.getVault(registrar_)) == address(0)) revert ZeroVault();
         if ((mToken = mToken_) == address(0)) revert ZeroMToken();
     }
 
@@ -448,7 +448,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         //       (the block.timestamp is not changing) we can compute excessOwedM without updating the mToken index.
         uint240 excessOwedM_ = excessOwedM();
 
-        if (excessOwedM_ > 0) IMToken(mToken).mint(ttgVault, excessOwedM_); // Mint M to TTG Vault.
+        if (excessOwedM_ > 0) IMToken(mToken).mint(vault, excessOwedM_); // Mint M to Vault.
 
         // NOTE: Above functionality already has access to `currentIndex()`, and since the completion of the collateral
         //       update can result in a new rate, we should update the index here to lock in that rate.
@@ -644,61 +644,61 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         return _minterStates[minter_].frozenUntilTimestamp;
     }
 
-    /* ============ TTG Registrar Reader Functions ============ */
+    /* ============ Registrar Reader Functions ============ */
 
     /// @inheritdoc IMinterGateway
     function isMinterApproved(address minter_) public view returns (bool) {
-        return TTGRegistrarReader.isApprovedMinter(ttgRegistrar, minter_);
+        return RegistrarReader.isApprovedMinter(registrar, minter_);
     }
 
     /// @inheritdoc IMinterGateway
     function isValidatorApproved(address validator_) public view returns (bool) {
-        return TTGRegistrarReader.isApprovedValidator(ttgRegistrar, validator_);
+        return RegistrarReader.isApprovedValidator(registrar, validator_);
     }
 
     /// @inheritdoc IMinterGateway
     function updateCollateralInterval() public view returns (uint32) {
         return
             UIntMath.max32(
-                UIntMath.bound32(TTGRegistrarReader.getUpdateCollateralInterval(ttgRegistrar)),
+                UIntMath.bound32(RegistrarReader.getUpdateCollateralInterval(registrar)),
                 MIN_UPDATE_COLLATERAL_INTERVAL
             );
     }
 
     /// @inheritdoc IMinterGateway
     function updateCollateralValidatorThreshold() public view returns (uint256) {
-        return TTGRegistrarReader.getUpdateCollateralValidatorThreshold(ttgRegistrar);
+        return RegistrarReader.getUpdateCollateralValidatorThreshold(registrar);
     }
 
     /// @inheritdoc IMinterGateway
     function mintRatio() public view returns (uint32) {
         // NOTE: It is possible for the mint ratio to be greater than 100%, but capped at 650%.
-        return UIntMath.min32(MAX_MINT_RATIO, UIntMath.bound32(TTGRegistrarReader.getMintRatio(ttgRegistrar)));
+        return UIntMath.min32(MAX_MINT_RATIO, UIntMath.bound32(RegistrarReader.getMintRatio(registrar)));
     }
 
     /// @inheritdoc IMinterGateway
     function mintDelay() public view returns (uint32) {
-        return UIntMath.bound32(TTGRegistrarReader.getMintDelay(ttgRegistrar));
+        return UIntMath.bound32(RegistrarReader.getMintDelay(registrar));
     }
 
     /// @inheritdoc IMinterGateway
     function mintTTL() public view returns (uint32) {
-        return UIntMath.bound32(TTGRegistrarReader.getMintTTL(ttgRegistrar));
+        return UIntMath.bound32(RegistrarReader.getMintTTL(registrar));
     }
 
     /// @inheritdoc IMinterGateway
     function minterFreezeTime() public view returns (uint32) {
-        return UIntMath.bound32(TTGRegistrarReader.getMinterFreezeTime(ttgRegistrar));
+        return UIntMath.bound32(RegistrarReader.getMinterFreezeTime(registrar));
     }
 
     /// @inheritdoc IMinterGateway
     function penaltyRate() public view returns (uint32) {
-        return UIntMath.bound32(TTGRegistrarReader.getPenaltyRate(ttgRegistrar));
+        return UIntMath.bound32(RegistrarReader.getPenaltyRate(registrar));
     }
 
     /// @inheritdoc IMinterGateway
     function rateModel() public view returns (address) {
-        return TTGRegistrarReader.getMinterRateModel(ttgRegistrar);
+        return RegistrarReader.getMinterRateModel(registrar);
     }
 
     /// @inheritdoc IContinuousIndexing
@@ -1159,7 +1159,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
         // NOTE: Revert here because this failure is entirely within the minter's control.
         if (timestamp_ <= lastTimestamp_) revert OutdatedValidatorTimestamp(validator_, timestamp_, lastTimestamp_);
 
-        // Check that validator is approved by TTG.
+        // Check that validator is approved by the Registrar.
         if (!isValidatorApproved(validator_)) return false;
 
         // Check that ECDSA or ERC1271 signatures for given digest are valid.

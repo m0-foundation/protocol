@@ -3,7 +3,7 @@
 pragma solidity 0.8.23;
 
 import { ContinuousIndexingMath } from "../../../../src/libs/ContinuousIndexingMath.sol";
-import { TTGRegistrarReader } from "../../../../src/libs/TTGRegistrarReader.sol";
+import { RegistrarReader } from "../../../../src/libs/RegistrarReader.sol";
 
 import { IntegrationBaseSetup } from "../../IntegrationBaseSetup.t.sol";
 
@@ -54,11 +54,11 @@ contract DeactivateMinter_IntegrationTest is IntegrationBaseSetup {
             ContinuousIndexingMath.multiplyUp(principalAmount_, _minterGateway.currentIndex())
         );
 
-        _registrar.updateConfig(TTGRegistrarReader.UPDATE_COLLATERAL_INTERVAL, 48 hours);
+        _registrar.updateConfig(RegistrarReader.UPDATE_COLLATERAL_INTERVAL, 48 hours);
 
         vm.warp(vm.getBlockTimestamp() + 36 hours);
 
-        _registrar.removeFromList(TTGRegistrarReader.MINTERS_LIST, minter_);
+        _registrar.removeFromList(RegistrarReader.MINTERS_LIST, minter_);
 
         vm.prank(_alice);
         _minterGateway.deactivateMinter(minter_);

@@ -11,10 +11,10 @@ import { MinterRateModel } from "../src/rateModels/MinterRateModel.sol";
 
 contract DeployBase {
     /**
-     * @dev    Deploys TTG.
+     * @dev    Deploys Protocol.
      * @param  deployer_        The address of the account deploying the contracts.
      * @param  deployerNonce_   The current nonce of the deployer.
-     * @param  ttgRegistrar_    The address of the TTG Registrar.
+     * @param  registrar_       The address of the Registrar.
      * @return minterGateway_   The address of the deployed Minter Gateway.
      * @return minterRateModel_ The address of the deployed Minter Rate Model.
      * @return earnerRateModel_ The address of the deployed Earner Rate Model.
@@ -22,17 +22,17 @@ contract DeployBase {
     function deploy(
         address deployer_,
         uint256 deployerNonce_,
-        address ttgRegistrar_
+        address registrar_
     ) public virtual returns (address minterGateway_, address minterRateModel_, address earnerRateModel_) {
-        // M token needs `minterGateway_` and `ttgRegistrar_` addresses.
-        // MinterGateway needs `ttgRegistrar_` and M token addresses and for `ttgRegistrar_` to be deployed.
+        // M token needs `minterGateway_` and `registrar_` addresses.
+        // MinterGateway needs `registrar_` and M token addresses and for `registrar_` to be deployed.
         // EarnerRateModel needs `minterGateway_` address and for `minterGateway_` to be deployed.
-        // MinterRateModel needs `ttgRegistrar_` address.
+        // MinterRateModel needs `registrar_` address.
 
-        address mToken_ = address(new MToken(ttgRegistrar_, _getExpectedMinterGateway(deployer_, deployerNonce_)));
+        address mToken_ = address(new MToken(registrar_, _getExpectedMinterGateway(deployer_, deployerNonce_)));
 
-        minterGateway_ = address(new MinterGateway(ttgRegistrar_, mToken_));
-        minterRateModel_ = address(new MinterRateModel(ttgRegistrar_));
+        minterGateway_ = address(new MinterGateway(registrar_, mToken_));
+        minterRateModel_ = address(new MinterRateModel(registrar_));
         earnerRateModel_ = address(new EarnerRateModel(minterGateway_));
     }
 

@@ -6,38 +6,38 @@ import { UIntMath } from "../../lib/common/src/libs/UIntMath.sol";
 
 import { IRateModel } from "../interfaces/IRateModel.sol";
 import { IMinterRateModel } from "./interfaces/IMinterRateModel.sol";
-import { ITTGRegistrar } from "../interfaces/ITTGRegistrar.sol";
+import { IRegistrar } from "../interfaces/IRegistrar.sol";
 
 /**
- * @title  Minter Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by Minter Gateway.
+ * @title  Minter Rate Model contract set in the Registrar and accessed by the Minter Gateway.
  * @author M^0 Labs
  */
 contract MinterRateModel is IMinterRateModel {
     /* ============ Variables ============ */
 
-    /// @notice The name of parameter in TTG that defines the base minter rate.
+    /// @notice The name of parameter in the Registrar that defines the base minter rate.
     bytes32 internal constant _BASE_MINTER_RATE = "base_minter_rate";
 
     /// @notice The maximum allowed rate in basis points.
     uint256 public constant MAX_MINTER_RATE = 40_000; // 400%
 
     /// @inheritdoc IMinterRateModel
-    address public immutable ttgRegistrar;
+    address public immutable registrar;
 
     /* ============ Constructor ============ */
 
     /**
-     * @notice Constructs the MinterRateModel contract.
-     * @param ttgRegistrar_ The address of the TTG Registrar contract.
+     * @notice Constructs MinterRateModel.
+     * @param  registrar_ The address of the Registrar contract.
      */
-    constructor(address ttgRegistrar_) {
-        if ((ttgRegistrar = ttgRegistrar_) == address(0)) revert ZeroTTGRegistrar();
+    constructor(address registrar_) {
+        if ((registrar = registrar_) == address(0)) revert ZeroRegistrar();
     }
 
     /* ============ View/Pure Functions ============ */
 
     /// @inheritdoc IRateModel
     function rate() external view returns (uint256 rate_) {
-        return UIntMath.min256(uint256(ITTGRegistrar(ttgRegistrar).get(_BASE_MINTER_RATE)), MAX_MINTER_RATE);
+        return UIntMath.min256(uint256(IRegistrar(registrar).get(_BASE_MINTER_RATE)), MAX_MINTER_RATE);
     }
 }

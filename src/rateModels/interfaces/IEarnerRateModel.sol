@@ -11,14 +11,14 @@ import { IRateModel } from "../../interfaces/IRateModel.sol";
 interface IEarnerRateModel is IRateModel {
     /* ============ Custom Errors ============ */
 
-    /// @notice Emitted when M Token contract address is zero.
+    /// @notice Emitted when the M Token address is zero.
     error ZeroMToken();
 
-    /// @notice Emitted when Minter Gateway contract address is zero.
+    /// @notice Emitted when the Minter Gateway address is zero.
     error ZeroMinterGateway();
 
-    /// @notice Emitted when TTG Registrar contract address is zero.
-    error ZeroTTGRegistrar();
+    /// @notice Emitted when the Registrar address is zero.
+    error ZeroRegistrar();
 
     /* ============ View/Pure Functions ============ */
 
@@ -31,14 +31,14 @@ interface IEarnerRateModel is IRateModel {
     /// @notice 100% in basis points.
     function ONE() external view returns (uint32);
 
-    /// @notice The M Token contract address.
+    /// @notice The M Token address.
     function mToken() external view returns (address);
 
-    /// @notice The Minter Gateway contract address.
+    /// @notice The Minter Gateway address.
     function minterGateway() external view returns (address);
 
-    /// @notice The TTG Registrar contract address.
-    function ttgRegistrar() external view returns (address);
+    /// @notice The Registrar address.
+    function registrar() external view returns (address);
 
     /// @notice The max rate in basis points.
     function maxRate() external view returns (uint256);
