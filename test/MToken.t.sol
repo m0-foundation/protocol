@@ -70,20 +70,6 @@ contract MTokenTests is TestUtils {
         _mToken.mint(_alice, 0, 0);
     }
 
-    function test_mint_insufficientAmount() external {
-        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
-
-        vm.prank(_portal);
-        _mToken.mint(_alice, 0, 0);
-    }
-
-    function test_mint_invalidRecipient() external {
-        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InvalidRecipient.selector, address(0)));
-
-        vm.prank(_portal);
-        _mToken.mint(address(0), 1_000, 0);
-    }
-
     function test_mint_toNonEarner() external {
         vm.prank(_portal);
         _mToken.mint(_alice, 1_000, 0);

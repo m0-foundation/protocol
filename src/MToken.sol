@@ -181,7 +181,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param amount_  The present amount to burn.
      */
     function _burn(address account_, uint256 amount_) internal {
-        _revertIfInsufficientAmount(amount_);
+        if (amount_ == 0) revert InsufficientAmount(amount_);
 
         emit Transfer(account_, address(0), amount_);
 
@@ -199,9 +199,6 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param amount_    The present amount to mint.
      */
     function _mint(address recipient_, uint256 amount_) internal {
-        _revertIfInsufficientAmount(amount_);
-        _revertIfInvalidRecipient(recipient_);
-
         emit Transfer(address(0), recipient_, amount_);
 
         uint240 safeAmount_ = UIntMath.safe240(amount_);
@@ -327,7 +324,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      * @param amount_    The present amount to transfer.
      */
     function _transfer(address sender_, address recipient_, uint256 amount_) internal override {
-        _revertIfInvalidRecipient(recipient_);
+        if (recipient_ == address(0)) revert InvalidRecipient(recipient_);
 
         emit Transfer(sender_, recipient_, amount_);
 
@@ -409,22 +406,6 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
      */
     function _isApprovedEarner(address account_) internal view returns (bool) {
         return RegistrarReader.isEarnersListIgnored(registrar) || RegistrarReader.isApprovedEarner(registrar, account_);
-    }
-
-    /**
-     * @dev   Reverts if the amount of a `mint` or `burn` is equal to 0.
-     * @param amount_ Amount to check.
-     */
-    function _revertIfInsufficientAmount(uint256 amount_) internal pure {
-        if (amount_ == 0) revert InsufficientAmount(amount_);
-    }
-
-    /**
-     * @dev   Reverts if the recipient of a `mint` or `transfer` is address(0).
-     * @param recipient_ Address of the recipient to check.
-     */
-    function _revertIfInvalidRecipient(address recipient_) internal pure {
-        if (recipient_ == address(0)) revert InvalidRecipient(recipient_);
     }
 
     /// @dev Reverts if the caller is not the portal.
