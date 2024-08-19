@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.26;
 
-import { ContractHelper } from "../lib/common/src/ContractHelper.sol";
+import { ContractHelper } from "../lib/common/src/libs/ContractHelper.sol";
 
 import { MToken } from "../src/MToken.sol";
 
