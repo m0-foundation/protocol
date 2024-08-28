@@ -57,7 +57,7 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
 
     /**
      * @notice Updates the index and mints tokens.
-     * @dev    MUST only be callable by a trusted bridge.
+     * @dev    MUST only be callable by the Spoke Portal.
      * @param  account The address of account to mint to.
      * @param  amount  The amount of M Token to mint.
      * @param  index   The index to update to.
@@ -65,9 +65,10 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     function mint(address account, uint256 amount, uint128 index) external;
 
     /**
-     * @notice Burns tokens.
-     * @dev    MUST only be callable by a trusted bridge.
-     * @param  account The address of account to burn from.
+     * @notice Burns `amount` of M tokens from `account`.
+     * @dev    MUST only be callable by the Spoke Portal.
+     * @dev    MUST revert if `account` has not approved the Spoke Portal to burn their M tokens.
+     * @param  account The address of the account to burn from.
      * @param  amount  The amount of M Token to burn.
      */
     function burn(address account, uint256 amount) external;
