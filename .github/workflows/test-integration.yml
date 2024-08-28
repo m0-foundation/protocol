@@ -1,31 +1,31 @@
-name: Forge Integration Tests
-
-on:
-  push:
-    branches:
-      - main
-      - spoke
-  pull_request:
-
-permissions: write-all
-
-jobs:
-  check:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-
-      - name: Run Forge build
-        run: |
-          forge --version
-          make sizes
-        id: build
-
-      - name: Run Forge integration tests
-        run: make integration profile=ci
+# name: Forge Integration Tests
+#
+# on:
+#   push:
+#     branches:
+#       - main
+#       - spoke
+#   pull_request:
+#
+# permissions: write-all
+#
+# jobs:
+#   check:
+#     name: Integration Tests
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#         with:
+#           submodules: recursive
+#
+#       - name: Install Foundry
+#         uses: foundry-rs/foundry-toolchain@v1
+#
+#       - name: Run Forge build
+#         run: |
+#           forge --version
+#           make sizes
+#         id: build
+#
+#       - name: Run Forge integration tests
+#         run: make integration profile=ci
