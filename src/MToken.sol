@@ -71,6 +71,11 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /* ============ Interactive Functions ============ */
 
     /// @inheritdoc IMToken
+    function mint(address account_, uint256 amount_) external onlyPortal {
+        _mint(account_, amount_);
+    }
+
+    /// @inheritdoc IMToken
     function mint(address account_, uint256 amount_, uint128 index_) external onlyPortal {
         super.updateIndex(index_);
         _mint(account_, amount_);

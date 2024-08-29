@@ -56,6 +56,14 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /* ============ Interactive Functions ============ */
 
     /**
+     * @notice Mints tokens.
+     * @dev    MUST only be callable by a trusted bridge.
+     * @param  account The address of account to mint to.
+     * @param  amount  The amount of M Token to mint.
+     */
+    function mint(address account, uint256 amount) external;
+
+    /**
      * @notice Updates the index and mints tokens.
      * @dev    MUST only be callable by a trusted bridge.
      * @param  account The address of account to mint to.
