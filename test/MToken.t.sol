@@ -216,6 +216,9 @@ contract MTokenTests is TestUtils {
     function test_burn_insufficientBalance_fromNonEarner() external {
         _mToken.setInternalBalanceOf(_alice, 999);
 
+        vm.prank(_alice);
+        _mToken.approve(_portal, type(uint256).max);
+
         vm.expectRevert(abi.encodeWithSelector(IMToken.InsufficientBalance.selector, _alice, 999, 1_000));
         vm.prank(_portal);
         _mToken.burn(_alice, 1_000);
@@ -225,15 +228,46 @@ contract MTokenTests is TestUtils {
         _mToken.setIsEarning(_alice, true);
         _mToken.setInternalBalanceOf(_alice, 908);
 
+        vm.prank(_alice);
+        _mToken.approve(_portal, type(uint256).max);
+
         vm.expectRevert(abi.encodeWithSelector(IMToken.InsufficientBalance.selector, _alice, 908, 910));
         vm.prank(_portal);
         _mToken.burn(_alice, 1_000);
+    }
+
+    function test_burn_insufficientAllowance() external {
+        uint256 amount_ = 1_000;
+
+        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAllowance.selector, _portal, 0, amount_));
+
+        vm.prank(_portal);
+        _mToken.burn(_alice, amount_);
+    }
+
+    function test_burn_updateAllowance() external {
+        uint256 amount_ = 1_000;
+
+        _mToken.setInternalBalanceOf(_alice, amount_);
+
+        vm.prank(_alice);
+        _mToken.approve(_portal, amount_);
+
+        assertEq(_mToken.allowance(_alice, _portal), amount_);
+
+        vm.prank(_portal);
+        _mToken.burn(_alice, amount_);
+
+        assertEq(_mToken.allowance(_alice, _portal), 0);
     }
 
     function test_burn_fromNonEarner() external {
         _mToken.setTotalNonEarningSupply(1_000);
 
         _mToken.setInternalBalanceOf(_alice, 1_000);
+
+        vm.prank(_alice);
+        _mToken.approve(_portal, type(uint256).max);
 
         vm.prank(_portal);
         _mToken.burn(_alice, 500);
@@ -261,6 +295,9 @@ contract MTokenTests is TestUtils {
         _mToken.setTotalNonEarningSupply(supply_);
         _mToken.setInternalBalanceOf(_alice, supply_);
 
+        vm.prank(_alice);
+        _mToken.approve(_portal, type(uint256).max);
+
         vm.prank(_portal);
         _mToken.burn(_alice, supply_ / 2);
 
@@ -285,6 +322,9 @@ contract MTokenTests is TestUtils {
 
         _mToken.setIsEarning(_alice, true);
         _mToken.setInternalBalanceOf(_alice, 909);
+
+        vm.prank(_alice);
+        _mToken.approve(_portal, type(uint256).max);
 
         vm.prank(_portal);
         _mToken.burn(_alice, 1);
@@ -319,6 +359,9 @@ contract MTokenTests is TestUtils {
 
         uint256 burnAmount_ = _mToken.balanceOf(_alice) / 2;
         vm.assume(burnAmount_ != 0);
+
+        vm.prank(_alice);
+        _mToken.approve(_portal, type(uint256).max);
 
         vm.prank(_portal);
         _mToken.burn(_alice, burnAmount_);

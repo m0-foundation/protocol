@@ -6,6 +6,7 @@ import { ERC20Extended } from "../lib/common/src/ERC20Extended.sol";
 import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
 import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
+import { IERC20Extended } from "../lib/common/src/interfaces/IERC20Extended.sol";
 
 import { RegistrarReader } from "./libs/RegistrarReader.sol";
 
@@ -78,6 +79,17 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /// @inheritdoc IMToken
     function burn(address account_, uint256 amount_) external onlyPortal {
+        uint256 portalAllowance_ = allowance[account_][portal];
+
+        if (portalAllowance_ != type(uint256).max) {
+            if (portalAllowance_ < amount_)
+                revert IERC20Extended.InsufficientAllowance(portal, portalAllowance_, amount_);
+
+            unchecked {
+                _setAllowance(account_, portal, portalAllowance_ - amount_);
+            }
+        }
+
         _burn(account_, amount_);
     }
 
