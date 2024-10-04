@@ -78,19 +78,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     }
 
     /// @inheritdoc IMToken
-    function burn(address account_, uint256 amount_) external onlyPortal {
-        uint256 portalAllowance_ = allowance[account_][portal];
-
-        if (portalAllowance_ != type(uint256).max) {
-            if (portalAllowance_ < amount_)
-                revert IERC20Extended.InsufficientAllowance(portal, portalAllowance_, amount_);
-
-            unchecked {
-                _setAllowance(account_, portal, portalAllowance_ - amount_);
-            }
-        }
-
-        _burn(account_, amount_);
+    function burn(uint256 amount_) external onlyPortal {
+        _burn(msg.sender, amount_);
     }
 
     /// @inheritdoc IContinuousIndexing
