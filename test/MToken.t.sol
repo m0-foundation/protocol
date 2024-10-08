@@ -204,84 +204,50 @@ contract MTokenTests is TestUtils {
     /* ============ burn ============ */
     function test_burn_notPortal() external {
         vm.expectRevert(IMToken.NotPortal.selector);
-        _mToken.burn(_alice, 0);
+        _mToken.burn(0);
     }
 
     function test_burn_insufficientAmount() external {
         vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
         vm.prank(_portal);
-        _mToken.burn(_alice, 0);
+        _mToken.burn(0);
     }
 
     function test_burn_insufficientBalance_fromNonEarner() external {
-        _mToken.setInternalBalanceOf(_alice, 999);
+        _mToken.setInternalBalanceOf(_portal, 999);
 
-        vm.prank(_alice);
-        _mToken.approve(_portal, type(uint256).max);
-
-        vm.expectRevert(abi.encodeWithSelector(IMToken.InsufficientBalance.selector, _alice, 999, 1_000));
+        vm.expectRevert(abi.encodeWithSelector(IMToken.InsufficientBalance.selector, _portal, 999, 1_000));
         vm.prank(_portal);
-        _mToken.burn(_alice, 1_000);
+        _mToken.burn(1_000);
     }
 
     function test_burn_insufficientBalance_fromEarner() external {
-        _mToken.setIsEarning(_alice, true);
-        _mToken.setInternalBalanceOf(_alice, 908);
+        _mToken.setIsEarning(_portal, true);
+        _mToken.setInternalBalanceOf(_portal, 909);
 
-        vm.prank(_alice);
-        _mToken.approve(_portal, type(uint256).max);
-
-        vm.expectRevert(abi.encodeWithSelector(IMToken.InsufficientBalance.selector, _alice, 908, 910));
+        vm.expectRevert(abi.encodeWithSelector(IMToken.InsufficientBalance.selector, _portal, 909, 910));
         vm.prank(_portal);
-        _mToken.burn(_alice, 1_000);
-    }
-
-    function test_burn_insufficientAllowance() external {
-        uint256 amount_ = 1_000;
-
-        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAllowance.selector, _portal, 0, amount_));
-
-        vm.prank(_portal);
-        _mToken.burn(_alice, amount_);
-    }
-
-    function test_burn_updateAllowance() external {
-        uint256 amount_ = 1_000;
-
-        _mToken.setInternalBalanceOf(_alice, amount_);
-
-        vm.prank(_alice);
-        _mToken.approve(_portal, amount_);
-
-        assertEq(_mToken.allowance(_alice, _portal), amount_);
-
-        vm.prank(_portal);
-        _mToken.burn(_alice, amount_);
-
-        assertEq(_mToken.allowance(_alice, _portal), 0);
+        _mToken.burn(1000);
     }
 
     function test_burn_fromNonEarner() external {
         _mToken.setTotalNonEarningSupply(1_000);
-
-        _mToken.setInternalBalanceOf(_alice, 1_000);
-
-        vm.prank(_alice);
-        _mToken.approve(_portal, type(uint256).max);
+        
+        _mToken.setInternalBalanceOf(_portal, 1_000);
 
         vm.prank(_portal);
-        _mToken.burn(_alice, 500);
+        _mToken.burn(500);
 
-        assertEq(_mToken.internalBalanceOf(_alice), 500);
+        assertEq(_mToken.internalBalanceOf(_portal), 500);
         assertEq(_mToken.totalNonEarningSupply(), 500);
         assertEq(_mToken.principalOfTotalEarningSupply(), 0);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
         vm.prank(_portal);
-        _mToken.burn(_alice, 500);
+        _mToken.burn(500);
 
-        assertEq(_mToken.internalBalanceOf(_alice), 0);
+        assertEq(_mToken.internalBalanceOf(_portal), 0);
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.principalOfTotalEarningSupply(), 0);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
@@ -293,24 +259,21 @@ contract MTokenTests is TestUtils {
         vm.assume(supply_ % 2 == 0);
 
         _mToken.setTotalNonEarningSupply(supply_);
-        _mToken.setInternalBalanceOf(_alice, supply_);
-
-        vm.prank(_alice);
-        _mToken.approve(_portal, type(uint256).max);
+        _mToken.setInternalBalanceOf(_portal, supply_);
 
         vm.prank(_portal);
-        _mToken.burn(_alice, supply_ / 2);
+        _mToken.burn(supply_ / 2);
 
-        assertEq(_mToken.internalBalanceOf(_alice), supply_ / 2);
+        assertEq(_mToken.internalBalanceOf(_portal), supply_ / 2);
         assertEq(_mToken.totalNonEarningSupply(), supply_ / 2);
         assertEq(_mToken.principalOfTotalEarningSupply(), 0);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
         vm.prank(_portal);
-        _mToken.burn(_alice, supply_ / 2);
+        _mToken.burn(supply_ / 2);
 
-        assertEq(_mToken.internalBalanceOf(_alice), 0);
+        assertEq(_mToken.internalBalanceOf(_portal), 0);
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.principalOfTotalEarningSupply(), 0);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
@@ -320,26 +283,23 @@ contract MTokenTests is TestUtils {
     function test_burn_fromEarner() external {
         _mToken.setPrincipalOfTotalEarningSupply(909);
 
-        _mToken.setIsEarning(_alice, true);
-        _mToken.setInternalBalanceOf(_alice, 909);
-
-        vm.prank(_alice);
-        _mToken.approve(_portal, type(uint256).max);
+        _mToken.setIsEarning(_portal, true);
+        _mToken.setInternalBalanceOf(_portal, 909);
 
         vm.prank(_portal);
-        _mToken.burn(_alice, 1);
+        _mToken.burn(1);
 
         // Change due to principal round up on burn.
-        assertEq(_mToken.internalBalanceOf(_alice), 908);
+        assertEq(_mToken.internalBalanceOf(_portal), 908);
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.principalOfTotalEarningSupply(), 908);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
         vm.prank(_portal);
-        _mToken.burn(_alice, 998);
+        _mToken.burn(998);
 
-        assertEq(_mToken.internalBalanceOf(_alice), 0);
+        assertEq(_mToken.internalBalanceOf(_portal), 0);
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.principalOfTotalEarningSupply(), 0);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
@@ -354,38 +314,35 @@ contract MTokenTests is TestUtils {
 
         _mToken.setPrincipalOfTotalEarningSupply(expectedPrincipalBalance_);
 
-        _mToken.setIsEarning(_alice, true);
-        _mToken.setInternalBalanceOf(_alice, expectedPrincipalBalance_);
+        _mToken.setIsEarning(_portal, true);
+        _mToken.setInternalBalanceOf(_portal, expectedPrincipalBalance_);
 
-        uint256 burnAmount_ = _mToken.balanceOf(_alice) / 2;
+        uint256 burnAmount_ = _mToken.balanceOf(_portal) / 2;
         vm.assume(burnAmount_ != 0);
 
-        vm.prank(_alice);
-        _mToken.approve(_portal, type(uint256).max);
-
         vm.prank(_portal);
-        _mToken.burn(_alice, burnAmount_);
+        _mToken.burn(burnAmount_);
 
         expectedPrincipalBalance_ -= _getPrincipalAmountRoundedUp(uint240(burnAmount_), _expectedCurrentIndex);
 
         // Change due to principal round up on burn.
-        assertEq(_mToken.internalBalanceOf(_alice), expectedPrincipalBalance_);
+        assertEq(_mToken.internalBalanceOf(_portal), expectedPrincipalBalance_);
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.principalOfTotalEarningSupply(), expectedPrincipalBalance_);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
-        uint256 balanceOfAlice_ = _mToken.balanceOf(_alice);
+        uint256 balanceOfPortal_ = _mToken.balanceOf(_portal);
 
         assertEq(
-            _mToken.balanceOf(_alice),
+            _mToken.balanceOf(_portal),
             _getPresentAmountRoundedDown(uint112(expectedPrincipalBalance_), _expectedCurrentIndex)
         );
 
         vm.prank(_portal);
-        _mToken.burn(_alice, balanceOfAlice_);
+        _mToken.burn(balanceOfPortal_);
 
-        assertEq(_mToken.internalBalanceOf(_alice), 0);
+        assertEq(_mToken.internalBalanceOf(_portal), 0);
         assertEq(_mToken.totalNonEarningSupply(), 0);
         assertEq(_mToken.principalOfTotalEarningSupply(), 0);
         assertEq(_mToken.latestIndex(), _expectedCurrentIndex);
