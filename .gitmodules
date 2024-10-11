@@ -4,4 +4,4 @@
 	branch = v1
 [submodule "lib/common"]
 	path = lib/common
-	url = git@github.com:MZero-Labs/common.git
+	url = git@github.com:m0-foundation/common.git
