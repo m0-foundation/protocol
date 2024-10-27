@@ -65,11 +65,26 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     function mint(address account, uint256 amount, uint128 index) external;
 
     /**
+     * @notice Mints tokens.
+     * @dev    MUST only be callable by the Spoke Portal.
+     * @param  account The address of account to mint to.
+     * @param  amount  The amount of M Token to mint.
+     */
+    function mint(address account, uint256 amount) external;
+
+    /**
      * @notice Burns `amount` of M tokens from `msg.sender`.
      * @dev    MUST only be callable by the Spoke Portal.
      * @param  amount  The amount of M Token to burn.
      */
     function burn(uint256 amount) external;
+
+    /**
+     * @notice Updates the latest index and latest accrual time in storage.
+     * @dev    MUST only be callable by the Spoke Portal.
+     * @param  index The new index to compute present amounts from principal amounts.
+     */
+    function updateIndex(uint128 index) external;
 
     /// @notice Starts earning for caller if allowed by TTG.
     function startEarning() external;

@@ -15,14 +15,6 @@ interface IContinuousIndexing {
      */
     event IndexUpdated(uint128 indexed index);
 
-    /* ============ Interactive Functions ============ */
-
-    /**
-     * @notice Updates the latest index and latest accrual time in storage.
-     * @param  index The new index to compute present amounts from principal amounts.
-     */
-    function updateIndex(uint128 index) external;
-
     /* ============ View/Pure Functions ============ */
 
     /// @notice The current index that would be written to storage if `updateIndex` is called.
