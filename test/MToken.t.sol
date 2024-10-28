@@ -5,6 +5,7 @@ pragma solidity 0.8.26;
 import { IERC20Extended } from "../lib/common/src/interfaces/IERC20Extended.sol";
 import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
+import { IContinuousIndexing } from "../src/interfaces/IContinuousIndexing.sol";
 import { IMToken } from "../src/interfaces/IMToken.sol";
 
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
@@ -67,26 +68,49 @@ contract MTokenTests is TestUtils {
     /* ============ mint ============ */
     function test_mint_notPortal() external {
         vm.expectRevert(IMToken.NotPortal.selector);
-        _mToken.mint(_alice, 0, 0);
+        _mToken.mint(_alice, 0);
     }
 
     function test_mint_insufficientAmount() external {
         vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
 
         vm.prank(_portal);
-        _mToken.mint(_alice, 0, 0);
+        _mToken.mint(_alice, 0);
     }
 
     function test_mint_invalidRecipient() external {
         vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InvalidRecipient.selector, address(0)));
 
         vm.prank(_portal);
-        _mToken.mint(address(0), 1_000, 0);
+        _mToken.mint(address(0), 1_000);
+    }
+
+    function test_mint_mintAndUpdateIndex_decreasingIndex() external {
+        uint256 amount_ = 1_000;
+        uint128 index_ = 1;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IContinuousIndexing.DecreasingIndex.selector, index_, _mToken.currentIndex())
+        );
+
+        vm.prank(_portal);
+        _mToken.mint(_alice, amount_, index_);
+    }
+
+    function test_mint_mintAndUpdateIndex() external {
+        uint256 amount_ = 1_000;
+        uint128 index_ = 2e12;
+
+        vm.prank(_portal);
+        _mToken.mint(_alice, amount_, index_);
+
+        assertEq(_mToken.internalBalanceOf(_alice), amount_);
+        assertEq(_mToken.currentIndex(), index_);
     }
 
     function test_mint_toNonEarner() external {
         vm.prank(_portal);
-        _mToken.mint(_alice, 1_000, 0);
+        _mToken.mint(_alice, 1_000);
 
         assertEq(_mToken.internalBalanceOf(_alice), 1_000);
         assertEq(_mToken.totalNonEarningSupply(), 1_000);
@@ -99,7 +123,7 @@ contract MTokenTests is TestUtils {
         amount_ = bound(amount_, 1, type(uint112).max);
 
         vm.prank(_portal);
-        _mToken.mint(_alice, amount_, 0);
+        _mToken.mint(_alice, amount_);
 
         assertEq(_mToken.internalBalanceOf(_alice), amount_);
         assertEq(_mToken.totalNonEarningSupply(), amount_);
@@ -113,18 +137,18 @@ contract MTokenTests is TestUtils {
         _mToken.setIsEarning(_alice, true);
 
         vm.prank(_portal);
-        _mToken.mint(_alice, type(uint112).max - 1, 0);
+        _mToken.mint(_alice, type(uint112).max - 1);
 
         vm.prank(_portal);
         vm.expectRevert(IMToken.OverflowsPrincipalOfTotalSupply.selector);
-        _mToken.mint(_bob, 2, 0);
+        _mToken.mint(_bob, 2);
     }
 
     function test_mint_toEarner() external {
         _mToken.setIsEarning(_alice, true);
 
         vm.prank(_portal);
-        _mToken.mint(_alice, 999, 0);
+        _mToken.mint(_alice, 999);
 
         assertEq(_mToken.internalBalanceOf(_alice), 908);
         assertEq(_mToken.totalNonEarningSupply(), 0);
@@ -133,7 +157,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
         vm.prank(_portal);
-        _mToken.mint(_alice, 1, 0);
+        _mToken.mint(_alice, 1);
 
         // No change due to principal round down on mint.
         assertEq(_mToken.internalBalanceOf(_alice), 908);
@@ -143,7 +167,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
         vm.prank(_portal);
-        _mToken.mint(_alice, 2, 0);
+        _mToken.mint(_alice, 2);
 
         assertEq(_mToken.internalBalanceOf(_alice), 909);
         assertEq(_mToken.totalNonEarningSupply(), 0);
@@ -158,7 +182,7 @@ contract MTokenTests is TestUtils {
         _mToken.setIsEarning(_alice, true);
 
         vm.prank(_portal);
-        _mToken.mint(_alice, amount_, 0);
+        _mToken.mint(_alice, amount_);
 
         uint256 expectedPrincipalBalance_ = _getPrincipalAmountRoundedDown(uint240(amount_), _expectedCurrentIndex);
 
@@ -169,7 +193,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
         vm.prank(_portal);
-        _mToken.mint(_alice, 1, 0);
+        _mToken.mint(_alice, 1);
 
         expectedPrincipalBalance_ += _getPrincipalAmountRoundedDown(uint240(1), _expectedCurrentIndex);
 
@@ -181,7 +205,7 @@ contract MTokenTests is TestUtils {
         assertEq(_mToken.latestUpdateTimestamp(), _start);
 
         vm.prank(_portal);
-        _mToken.mint(_alice, 2, 0);
+        _mToken.mint(_alice, 2);
 
         expectedPrincipalBalance_ += _getPrincipalAmountRoundedDown(uint240(2), _expectedCurrentIndex);
 
@@ -198,7 +222,7 @@ contract MTokenTests is TestUtils {
 
         vm.expectRevert(IMToken.OverflowsPrincipalOfTotalSupply.selector);
         vm.prank(_portal);
-        _mToken.mint(_alice, type(uint112).max, 0);
+        _mToken.mint(_alice, type(uint112).max);
     }
 
     /* ============ burn ============ */
@@ -232,7 +256,7 @@ contract MTokenTests is TestUtils {
 
     function test_burn_fromNonEarner() external {
         _mToken.setTotalNonEarningSupply(1_000);
-        
+
         _mToken.setInternalBalanceOf(_portal, 1_000);
 
         vm.prank(_portal);
@@ -831,6 +855,16 @@ contract MTokenTests is TestUtils {
     function test_updateIndex_notPortal() external {
         vm.expectRevert(IMToken.NotPortal.selector);
         _mToken.updateIndex(0);
+    }
+
+    function test_updateIndex_decreasingIndex() external {
+        uint128 index_ = 0;
+        vm.expectRevert(
+            abi.encodeWithSelector(IContinuousIndexing.DecreasingIndex.selector, index_, _mToken.currentIndex())
+        );
+
+        vm.prank(_portal);
+        _mToken.updateIndex(index_);
     }
 
     function test_updateIndex() external {

@@ -6,7 +6,6 @@ import { ERC20Extended } from "../lib/common/src/ERC20Extended.sol";
 import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
 import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
-import { IERC20Extended } from "../lib/common/src/interfaces/IERC20Extended.sol";
 
 import { RegistrarReader } from "./libs/RegistrarReader.sol";
 
@@ -73,7 +72,12 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /// @inheritdoc IMToken
     function mint(address account_, uint256 amount_, uint128 index_) external onlyPortal {
-        super.updateIndex(index_);
+        _updateIndex(index_);
+        _mint(account_, amount_);
+    }
+
+    /// @inheritdoc IMToken
+    function mint(address account_, uint256 amount_) external onlyPortal {
         _mint(account_, amount_);
     }
 
@@ -82,9 +86,9 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         _burn(msg.sender, amount_);
     }
 
-    /// @inheritdoc IContinuousIndexing
-    function updateIndex(uint128 index_) public override(IContinuousIndexing, ContinuousIndexing) onlyPortal {
-        super.updateIndex(index_);
+    /// @inheritdoc IMToken
+    function updateIndex(uint128 index_) external onlyPortal {
+        _updateIndex(index_);
     }
 
     /// @inheritdoc IMToken

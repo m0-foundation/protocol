@@ -27,22 +27,24 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
         latestUpdateTimestamp = uint40(block.timestamp);
     }
 
-    /* ============ Interactive Functions ============ */
+    /* ============ View/Pure Functions ============ */
 
     /// @inheritdoc IContinuousIndexing
-    function updateIndex(uint128 index_) public virtual {
-        if (index_ <= latestIndex) return;
+    function currentIndex() public view virtual returns (uint128);
 
+    /* ============ Internal Interactive Functions ============ */
+
+    /**
+     * @notice Updates the latest index and latest accrual time.
+     * @param  index_ The new index to compute present amounts from principal amounts.
+     */
+    function _updateIndex(uint128 index_) internal virtual {
+        if (index_ < latestIndex) revert DecreasingIndex(index_, latestIndex);
         latestIndex = index_;
         latestUpdateTimestamp = uint40(block.timestamp);
 
         emit IndexUpdated(index_);
     }
-
-    /* ============ View/Pure Functions ============ */
-
-    /// @inheritdoc IContinuousIndexing
-    function currentIndex() public view virtual returns (uint128);
 
     /* ============ Internal View/Pure Functions ============ */
 

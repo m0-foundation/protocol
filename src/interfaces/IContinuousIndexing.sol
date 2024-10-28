@@ -15,13 +15,14 @@ interface IContinuousIndexing {
      */
     event IndexUpdated(uint128 indexed index);
 
-    /* ============ Interactive Functions ============ */
+    /* ============ Custom Error ============ */
 
     /**
-     * @notice Updates the latest index and latest accrual time in storage.
-     * @param  index The new index to compute present amounts from principal amounts.
+     * @notice Emitted during index update when the new index is less than the current one.
+     * @param  index The new index.
+     * @param  currentIndex The current index.
      */
-    function updateIndex(uint128 index) external;
+    error DecreasingIndex(uint128 index, uint128 currentIndex);
 
     /* ============ View/Pure Functions ============ */
 
