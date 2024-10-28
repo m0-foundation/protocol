@@ -15,6 +15,15 @@ interface IContinuousIndexing {
      */
     event IndexUpdated(uint128 indexed index);
 
+    /* ============ Custom Error ============ */
+
+    /**
+     * @notice Emitted during index update when the new index is less than the current one.
+     * @param  index The new index.
+     * @param  currentIndex The current index.
+     */
+    error DecreasingIndex(uint128 index, uint128 currentIndex);
+
     /* ============ View/Pure Functions ============ */
 
     /// @notice The current index that would be written to storage if `updateIndex` is called.

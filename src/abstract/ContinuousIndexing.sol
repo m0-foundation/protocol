@@ -39,6 +39,7 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
      * @param  index_ The new index to compute present amounts from principal amounts.
      */
     function _updateIndex(uint128 index_) internal virtual {
+        if (index_ < latestIndex) revert DecreasingIndex(index_, latestIndex);
         latestIndex = index_;
         latestUpdateTimestamp = uint40(block.timestamp);
 

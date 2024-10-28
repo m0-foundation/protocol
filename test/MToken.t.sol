@@ -5,6 +5,7 @@ pragma solidity 0.8.26;
 import { IERC20Extended } from "../lib/common/src/interfaces/IERC20Extended.sol";
 import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 
+import { IContinuousIndexing } from "../src/interfaces/IContinuousIndexing.sol";
 import { IMToken } from "../src/interfaces/IMToken.sol";
 
 import { ContinuousIndexingMath } from "../src/libs/ContinuousIndexingMath.sol";
@@ -82,6 +83,18 @@ contract MTokenTests is TestUtils {
 
         vm.prank(_portal);
         _mToken.mint(address(0), 1_000);
+    }
+
+    function test_mint_mintAndUpdateIndex_decreasingIndex() external {
+        uint256 amount_ = 1_000;
+        uint128 index_ = 1;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IContinuousIndexing.DecreasingIndex.selector, index_, _mToken.currentIndex())
+        );
+
+        vm.prank(_portal);
+        _mToken.mint(_alice, amount_, index_);
     }
 
     function test_mint_mintAndUpdateIndex() external {
@@ -842,6 +855,16 @@ contract MTokenTests is TestUtils {
     function test_updateIndex_notPortal() external {
         vm.expectRevert(IMToken.NotPortal.selector);
         _mToken.updateIndex(0);
+    }
+
+    function test_updateIndex_decreasingIndex() external {
+        uint128 index_ = 0;
+        vm.expectRevert(
+            abi.encodeWithSelector(IContinuousIndexing.DecreasingIndex.selector, index_, _mToken.currentIndex())
+        );
+
+        vm.prank(_portal);
+        _mToken.updateIndex(index_);
     }
 
     function test_updateIndex() external {
