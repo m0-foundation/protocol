@@ -68,5 +68,5 @@ interface IEarnerRateModel is IRateModel {
         uint240 totalActiveOwedM,
         uint240 totalEarningSupply,
         uint32 minterRate
-    ) external pure returns (uint256);
+    ) external pure returns (uint32);
 }

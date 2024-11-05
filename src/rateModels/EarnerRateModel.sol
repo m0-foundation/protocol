@@ -78,13 +78,16 @@ contract EarnerRateModel is IEarnerRateModel {
         return uint256(ITTGRegistrar(ttgRegistrar).get(_MAX_EARNER_RATE));
     }
 
+    /// @inheritdoc IEarnerRateModel
     function getExtraSafeEarnerRate(
         uint240 totalActiveOwedM_,
         uint240 totalEarningSupply_,
         uint32 minterRate_
-    ) public pure returns (uint256) {
+    ) public pure returns (uint32) {
         uint256 safeEarnerRate_ = getSafeEarnerRate(totalActiveOwedM_, totalEarningSupply_, minterRate_);
-        return (RATE_MULTIPLIER * safeEarnerRate_) / ONE;
+        uint256 extraSafeEarnerRate_ = (safeEarnerRate_ * RATE_MULTIPLIER) / ONE;
+
+        return (extraSafeEarnerRate_ > type(uint32).max) ? type(uint32).max : uint32(extraSafeEarnerRate_);
     }
 
     /// @inheritdoc IEarnerRateModel
