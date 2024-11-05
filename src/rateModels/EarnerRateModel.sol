@@ -25,7 +25,7 @@ contract EarnerRateModel is IEarnerRateModel {
     uint32 public constant RATE_CONFIDENCE_INTERVAL = 30 days;
 
     /// @inheritdoc IEarnerRateModel
-    uint32 public constant RATE_MULTIPLIER = 9_000; // 90% in basis points.
+    uint32 public constant RATE_MULTIPLIER = 9_800; // 98% in basis points.
 
     /// @inheritdoc IEarnerRateModel
     uint32 public constant ONE = 10_000; // 100% in basis points.
@@ -64,18 +64,27 @@ contract EarnerRateModel is IEarnerRateModel {
 
     /// @inheritdoc IRateModel
     function rate() external view returns (uint256) {
-        uint256 safeEarnerRate_ = getSafeEarnerRate(
+        uint256 extraSafeEarnerRate_ = getExtraSafeEarnerRate(
             IMinterGateway(minterGateway).totalActiveOwedM(),
             IMToken(mToken).totalEarningSupply(),
             IMinterGateway(minterGateway).minterRate()
         );
 
-        return UIntMath.min256(maxRate(), (RATE_MULTIPLIER * safeEarnerRate_) / ONE);
+        return UIntMath.min256(maxRate(), extraSafeEarnerRate_);
     }
 
     /// @inheritdoc IEarnerRateModel
     function maxRate() public view returns (uint256) {
         return uint256(ITTGRegistrar(ttgRegistrar).get(_MAX_EARNER_RATE));
+    }
+
+    function getExtraSafeEarnerRate(
+        uint240 totalActiveOwedM_,
+        uint240 totalEarningSupply_,
+        uint32 minterRate_
+    ) public pure returns (uint256) {
+        uint256 safeEarnerRate_ = getSafeEarnerRate(totalActiveOwedM_, totalEarningSupply_, minterRate_);
+        return (RATE_MULTIPLIER * safeEarnerRate_) / ONE;
     }
 
     /// @inheritdoc IEarnerRateModel
