@@ -64,13 +64,15 @@ contract EarnerRateModel is IEarnerRateModel {
 
     /// @inheritdoc IRateModel
     function rate() external view returns (uint256) {
-        uint256 extraSafeEarnerRate_ = getExtraSafeEarnerRate(
-            IMinterGateway(minterGateway).totalActiveOwedM(),
-            IMToken(mToken).totalEarningSupply(),
-            IMinterGateway(minterGateway).minterRate()
-        );
-
-        return UIntMath.min256(maxRate(), extraSafeEarnerRate_);
+        return
+            UIntMath.min256(
+                maxRate(),
+                getExtraSafeEarnerRate(
+                    IMinterGateway(minterGateway).totalActiveOwedM(),
+                    IMToken(mToken).totalEarningSupply(),
+                    IMinterGateway(minterGateway).minterRate()
+                )
+            );
     }
 
     /// @inheritdoc IEarnerRateModel
