@@ -34,11 +34,6 @@ library RegistrarReader {
         return IRegistrar(registrar_).portal();
     }
 
-    /// @notice Converts given bytes32 to address.
-    function toAddress(bytes32 input_) internal pure returns (address) {
-        return address(uint160(uint256(input_)));
-    }
-
     /// @notice Checks if the given list contains the given account.
     function _contains(address registrar_, bytes32 listName_, address account_) private view returns (bool) {
         return IRegistrar(registrar_).listContains(listName_, account_);
