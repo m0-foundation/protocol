@@ -27,6 +27,9 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
 
     /* ============ Custom Errors ============ */
 
+    /// @notice Emitted when the index from the Hub chain has not yet been propagated to the Spoke chain.
+    error IndexNotInitialized();
+
     /**
      * @notice Emitted when there is insufficient balance to decrement from `account`.
      * @param  account     The account with insufficient balance.

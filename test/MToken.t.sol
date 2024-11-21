@@ -692,6 +692,16 @@ contract MTokenTests is TestUtils {
         _mToken.startEarning();
     }
 
+    function test_startEarning_indexNotInitialized() external {
+        _mToken.setLatestIndex(ContinuousIndexingMath.EXP_SCALED_ONE);
+        _registrar.addToList(RegistrarReader.EARNERS_LIST, _alice);
+
+        vm.expectRevert(IMToken.IndexNotInitialized.selector);
+
+        vm.prank(_alice);
+        _mToken.startEarning();
+    }
+
     function test_startEarning() external {
         _mToken.setTotalNonEarningSupply(1_000);
 
@@ -739,9 +749,9 @@ contract MTokenTests is TestUtils {
     }
 
     function test_startEarning_overflow() external {
-        _mToken.setLatestIndex(ContinuousIndexingMath.EXP_SCALED_ONE);
+        _mToken.setLatestIndex(ContinuousIndexingMath.EXP_SCALED_ONE + 1);
 
-        uint256 aliceBalance_ = uint256(type(uint112).max) + 20;
+        uint256 aliceBalance_ = uint256(type(uint112).max) + 1e22;
 
         _mToken.setTotalNonEarningSupply(aliceBalance_);
         _mToken.setInternalBalanceOf(_alice, aliceBalance_);

@@ -13,6 +13,7 @@ import { IContinuousIndexing } from "./interfaces/IContinuousIndexing.sol";
 import { IMToken } from "./interfaces/IMToken.sol";
 
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
+import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
 /**
  * @title  MToken
@@ -94,6 +95,7 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /// @inheritdoc IMToken
     function startEarning() external {
         if (!_isApprovedEarner(msg.sender)) revert NotApprovedEarner();
+        if (currentIndex() == ContinuousIndexingMath.EXP_SCALED_ONE) revert IndexNotInitialized();
 
         _startEarning(msg.sender);
     }
