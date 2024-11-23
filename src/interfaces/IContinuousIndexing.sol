@@ -26,7 +26,7 @@ interface IContinuousIndexing {
 
     /* ============ View/Pure Functions ============ */
 
-    /// @notice The current index that would be written to storage if `updateIndex` is called.
+    /// @notice The current index that was last written to storage when `updatedIndex` was called.
     function currentIndex() external view returns (uint128);
 
     /// @notice The latest updated index.
