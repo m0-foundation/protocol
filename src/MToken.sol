@@ -71,6 +71,8 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended, Migratable {
      * @param  migrationAdmin_ The address of a migration admin.
      */
     constructor(address registrar_, address migrationAdmin_) ContinuousIndexing() ERC20Extended("M by M^0", "M", 6) {
+        _disableInitializers();
+        
         if ((registrar = registrar_) == address(0)) revert ZeroRegistrar();
         if ((portal = RegistrarReader.getPortal(registrar_)) == address(0)) revert ZeroPortal();
         if ((migrationAdmin = migrationAdmin_) == address(0)) revert ZeroMigrationAdmin();
