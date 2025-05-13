@@ -17,7 +17,7 @@ contract DeployBase {
      */
     function deploy(address registrar_, address migrationAdmin_) public virtual returns (address implementation_, address proxy_) {
         implementation_ = address(new MToken(registrar_, migrationAdmin_));
-        proxy_ = address(new ERC1967Proxy(implementation_, abi.encodeCall(MToken.initialize, ())));
+        proxy_ = address(new ERC1967Proxy(implementation_, abi.encodeCall(MToken.initialize, ("M by M0", "M"))));
     }
 
     function _getExpectedMTokenImplementation(

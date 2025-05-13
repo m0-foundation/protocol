@@ -5,6 +5,7 @@ pragma solidity 0.8.26;
 import { ERC20Extended } from "../lib/common/src/ERC20Extended.sol";
 import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
 import { Migratable } from "../lib/common/src/Migratable.sol";
+import { Bytes32String } from "../lib/common/src/libs/Bytes32String.sol";
 
 import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 
@@ -16,12 +17,29 @@ import { IMToken } from "./interfaces/IMToken.sol";
 import { ContinuousIndexing } from "./abstract/ContinuousIndexing.sol";
 import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
 
+abstract contract MTokenStorageLayout {
+    /// @custom:storage-location erc7201:m0.storage.MToken
+    struct MTokenStorage {
+        bytes32 name;
+        bytes32 symbol;
+    }
+
+    // keccak256(abi.encode(uint256(keccak256("m0.storage.MToken")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant _M_TOKEN_STORAGE_SLOT = 0x93466981a55ce4da70da67506024f05bd15faf7fdab908fab669c24c9fb04d00;
+
+    function _getMTokenStorage() internal pure returns (MTokenStorage storage $) {
+        assembly {
+            $.slot := _M_TOKEN_STORAGE_SLOT
+        }
+    }
+}
+
 /**
  * @title  MToken
- * @author M^0 Labs
+ * @author M0 Labs
  * @notice ERC20 M Token living on other chains.
  */
-contract MToken is IMToken, ContinuousIndexing, ERC20Extended, Migratable {
+contract MToken is IMToken, ContinuousIndexing, ERC20Extended, Migratable, MTokenStorageLayout {
     /* ============ Structs ============ */
 
     /**
@@ -70,9 +88,9 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended, Migratable {
      * @param  registrar_ The address of the Registrar contract.
      * @param  migrationAdmin_ The address of a migration admin.
      */
-    constructor(address registrar_, address migrationAdmin_) ContinuousIndexing() ERC20Extended("M by M^0", "M", 6) {
+    constructor(address registrar_, address migrationAdmin_) ContinuousIndexing() ERC20Extended("M by M0", "M", 6) {
         _disableInitializers();
-        
+
         if ((registrar = registrar_) == address(0)) revert ZeroRegistrar();
         if ((portal = RegistrarReader.getPortal(registrar_)) == address(0)) revert ZeroPortal();
         if ((migrationAdmin = migrationAdmin_) == address(0)) revert ZeroMigrationAdmin();
@@ -81,8 +99,13 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended, Migratable {
     /* ============ Initializer ============ */
 
     /// @inheritdoc IMToken
-    function initialize() external initializer {
+    function initialize(string memory name_, string memory symbol_) external initializer {
         _initialize();
+
+        MTokenStorage storage $ = _getMTokenStorage();
+
+        $.name = Bytes32String.toBytes32(name_);
+        $.symbol = Bytes32String.toBytes32(symbol_);
     }
 
     /* ============ Interactive Functions ============ */
@@ -138,6 +161,15 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended, Migratable {
     }
 
     /* ============ View/Pure Functions ============ */
+    /// @inheritdoc IERC20
+    function name() external view override(IERC20, ERC20Extended) returns (string memory name_) {
+        return Bytes32String.toString(_getMTokenStorage().name);
+    }
+
+    /// @inheritdoc IERC20
+    function symbol() external view override(IERC20, ERC20Extended) returns (string memory symbol_) {
+        return Bytes32String.toString(_getMTokenStorage().symbol);
+    }
 
     /// @inheritdoc IMToken
     function totalEarningSupply() public view returns (uint240 totalEarningSupply_) {

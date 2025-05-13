@@ -44,7 +44,7 @@ contract MTokenTests is TestUtils {
         _registrar.setPortal(_portal);
 
         _implementation = new MTokenHarness(address(_registrar), _migrationAdmin);
-        _mToken = MTokenHarness(address(new ERC1967Proxy(address(_implementation), abi.encodeCall(IMToken.initialize, ()))));
+        _mToken = MTokenHarness(address(new ERC1967Proxy(address(_implementation), abi.encodeCall(IMToken.initialize, ("M by M0", "M")))));
 
         _mToken.setLatestIndex(_expectedCurrentIndex = 1_100000068703);
     }

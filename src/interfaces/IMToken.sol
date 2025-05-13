@@ -108,8 +108,12 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
      */
     function stopEarning(address account) external;
 
-    /// @notice Initializes the Proxy's storage.
-    function initialize() external;
+    /**
+     * @notice Initializes the Proxy's storage.
+     * @param  name   The name of the token.
+     * @param  symbol The symbol of the token.
+     */
+    function initialize(string memory name, string memory symbol) external;
 
     /**
      * @notice Performs an arbitrarily defined migration.

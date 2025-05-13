@@ -54,7 +54,7 @@ contract MigrationTests is Test {
         );
 
         _implementation = new MToken(_registrar, _migrationAdmin);
-        _mToken = MToken(address(new ERC1967Proxy(address(_implementation), abi.encodeCall(IMToken.initialize, ()))));
+        _mToken = MToken(address(new ERC1967Proxy(address(_implementation), abi.encodeCall(IMToken.initialize, ("M by M0", "M")))));
     }
 
     function test_migration() external {
