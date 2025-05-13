@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 
 import { IERC20Extended } from "../lib/common/src/interfaces/IERC20Extended.sol";
 import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
+import { ERC1967Proxy } from "../lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import { IContinuousIndexing } from "../src/interfaces/IContinuousIndexing.sol";
 import { IMToken } from "../src/interfaces/IMToken.sol";
@@ -26,6 +27,7 @@ contract MTokenTests is TestUtils {
 
     address internal _portal = makeAddr("portal");
 
+    address internal _migrationAdmin = makeAddr("migrationAdmin");
     address[] internal _accounts = [_alice, _bob, _charlie, _david];
 
     uint256 internal _start = vm.getBlockTimestamp();
@@ -33,13 +35,16 @@ contract MTokenTests is TestUtils {
     uint128 internal _expectedCurrentIndex;
 
     MockRegistrar internal _registrar;
+
+    MTokenHarness internal _implementation;
     MTokenHarness internal _mToken;
 
     function setUp() external {
         _registrar = new MockRegistrar();
         _registrar.setPortal(_portal);
 
-        _mToken = new MTokenHarness(address(_registrar));
+        _implementation = new MTokenHarness(address(_registrar), _migrationAdmin);
+        _mToken = MTokenHarness(address(new ERC1967Proxy(address(_implementation), abi.encodeCall(IMToken.initialize, ()))));
 
         _mToken.setLatestIndex(_expectedCurrentIndex = 1_100000068703);
     }
@@ -55,14 +60,19 @@ contract MTokenTests is TestUtils {
     /* ============ constructor ============ */
     function test_constructor_zeroRegistrar() external {
         vm.expectRevert(IMToken.ZeroRegistrar.selector);
-        new MTokenHarness(address(0));
+        new MTokenHarness(address(0), _migrationAdmin);
+    }
+
+    function test_constructor_zeroMigrationAdmin() external {
+        vm.expectRevert(IMToken.ZeroMigrationAdmin.selector);
+        new MTokenHarness(address(_registrar), address(0));
     }
 
     function test_constructor_zeroPortal() external {
         _registrar.setPortal(address(0));
 
         vm.expectRevert(IMToken.ZeroPortal.selector);
-        new MTokenHarness(address(_registrar));
+        new MTokenHarness(address(_registrar), _migrationAdmin);
     }
 
     /* ============ mint ============ */
