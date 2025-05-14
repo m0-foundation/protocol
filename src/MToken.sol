@@ -25,7 +25,7 @@ abstract contract MTokenStorageLayout {
     }
 
     // keccak256(abi.encode(uint256(keccak256("m0.storage.MToken")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant _M_TOKEN_STORAGE_SLOT = 0x93466981a55ce4da70da67506024f05bd15faf7fdab908fab669c24c9fb04d00;
+    bytes32 private constant _M_TOKEN_STORAGE_SLOT = 0xeb521740570240fc3b71275bd090460409d92adf7cec95ba2df10066ee73c700;
 
     function _getMTokenStorage() internal pure returns (MTokenStorage storage $) {
         assembly {
