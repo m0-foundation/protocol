@@ -67,14 +67,15 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended, Migratable {
     /**
      * @notice Constructs the M Token contract.
      * @dev    Sets immutable storage.
-     * @param  registrar_ The address of the Registrar contract.
+     * @param  registrar_      The address of the Registrar contract.
+     * @param  portal_         The address of the Portal contract.
      * @param  migrationAdmin_ The address of a migration admin.
      */
-    constructor(address registrar_, address migrationAdmin_) ContinuousIndexing() ERC20Extended("M by M^0", "M", 6) {
+    constructor(address registrar_, address portal_, address migrationAdmin_) ContinuousIndexing() ERC20Extended("M by M^0", "M", 6) {
         _disableInitializers();
         
         if ((registrar = registrar_) == address(0)) revert ZeroRegistrar();
-        if ((portal = RegistrarReader.getPortal(registrar_)) == address(0)) revert ZeroPortal();
+        if ((portal = portal_) == address(0)) revert ZeroPortal();
         if ((migrationAdmin = migrationAdmin_) == address(0)) revert ZeroMigrationAdmin();
     }
 
