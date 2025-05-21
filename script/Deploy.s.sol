@@ -12,15 +12,18 @@ contract Deploy is Script, DeployBase {
 
     function run() external {
         (address deployer_, ) = deriveRememberKey(vm.envString("MNEMONIC"), 0);
+        address migrationAdmin_ = vm.envAddress("MIGRATION_ADMIN");
 
         console2.log("Deployer:", deployer_);
+        console2.log("Migration Admin:", migrationAdmin_);
 
         vm.startBroadcast(deployer_);
 
-        address mToken_ = deploy(_REGISTRAR);
+        (address implementation_, address proxy_) = deploy(_REGISTRAR, migrationAdmin_);
 
         vm.stopBroadcast();
 
-        console2.log("M Token address:", mToken_);
+        console2.log("M Token Implementation address:", implementation_);
+        console2.log("M Token Proxy address:", proxy_);
     }
 }

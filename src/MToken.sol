@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 
 import { ERC20Extended } from "../lib/common/src/ERC20Extended.sol";
 import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
+import { Migratable } from "../lib/common/src/Migratable.sol";
 
 import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 
@@ -20,7 +21,7 @@ import { ContinuousIndexingMath } from "./libs/ContinuousIndexingMath.sol";
  * @author M^0 Labs
  * @notice ERC20 M Token living on other chains.
  */
-contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
+contract MToken is IMToken, ContinuousIndexing, ERC20Extended, Migratable {
     /* ============ Structs ============ */
 
     /**
@@ -40,6 +41,9 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /// @inheritdoc IMToken
     address public immutable registrar;
+
+    /// @inheritdoc IMToken
+    address public immutable migrationAdmin;
 
     /// @inheritdoc IMToken
     uint240 public totalNonEarningSupply;
@@ -62,11 +66,24 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
 
     /**
      * @notice Constructs the M Token contract.
-     * @param  registrar_ The address of the Registrar contract.
+     * @dev    Sets immutable storage.
+     * @param  registrar_      The address of the Registrar contract.
+     * @param  portal_         The address of the Portal contract.
+     * @param  migrationAdmin_ The address of a migration admin.
      */
-    constructor(address registrar_) ContinuousIndexing() ERC20Extended("M by M^0", "M", 6) {
+    constructor(address registrar_, address portal_, address migrationAdmin_) ContinuousIndexing() ERC20Extended("M by M^0", "M", 6) {
+        _disableInitializers();
+        
         if ((registrar = registrar_) == address(0)) revert ZeroRegistrar();
-        if ((portal = RegistrarReader.getPortal(registrar_)) == address(0)) revert ZeroPortal();
+        if ((portal = portal_) == address(0)) revert ZeroPortal();
+        if ((migrationAdmin = migrationAdmin_) == address(0)) revert ZeroMigrationAdmin();
+    }
+
+    /* ============ Initializer ============ */
+
+    /// @inheritdoc IMToken
+    function initialize() external initializer {
+        _initialize();
     }
 
     /* ============ Interactive Functions ============ */
@@ -110,6 +127,15 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
         if (_isApprovedEarner(account_)) revert IsApprovedEarner();
 
         _stopEarning(account_);
+    }
+
+    /**
+     * @dev   Performs the contract migration by calling `migrator_`.
+     * @param migrator_ The address of a migrator contract.
+     */
+    function migrate(address migrator_) external {
+        if (msg.sender != migrationAdmin) revert UnauthorizedMigration();
+        _migrate(migrator_);
     }
 
     /* ============ View/Pure Functions ============ */
@@ -437,5 +463,11 @@ contract MToken is IMToken, ContinuousIndexing, ERC20Extended {
     /// @dev Reverts if the caller is not the portal.
     function _revertIfNotPortal() internal view {
         if (msg.sender != portal) revert NotPortal();
+    }
+
+    /// @inheritdoc Migratable
+    function _getMigrator() internal pure override returns (address migrator_) {
+        // NOTE: in this version only the admin-controlled migration via `migrate()` function is supported
+        return address(0);
     }
 }
