@@ -59,7 +59,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         _minterGateway.burnM(_minters[0], aliceBalance);
 
         assertEq(_minterGateway.activeOwedMOf(_minters[0]), 0);
-        assertEq(_mToken.balanceOf(_alice), aliceBalance - minterOwedM - 1);
+        assertEq(_mToken.balanceOf(_alice), aliceBalance - minterOwedM);
 
         // Minter can mint again without imposing any penalties for missed collateral updates
         vm.warp(vm.getBlockTimestamp() + 60 days);
@@ -311,7 +311,7 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertEq(_minterGateway.totalActiveOwedM(), 500_457040);
         assertEq(_mToken.totalEarningSupply(), 249_999999);
         assertEq(_minterGateway.minterRate(), 40_000);
-        assertEq(_mToken.earnerRate(), 63_090);
+        assertEq(_mToken.earnerRate(), 68_698);
 
         uint256 timestamp_ = vm.getBlockTimestamp();
 
@@ -387,9 +387,9 @@ contract IntegrationTests is IntegrationBaseSetup {
         assertGe(_minterGateway.totalOwedM(), _mToken.totalSupply());
 
         assertEq(_minterGateway.totalActiveOwedM(), 500_000001);
-        assertEq(_mToken.totalEarningSupply(), 1301_316149);
+        assertEq(_mToken.totalEarningSupply(), 1301_433245);
         assertEq(_minterGateway.minterRate(), 40_000);
-        assertEq(_mToken.earnerRate(), 13_832);
+        assertEq(_mToken.earnerRate(), 15_059);
 
         uint256 timestamp_ = vm.getBlockTimestamp();
 

@@ -55,4 +55,18 @@ interface IEarnerRateModel is IRateModel {
         uint240 totalEarningSupply,
         uint32 minterRate
     ) external pure returns (uint32);
+
+    /**
+     * @notice Returns the extra safe earner rate - safe earner rate adjusted by `RATE_MULTIPLIER`.
+     * @dev    `extraSafeEarnerRate = safeEarnerRate * RATE_MULTIPLIER`
+     * @param  totalActiveOwedM   The total active owed M.
+     * @param  totalEarningSupply The total earning supply of M Token.
+     * @param  minterRate         The minter rate.
+     * @return The extra safe earner rate.
+     */
+    function getExtraSafeEarnerRate(
+        uint240 totalActiveOwedM,
+        uint240 totalEarningSupply,
+        uint32 minterRate
+    ) external pure returns (uint32);
 }
