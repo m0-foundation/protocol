@@ -16,7 +16,7 @@ import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
 
 /**
  * @title  Earner Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by MToken.
- * @author M^0 Labs
+ * @author M0 Labs
  */
 contract EarnerRateModel is IEarnerRateModel {
     /* ============ Variables ============ */
