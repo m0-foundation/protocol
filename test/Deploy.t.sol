@@ -24,16 +24,17 @@ contract Deploy is Test, DeployBase {
     }
 
     function test_deploy() external {
+        uint64 deployerNonce_ = vm.getNonce(address(this));
         (address minterGateway_, address minterRateModel_, address earnerRateModel_) = deploy(
             address(this),
-            2,
+            deployerNonce_,
             address(_ttgRegistrar)
         );
 
-        address mToken_ = getExpectedMToken(address(this), 2);
+        address mToken_ = getExpectedMToken(address(this), deployerNonce_);
 
         // Minter Gateway assertions
-        assertEq(minterGateway_, getExpectedMinterGateway(address(this), 2));
+        assertEq(minterGateway_, getExpectedMinterGateway(address(this), deployerNonce_));
         assertEq(IMinterGateway(minterGateway_).ttgRegistrar(), address(_ttgRegistrar));
         assertEq(IMinterGateway(minterGateway_).ttgVault(), _TTG_VAULT);
         assertEq(IMinterGateway(minterGateway_).mToken(), mToken_);
@@ -43,11 +44,11 @@ contract Deploy is Test, DeployBase {
         assertEq(IMToken(mToken_).ttgRegistrar(), address(_ttgRegistrar));
 
         // Minter Rate Model assertions
-        assertEq(minterRateModel_, getExpectedMinterRateModel(address(this), 2));
+        assertEq(minterRateModel_, getExpectedMinterRateModel(address(this), deployerNonce_));
         assertEq(IMinterRateModel(minterRateModel_).ttgRegistrar(), address(_ttgRegistrar));
 
         // Earner Rate Model assertions
-        assertEq(earnerRateModel_, getExpectedEarnerRateModel(address(this), 2));
+        assertEq(earnerRateModel_, getExpectedEarnerRateModel(address(this), deployerNonce_));
         assertEq(IEarnerRateModel(earnerRateModel_).mToken(), mToken_);
         assertEq(IEarnerRateModel(earnerRateModel_).minterGateway(), minterGateway_);
         assertEq(IEarnerRateModel(earnerRateModel_).ttgRegistrar(), address(_ttgRegistrar));
