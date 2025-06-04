@@ -20,6 +20,7 @@ verbosity = 3
 ignored_error_codes = []
 block_number = 17_740_856
 block_timestamp = 1_689_934_508
+block_gas_limit = 3000000000
 
 [profile.production]
 evm_version = "shanghai"
