@@ -64,14 +64,21 @@ contract EarnerRateModel is IEarnerRateModel {
 
     /// @inheritdoc IRateModel
     function rate() external view returns (uint256) {
+        uint256 earnerRate_ = maxRate();
+        uint32 minterRate_ = IMinterGateway(minterGateway).minterRate();
+        uint240 totalActiveOwedM_ = IMinterGateway(minterGateway).totalActiveOwedM();
+
+        // If there are no active minters or minter rate is zero, do not accrue yield to earners.
+        if (totalActiveOwedM_ == 0 || minterRate_ == 0) return 0;
+
+        // NOTE: if `earnerRate` <= `minterRate` and there are no deactivated minters with outstanding balance,
+        //       it is safe to return `earnerRate` as the effective rate.
+        if (earnerRate_ <= minterRate_ && IMinterGateway(minterGateway).totalInactiveOwedM() == 0) return earnerRate_;
+
         return
             UIntMath.min256(
-                maxRate(),
-                getExtraSafeEarnerRate(
-                    IMinterGateway(minterGateway).totalActiveOwedM(),
-                    IMToken(mToken).totalEarningSupply(),
-                    IMinterGateway(minterGateway).minterRate()
-                )
+                earnerRate_,
+                getExtraSafeEarnerRate(totalActiveOwedM_, IMToken(mToken).totalEarningSupply(), minterRate_)
             );
     }
 
