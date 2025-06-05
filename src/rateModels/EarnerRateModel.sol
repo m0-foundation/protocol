@@ -16,7 +16,7 @@ import { IEarnerRateModel } from "./interfaces/IEarnerRateModel.sol";
 
 /**
  * @title  Earner Rate Model contract set in TTG (Two Token Governance) Registrar and accessed by MToken.
- * @author M^0 Labs
+ * @author M0 Labs
  */
 contract EarnerRateModel is IEarnerRateModel {
     /* ============ Variables ============ */
@@ -64,15 +64,20 @@ contract EarnerRateModel is IEarnerRateModel {
 
     /// @inheritdoc IRateModel
     function rate() external view returns (uint256) {
+        uint256 earnerRate_ = maxRate();
+        uint32 minterRate_ = IMinterGateway(minterGateway).minterRate();
+        uint240 totalActiveOwedM_ = IMinterGateway(minterGateway).totalActiveOwedM();
+        uint240 totalEarningSupply_ = IMToken(mToken).totalEarningSupply();
+
+        // If there are no active minters or minter rate is zero, do not accrue yield to earners.
+        if (totalActiveOwedM_ == 0 || minterRate_ == 0) return 0;
+
+        // NOTE: If `earnerRate` <= `minterRate` and there are no deactivated minters in the system,
+        //       it is safe to return `earnerRate` as the effective rate.
+        if (earnerRate_ <= minterRate_ && totalActiveOwedM_ >= totalEarningSupply_) return earnerRate_;
+
         return
-            UIntMath.min256(
-                maxRate(),
-                getExtraSafeEarnerRate(
-                    IMinterGateway(minterGateway).totalActiveOwedM(),
-                    IMToken(mToken).totalEarningSupply(),
-                    IMinterGateway(minterGateway).minterRate()
-                )
-            );
+            UIntMath.min256(earnerRate_, getExtraSafeEarnerRate(totalActiveOwedM_, totalEarningSupply_, minterRate_));
     }
 
     /// @inheritdoc IEarnerRateModel
