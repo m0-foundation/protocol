@@ -1520,7 +1520,7 @@ contract MinterGatewayTests is TestUtils {
         vm.assume(principalOfActiveOwedM_ < _minterGateway.maxAllowedActiveOwedMOf(_minter1));
 
         if (principalOfActiveOwedM_ % 2 != 0) {
-            // @dev make sure assertion with divison by 2 calculates accurately
+            // @dev make sure assertion with division by 2 calculates accurately
             principalOfActiveOwedM_ -= 1;
         }
 
