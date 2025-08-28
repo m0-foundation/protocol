@@ -515,7 +515,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /// @inheritdoc IMinterGateway
     function principalOfActiveOwedMOf(address minter_) public view returns (uint112) {
-        // NOTE: This should also include the principal value of unavoidable penalities. But then it would be very, if
+        // NOTE: This should also include the principal value of unavoidable penalties. But then it would be very, if
         //       not impossible, to determine the `principalOfTotalActiveOwedM` to the same standards.
         return
             _minterStates[minter_].isActive
@@ -525,7 +525,7 @@ contract MinterGateway is IMinterGateway, ContinuousIndexing, ERC712Extended {
 
     /// @inheritdoc IMinterGateway
     function activeOwedMOf(address minter_) public view returns (uint240) {
-        // NOTE: This should also include the present value of unavoidable penalities. But then it would be very, if
+        // NOTE: This should also include the present value of unavoidable penalties. But then it would be very, if
         //       not impossible, to determine the `totalActiveOwedM` to the same standards.
         return
             _minterStates[minter_].isActive
