@@ -50,11 +50,17 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
     /// @notice Emitted when principal of total supply (earning and non-earning) will overflow a `type(uint112).max`.
     error OverflowsPrincipalOfTotalSupply();
 
+    /// @notice Emitted when the migrate function is called by a account other than the migration admin.
+    error UnauthorizedMigration();
+
     /// @notice Emitted in constructor if the Portal address in the Registrar is 0x0.
     error ZeroPortal();
 
     /// @notice Emitted in constructor if the Registrar address is 0x0.
     error ZeroRegistrar();
+
+    /// @notice Emitted in constructor if Migration Admin is 0x0.
+    error ZeroMigrationAdmin();
 
     /* ============ Interactive Functions ============ */
 
@@ -102,6 +108,15 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
      */
     function stopEarning(address account) external;
 
+    /// @notice Initializes the Proxy's storage.
+    function initialize() external;
+
+    /**
+     * @notice Performs an arbitrarily defined migration.
+     * @param  migrator The address of a migrator contract.
+     */
+    function migrate(address migrator) external;
+
     /* ============ View/Pure Functions ============ */
 
     /// @notice The address of the M Portal contract.
@@ -109,6 +124,9 @@ interface IMToken is IContinuousIndexing, IERC20Extended {
 
     /// @notice The address of the Registrar contract.
     function registrar() external view returns (address);
+
+    /// @notice The account that  can call the `migrate(address migrator)` function.
+    function migrationAdmin() external view returns (address migrationAdmin);
 
     /**
      * @notice The principal of an earner M token balance.

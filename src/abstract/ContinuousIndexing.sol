@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.26;
 
+import { Initializable } from "../../lib/openzeppelin-contracts/contracts/proxy/utils/Initializable.sol";
+
 import { IContinuousIndexing } from "../interfaces/IContinuousIndexing.sol";
 
 import { ContinuousIndexingMath } from "../libs/ContinuousIndexingMath.sol";
@@ -10,7 +12,7 @@ import { ContinuousIndexingMath } from "../libs/ContinuousIndexingMath.sol";
  * @title Abstract Continuous Indexing Contract to handle index updates in inheriting contracts.
  * @author M^0 Labs
  */
-abstract contract ContinuousIndexing is IContinuousIndexing {
+abstract contract ContinuousIndexing is IContinuousIndexing, Initializable {
     /* ============ Variables ============ */
 
     /// @inheritdoc IContinuousIndexing
@@ -19,10 +21,10 @@ abstract contract ContinuousIndexing is IContinuousIndexing {
     /// @inheritdoc IContinuousIndexing
     uint40 public latestUpdateTimestamp;
 
-    /* ============ Constructor ============ */
+    /* ============ Initializer ============ */
 
-    /// @notice Constructs the ContinuousIndexing contract.
-    constructor() {
+    /// @notice Initializes Proxy's storage.
+    function _initialize() internal onlyInitializing {
         latestIndex = ContinuousIndexingMath.EXP_SCALED_ONE;
         latestUpdateTimestamp = uint40(block.timestamp);
     }
