@@ -43,7 +43,7 @@ contract MTokenTests is TestUtils {
         _registrar = new MockRegistrar();
         _registrar.setPortal(_portal);
 
-        _implementation = new MTokenHarness(address(_registrar), _migrationAdmin);
+        _implementation = new MTokenHarness(address(_registrar), _portal, _migrationAdmin);
         _mToken = MTokenHarness(address(new ERC1967Proxy(address(_implementation), abi.encodeCall(IMToken.initialize, ()))));
 
         _mToken.setLatestIndex(_expectedCurrentIndex = 1_100000068703);
@@ -60,19 +60,17 @@ contract MTokenTests is TestUtils {
     /* ============ constructor ============ */
     function test_constructor_zeroRegistrar() external {
         vm.expectRevert(IMToken.ZeroRegistrar.selector);
-        new MTokenHarness(address(0), _migrationAdmin);
+        new MTokenHarness(address(0), _portal, _migrationAdmin);
     }
 
     function test_constructor_zeroMigrationAdmin() external {
         vm.expectRevert(IMToken.ZeroMigrationAdmin.selector);
-        new MTokenHarness(address(_registrar), address(0));
+        new MTokenHarness(address(_registrar), _portal, address(0));
     }
 
     function test_constructor_zeroPortal() external {
-        _registrar.setPortal(address(0));
-
         vm.expectRevert(IMToken.ZeroPortal.selector);
-        new MTokenHarness(address(_registrar), _migrationAdmin);
+        new MTokenHarness(address(_registrar), address(0), _migrationAdmin);
     }
 
     /* ============ mint ============ */

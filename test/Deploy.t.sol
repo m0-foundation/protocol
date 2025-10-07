@@ -20,17 +20,11 @@ contract Deploy is Test, DeployBase {
     uint64 internal constant _DEPLOYER_PROXY_NONCE = 8;
 
     function test_deploy() external {
-        vm.mockCall(
-            _REGISTRAR,
-            abi.encodeWithSelector(IRegistrar.portal.selector),
-            abi.encode(_PORTAL)
-        );
-
         // Set nonce to 1 before `_DEPLOYER_PROXY_NONCE` since implementation is deployed before proxy.
         vm.setNonce(_DEPLOYER, _DEPLOYER_PROXY_NONCE - 1);
 
         vm.startPrank(_DEPLOYER);
-        (address implementation_, address proxy_) = deploy(_REGISTRAR, _MIGRATION_ADMIN);
+        (address implementation_, address proxy_) = deploy(_REGISTRAR, _PORTAL, _MIGRATION_ADMIN);
         vm.stopPrank();
 
         // M Token Implementation assertions

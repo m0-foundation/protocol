@@ -47,13 +47,7 @@ contract MigrationTests is Test {
     MToken internal _mToken;
 
     function setUp() external {
-        vm.mockCall(
-            _registrar,
-            abi.encodeWithSelector(IRegistrar.portal.selector),
-            abi.encode(_portal)
-        );
-
-        _implementation = new MToken(_registrar, _migrationAdmin);
+        _implementation = new MToken(_registrar, _portal, _migrationAdmin);
         _mToken = MToken(address(new ERC1967Proxy(address(_implementation), abi.encodeCall(IMToken.initialize, ()))));
     }
 

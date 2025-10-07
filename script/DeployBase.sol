@@ -11,12 +11,13 @@ contract DeployBase {
     /**
      * @dev    Deploys the M Token contract.
      * @param  registrar_      The address of the Registrar contract.
+     * @param  portal_         The address of the Portal contract.
      * @param  migrationAdmin_ The address of a migration admin.
      * @return implementation_ The address of the deployed M Token implementation.
      * @return proxy_          The address of the deployed M Token proxy.
      */
-    function deploy(address registrar_, address migrationAdmin_) public virtual returns (address implementation_, address proxy_) {
-        implementation_ = address(new MToken(registrar_, migrationAdmin_));
+    function deploy(address registrar_, address portal_, address migrationAdmin_) public virtual returns (address implementation_, address proxy_) {
+        implementation_ = address(new MToken(registrar_, portal_, migrationAdmin_));
         proxy_ = address(new ERC1967Proxy(implementation_, abi.encodeCall(MToken.initialize, ())));
     }
 

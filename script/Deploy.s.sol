@@ -9,6 +9,7 @@ import { DeployBase } from "./DeployBase.sol";
 contract Deploy is Script, DeployBase {
     // NOTE: Ensure this is the correct Registrar testnet/mainnet address.
     address internal constant _REGISTRAR = 0x0000000000000000000000000000000000000000;
+    address internal constant _PORTAL = 0x0000000000000000000000000000000000000000;
 
     function run() external {
         (address deployer_, ) = deriveRememberKey(vm.envString("MNEMONIC"), 0);
@@ -19,7 +20,7 @@ contract Deploy is Script, DeployBase {
 
         vm.startBroadcast(deployer_);
 
-        (address implementation_, address proxy_) = deploy(_REGISTRAR, migrationAdmin_);
+        (address implementation_, address proxy_) = deploy(_REGISTRAR, _PORTAL, migrationAdmin_);
 
         vm.stopBroadcast();
 
